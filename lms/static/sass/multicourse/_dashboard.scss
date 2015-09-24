@@ -194,7 +194,6 @@
     margin: 0;
     width: flex-grid(9);
 
-
     .wrapper-header-courses {
       border-bottom: 4px solid $border-color-l4;
       margin-bottom: $baseline;
@@ -257,6 +256,10 @@
           padding-bottom: 0;
         }
       }
+    }
+
+    &:focus {
+      outline: none;
     }
   }
 }

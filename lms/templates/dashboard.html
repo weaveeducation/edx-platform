@@ -74,7 +74,7 @@ import json
 </div>
 
 <section class="container dashboard" id="dashboard-main">
-  <section class="my-courses" id="my-courses" role="main" aria-label="Content">
+  <main class="my-courses" id="my-courses" aria-label="Content" tabindex="-1">
     <header class="wrapper-header-courses">
       <h2 class="header-courses">${_("My Courses")}</h2>
     </header>
@@ -126,7 +126,7 @@ import json
       % endfor
       </div>
     % endif
-  </section>
+  </main>
 
   % if settings.FEATURES.get('ENABLE_DASHBOARD_SEARCH'):
     <div id="dashboard-search-bar" class="search-bar dashboard-search-bar" role="search" aria-label="Dashboard">
