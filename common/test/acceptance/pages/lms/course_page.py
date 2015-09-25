@@ -3,6 +3,7 @@ Base class for pages in courseware.
 """
 
 from bok_choy.page_object import PageObject
+from bok_choy.promise import EmptyPromise
 from . import BASE_URL
 from .tab_nav import TabNavPage
 
@@ -46,7 +47,6 @@ class CoursePage(PageObject):
 
         skip_to = self.q(css=".nav-skip").attrs('href')[0]
         self.q(css=".nav-skip").first().click()
-        EmptyPromise(
-            lambda: self.q(skip_to).present,
-            "Main content area received focus"
-        ).fulfill()
+        return EmptyPromise(
+            lambda: self.q(skip_to).present, "Main content area received focus"
+        ).fullfill()
