@@ -1,8 +1,6 @@
 <!DOCTYPE html>
-{% load pipeline %}
-{% load sekizai_tags i18n microsite %}
+{% load compressed sekizai_tags i18n microsite pipeline optional_include %}
 {% load url from future %}
-{% load staticfiles %}
 <html lang="{{LANGUAGE_CODE}}">
 <head>
   <meta charset="UTF-8">
@@ -21,7 +19,7 @@
   {% block headextra %}{% endblock %}
   {% render_block "css" %}
 
-  {% microsite_css_overrides_file %}
+  {% optional_include "head-extra.html" %}
 
   <meta name="path_prefix" content="{{EDX_ROOT_URL}}">
 </head>
