@@ -4,9 +4,13 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import FileSystemStorage
 from django.contrib.staticfiles.finders import BaseStorageFinder
+try:
+    from staticfiles.finders import BaseFinder
+except ImportError:
+    BaseFinder = object
 
 
-class ComprehensiveThemeFinder(BaseStorageFinder):
+class ComprehensiveThemeFinder(BaseStorageFinder, BaseFinder):
     """
     A static files finder that searches the active comprehensive theme
     for locate files. If the ``COMP_THEME_DIR`` setting is unset, or the
