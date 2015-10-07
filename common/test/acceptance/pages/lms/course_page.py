@@ -46,7 +46,7 @@ class CoursePage(PageObject):
         """
 
         skip_to = self.q(css=".nav-skip").attrs('href')[0]
-        self.q(css=".nav-skip").first().click()
+        self.q("{}:focus".format(skip_to)).present
         return EmptyPromise(
             lambda: self.q(skip_to).present, "Main content area received focus"
         ).fullfill()
