@@ -114,6 +114,10 @@ a, a:visited {
   margin: 0 auto;
   background: $content-wrapper-bg;
 
+  &:focus {
+    outline: none;
+  }
+
   @media print {
     padding-bottom: 0;
   }
