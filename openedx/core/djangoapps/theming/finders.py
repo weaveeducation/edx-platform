@@ -3,14 +3,15 @@ from path import path
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import FileSystemStorage
-from django.contrib.staticfiles.finders import BaseStorageFinder
 try:
     from staticfiles.finders import BaseFinder
+    from staticfiles import utils
 except ImportError:
-    BaseFinder = object
+    from django.contrib.staticfiles.finders import BaseFinder
+    from django.contrib.staticfiles import utils
 
 
-class ComprehensiveThemeFinder(BaseStorageFinder, BaseFinder):
+class ComprehensiveThemeFinder(BaseFinder):
     """
     A static files finder that searches the active comprehensive theme
     for locate files. If the ``COMP_THEME_DIR`` setting is unset, or the
@@ -19,6 +20,10 @@ class ComprehensiveThemeFinder(BaseStorageFinder, BaseFinder):
     """
     def __init__(self, *args, **kwargs):
         COMP_THEME_DIR = getattr(settings, "COMP_THEME_DIR", "")
+        if not COMP_THEME_DIR:
+            self.storage = None
+            return
+
         if not isinstance(settings.COMP_THEME_DIR, basestring):
             raise ImproperlyConfigured("Your COMP_THEME_DIR setting must be a string")
 
@@ -31,3 +36,26 @@ class ComprehensiveThemeFinder(BaseStorageFinder, BaseFinder):
         self.storage = FileSystemStorage(location=THEME_STATIC_DIR)
 
         super(ComprehensiveThemeFinder, self).__init__(*args, **kwargs)
+
+    def find(self, path, all=False):
+        """
+        Looks for files in the default file storage, if it's local.
+        """
+        if not self.storage:
+            return []
+
+        if self.storage.exists(path):
+            match = self.storage.path(path)
+            if all:
+                match = [match]
+            return match
+
+        return []
+
+    def list(self, ignore_patterns):
+        """
+        List all files of the storage.
+        """
+        if self.storage and self.storage.exists(''):
+            for path in utils.get_files(self.storage, ignore_patterns):
+                yield path, self.storage
