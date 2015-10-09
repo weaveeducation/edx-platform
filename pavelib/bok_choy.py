@@ -16,10 +16,7 @@ except ImportError:
 
 __test__ = False  # do not collect
 
-
-@task
-@needs('pavelib.prereqs.install_prereqs')
-@cmdopts([
+BOKCHOY_OPTS = [
     ('test_spec=', 't', 'Specific test to run'),
     ('fasttest', 'a', 'Skip some setup'),
     ('serversonly', 'r', 'Prepare suite and leave servers running'),
@@ -32,7 +29,31 @@ __test__ = False  # do not collect
     make_option("-v", "--verbosity", action="count", dest="verbosity"),
     make_option("--pdb", action="store_true", help="Drop into debugger on failures or errors"),
     make_option("--skip_firefox_version_validation", action='store_false', dest="validate_firefox_version")
-])
+]
+
+
+def parse_bokchoy_opts(options):
+    """
+    Parses bok choy options.
+
+    Returns: dict of options.
+    """
+    return {
+        'test_spec': getattr(options, 'test_spec', None),
+        'fasttest': getattr(options, 'fasttest', False),
+        'serversonly': getattr(options, 'serversonly', False),
+        'testsonly': getattr(options, 'testsonly', False),
+        'default_store': getattr(options, 'default_store', 'split'),
+        'verbosity': getattr(options, 'verbosity', 2),
+        'extra_args': getattr(options, 'extra_args', ''),
+        'pdb': getattr(options, 'pdb', False),
+        'test_dir': getattr(options, 'test_dir', 'tests'),
+    }
+
+
+@task
+@needs('pavelib.prereqs.install_prereqs')
+@cmdopts(BOKCHOY_OPTS)
 def test_bokchoy(options):
     """
     Run acceptance tests that use the bok-choy framework.
@@ -56,17 +77,31 @@ def test_bokchoy(options):
     if validate_firefox:
         check_firefox_version()
 
-    opts = {
-        'test_spec': getattr(options, 'test_spec', None),
-        'fasttest': getattr(options, 'fasttest', False),
-        'serversonly': getattr(options, 'serversonly', False),
-        'testsonly': getattr(options, 'testsonly', False),
-        'default_store': getattr(options, 'default_store', 'split'),
-        'verbosity': getattr(options, 'verbosity', 2),
-        'extra_args': getattr(options, 'extra_args', ''),
-        'pdb': getattr(options, 'pdb', False),
-        'test_dir': getattr(options, 'test_dir', 'tests'),
-    }
+    opts = parse_bokchoy_opts(options)
+    run_bokchoy(**opts)
+
+
+@task
+@needs('pavelib.prereqs.install_prereqs')
+@cmdopts(BOKCHOY_OPTS)
+def test_a11y(options):
+    """
+    Run accessibility tests that use the bok-choy framework.
+    Skips some static asset steps if `fasttest` is True.
+    Using 'serversonly' will prepare and run servers, leaving a process running in the terminal. At
+        the same time, a user can open a separate terminal and use 'testsonly' for executing tests against
+        those running servers.
+
+    `test_spec` is a nose-style test specifier relative to the test directory
+    Examples:
+    - path/to/test.py
+    - path/to/test.py:TestFoo
+    - path/to/test.py:TestFoo.test_bar
+    It can also be left blank to run all tests in the suite that are tagged
+    with `@attr("a11y")`.
+    """
+    opts = parse_bokchoy_opts(options)
+    opts['extra_args'] = opts['extra_args'] + ' -a "a11y" '
     run_bokchoy(**opts)
 
 
