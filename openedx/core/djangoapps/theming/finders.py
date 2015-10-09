@@ -3,12 +3,8 @@ from path import path
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import FileSystemStorage
-try:
-    from staticfiles.finders import BaseFinder
-    from staticfiles import utils
-except ImportError:
-    from django.contrib.staticfiles.finders import BaseFinder
-    from django.contrib.staticfiles import utils
+from django.contrib.staticfiles.finders import BaseFinder
+from django.contrib.staticfiles import utils
 
 
 class ComprehensiveThemeFinder(BaseFinder):
