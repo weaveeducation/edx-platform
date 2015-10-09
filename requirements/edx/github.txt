@@ -59,6 +59,8 @@ git+https://github.com/edx/ecommerce-api-client.git@1.1.0#egg=ecommerce-api-clie
 git+https://github.com/edx/edx-organizations.git@release-2015-09-22#egg=edx-organizations==0.1.6
 git+https://github.com/edx/edx-proctoring.git@0.9.16#egg=edx-proctoring==0.9.16
 
+-e git+https://github.com/edx/bok-choy.git@441d89466781379fccdd0041a81e0095c8cf1c96#egg=bok-choy
+
 # Third Party XBlocks
 -e git+https://github.com/mitodl/edx-sga@172a90fd2738f8142c10478356b2d9ed3e55334a#egg=edx-sga
 -e git+https://github.com/open-craft/xblock-poll@e7a6c95c300e95c51e42bfd1eba70489c05a6527#egg=xblock-poll
