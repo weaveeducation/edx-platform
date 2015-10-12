@@ -219,7 +219,7 @@ def update_account_settings(requesting_user, update, username=None):
             existing_user_profile.save()
 
     except PreferenceValidationError as err:
-        raise AccountValidationError(err)
+        raise AccountValidationError(err.preference_errors)
     except Exception as err:
         raise AccountUpdateError(
             u"Error thrown when saving account updates: '{}'".format(err.message)

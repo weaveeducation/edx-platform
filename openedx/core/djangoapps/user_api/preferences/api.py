@@ -113,7 +113,7 @@ def update_user_preferences(requesting_user, update, user=None):
     if not user or isinstance(user, basestring):
         user = _get_authorized_user(requesting_user, user)
     else:
-        _is_authorized(requesting_user, user.username)
+        _check_authorized(requesting_user, user.username)
 
     # First validate each preference setting
     errors = {}
@@ -313,19 +313,19 @@ def _get_authorized_user(requesting_user, username=None, allow_staff=False):
     except ObjectDoesNotExist:
         raise UserNotFound()
 
-    _is_authorized(requesting_user, username, allow_staff)
+    _check_authorized(requesting_user, username, allow_staff)
     return existing_user
 
 
-def _is_authorized(requesting_user, username, allow_staff=False):
+def _check_authorized(requesting_user, username, allow_staff=False):
     """
-    Helper method that returns true if user is authorized else raises
-    UserNotAuthorized
+    Helper method that raises UserNotAuthorized if requesting user
+    is not owner user or is not staff if access to staff is given
+    (i.e. 'allow_staff' = true)
     """
     if requesting_user.username != username:
         if not requesting_user.is_staff or not allow_staff:
             raise UserNotAuthorized()
-    return True
 
 
 def create_user_preference_serializer(user, preference_key, preference_value):

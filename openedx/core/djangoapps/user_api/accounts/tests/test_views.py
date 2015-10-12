@@ -391,6 +391,7 @@ class TestAccountAPI(UserAPITestCase):
             "z" * 3001, u"Ensure this field has no more than 3000 characters."
         ),
         ("account_privacy", ALL_USERS_VISIBILITY),
+        ("account_privacy", PRIVATE_VISIBILITY),
         # Note that email is tested below, as it is not immediately updated.
         # Note that language_proficiencies is tested below as there are multiple error and success conditions.
     )
@@ -417,7 +418,7 @@ class TestAccountAPI(UserAPITestCase):
             )
         elif field != "account_privacy":
             # If there are no values that would fail validation, then empty string should be supported;
-            # except account_privacy that could not be empty string.
+            # except for account_privacy, which cannot be an empty string.
             response = self.send_patch(client, {field: ""})
             self.assertEqual("", response.data[field])
 
