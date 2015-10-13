@@ -1949,6 +1949,7 @@ class UpdateThreadTest(
             "editable_fields": ["abuse_flagged", "following", "raw_body", "title", "topic_id", "type", "voted"],
             'read': False,
             'has_endorsed': False,
+            'response_count': 0
         }
         self.assertEqual(actual, expected)
         self.assertEqual(
