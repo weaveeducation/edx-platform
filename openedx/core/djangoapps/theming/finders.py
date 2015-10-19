@@ -1,5 +1,9 @@
-import os
-from path import path
+"""
+Static file finders for Django.
+https://docs.djangoproject.com/en/1.8/ref/settings/#std:setting-STATICFILES_FINDERS
+Yes, this interface is private and undocumented, but we need to access it anyway.
+"""
+from path import Path
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import FileSystemStorage
@@ -15,7 +19,7 @@ class ComprehensiveThemeFinder(BaseFinder):
     never find any files.
     """
     def __init__(self, *args, **kwargs):
-        COMP_THEME_DIR = getattr(settings, "COMP_THEME_DIR", "")
+        COMP_THEME_DIR = getattr(settings, "COMP_THEME_DIR", "")  # pylint: disable=invalid-name
         if not COMP_THEME_DIR:
             self.storage = None
             return
@@ -23,17 +27,17 @@ class ComprehensiveThemeFinder(BaseFinder):
         if not isinstance(settings.COMP_THEME_DIR, basestring):
             raise ImproperlyConfigured("Your COMP_THEME_DIR setting must be a string")
 
-        PROJECT_ROOT = getattr(settings, "PROJECT_ROOT", "")
+        PROJECT_ROOT = getattr(settings, "PROJECT_ROOT", "")  # pylint: disable=invalid-name
         if PROJECT_ROOT.endswith("cms"):
-            THEME_STATIC_DIR = path(settings.COMP_THEME_DIR) / "studio" / "static"
+            THEME_STATIC_DIR = Path(settings.COMP_THEME_DIR) / "studio" / "static"  # pylint: disable=invalid-name
         else:
-            THEME_STATIC_DIR = path(settings.COMP_THEME_DIR) / "lms" / "static"
+            THEME_STATIC_DIR = Path(settings.COMP_THEME_DIR) / "lms" / "static"  # pylint: disable=invalid-name
 
         self.storage = FileSystemStorage(location=THEME_STATIC_DIR)
 
         super(ComprehensiveThemeFinder, self).__init__(*args, **kwargs)
 
-    def find(self, path, all=False):
+    def find(self, path, all=False):  # pylint: disable=redefined-builtin
         """
         Looks for files in the default file storage, if it's local.
         """

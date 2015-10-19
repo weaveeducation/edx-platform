@@ -1,9 +1,20 @@
+"""
+The functions in this module are based on the contents of
+https://github.com/django/django/blob/1.4.22/django/template/loader_tags.py --
+specifically, the do_include function. It has been modified as little as
+possible, in order to match the behavior of the {% include %} template tag,
+except for making it optional.
+"""
+# Because we want to match the original loader_tags.py file as closely as
+# possible, we should disable pylint so it doesn't complain about the violations
+# that are already in that file
+# pylint: skip-file
 from django.conf import settings
-from django.template.base import TemplateSyntaxError, Library, Node, TextNode,\
-    token_kwargs, Variable, TemplateDoesNotExist
+from django.template.base import (
+    TemplateSyntaxError, Library, token_kwargs, TemplateDoesNotExist
+)
 from django.template.loader import get_template
-from django.template.loader_tags import BaseIncludeNode, IncludeNode, ConstantIncludeNode
-from django.utils.safestring import mark_safe
+from django.template.loader_tags import IncludeNode, ConstantIncludeNode
 
 register = Library()
 
