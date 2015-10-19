@@ -6,9 +6,9 @@ Yes, this interface is private and undocumented, but we need to access it anyway
 from path import Path
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.core.files.storage import FileSystemStorage
-from django.contrib.staticfiles.finders import BaseFinder
 from django.contrib.staticfiles import utils
+from django.contrib.staticfiles.finders import BaseFinder
+from django.contrib.staticfiles.storage import CachedStaticFilesStorage
 
 
 class ComprehensiveThemeFinder(BaseFinder):
@@ -33,7 +33,7 @@ class ComprehensiveThemeFinder(BaseFinder):
         else:
             THEME_STATIC_DIR = Path(settings.COMP_THEME_DIR) / "lms" / "static"  # pylint: disable=invalid-name
 
-        self.storage = FileSystemStorage(location=THEME_STATIC_DIR)
+        self.storage = CachedStaticFilesStorage(location=THEME_STATIC_DIR)
 
         super(ComprehensiveThemeFinder, self).__init__(*args, **kwargs)
 
