@@ -4,6 +4,7 @@ Django models related to course groups functionality.
 
 import json
 import logging
+import time
 
 from django.contrib.auth.models import User
 from django.db import models
@@ -112,10 +113,11 @@ CourseUserGroup unique_together constraint to solve the problem for us.
                         group_type=CourseUserGroup.COHORT
                     )
                 new_membership = CourseUserGroupMembership(user=self.user, course_user_group=dummy_group)
-                try:
-                    new_membership.save()
-                except Exception: #TODO: verify error class here
-                    pass #we're going to continue either way
+                #try:
+                time.sleep(20)
+                new_membership.save()
+                #except Exception: #TODO: verify error class here
+                #    pass #we're going to continue either way
                 continue
 
 """
