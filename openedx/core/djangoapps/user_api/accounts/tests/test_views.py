@@ -165,14 +165,15 @@ class TestAccountAPI(UserAPITestCase):
         self.assertEqual([{"code": "en"}], data["language_proficiencies"])
         self.assertEqual("Tired mother of twins", data["bio"])
 
-    def _verify_private_account_response(self, response, requires_parental_consent=False):
+    def _verify_private_account_response(self, response, requires_parental_consent=False, account_privacy=None):
         """
         Verify that only the public fields are returned if a user does not want to share account fields
         """
         data = response.data
-        self.assertEqual(2, len(data))
+        self.assertEqual(3, len(data))
         self.assertEqual(self.user.username, data["username"])
         self._verify_profile_image_data(data, not requires_parental_consent)
+        self.assertEqual(account_privacy, data["account_privacy"])
 
     def _verify_full_account_response(self, response, requires_parental_consent=False):
         """
@@ -274,7 +275,7 @@ class TestAccountAPI(UserAPITestCase):
             Confirms that private fields are private, and public/shareable fields are public/shareable
             """
             if preference_visibility == PRIVATE_VISIBILITY:
-                self._verify_private_account_response(response)
+                self._verify_private_account_response(response, account_privacy=PRIVATE_VISIBILITY)
             else:
                 self._verify_full_shareable_account_response(response)
 
@@ -687,11 +688,15 @@ class TestAccountAPI(UserAPITestCase):
             self.assertTrue(data["requires_parental_consent"])
             self.assertEqual(ALL_USERS_VISIBILITY, data["account_privacy"])
         else:
-            self._verify_private_account_response(response, requires_parental_consent=True)
+            self._verify_private_account_response(
+                response, requires_parental_consent=True, account_privacy=ALL_USERS_VISIBILITY
+            )
 
         # Verify that the shared view is still private
         response = self.send_get(client, query_parameters='view=shared')
-        self._verify_private_account_response(response, requires_parental_consent=True)
+        self._verify_private_account_response(
+            response, requires_parental_consent=True, account_privacy=ALL_USERS_VISIBILITY
+        )
 
 
 @unittest.skipUnless(settings.ROOT_URLCONF == 'lms.urls', 'Test only valid in lms')

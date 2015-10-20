@@ -2550,6 +2550,7 @@ ACCOUNT_VISIBILITY_CONFIGURATION = {
     "public_fields": [
         'username',
         'profile_image',
+        'account_privacy',
     ],
 
     # The list of account fields that are visible only to staff and users viewing their own profiles
