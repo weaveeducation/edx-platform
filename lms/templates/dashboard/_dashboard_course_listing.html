@@ -327,7 +327,7 @@ from student.helpers import (
             </div>
 
             <div class="wrapper-extended">
-                <p class="message-copy">${_("You can still sign up for an ID verified {cert_name_long} for this course. If you plan to complete the whole course, it is a great way to recognize your achievement. {link_start}Learn more about the verified {cert_name_long}{link_end}.").format(link_start='<a href="{}" class="learned-verified-track" data-course-key="{}">'.format(marketing_link('WHAT_IS_VERIFIED_CERT'), enrollment.course_id), link_end="</a>", cert_name_long=cert_name_long)}</p>
+                <p class="message-copy">${_("You can still sign up for an ID verified {cert_name_long} for this course. If you plan to complete the whole course, it is a great way to recognize your achievement. {link_start}Learn more about the verified {cert_name_long}{link_end}.").format(link_start='<a href="{}" class="verified-info" data-course-key="{}">'.format(marketing_link('WHAT_IS_VERIFIED_CERT'), enrollment.course_id), link_end="</a>", cert_name_long=cert_name_long)}</p>
 
               <ul class="actions message-actions">
                 <li class="action-item">

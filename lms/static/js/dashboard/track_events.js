@@ -60,7 +60,7 @@ var edx = edx || {};
         });
 
         // Emit an event  when the "Learn about verified" link is clicked.
-        $(".learned-verified-track").on("click", function (event) {
+        $(".verified-info").on("click", function (event) {
             var courseKey = $(event.target).data("course-key");
             window.analytics.track(
                 "edx.bi.dashboard.learn_verified.clicked",

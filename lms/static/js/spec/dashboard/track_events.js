@@ -4,7 +4,6 @@ define([
     ],
     function($) {
         'use strict';
-        var edx = edx || {};
 
         describe("edx.dashboard.TrackEvents", function() {
 
@@ -68,7 +67,7 @@ define([
             });
 
             it("sends an analytics event when the user clicks the learned about verified track link", function() {
-                $(".learned-verified-track").click();
+                $(".verified-info").click();
                 //Verify that analytics events fire when the "Learned about verified track" link is clicked.
                 expect(window.analytics.track).toHaveBeenCalledWith(
                     "edx.bi.dashboard.learn_verified.clicked",
