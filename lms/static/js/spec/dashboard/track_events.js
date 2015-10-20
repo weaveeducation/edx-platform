@@ -14,7 +14,7 @@ define([
                 // Stub the analytics event tracker
                 window.analytics = jasmine.createSpyObj('analytics', ['track']);
                 loadFixtures('js/fixtures/dashboard/dashboard.html');
-                edx.dashboard.TrackEvents();
+                window.edx.dashboard.TrackEvents();
             });
 
             it("sends an analytics event when the user clicks course title link", function() {
