@@ -5,7 +5,6 @@ Django models related to course groups functionality.
 import json
 import logging
 import time
-import uuid
 
 from django.contrib.auth.models import User
 from django.db import models
@@ -87,7 +86,7 @@ class CourseUserGroupMembership(models.Model):
             except CourseUserGroupMembership.DoesNotExist:
                 try:
                     dummy_group, created  = CourseUserGroup.objects.get_or_create(
-                        name="_db_internal_",
+                        name=CourseCohort.INTERNAL_NAME,
                         course_id=self.course_user_group.course_id,
                         group_type=CourseUserGroup.COHORT
                     )
@@ -108,7 +107,7 @@ class CourseUserGroupMembership(models.Model):
                     user_name=self.user.username,
                     cohort_name=self.course_user_group.name
                 ))
-            elif 'get_previous' in kwargs and kwargs['get_previous']:
+            elif 'get_previous' in kwargs and saved_membership.course_user_group.name != CourseCohort.INTERNAL_NAME:
                 self.previous_cohort = saved_membership.course_user_group
                 self.previous_cohort_name = saved_membership.course_user_group.name
                 self.previous_cohort_id = saved_membership.course_user_group.id
@@ -187,6 +186,8 @@ class CourseCohort(models.Model):
     This model represents cohort related info.
     """
     course_user_group = models.OneToOneField(CourseUserGroup, unique=True, related_name='cohort')
+
+    INTERNAL_NAME = '_db_internal_'
 
     RANDOM = 'random'
     MANUAL = 'manual'
