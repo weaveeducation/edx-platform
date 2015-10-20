@@ -67,22 +67,14 @@ class CourseUserGroupMembership(models.Model):
         unique_together = (('user', 'course_user_group'), )
 
     def save(self, *args, **kwargs):
-"""
-skip all of this race condition handling if:
-    -the user group being joined is not a cohort
-    -this is the initial save (v0) of a membership (prevents infinite loop)
-"""
         if self.course_user_group.group_type != CourseUserGroup.COHORT or self.version == 0:
             if 'get_previous' in kwargs:
                 del kwargs['get_previous']
             super(CourseUserGroupMembership, self).save(*args, **kwargs)
             return
 
-#set up the loop that will allow failed race condition cases to be retried
         self.trying_to_save = True
         while(self.trying_to_save):
-
-#first, see if any cohort memberships already exist in this course for this user
             try:
                 saved_membership = CourseUserGroupMembership.objects.exclude(
                     id = self.id
@@ -91,14 +83,6 @@ skip all of this race condition handling if:
                     course_user_group__course_id = self.course_user_group.course_id,
                     course_user_group__group_type = CourseUserGroup.COHORT
                 )
-
-"""
-If none exists, create a static "first membership" for the course. This is
-needed because we can guarantee multiprocess safety when changing a user's
-membership in a course, but not when creating it from nothing. By forcing
-all "first memberships" to be this one, with a static name, we allow the
-CourseUserGroup unique_together constraint to solve the problem for us.
-"""
             except CourseUserGroupMembership.DoesNotExist:
                 try:
                     dummy_group = CourseUserGroup.objects.get(
@@ -120,30 +104,16 @@ CourseUserGroup unique_together constraint to solve the problem for us.
                 #    pass #we're going to continue either way
                 continue
 
-"""
-if we've made it to this point, we're assured of having a value in
-saved_membership. So a previous version of the unique (user, cohort)
-combination has been found.
-"""
-#raise ValueError if trying to rejoin the same cohort (previous behavior)
             if saved_membership.course_user_group == self.course_user_group:
                 raise ValueError("User {user_name} already present in cohort {cohort_name}".format(
                     user_name=self.user.username,
                     cohort_name=self.course_user_group.name
                 ))
-#else save the previous cohort information, it's included in the emitted event
             elif 'get_previous' in kwargs and kwargs['get_previous']:
                 self.previous_cohort = saved_membership.course_user_group
                 self.previous_cohort_name = saved_membership.course_user_group.name
                 self.previous_cohort_id = saved_membership.course_user_group.id
 
-"""
-now, update the "saved" membership with the new value we want it to have. By
-using filter().update(), we get a single query that will find the "current"
-version saved_membership, and change it's version to +1. Since this is atomic,
-there's no way for 2 parallel processes to update simultaneously - the second
-filter() will not match anything after version is incremented.
-"""
             saved_membership.course_user_group = self.course_user_group
             updated = CourseUserGroupMembership.objects.filter(
                 id = saved_membership.id,
@@ -153,12 +123,9 @@ filter() will not match anything after version is incremented.
                 version = saved_membership.version + 1
             )
             if not updated:
-#if nothing was updated, we hit the race condition. Try again!
                 continue
 
-#if we've made it here, huzzah! we successfully updated the (user, cohort) membership
             self.trying_to_save = False
-#end save(), everything below here are just fields/properties of CourseUserGroupMembership
 
     id = models.AutoField(primary_key=True)
     course_user_group = models.ForeignKey(CourseUserGroup)
