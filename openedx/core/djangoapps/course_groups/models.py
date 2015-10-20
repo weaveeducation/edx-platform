@@ -5,6 +5,7 @@ Django models related to course groups functionality.
 import json
 import logging
 import time
+import uuid
 
 from django.contrib.auth.models import User
 from django.db import models
@@ -85,25 +86,23 @@ class CourseUserGroupMembership(models.Model):
                 )
             except CourseUserGroupMembership.DoesNotExist:
                 try:
-                    dummy_group = CourseUserGroup.objects.get(
+                    dummy_group, created  = CourseUserGroup.objects.get_or_create(
                         name="_db_internal_",
                         course_id=self.course_user_group.course_id,
                         group_type=CourseUserGroup.COHORT
                     )
-                except CourseUserGroup.DoesNotExist:
-                    dummy_group = CourseUserGroup(
-                        name="_db_internal_",
-                        course_id=self.course_user_group.course_id,
-                        group_type=CourseUserGroup.COHORT
-                    )
+                    dummy_cohort = CourseCohort.create(course_user_group=dummy_group)
+                except IntegrityError:
+                    continue
                 new_membership = CourseUserGroupMembership(user=self.user, course_user_group=dummy_group)
-                #try:
-                time.sleep(20)
-                new_membership.save()
-                #except Exception: #TODO: verify error class here
-                #    pass #we're going to continue either way
+                try:
+                    time.sleep(20)
+                    new_membership.save()
+                except IntegrityError:
+                    pass #we're going to continue either way
                 continue
 
+            print "saved membership found! proceeding..."
             if saved_membership.course_user_group == self.course_user_group:
                 raise ValueError("User {user_name} already present in cohort {cohort_name}".format(
                     user_name=self.user.username,
@@ -124,6 +123,8 @@ class CourseUserGroupMembership(models.Model):
             )
             if not updated:
                 continue
+
+            print "{count}: We did it! User {user} is now in group {cohort} in the {course} course. The membership is at version {version}".format(user=self.user, cohort=self.course_user_group.name, course=self.course_user_group.course_id, version=saved_membership.version+1, count=updated)
 
             self.trying_to_save = False
 
