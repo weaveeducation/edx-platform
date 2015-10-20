@@ -160,8 +160,8 @@ class OuterAtomic(transaction.Atomic):
         # TestCase setup nests tests in two atomics - one for the test class and one for the individual test.
         # The outermost atomic starts a transaction - so does not have a savepoint.
         # The inner atomic starts a savepoint around the test.
-        # So there should be exactly one savepoint_id and two atomic_for_testcase_calls.
-        if self.ALLOW_NESTED and (len(connection.savepoint_ids) - self.atomic_for_testcase_calls) > 1:
+        # So, for tests only, there should be exactly one savepoint_id and two atomic_for_testcase_calls.
+        if self.ALLOW_NESTED and (self.atomic_for_testcase_calls - len(connection.savepoint_ids)) > 1:
             raise transaction.TransactionManagementError('Cannot be inside an atomic block.')
 
         # Otherwise, this shouldn't be nested in any atomic block.

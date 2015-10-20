@@ -43,6 +43,7 @@ class ChooseModeView(View):
         return super(ChooseModeView, self).dispatch(*args, **kwargs)
 
     @method_decorator(login_required)
+    @method_decorator(transaction.atomic)
     def get(self, request, course_id, error=None):
         """Displays the course mode choice page.
 
