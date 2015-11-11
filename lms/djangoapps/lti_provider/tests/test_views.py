@@ -5,10 +5,10 @@ Tests for the LTI provider views
 from django.core.urlresolvers import reverse
 from django.test import TestCase
 from django.test.client import RequestFactory
-from mock import patch, MagicMock
+from mock import patch, MagicMock, ANY
 
 from courseware.testutils import RenderXBlockTestMixin
-from lti_provider import views, models
+from lti_provider import views, models, users
 from lti_provider.signature_validator import SignatureValidator
 from opaque_keys.edx.locator import CourseLocator, BlockUsageLocator
 from student.tests.factories import UserFactory
@@ -30,7 +30,10 @@ LTI_DEFAULT_PARAMS = {
 LTI_OPTIONAL_PARAMS = {
     'lis_result_sourcedid': u'result sourcedid',
     'lis_outcome_service_url': u'outcome service URL',
-    'tool_consumer_instance_guid': u'consumer instance guid'
+    'tool_consumer_instance_guid': u'consumer instance guid',
+    'lis_person_contact_email_primary': u'rob.smith@example.com',
+    'lis_person_name_given': u'Rob',
+    'lis_person_name_family': u'Smith'
 }
 
 COURSE_KEY = CourseLocator(org='some_org', course='some_course', run='some_run')
@@ -142,7 +145,6 @@ class LtiLaunchTest(LtiTestMixin, TestCase):
         request = build_launch_request()
         response = views.lti_launch(request, None, None)
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.status_code, 403)
 
     @patch('lti_provider.views.render_courseware')
     def test_lti_consumer_record_supplemented_with_guid(self, _render):
@@ -155,6 +157,14 @@ class LtiLaunchTest(LtiTestMixin, TestCase):
             consumer_key=LTI_DEFAULT_PARAMS['oauth_consumer_key']
         )
         self.assertEqual(consumer.instance_guid, u'consumer instance guid')
+
+    @patch('lti_provider.views.render_courseware')
+    @patch('lti_provider.views.authenticate_lti_user')
+    def test_lti_optional_param_email_is_used(self, _authenticate, render):
+        request = build_launch_request()
+        request.POST.update(LTI_OPTIONAL_PARAMS)
+        views.lti_launch(request, unicode(COURSE_KEY), unicode(USAGE_KEY))
+        _authenticate.assert_called_with(ANY, ANY, ANY, ANY, 'rob.smith@example.com', 'Rob', 'Smith')
 
 
 class LtiLaunchTestRender(LtiTestMixin, RenderXBlockTestMixin, ModuleStoreTestCase):

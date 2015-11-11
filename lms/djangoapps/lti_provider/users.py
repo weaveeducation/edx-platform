@@ -10,13 +10,20 @@ import uuid
 from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
+from student.models import CourseEnrollment
+from opaque_keys.edx.keys import CourseKey
+from opaque_keys import InvalidKeyError
 from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError
 from lti_provider.models import LtiUser
 from student.models import UserProfile
 
+USERNAME_SIZE = 30 #size of the field in the database
+FIRST_NAME_SIZE = 30 #size of the field in the database
+LAST_NAME_SIZE = 30 #size of the field in the database
+EMAIL_SIZE = 75 #size of the field in the database
 
-def authenticate_lti_user(request, lti_user_id, lti_consumer):
+def authenticate_lti_user(request, lti_user_id, lti_consumer, course_id, lti_email=None, lti_user_first_name=None, lti_user_last_name=None):
     """
     Determine whether the user specified by the LTI launch has an existing
     account. If not, create a new Django User model and associate it with an
@@ -32,7 +39,7 @@ def authenticate_lti_user(request, lti_user_id, lti_consumer):
         )
     except LtiUser.DoesNotExist:
         # This is the first time that the user has been here. Create an account.
-        lti_user = create_lti_user(lti_user_id, lti_consumer)
+        lti_user = create_lti_user(lti_user_id, lti_consumer, course_id, lti_email, lti_user_first_name, lti_user_last_name)
 
     if not (request.user.is_authenticated() and
             request.user == lti_user.edx_user):
@@ -40,8 +47,13 @@ def authenticate_lti_user(request, lti_user_id, lti_consumer):
         # Switch them to the LTI user
         switch_user(request, lti_user, lti_consumer)
 
+def cut_to_max_len(text, max_len):
+    if text is None or len(text) < max_len:
+        return text
+    else:
+        return text[:max_len]
 
-def create_lti_user(lti_user_id, lti_consumer):
+def create_lti_user(lti_user_id, lti_consumer, course_id, lti_email=None, lti_user_first_name=None, lti_user_last_name=None):
     """
     Generate a new user on the edX platform with a random username and password,
     and associates that account with the LTI identity.
@@ -52,18 +64,47 @@ def create_lti_user(lti_user_id, lti_consumer):
     while not created:
         try:
             edx_user_id = generate_random_edx_username()
-            edx_email = "{}@{}".format(edx_user_id, settings.LTI_USER_EMAIL_DOMAIN)
+            if lti_email is not None:
+                edx_email=cut_to_max_len(lti_email, EMAIL_SIZE)
+                edx_username=cut_to_max_len(lti_email, USERNAME_SIZE)
+                try:
+                    #if this username already exists then use the random username
+                    edx_user = User.objects.get(username=edx_username)
+                    edx_username=edx_user_id
+                except User.DoesNotExist:
+                    pass
+            else:
+                edx_email = "{}@{}".format(edx_user_id, settings.LTI_USER_EMAIL_DOMAIN)
+                edx_username=edx_user_id
             edx_user = User.objects.create_user(
-                username=edx_user_id,
+                username=edx_username,
                 password=edx_password,
                 email=edx_email,
             )
+
+            if edx_user is not None:
+                if lti_user_first_name is not None:
+                    edx_user.first_name=cut_to_max_len(lti_user_first_name, FIRST_NAME_SIZE)
+                if lti_user_last_name is not None:
+                    edx_user.last_name=cut_to_max_len(lti_user_last_name, LAST_NAME_SIZE)
+                edx_user.save()
+
             # A profile is required if PREVENT_CONCURRENT_LOGINS flag is set.
             # TODO: We could populate user information from the LTI launch here,
             # but it's not necessary for our current uses.
             edx_user_profile = UserProfile(user=edx_user)
             edx_user_profile.save()
             created = True
+
+            try:
+                course_key = CourseKey.from_string(course_id)
+            except InvalidKeyError:
+                try:
+                    course_key = SlashSeparatedCourseKey.from_deprecated_string(course_id)
+                except InvalidKeyError:
+                    pass
+            if course_id is not None:
+                CourseEnrollment.enroll(edx_user, course_key)
         except IntegrityError:
             # The random edx_user_id wasn't unique. Since 'created' is still
             # False, we will retry with a different random ID.
@@ -103,7 +144,7 @@ def generate_random_edx_username():
     """
     allowable_chars = string.ascii_letters + string.digits
     username = ''
-    for _index in range(30):
+    for _index in range(USERNAME_SIZE):
         username = username + random.SystemRandom().choice(allowable_chars)
     return username
 

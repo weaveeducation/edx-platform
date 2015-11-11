@@ -17,6 +17,9 @@ from opaque_keys import InvalidKeyError
 
 log = logging.getLogger("edx.lti_provider")
 
+LTI_PARAM_EMAIL = 'lis_person_contact_email_primary'
+LTI_PARAM_FIRST_NAME = 'lis_person_name_given'
+LTI_PARAM_LAST_NAME = 'lis_person_name_family'
 
 # LTI launch parameters that must be present for a successful launch
 REQUIRED_PARAMETERS = [
@@ -27,7 +30,8 @@ REQUIRED_PARAMETERS = [
 
 OPTIONAL_PARAMETERS = [
     'lis_result_sourcedid', 'lis_outcome_service_url',
-    'tool_consumer_instance_guid'
+    'tool_consumer_instance_guid', LTI_PARAM_EMAIL,
+    LTI_PARAM_FIRST_NAME, LTI_PARAM_LAST_NAME
 ]
 
 
@@ -84,7 +88,11 @@ def lti_launch(request, course_id, usage_id):
 
     # Create an edX account if the user identifed by the LTI launch doesn't have
     # one already, and log the edX account into the platform.
-    authenticate_lti_user(request, params['user_id'], lti_consumer)
+    for key in [LTI_PARAM_EMAIL, LTI_PARAM_FIRST_NAME, LTI_PARAM_LAST_NAME]:
+        if not key in params:
+            params[key] = None
+    authenticate_lti_user(request, params['user_id'], lti_consumer, course_id, 
+        params[LTI_PARAM_EMAIL], params[LTI_PARAM_FIRST_NAME], params[LTI_PARAM_LAST_NAME])
 
     # Store any parameters required by the outcome service in order to report
     # scores back later. We know that the consumer exists, since the record was
