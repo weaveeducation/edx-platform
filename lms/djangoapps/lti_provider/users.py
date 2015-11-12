@@ -63,19 +63,19 @@ def create_lti_user(lti_user_id, lti_consumer, course_id, lti_email=None, lti_us
     created = False
     while not created:
         try:
-            edx_user_id = generate_random_edx_username()
             if lti_email is not None:
                 edx_email=cut_to_max_len(lti_email, EMAIL_SIZE)
                 edx_username=cut_to_max_len(lti_email, USERNAME_SIZE)
                 try:
                     #if this username already exists then use the random username
                     edx_user = User.objects.get(username=edx_username)
-                    edx_username=edx_user_id
+                    edx_username=generate_random_edx_username()
                 except User.DoesNotExist:
                     pass
             else:
-                edx_email = "{}@{}".format(edx_user_id, settings.LTI_USER_EMAIL_DOMAIN)
-                edx_username=edx_user_id
+                edx_username=generate_random_edx_username()
+                edx_email = "{}@{}".format(edx_username, settings.LTI_USER_EMAIL_DOMAIN)
+
             edx_user = User.objects.create_user(
                 username=edx_username,
                 password=edx_password,
@@ -95,21 +95,12 @@ def create_lti_user(lti_user_id, lti_consumer, course_id, lti_email=None, lti_us
             edx_user_profile = UserProfile(user=edx_user)
             edx_user_profile.save()
             created = True
-
-            try:
-                course_key = CourseKey.from_string(course_id)
-            except InvalidKeyError:
-                try:
-                    course_key = SlashSeparatedCourseKey.from_deprecated_string(course_id)
-                except InvalidKeyError:
-                    pass
-            if course_id is not None:
-                CourseEnrollment.enroll(edx_user, course_key)
         except IntegrityError:
             # The random edx_user_id wasn't unique. Since 'created' is still
             # False, we will retry with a different random ID.
             pass
 
+    enroll_user_to_course(edx_user, course_id)
     lti_user = LtiUser(
         lti_consumer=lti_consumer,
         lti_user_id=lti_user_id,
@@ -118,6 +109,16 @@ def create_lti_user(lti_user_id, lti_consumer, course_id, lti_email=None, lti_us
     lti_user.save()
     return lti_user
 
+def enroll_user_to_course(edx_user, course_id):
+        try:
+            course_key = CourseKey.from_string(course_id)
+        except InvalidKeyError:
+            try:
+                course_key = SlashSeparatedCourseKey.from_deprecated_string(course_id)
+            except InvalidKeyError:
+                pass
+        if course_key is not None:
+            CourseEnrollment.enroll(edx_user, course_key)
 
 def switch_user(request, lti_user, lti_consumer):
     """
