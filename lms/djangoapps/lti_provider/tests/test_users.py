@@ -12,10 +12,7 @@ from mock import patch, MagicMock
 from lti_provider.models import LtiConsumer, LtiUser
 import lti_provider.users as users
 from student.tests.factories import UserFactory
-from student.models import CourseEnrollment
-from opaque_keys.edx.keys import CourseKey
 
-COURSE_ID = 'course-v1:edX+DemoX+Demo_Course'
 
 class UserManagementHelperTest(TestCase):
     """
@@ -111,15 +108,15 @@ class AuthenticateLtiUserTest(TestCase):
         lti_user = MagicMock()
         lti_user.edx_user_id = self.edx_user_id
         with patch('lti_provider.users.create_lti_user', return_value=lti_user) as create_user:
-            users.authenticate_lti_user(self.request, self.lti_user_id, self.lti_consumer, COURSE_ID)
-            create_user.assert_called_with(self.lti_user_id, self.lti_consumer, COURSE_ID, None, None, None)
+            users.authenticate_lti_user(self.request, self.lti_user_id, self.lti_consumer)
+            create_user.assert_called_with(self.lti_user_id, self.lti_consumer, None, None, None)
             switch_user.assert_called_with(self.request, lti_user, self.lti_consumer)
 
     def test_authentication_with_authenticated_user(self, create_user, switch_user):
         lti_user = self.create_lti_user_model()
         self.request.user = lti_user.edx_user
         self.request.user.is_authenticated = MagicMock(return_value=True)
-        users.authenticate_lti_user(self.request, self.lti_user_id, self.lti_consumer, COURSE_ID)
+        users.authenticate_lti_user(self.request, self.lti_user_id, self.lti_consumer)
         self.assertFalse(create_user.called)
         self.assertFalse(switch_user.called)
 
@@ -127,7 +124,7 @@ class AuthenticateLtiUserTest(TestCase):
         lti_user = self.create_lti_user_model()
         self.request.user = lti_user.edx_user
         self.request.user.is_authenticated = MagicMock(return_value=False)
-        users.authenticate_lti_user(self.request, self.lti_user_id, self.lti_consumer, COURSE_ID)
+        users.authenticate_lti_user(self.request, self.lti_user_id, self.lti_consumer)
         self.assertFalse(create_user.called)
         switch_user.assert_called_with(self.request, lti_user, self.lti_consumer)
 
@@ -135,7 +132,7 @@ class AuthenticateLtiUserTest(TestCase):
         lti_user = self.create_lti_user_model()
         self.request.user = self.old_user
         self.request.user.is_authenticated = MagicMock(return_value=True)
-        users.authenticate_lti_user(self.request, self.lti_user_id, self.lti_consumer, COURSE_ID)
+        users.authenticate_lti_user(self.request, self.lti_user_id, self.lti_consumer)
         self.assertFalse(create_user.called)
         switch_user.assert_called_with(self.request, lti_user, self.lti_consumer)
 
@@ -155,32 +152,20 @@ class CreateLtiUserTest(TestCase):
         self.lti_consumer.save()
 
     def test_create_lti_user_creates_auth_user_model(self):
-        users.create_lti_user('lti_user_id', self.lti_consumer, COURSE_ID)
+        users.create_lti_user('lti_user_id', self.lti_consumer)
         self.assertEqual(User.objects.count(), 1)
 
     @patch('uuid.uuid4', return_value='random_uuid')
     @patch('lti_provider.users.generate_random_edx_username', return_value='edx_id')
-    @patch('lti_provider.users.enroll_user_to_course')
-    def test_create_lti_user_creates_correct_user(self, enroll_mock, _username_mock, uuid_mock):
-        users.create_lti_user('lti_user_id', self.lti_consumer, COURSE_ID)
+    def test_create_lti_user_creates_correct_user(self, _username_mock, uuid_mock):
+        users.create_lti_user('lti_user_id', self.lti_consumer)
         self.assertEqual(User.objects.count(), 1)
         user = User.objects.get(username='edx_id')
         self.assertEqual(user.email, 'edx_id@lti.example.com')
         uuid_mock.assert_called_with()
-        enroll_mock.assert_called_with(user, COURSE_ID)
-
-    def test_enroll_user_to_course(self):
-        email = 'rob.smith@example.com'
-        user = User.objects.create_user(
-            username=email,
-            password='password',
-            email=email,
-        )
-        users.enroll_user_to_course(user, COURSE_ID)
-        self.assertTrue(CourseEnrollment.is_enrolled(user, CourseKey.from_string(COURSE_ID)))
 
     def test_create_lti_user_with_all_optional_params(self):
-        users.create_lti_user('lti_user_id', self.lti_consumer, COURSE_ID, 'rob.smith@example.com', 'Rob', 'Smith')
+        users.create_lti_user('lti_user_id', self.lti_consumer, 'rob.smith@example.com', 'Rob', 'Smith')
         self.assertEqual(User.objects.count(), 1)
         user = User.objects.get(username='rob.smith@example.com')
         self.assertEqual(user.email, 'rob.smith@example.com')
@@ -188,7 +173,7 @@ class CreateLtiUserTest(TestCase):
         self.assertEqual(user.last_name, 'Smith')
 
     def test_create_lti_user_with_optional_param_email_only(self):
-        users.create_lti_user('lti_user_id', self.lti_consumer, COURSE_ID, 'rob.smith@example.com')
+        users.create_lti_user('lti_user_id', self.lti_consumer, 'rob.smith@example.com')
         self.assertEqual(User.objects.count(), 1)
         user = User.objects.get(username='rob.smith@example.com')
         self.assertEqual(user.email, 'rob.smith@example.com')
@@ -204,14 +189,14 @@ class CreateLtiUserTest(TestCase):
             password='password',
             email=email,
         )
-        users.create_lti_user('lti_user_id', self.lti_consumer, COURSE_ID, email)
+        users.create_lti_user('lti_user_id', self.lti_consumer, email)
         self.assertEqual(User.objects.count(), 2)
         user = User.objects.get(username='edx_id')
         self.assertEqual(user.email, email)
         uuid_mock.assert_called_with()
 
     def test_create_lti_user_with_with_optional_param_long_email(self):
-        users.create_lti_user('lti_user_id', self.lti_consumer, COURSE_ID, 'long_email_length_greater_than_30@example.com', 'Rob', 'Smith')
+        users.create_lti_user('lti_user_id', self.lti_consumer, 'long_email_length_greater_than_30@example.com', 'Rob', 'Smith')
         self.assertEqual(User.objects.count(), 1)
         user = User.objects.get(username='long_email_length_greater_than')
         self.assertEqual(user.email, 'long_email_length_greater_than_30@example.com')
@@ -219,7 +204,7 @@ class CreateLtiUserTest(TestCase):
     @patch('lti_provider.users.generate_random_edx_username', side_effect=['edx_id', 'new_edx_id'])
     def test_unique_username_created(self, username_mock):
         User(username='edx_id').save()
-        users.create_lti_user('lti_user_id', self.lti_consumer, COURSE_ID)
+        users.create_lti_user('lti_user_id', self.lti_consumer)
         self.assertEqual(username_mock.call_count, 2)
         self.assertEqual(User.objects.count(), 2)
         user = User.objects.get(username='new_edx_id')

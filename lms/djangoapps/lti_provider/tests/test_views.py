@@ -13,7 +13,8 @@ from lti_provider.signature_validator import SignatureValidator
 from opaque_keys.edx.locator import CourseLocator, BlockUsageLocator
 from student.tests.factories import UserFactory
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
-
+from django.contrib.auth.models import User
+from student.models import CourseEnrollment
 
 LTI_DEFAULT_PARAMS = {
     'roles': u'Instructor,urn:lti:instrole:ims/lis/Administrator',
@@ -83,13 +84,15 @@ class LtiLaunchTest(LtiTestMixin, TestCase):
     """
     @patch('lti_provider.views.render_courseware')
     @patch('lti_provider.views.authenticate_lti_user')
-    def test_valid_launch(self, _authenticate, render):
+    @patch('lti_provider.views.enroll_user_to_course')
+    def test_valid_launch(self, enroll_mock, _authenticate, render):
         """
         Verifies that the LTI launch succeeds when passed a valid request.
         """
         request = build_launch_request()
         views.lti_launch(request, unicode(COURSE_KEY), unicode(USAGE_KEY))
         render.assert_called_with(request, USAGE_KEY)
+        enroll_mock.assert_called_with(request.user, COURSE_KEY)
 
     @patch('lti_provider.views.render_courseware')
     @patch('lti_provider.views.store_outcome_parameters')
@@ -164,8 +167,21 @@ class LtiLaunchTest(LtiTestMixin, TestCase):
         request = build_launch_request()
         request.POST.update(LTI_OPTIONAL_PARAMS)
         views.lti_launch(request, unicode(COURSE_KEY), unicode(USAGE_KEY))
-        _authenticate.assert_called_with(ANY, ANY, ANY, ANY, 'rob.smith@example.com', 'Rob', 'Smith')
+        _authenticate.assert_called_with(ANY, ANY, ANY, 'rob.smith@example.com', 'Rob', 'Smith')
 
+    def test_enroll_user_to_course(self):
+        email = 'rob.smith@example.com'
+        user = User.objects.create_user(
+            username=email,
+            password='password',
+            email=email,
+        )
+        with self.assertNumQueries(21):
+            views.enroll_user_to_course(user, COURSE_KEY)
+        self.assertTrue(CourseEnrollment.is_enrolled(user, COURSE_KEY))
+        with self.assertNumQueries(1):
+            #don't enroll 2d time
+            views.enroll_user_to_course(user, COURSE_KEY)
 
 class LtiLaunchTestRender(LtiTestMixin, RenderXBlockTestMixin, ModuleStoreTestCase):
     """

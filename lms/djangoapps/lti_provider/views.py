@@ -14,6 +14,7 @@ from lti_provider.users import authenticate_lti_user
 from lms_xblock.runtime import unquote_slashes
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys import InvalidKeyError
+from student.models import CourseEnrollment
 
 log = logging.getLogger("edx.lti_provider")
 
@@ -88,11 +89,17 @@ def lti_launch(request, course_id, usage_id):
 
     # Create an edX account if the user identifed by the LTI launch doesn't have
     # one already, and log the edX account into the platform.
+    lti_params = {}
     for key in [LTI_PARAM_EMAIL, LTI_PARAM_FIRST_NAME, LTI_PARAM_LAST_NAME]:
-        if not key in params:
-            params[key] = None
-    authenticate_lti_user(request, params['user_id'], lti_consumer, course_id, 
-        params[LTI_PARAM_EMAIL], params[LTI_PARAM_FIRST_NAME], params[LTI_PARAM_LAST_NAME])
+        if key in params:
+            lti_params[key] = params[key]
+        else:
+            lti_params[key] = None
+
+    authenticate_lti_user(request, params['user_id'], lti_consumer, 
+        lti_params[LTI_PARAM_EMAIL], lti_params[LTI_PARAM_FIRST_NAME], lti_params[LTI_PARAM_LAST_NAME])
+    if request.user.is_authenticated():
+        enroll_user_to_course(request.user, course_key)
 
     # Store any parameters required by the outcome service in order to report
     # scores back later. We know that the consumer exists, since the record was
@@ -101,6 +108,9 @@ def lti_launch(request, course_id, usage_id):
 
     return render_courseware(request, params['usage_key'])
 
+def enroll_user_to_course(edx_user, course_key):
+    if course_key is not None and not CourseEnrollment.is_enrolled(edx_user, course_key):
+        CourseEnrollment.enroll(edx_user, course_key)
 
 def get_required_parameters(dictionary, additional_params=None):
     """
