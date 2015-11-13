@@ -10,7 +10,6 @@ import uuid
 from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
-from opaque_keys import InvalidKeyError
 from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError
 from lti_provider.models import LtiUser
