@@ -31,8 +31,8 @@ REQUIRED_PARAMETERS = [
 
 OPTIONAL_PARAMETERS = [
     'lis_result_sourcedid', 'lis_outcome_service_url',
-    'tool_consumer_instance_guid', LTI_PARAM_EMAIL,
-    LTI_PARAM_FIRST_NAME, LTI_PARAM_LAST_NAME
+    LTI_PARAM_EMAIL, LTI_PARAM_FIRST_NAME, LTI_PARAM_LAST_NAME,
+	'tool_consumer_instance_guid'
 ]
 
 
@@ -90,14 +90,11 @@ def lti_launch(request, course_id, usage_id):
     # Create an edX account if the user identifed by the LTI launch doesn't have
     # one already, and log the edX account into the platform.
     lti_params = {}
-    for key in [LTI_PARAM_EMAIL, LTI_PARAM_FIRST_NAME, LTI_PARAM_LAST_NAME]:
+    lti_keys = {LTI_PARAM_EMAIL:'email', LTI_PARAM_FIRST_NAME:'first_name', LTI_PARAM_LAST_NAME:'last_name'}
+    for key in lti_keys:
         if key in params:
-            lti_params[key] = params[key]
-        else:
-            lti_params[key] = None
-
-    authenticate_lti_user(request, params['user_id'], lti_consumer, 
-        lti_params[LTI_PARAM_EMAIL], lti_params[LTI_PARAM_FIRST_NAME], lti_params[LTI_PARAM_LAST_NAME])
+            lti_params[lti_keys[key]] = params[key]
+    authenticate_lti_user(request, params['user_id'], lti_consumer, lti_params)
     if request.user.is_authenticated():
         enroll_user_to_course(request.user, course_key)
 

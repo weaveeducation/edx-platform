@@ -15,12 +15,12 @@ from django.db import IntegrityError
 from lti_provider.models import LtiUser
 from student.models import UserProfile
 
-USERNAME_SIZE = 30 #size of the field in the database
-FIRST_NAME_SIZE = 30 #size of the field in the database
-LAST_NAME_SIZE = 30 #size of the field in the database
-EMAIL_SIZE = 75 #size of the field in the database
+USERNAME_DB_FIELD_SIZE = 30
+FIRST_NAME_DB_FIELD_SIZE = 30
+LAST_NAME_DB_FIELD_SIZE = 30
+EMAIL_DB_FIELD_SIZE = 75
 
-def authenticate_lti_user(request, lti_user_id, lti_consumer, lti_email=None, lti_user_first_name=None, lti_user_last_name=None):
+def authenticate_lti_user(request, lti_user_id, lti_consumer, lti_params = {}):
     """
     Determine whether the user specified by the LTI launch has an existing
     account. If not, create a new Django User model and associate it with an
@@ -36,7 +36,7 @@ def authenticate_lti_user(request, lti_user_id, lti_consumer, lti_email=None, lt
         )
     except LtiUser.DoesNotExist:
         # This is the first time that the user has been here. Create an account.
-        lti_user = create_lti_user(lti_user_id, lti_consumer, lti_email, lti_user_first_name, lti_user_last_name)
+        lti_user = create_lti_user(lti_user_id, lti_consumer, lti_params)
 
     if not (request.user.is_authenticated() and
             request.user == lti_user.edx_user):
@@ -50,7 +50,7 @@ def cut_to_max_len(text, max_len):
     else:
         return text[:max_len]
 
-def create_lti_user(lti_user_id, lti_consumer, lti_email=None, lti_user_first_name=None, lti_user_last_name=None):
+def create_lti_user(lti_user_id, lti_consumer, lti_params = {}):
     """
     Generate a new user on the edX platform with a random username and password,
     and associates that account with the LTI identity.
@@ -60,9 +60,9 @@ def create_lti_user(lti_user_id, lti_consumer, lti_email=None, lti_user_first_na
     created = False
     while not created:
         try:
-            if lti_email is not None:
-                edx_email=cut_to_max_len(lti_email, EMAIL_SIZE)
-                edx_username=cut_to_max_len(lti_email, USERNAME_SIZE)
+            if 'email' in lti_params:
+                edx_email=cut_to_max_len(lti_params['email'], EMAIL_DB_FIELD_SIZE)
+                edx_username=cut_to_max_len(lti_params['email'], USERNAME_DB_FIELD_SIZE)
                 try:
                     #if this username already exists then use the random username
                     edx_user = User.objects.get(username=edx_username)
@@ -80,10 +80,10 @@ def create_lti_user(lti_user_id, lti_consumer, lti_email=None, lti_user_first_na
             )
 
             if edx_user is not None:
-                if lti_user_first_name is not None:
-                    edx_user.first_name=cut_to_max_len(lti_user_first_name, FIRST_NAME_SIZE)
-                if lti_user_last_name is not None:
-                    edx_user.last_name=cut_to_max_len(lti_user_last_name, LAST_NAME_SIZE)
+                if 'first_name' in lti_params:
+                    edx_user.first_name=cut_to_max_len(lti_params['first_name'], FIRST_NAME_DB_FIELD_SIZE)
+                if 'last_name' in lti_params:
+                    edx_user.last_name=cut_to_max_len(lti_params['last_name'], LAST_NAME_DB_FIELD_SIZE)
                 edx_user.save()
 
             # A profile is required if PREVENT_CONCURRENT_LOGINS flag is set.
@@ -130,7 +130,7 @@ def generate_random_edx_username():
     """
     allowable_chars = string.ascii_letters + string.digits
     username = ''
-    for _index in range(USERNAME_SIZE):
+    for _index in range(USERNAME_DB_FIELD_SIZE):
         username = username + random.SystemRandom().choice(allowable_chars)
     return username
 

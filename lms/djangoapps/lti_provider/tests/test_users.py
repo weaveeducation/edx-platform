@@ -109,7 +109,7 @@ class AuthenticateLtiUserTest(TestCase):
         lti_user.edx_user_id = self.edx_user_id
         with patch('lti_provider.users.create_lti_user', return_value=lti_user) as create_user:
             users.authenticate_lti_user(self.request, self.lti_user_id, self.lti_consumer)
-            create_user.assert_called_with(self.lti_user_id, self.lti_consumer, None, None, None)
+            create_user.assert_called_with(self.lti_user_id, self.lti_consumer, {})
             switch_user.assert_called_with(self.request, lti_user, self.lti_consumer)
 
     def test_authentication_with_authenticated_user(self, create_user, switch_user):
@@ -165,7 +165,8 @@ class CreateLtiUserTest(TestCase):
         uuid_mock.assert_called_with()
 
     def test_create_lti_user_with_all_optional_params(self):
-        users.create_lti_user('lti_user_id', self.lti_consumer, 'rob.smith@example.com', 'Rob', 'Smith')
+        lti_params = {'email':'rob.smith@example.com', 'first_name':'Rob', 'last_name':'Smith'}
+        users.create_lti_user('lti_user_id', self.lti_consumer, lti_params)
         self.assertEqual(User.objects.count(), 1)
         user = User.objects.get(username='rob.smith@example.com')
         self.assertEqual(user.email, 'rob.smith@example.com')
@@ -173,7 +174,8 @@ class CreateLtiUserTest(TestCase):
         self.assertEqual(user.last_name, 'Smith')
 
     def test_create_lti_user_with_optional_param_email_only(self):
-        users.create_lti_user('lti_user_id', self.lti_consumer, 'rob.smith@example.com')
+        lti_params = {'email':'rob.smith@example.com'}
+        users.create_lti_user('lti_user_id', self.lti_consumer, lti_params)
         self.assertEqual(User.objects.count(), 1)
         user = User.objects.get(username='rob.smith@example.com')
         self.assertEqual(user.email, 'rob.smith@example.com')
@@ -189,14 +191,16 @@ class CreateLtiUserTest(TestCase):
             password='password',
             email=email,
         )
-        users.create_lti_user('lti_user_id', self.lti_consumer, email)
+        lti_params = {'email':email}
+        users.create_lti_user('lti_user_id', self.lti_consumer, lti_params)
         self.assertEqual(User.objects.count(), 2)
         user = User.objects.get(username='edx_id')
         self.assertEqual(user.email, email)
         uuid_mock.assert_called_with()
 
     def test_create_lti_user_with_with_optional_param_long_email(self):
-        users.create_lti_user('lti_user_id', self.lti_consumer, 'long_email_length_greater_than_30@example.com', 'Rob', 'Smith')
+        lti_params = {'email':'long_email_length_greater_than_30@example.com', 'first_name':'Rob', 'last_name':'Smith'}
+        users.create_lti_user('lti_user_id', self.lti_consumer, lti_params)
         self.assertEqual(User.objects.count(), 1)
         user = User.objects.get(username='long_email_length_greater_than')
         self.assertEqual(user.email, 'long_email_length_greater_than_30@example.com')
