@@ -61,6 +61,7 @@ class CourseViewMixin(object):
         :param func: function to be wrapped
         :returns: the wrapped function
         """
+
         def func_wrapper(self, *args, **kwargs):
             """Wrapper function for this decorator.
 
@@ -436,6 +437,7 @@ class CourseBlocksAndNavigation(ListAPIView):
         """
         A class for encapsulating the result information, specifically the blocks and navigation data.
         """
+
         def __init__(self, return_blocks, return_nav):
             self.blocks = {}
             self.navigation = {}
@@ -457,6 +459,7 @@ class CourseBlocksAndNavigation(ListAPIView):
         """
         A class for encapsulating a block's information as needed during traversal of a block hierarchy.
         """
+
         def __init__(self, block, request_info, parent_block_info=None):
             # the block for which the recursion is being computed
             self.block = block
@@ -689,3 +692,63 @@ class CourseBlocksAndNavigation(ListAPIView):
         super(CourseBlocksAndNavigation, self).perform_authentication(request)
         if request.user.is_anonymous():
             raise AuthenticationFailed
+
+
+class CourseLtiUrls(CourseViewMixin, RetrieveAPIView):
+    """
+    **Use Case**
+
+        Get URLs of blocks for an LTI consumer. This endpoint returns all blocks in the
+        course or blocks of a specified type.
+
+    **Example requests**:
+
+        GET /api/course_structure/v0/lti_urls/{course_id}/
+        GET /api/course_structure/v0/lti_urls/{course_id}/?type=problem
+
+    **Parameters**:
+
+        * type: The type of block. Possible values include sequential,
+          vertical, html, problem, video, and discussion.
+
+          Example: type=problem
+
+    **Response Values**
+
+        * id: The ID of the block.
+
+        * type: The type of block. Possible values include sequential,
+          vertical, html, problem, video, and discussion. The type can also be
+          the name of a custom type of block used for the course.
+
+        * display_name: The display name configured for the block.
+
+        * lti_url: The block URL for an LTI consumer.
+    """
+
+    @CourseViewMixin.course_check
+    def get(self, request, **kwargs):
+        try:
+            block_type = None
+            if 'type' in request.GET:
+                block_type = request.GET['type']
+            data = api.course_structure(self.course_key, block_type)
+            result = []
+            lti_url = self.get_block_lti_url(data['root'], request)
+            result.append({'display_name': 'root', 'lti_url': lti_url, 'type': ''})
+            for value in data['blocks'].values():
+                lti_url = self.get_block_lti_url(value['id'], request)
+                result.append({'display_name': value['display_name'], 'lti_url': lti_url, 'type': value['type']})
+            return Response(result)
+        except errors.CourseStructureNotAvailableError:
+            # If we don't have data stored, we will try to regenerate it, so
+            # return a 503 and as them to retry in 2 minutes.
+            return Response(status=503, headers={'Retry-After': '120'})
+
+    def get_block_lti_url(self, block_id, request):
+        """
+        Build an URL of a block for an LTI consumer.
+        """
+
+        return reverse("lti_provider_launch", kwargs={"course_id": unicode(self.course_key),
+                                                      "usage_id": unicode(block_id)}, request=request)
