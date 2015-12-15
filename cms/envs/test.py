@@ -33,9 +33,6 @@ from lms.envs.test import (
     DEFAULT_FILE_STORAGE,
     MEDIA_ROOT,
     MEDIA_URL,
-    # This is practically unused but needed by the oauth2_provider package, which
-    # some tests in common/ rely on.
-    OAUTH_OIDC_ISSUER,
 )
 
 # mongo connection settings
@@ -175,9 +172,6 @@ CACHES = {
         'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
     },
 }
-
-# Add apps to Installed apps for testing
-INSTALLED_APPS += ('openedx.core.djangoapps.call_stack_manager',)
 
 # hide ratelimit warnings while running tests
 filterwarnings('ignore', message='No request passed to the backend, unable to rate-limit')

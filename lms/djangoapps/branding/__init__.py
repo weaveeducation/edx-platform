@@ -14,41 +14,48 @@ from django.conf import settings
 from opaque_keys.edx.locations import SlashSeparatedCourseKey
 from microsite_configuration import microsite
 from django.contrib.staticfiles.storage import staticfiles_storage
+from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 
 
-def get_visible_courses():
+def get_visible_courses(org=None):
     """
-    Return the set of CourseDescriptors that should be visible in this branded instance
+    Return the set of CourseOverviews that should be visible in this branded instance
     """
+    microsite_org = microsite.get_value('course_org_filter')
 
-    filtered_by_org = microsite.get_value('course_org_filter')
+    if org and microsite_org:
+        # When called in the context of a microsite, return an empty result if the org
+        # passed by the caller does not match the designated microsite org.
+        courses = CourseOverview.get_all_courses(org=org) if org == microsite_org else []
+    else:
+        # We only make it to this point if one of org or microsite_org is defined.
+        # If both org and microsite_org were defined, the code would have fallen into the
+        # first branch of the conditional above, wherein an equality check is performed.
+        target_org = org or microsite_org
+        courses = CourseOverview.get_all_courses(org=target_org)
 
-    _courses = modulestore().get_courses(org=filtered_by_org)
-
-    courses = [c for c in _courses
-               if isinstance(c, CourseDescriptor)]
     courses = sorted(courses, key=lambda course: course.number)
 
-    subdomain = microsite.get_value('subdomain', 'default')
+    # When called in the context of a microsite, filtering can stop here.
+    if microsite_org:
+        return courses
 
     # See if we have filtered course listings in this domain
     filtered_visible_ids = None
 
     # this is legacy format which is outside of the microsite feature -- also handle dev case, which should not filter
+    subdomain = microsite.get_value('subdomain', 'default')
     if hasattr(settings, 'COURSE_LISTINGS') and subdomain in settings.COURSE_LISTINGS and not settings.DEBUG:
         filtered_visible_ids = frozenset(
             [SlashSeparatedCourseKey.from_deprecated_string(c) for c in settings.COURSE_LISTINGS[subdomain]]
         )
 
-    if filtered_by_org:
-        return [course for course in courses if course.location.org == filtered_by_org]
     if filtered_visible_ids:
         return [course for course in courses if course.id in filtered_visible_ids]
     else:
-        # Let's filter out any courses in an "org" that has been declared to be
-        # in a Microsite
-        org_filter_out_set = microsite.get_all_orgs()
-        return [course for course in courses if course.location.org not in org_filter_out_set]
+        # Filter out any courses belonging to a microsite, to avoid leaking these.
+        microsite_orgs = microsite.get_all_orgs()
+        return [course for course in courses if course.location.org not in microsite_orgs]
 
 
 def get_university_for_request():
@@ -81,4 +88,4 @@ def get_logo_url():
     elif university:
         return staticfiles_storage.url('images/{uni}-on-edx-logo.png'.format(uni=university))
     else:
-        return staticfiles_storage.url('images/default-theme/logo.png')
+        return staticfiles_storage.url('images/logo.png')
