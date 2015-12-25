@@ -44,6 +44,13 @@ class BlockSerializer(serializers.Serializer):  # pylint: disable=abstract-metho
             ),
         }
 
+        if self.context['lti_url']:
+            data['lti_url'] = reverse(
+                'lti_provider_launch',
+                kwargs={'course_id': unicode(block_key.course_key), 'usage_id': unicode(block_key)},
+                request=self.context['request'],
+            )
+
         # add additional requested fields that are supported by the various transformers
         for supported_field in SUPPORTED_FIELDS:
             if supported_field.requested_field_name in self.context['requested_fields']:
@@ -77,7 +84,9 @@ class BlockDictSerializer(serializers.Serializer):  # pylint: disable=abstract-m
         """
         Serialize to a dictionary of blocks keyed by the block's usage_key.
         """
-        return {
-            unicode(block_key): BlockSerializer(block_key, context=self.context).data
-            for block_key in structure
-        }
+        result = {}
+        for block_key in structure:
+            type = structure.get_xblock_field(block_key, 'category')
+            if not self.context['block_types'] or type in self.context['block_types']:
+                result[unicode(block_key)] = BlockSerializer(block_key, context=self.context).data
+        return result

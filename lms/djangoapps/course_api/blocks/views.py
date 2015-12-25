@@ -176,7 +176,9 @@ class BlocksView(DeveloperErrorViewMixin, ListAPIView):
                     params.cleaned_data['requested_fields'],
                     params.cleaned_data.get('block_counts', []),
                     params.cleaned_data.get('student_view_data', []),
-                    params.cleaned_data['return_type']
+                    params.cleaned_data['return_type'],
+                    params.cleaned_data.get('block_types', []),
+                    params.cleaned_data['lti_url'],
                 )
             )
         except ItemNotFoundError as exception:
