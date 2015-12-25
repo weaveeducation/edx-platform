@@ -168,8 +168,10 @@ class TestUserEnrollmentApi(UrlResetMixin, MobileAPITestCase, MobileAuthUserTest
     @ddt.data(
         (NEXT_WEEK, ADVERTISED_START, ADVERTISED_START, "string"),
         (NEXT_WEEK, None, defaultfilters.date(NEXT_WEEK, "DATE_FORMAT"), "timestamp"),
+        (NEXT_WEEK, '', defaultfilters.date(NEXT_WEEK, "DATE_FORMAT"), "timestamp"),
         (DEFAULT_START_DATE, ADVERTISED_START, ADVERTISED_START, "string"),
-        (DEFAULT_START_DATE, None, None, "empty")
+        (DEFAULT_START_DATE, '', None, "empty"),
+        (DEFAULT_START_DATE, None, None, "empty"),
     )
     @ddt.unpack
     @patch.dict('django.conf.settings.FEATURES', {'DISABLE_START_DATES': False})
@@ -229,6 +231,11 @@ class TestUserEnrollmentApi(UrlResetMixin, MobileAPITestCase, MobileAuthUserTest
 
     @patch.dict(settings.FEATURES, {'CERTIFICATES_HTML_VIEW': True})
     def test_web_certificate(self):
+        CourseMode.objects.create(
+            course_id=self.course.id,
+            mode_display_name="Honor",
+            mode_slug=CourseMode.HONOR,
+        )
         self.login_and_enroll()
 
         self.course.cert_html_view_enabled = True

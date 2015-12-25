@@ -24,11 +24,13 @@ from openedx.core.lib.api.authentication import (
     SessionAuthenticationAllowInactiveUser,
     OAuth2AuthenticationAllowInactiveUser,
 )
+from openedx.core.lib.exceptions import CourseNotFoundError
 from util.disable_rate_limit import can_disable_rate_limit
 from enrollment import api
 from enrollment.errors import (
-    CourseNotFoundError, CourseEnrollmentError,
-    CourseModeNotFoundError, CourseEnrollmentExistsError
+    CourseEnrollmentError,
+    CourseModeNotFoundError,
+    CourseEnrollmentExistsError
 )
 from student.auth import user_has_role
 from student.models import User
@@ -520,7 +522,7 @@ class EnrollmentListView(APIView, ApiKeyPermissionMixIn):
                 }
             )
 
-        mode = request.data.get('mode', CourseMode.DEFAULT_MODE_SLUG)
+        mode = request.data.get('mode')
 
         has_api_key_permissions = self.has_api_key_permissions(request)
 
@@ -532,7 +534,7 @@ class EnrollmentListView(APIView, ApiKeyPermissionMixIn):
             # other users, do not let them deduce the existence of an enrollment.
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-        if mode != CourseMode.DEFAULT_MODE_SLUG and not has_api_key_permissions:
+        if mode not in (CourseMode.AUDIT, CourseMode.HONOR, None) and not has_api_key_permissions:
             return Response(
                 status=status.HTTP_403_FORBIDDEN,
                 data={

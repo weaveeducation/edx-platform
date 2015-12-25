@@ -10,7 +10,7 @@
             'jquery.flot': 'xmodule_js/common_static/js/vendor/flot/jquery.flot.min',
             'jquery.form': 'xmodule_js/common_static/js/vendor/jquery.form',
             'jquery.markitup': 'xmodule_js/common_static/js/vendor/markitup/jquery.markitup',
-            'jquery.leanModal': 'xmodule_js/common_static/js/vendor/jquery.leanModal.min',
+            'jquery.leanModal': 'xmodule_js/common_static/js/vendor/jquery.leanModal',
             'jquery.ajaxQueue': 'xmodule_js/common_static/js/vendor/jquery.ajaxQueue',
             'jquery.smoothScroll': 'xmodule_js/common_static/js/vendor/jquery.smooth-scroll.min',
             'jquery.scrollTo': 'xmodule_js/common_static/js/vendor/jquery.scrollTo-1.4.2-min',
@@ -648,6 +648,7 @@
         'lms/include/js/spec/instructor_dashboard/ecommerce_spec.js',
         'lms/include/js/spec/instructor_dashboard/student_admin_spec.js',
         'lms/include/js/spec/instructor_dashboard/certificates_exception_spec.js',
+        'lms/include/js/spec/instructor_dashboard/certificates_bulk_exception_spec.js',
         'lms/include/js/spec/instructor_dashboard/certificates_spec.js',
         'lms/include/js/spec/student_account/account_spec.js',
         'lms/include/js/spec/student_account/access_spec.js',
@@ -712,7 +713,11 @@
         'lms/include/js/spec/discovery/views/search_form_spec.js',
         'lms/include/js/spec/discovery/discovery_factory_spec.js',
         'lms/include/js/spec/ccx/schedule_spec.js',
-        'lms/include/support/js/spec/certificates_spec.js',
+        'lms/include/support/js/spec/collections/enrollment_spec.js',
+        'lms/include/support/js/spec/models/enrollment_spec.js',
+        'lms/include/support/js/spec/views/enrollment_modal_spec.js',
+        'lms/include/support/js/spec/views/enrollment_spec.js',
+        'lms/include/support/js/spec/views/certificates_spec.js',
         'lms/include/teams/js/spec/collections/topic_collection_spec.js',
         'lms/include/teams/js/spec/teams_tab_factory_spec.js',
         'lms/include/teams/js/spec/views/edit_team_spec.js',
@@ -727,7 +732,8 @@
         'lms/include/teams/js/spec/views/topic_card_spec.js',
         'lms/include/teams/js/spec/views/topic_teams_spec.js',
         'lms/include/teams/js/spec/views/topics_spec.js',
-        'lms/include/teams/js/spec/views/team_profile_header_actions_spec.js'
+        'lms/include/teams/js/spec/views/team_profile_header_actions_spec.js',
+        'lms/include/js/spec/financial-assistance/financial_assistance_form_view_spec.js'
     ]);
 
 }).call(this, requirejs, define);

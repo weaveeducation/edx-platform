@@ -1,18 +1,20 @@
 """
 Test for course API
 """
+from hashlib import md5
 
 from django.contrib.auth.models import AnonymousUser
-from rest_framework.exceptions import NotFound, PermissionDenied
+from django.http import Http404
+from opaque_keys.edx.keys import CourseKey
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 
-from opaque_keys.edx.keys import CourseKey
+from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from xmodule.modulestore.tests.django_utils import SharedModuleStoreTestCase, ModuleStoreTestCase
-from xmodule.course_module import CourseDescriptor
-
-from ..api import course_detail, list_courses
+from xmodule.modulestore.tests.factories import check_mongo_calls
 from .mixins import CourseApiFactoryMixin
+from ..api import course_detail, list_courses
 
 
 class CourseApiTestMixin(CourseApiFactoryMixin):
@@ -23,12 +25,12 @@ class CourseApiTestMixin(CourseApiFactoryMixin):
     def setUpClass(cls):
         super(CourseApiTestMixin, cls).setUpClass()
         cls.request_factory = APIRequestFactory()
+        CourseOverview.get_all_courses()  # seed the CourseOverview table
 
     def verify_course(self, course, course_id=u'edX/toy/2012_Fall'):
         """
         Ensure that the returned course is the course we just created
         """
-        self.assertIsInstance(course, CourseDescriptor)
         self.assertEqual(course_id, str(course.id))
 
 
@@ -43,7 +45,8 @@ class CourseDetailTestMixin(CourseApiTestMixin):
         """
         request = Request(self.request_factory.get('/'))
         request.user = requesting_user
-        return course_detail(request, target_user.username, course_key)
+        with check_mongo_calls(0):
+            return course_detail(request, target_user.username, course_key)
 
 
 class TestGetCourseDetail(CourseDetailTestMixin, SharedModuleStoreTestCase):
@@ -64,11 +67,11 @@ class TestGetCourseDetail(CourseDetailTestMixin, SharedModuleStoreTestCase):
 
     def test_get_nonexistent_course(self):
         course_key = CourseKey.from_string(u'edX/toy/nope')
-        with self.assertRaises(NotFound):
+        with self.assertRaises(Http404):
             self._make_api_call(self.honor_user, self.honor_user, course_key)
 
     def test_hidden_course_for_honor(self):
-        with self.assertRaises(NotFound):
+        with self.assertRaises(Http404):
             self._make_api_call(self.honor_user, self.honor_user, self.hidden_course.id)
 
     def test_hidden_course_for_staff(self):
@@ -76,7 +79,7 @@ class TestGetCourseDetail(CourseDetailTestMixin, SharedModuleStoreTestCase):
         self.verify_course(course, course_id=u'edX/hidden/2012_Fall')
 
     def test_hidden_course_for_staff_as_honor(self):
-        with self.assertRaises(NotFound):
+        with self.assertRaises(Http404):
             self._make_api_call(self.staff_user, self.honor_user, self.hidden_course.id)
 
 
@@ -84,14 +87,15 @@ class CourseListTestMixin(CourseApiTestMixin):
     """
     Common behavior for list_courses tests
     """
-    def _make_api_call(self, requesting_user, specified_user):
+    def _make_api_call(self, requesting_user, specified_user, org=None):
         """
         Call the list_courses api endpoint to get information about
         `specified_user` on behalf of `requesting_user`.
         """
         request = Request(self.request_factory.get('/'))
         request.user = requesting_user
-        return list_courses(request, specified_user.username)
+        with check_mongo_calls(0):
+            return list_courses(request, specified_user.username, org=org)
 
     def verify_courses(self, courses):
         """
@@ -109,7 +113,7 @@ class TestGetCourseList(CourseListTestMixin, SharedModuleStoreTestCase):
     @classmethod
     def setUpClass(cls):
         super(TestGetCourseList, cls).setUpClass()
-        cls.create_course()
+        cls.course = cls.create_course()
         cls.staff_user = cls.create_user("staff", is_staff=True)
         cls.honor_user = cls.create_user("honor", is_staff=False)
 
@@ -140,10 +144,34 @@ class TestGetCourseList(CourseListTestMixin, SharedModuleStoreTestCase):
         with self.assertRaises(PermissionDenied):
             self._make_api_call(anonuser, self.staff_user)
 
+    @SharedModuleStoreTestCase.modifies_courseware
     def test_multiple_courses(self):
         self.create_course(course='second')
         courses = self._make_api_call(self.honor_user, self.honor_user)
         self.assertEqual(len(courses), 2)
+
+    @SharedModuleStoreTestCase.modifies_courseware
+    def test_filter_by_org(self):
+        """Verify that courses are filtered by the provided org key."""
+        # Create a second course to be filtered out of queries.
+        alternate_course = self.create_course(
+            org=md5(self.course.org).hexdigest()
+        )
+
+        self.assertNotEqual(alternate_course.org, self.course.org)
+
+        # No filtering.
+        unfiltered_courses = self._make_api_call(self.staff_user, self.staff_user)
+        for org in [self.course.org, alternate_course.org]:
+            self.assertTrue(
+                any(course.org == org for course in unfiltered_courses)
+            )
+
+        # With filtering.
+        filtered_courses = self._make_api_call(self.staff_user, self.staff_user, org=self.course.org)
+        self.assertTrue(
+            all(course.org == self.course.org for course in filtered_courses)
+        )
 
 
 class TestGetCourseListExtras(CourseListTestMixin, ModuleStoreTestCase):

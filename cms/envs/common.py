@@ -180,6 +180,8 @@ FEATURES = {
 
     # Special Exams, aka Timed and Proctored Exams
     'ENABLE_SPECIAL_EXAMS': False,
+
+    'ORGANIZATIONS_APP': False,
 }
 
 ENABLE_JASMINE = False
@@ -924,6 +926,9 @@ OPTIONAL_APPS = (
 
     # milestones
     'milestones',
+
+    # Organizations App (http://github.com/edx/edx-organizations)
+    'organizations',
 )
 
 
@@ -992,7 +997,6 @@ ADVANCED_COMPONENT_TYPES = [
     'videoannotation',  # module for annotating video (with annotation table)
     'imageannotation',  # module for annotating image (with annotation table)
     'word_cloud',
-    'graphical_slider_tool',
     'lti',
     'lti_consumer',
     'library_content',
@@ -1001,6 +1005,8 @@ ADVANCED_COMPONENT_TYPES = [
     'pb-dashboard',
     'poll',
     'survey',
+    'activetable',
+    'vectordraw',
     # Some of the XBlocks from pmitros repos are sometimes prototypes.
     # Use with caution.
     'concept',  # Concept mapper. See https://github.com/pmitros/ConceptXBlock
@@ -1011,8 +1017,6 @@ ADVANCED_COMPONENT_TYPES = [
     'rate',  # Allows up-down voting of course content. See https://github.com/pmitros/RateXBlock
 
     'split_test',
-    'combinedopenended',
-    'peergrading',
     'notes',
     'schoolyourself_review',
     'schoolyourself_lesson',
@@ -1110,7 +1114,11 @@ CREDIT_PROVIDER_TIMESTAMP_EXPIRATION = 15 * 60
 
 ################################ Deprecated Blocks Info ################################
 
-DEPRECATED_BLOCK_TYPES = ['peergrading', 'combinedopenended']
+DEPRECATED_BLOCK_TYPES = [
+    'peergrading',
+    'combinedopenended',
+    'graphical_slider_tool',
+]
 
 #### PROCTORING CONFIGURATION DEFAULTS
 
