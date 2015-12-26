@@ -40,6 +40,8 @@ class TestBlockSerializerBase(SharedModuleStoreTestCase):
             'request': MagicMock(),
             'block_structure': self.block_structure,
             'requested_fields': ['type'],
+            'lti_url': False,
+            'block_types': []
         }
 
     def assert_basic_block(self, block_key_string, serialized_block):

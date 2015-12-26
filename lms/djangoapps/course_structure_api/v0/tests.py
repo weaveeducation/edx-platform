@@ -25,7 +25,7 @@ from student.tests.factories import UserFactory, CourseEnrollmentFactory
 from courseware.tests.factories import GlobalStaffFactory, StaffFactory
 from openedx.core.djangoapps.content.course_structures.models import CourseStructure
 from openedx.core.djangoapps.content.course_structures.tasks import update_course_structure
-import re
+
 
 TEST_SERVER_HOST = 'http://testserver'
 
@@ -686,64 +686,3 @@ class CourseBlocksAndNavigationTests(CourseBlocksOrNavigationTestMixin, CourseBl
     def setUpClass(cls):
         super(CourseBlocksAndNavigationTests, cls).setUpClass()
         cls.create_course_data()
-
-
-class CourseLtiUrlsTestMixin(CourseDetailTestMixin, CourseViewTestsMixin, SharedModuleStoreTestCase):
-    view = 'course_structure_api:v0:lti_urls'
-
-    @classmethod
-    def setUpClass(cls):
-        super(CourseLtiUrlsTestMixin, cls).setUpClass()
-        cls.create_course_data()
-
-    def setUp(self):
-        super(CourseLtiUrlsTestMixin, self).setUp()
-
-        # Ensure course structure exists for the course
-        update_course_structure(unicode(self.course.id))
-
-    def init_data(self):
-        """
-        If the course structure exists in the database, the view should return the data. Otherwise, the view should
-        initiate an asynchronous course structure generation and return a 503.
-        """
-
-        # Attempt to retrieve data for a course without stored structure
-        CourseStructure.objects.all().delete()
-        self.assertFalse(CourseStructure.objects.filter(course_id=self.course.id).exists())
-        response = self.http_get_for_course()
-        self.assertEqual(response.status_code, 503)
-        self.assertEqual(response['Retry-After'], '120')
-        # Course structure generation shouldn't take long. Generate the data and try again.
-        self.assertTrue(CourseStructure.objects.filter(course_id=self.course.id).exists())
-
-    def test_get(self):
-        self.init_data()
-
-        response = self.http_get_for_course()
-        self.assertEqual(response.status_code, 200)
-
-        data = response.data
-        self.assertEqual(len(data), 6)
-        self.assertEqual(data[0]['display_name'], 'root')
-        self.assertTrue(re.match('^http://testserver/lti_provider/courses.*' + str(self.course.id), data[0]['lti_url']))
-        block_types = {}
-        for row in data:
-            key = row['type']
-            if len(key) > 0:
-                block_types[key] = True
-        self.assertGreater(len(block_types.keys()), 1)
-
-    def test_get_with_type_param(self):
-        self.init_data()
-
-        response = self.http_get_for_course(
-            data={'type': 'problem'}
-        )
-        self.assertEqual(response.status_code, 200)
-
-        data = response.data
-        self.assertEqual(len(data), 2)
-        self.assertEqual(data[0]['display_name'], 'root')
-        self.assertTrue(re.match('^http://testserver/lti_provider/courses.*' + str(self.course.id), data[0]['lti_url']))
-        self.assertEqual(data[1]['type'], 'problem')

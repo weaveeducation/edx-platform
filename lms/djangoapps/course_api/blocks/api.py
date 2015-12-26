@@ -33,8 +33,7 @@ def get_blocks(
         block_counts,
         student_view_data,
         depth,
-        nav_depth,
-        block_types
+        nav_depth
     )
     blocks = get_course_blocks(
         user,
@@ -48,7 +47,7 @@ def get_blocks(
         'block_structure': blocks,
         'requested_fields': requested_fields or [],
         'lti_url': lti_url or False,
-        'block_types': block_types or None
+        'block_types': block_types or []
     }
 
     if return_type == 'dict':

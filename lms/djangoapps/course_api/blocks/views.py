@@ -33,6 +33,8 @@ class BlocksView(DeveloperErrorViewMixin, ListAPIView):
             &requested_fields=graded,format,student_view_multi_device
             &block_counts=video
             &student_view_data=video
+            &lti_url=true
+            &block_types=problem,html
 
     **Parameters**:
 
@@ -84,6 +86,15 @@ class BlocksView(DeveloperErrorViewMixin, ListAPIView):
           Default is dict. Supported values are: dict, list
 
           Example: return_type=dict
+
+        * block_types: (list) Requested types of blocks. Possible values include sequential,
+          vertical, html, problem, video, and discussion.
+
+          Example: block_types=vertical,html
+
+        * lti_url: (boolean) Indicates if it's required to show the field 'lti_url'.
+
+          Example: lti_url=true
 
     **Response Values**
 
@@ -146,6 +157,8 @@ class BlocksView(DeveloperErrorViewMixin, ListAPIView):
             if the student_view_url and the student_view_data fields are not
             supported.
 
+          * lti_url: The block URL for an LTI consumer.
+
     """
 
     def list(self, request, usage_key_string):  # pylint: disable=arguments-differ
@@ -177,7 +190,7 @@ class BlocksView(DeveloperErrorViewMixin, ListAPIView):
                     params.cleaned_data.get('block_counts', []),
                     params.cleaned_data.get('student_view_data', []),
                     params.cleaned_data['return_type'],
-                    params.cleaned_data.get('block_types', []),
+                    params.cleaned_data.get('block_types', None),
                     params.cleaned_data['lti_url'],
                 )
             )
@@ -202,6 +215,8 @@ class BlocksInCourseView(BlocksView):
             &requested_fields=graded,format,student_view_multi_device
             &block_counts=video
             &student_view_data=video
+            &lti_url=true
+            &block_types=problem,html
 
     **Parameters**:
 
