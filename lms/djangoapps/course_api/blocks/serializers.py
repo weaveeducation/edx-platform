@@ -88,7 +88,6 @@ class BlockDictSerializer(serializers.Serializer):  # pylint: disable=abstract-m
         result = {}
         requested_block_types = None if len(self.context['block_types']) == 0 else self.context['block_types']
         for block_key in structure:
-
             block_type = structure.get_xblock_field(block_key, 'category')
             if not requested_block_types or block_type in requested_block_types:
                 result[unicode(block_key)] = BlockSerializer(block_key, context=self.context).data
