@@ -86,21 +86,11 @@ include_special_exams = settings.FEATURES.get('ENABLE_SPECIAL_EXAMS', False) and
     <ol class="course-tabs">
       % for tab in get_course_tab_list(request, course):
         <%
-            tab_is_active = (tab.tab_id == active_page) or (tab.tab_id == default_tab)
+        tab_is_active = tab.tab_id in (active_page, default_tab)
+        tab_class = url_class(tab_is_active)
         %>
-          <li>
-             <a href="${tab.link_func(course, reverse) | h}" class="${url_class(tab_is_active)}">
-                 ${_(tab.name) | h}
-                 % if tab_is_active:
-                   <span class="sr">, current location</span>
-                 %endif
-                 % if tab_image:
-                   ## Translators: 'needs attention' is an alternative string for the
-                   ## notification image that indicates the tab "needs attention".
-                   <img src="${tab_image}" alt="${_('needs attention')}" />
-                 %endif
-             </a>
-          </li>
+        <%static:optional_include_mako file="courseware/tab_${tab.tab_id}.html" fallback="courseware/tab_default.html" with_microsite="True"
+          tab="${tab}" tab_is_active="${tab_is_active}", tab_image="${tab_image}" tab_class="${tab_class}" />
       % endfor
       <%block name="extratabs" />
     </ol>

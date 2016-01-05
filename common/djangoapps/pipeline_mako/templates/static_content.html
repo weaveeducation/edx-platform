@@ -80,14 +80,19 @@ source, template_path = Loader(engine).load_template_source(path)
     </script>
 </%def>
 
-<%def name="optional_include_mako(file, with_microsite=False)"><%
+<%def name="optional_include_mako(file, with_microsite=False, fallback=None, **kwargs)"><%
 # http://stackoverflow.com/q/21219531
 if with_microsite:
     file = microsite.get_template_path(file)
+tmpl = None
 try:
     tmpl = self.get_template(file)
 except TemplateLookupException:
-    pass
-else:
-    tmpl.render_context(context)
+    if fallback:
+        try:
+            tmpl = self.get_template(fallback)
+        except TemplateLookupException:
+            pass
+if tmpl:
+    tmpl.render_context(context._locals(kwargs))
 %></%def>
