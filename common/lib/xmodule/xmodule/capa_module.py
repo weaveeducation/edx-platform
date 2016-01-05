@@ -265,5 +265,6 @@ class CapaDescriptor(CapaFields, RawDescriptor):
     set_state_from_lcp = module_attr('set_state_from_lcp')
     should_show_check_button = module_attr('should_show_check_button')
     should_show_reset_button = module_attr('should_show_reset_button')
+    require_answer_before_check = module_attr('require_answer_before_check')
     should_show_save_button = module_attr('should_show_save_button')
     update_score = module_attr('update_score')

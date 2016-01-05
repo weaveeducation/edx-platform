@@ -175,6 +175,7 @@ class AdvancedSettingsPage(CoursePage):
             'cosmetic_display_price',
             'advertised_start',
             'announcement',
+            'require_answer_before_check',
             'display_name',
             'info_sidebar_name',
             'is_new',
