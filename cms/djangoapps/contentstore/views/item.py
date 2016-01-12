@@ -385,6 +385,7 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
     nullout means to truly set the field to None whereas nones in metadata mean to unset them (so they revert
     to default).
     """
+    # pylint: disable=too-many-statements
     store = modulestore()
     # Perform all xblock changes within a (single-versioned) transaction
     with store.bulk_operations(xblock.location.course_key):

@@ -121,7 +121,7 @@ class DraftVersioningModuleStore(SplitMongoModuleStore, ModuleStoreDraftAndPubli
                         keys_to_check.extend(children)
         return new_keys
 
-    def update_item(self, descriptor, user_id, allow_not_found=False, force=False, **kwargs):
+    def update_item(self, descriptor, user_id, allow_not_found=False, force=False, asides=None, **kwargs):
         old_descriptor_locn = descriptor.location
         descriptor.location = self._map_revision_to_branch(old_descriptor_locn)
         emit_signals = descriptor.location.branch == ModuleStoreEnum.BranchName.published \
@@ -133,17 +133,15 @@ class DraftVersioningModuleStore(SplitMongoModuleStore, ModuleStoreDraftAndPubli
                 user_id,
                 allow_not_found=allow_not_found,
                 force=force,
+                asides=asides,
                 **kwargs
             )
             self._auto_publish_no_children(item.location, item.location.category, user_id, **kwargs)
             descriptor.location = old_descriptor_locn
             return item
 
-    def create_item(
-        self, user_id, course_key, block_type, block_id=None,
-        definition_locator=None, fields=None,
-        force=False, skip_auto_publish=False, **kwargs
-    ):
+    def create_item(self, user_id, course_key, block_type, block_id=None,
+                    definition_locator=None, fields=None, asides=None, force=False, skip_auto_publish=False, **kwargs):
         """
         See :py:meth `ModuleStoreDraftAndPublished.create_item`
         """
@@ -153,22 +151,20 @@ class DraftVersioningModuleStore(SplitMongoModuleStore, ModuleStoreDraftAndPubli
         with self.bulk_operations(course_key, emit_signals=emit_signals):
             item = super(DraftVersioningModuleStore, self).create_item(
                 user_id, course_key, block_type, block_id=block_id,
-                definition_locator=definition_locator, fields=fields,
+                definition_locator=definition_locator, fields=fields, asides=asides,
                 force=force, **kwargs
             )
             if not skip_auto_publish:
                 self._auto_publish_no_children(item.location, item.location.category, user_id, **kwargs)
             return item
 
-    def create_child(
-            self, user_id, parent_usage_key, block_type, block_id=None,
-            fields=None, **kwargs
-    ):
+    def create_child(self, user_id, parent_usage_key, block_type, block_id=None,
+                     fields=None, asides=None, **kwargs):
         parent_usage_key = self._map_revision_to_branch(parent_usage_key)
         with self.bulk_operations(parent_usage_key.course_key):
             item = super(DraftVersioningModuleStore, self).create_child(
                 user_id, parent_usage_key, block_type, block_id=block_id,
-                fields=fields, **kwargs
+                fields=fields, asides=asides, **kwargs
             )
             # Publish both the child and the parent, if the child is a direct-only category
             self._auto_publish_no_children(item.location, item.location.category, user_id, **kwargs)
@@ -536,14 +532,16 @@ class DraftVersioningModuleStore(SplitMongoModuleStore, ModuleStoreDraftAndPubli
                 draft_course = course_key.for_branch(ModuleStoreEnum.BranchName.draft)
                 with self.branch_setting(ModuleStoreEnum.Branch.draft_preferred, draft_course):
                     # Importing the block and publishing the block links the draft & published blocks' version history.
-                    draft_block = self.import_xblock(user_id, draft_course, block_type, block_id, fields, runtime)
+                    draft_block = self.import_xblock(user_id, draft_course, block_type, block_id, fields,
+                                                     runtime, **kwargs)
                     return self.publish(draft_block.location.version_agnostic(), user_id, blacklist=EXCLUDE_ALL, **kwargs)
 
             # do the import
             partitioned_fields = self.partition_fields_by_scope(block_type, fields)
             course_key = self._map_revision_to_branch(course_key)  # cast to branch_setting
             return self._update_item_from_fields(
-                user_id, course_key, BlockKey(block_type, block_id), partitioned_fields, None, allow_not_found=True, force=True
+                user_id, course_key, BlockKey(block_type, block_id), partitioned_fields, None,
+                allow_not_found=True, force=True, **kwargs
             ) or self.get_item(new_usage_key)
 
     def compute_published_info_internal(self, xblock):
