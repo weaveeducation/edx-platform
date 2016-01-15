@@ -18,8 +18,8 @@ urlpatterns = patterns(
         r'^grading_policies/{}/$'.format(COURSE_ID_PATTERN),
         views.CourseGradingPolicy.as_view(),
         name='grading_policy'
-    )
-),
+    ),
+)
 
 if settings.FEATURES.get('ENABLE_COURSE_BLOCKS_NAVIGATION_API'):
     # TODO (MA-789) This endpoint still needs to be approved by the arch council.

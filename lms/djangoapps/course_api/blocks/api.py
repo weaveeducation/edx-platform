@@ -45,7 +45,7 @@ def get_blocks(
         'request': request,
         'block_structure': blocks,
         'requested_fields': requested_fields or [],
-        'block_types': block_types or []
+        'block_types': block_types or [],
     }
 
     if return_type == 'dict':
