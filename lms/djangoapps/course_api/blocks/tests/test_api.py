@@ -14,7 +14,6 @@ class TestGetBlocks(ModuleStoreTestCase):
     """
     Tests for the get_blocks function
     """
-
     def setUp(self):
         super(TestGetBlocks, self).setUp()
         self.course = SampleCourseFactory.create()

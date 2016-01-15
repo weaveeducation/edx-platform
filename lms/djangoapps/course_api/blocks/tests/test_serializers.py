@@ -40,8 +40,7 @@ class TestBlockSerializerBase(SharedModuleStoreTestCase):
             'request': MagicMock(),
             'block_structure': self.block_structure,
             'requested_fields': ['type'],
-            'lti_url': False,
-            'block_types': ['html']
+            'block_types': ['html'],
         }
 
     def assert_basic_block(self, block_key_string, serialized_block):
@@ -70,8 +69,8 @@ class TestBlockSerializerBase(SharedModuleStoreTestCase):
             'block_counts',
             'student_view_data',
             'student_view_multi_device',
+            'lti_url',
         ])
-        self.serializer_context['lti_url'] = True
         self.serializer_context['block_types'] = ['html']
 
     def assert_extended_block(self, serialized_block):
@@ -83,7 +82,7 @@ class TestBlockSerializerBase(SharedModuleStoreTestCase):
                 'id', 'type', 'lms_web_url', 'student_view_url',
                 'display_name', 'graded',
                 'block_counts', 'student_view_multi_device',
-                'lti_url'
+                'lti_url',
             },
             set(serialized_block.iterkeys()),
         )
