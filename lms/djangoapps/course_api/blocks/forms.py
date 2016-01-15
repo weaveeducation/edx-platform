@@ -30,7 +30,6 @@ class BlockListGetForm(Form):
         required=False,
         choices=[(choice, choice) for choice in ['dict', 'list']],
     )
-    lti_url = BooleanField(required=False)
     block_types = MultiValueField(required=False)
 
     def clean_requested_fields(self):

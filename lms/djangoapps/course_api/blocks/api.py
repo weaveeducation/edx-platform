@@ -19,7 +19,6 @@ def get_blocks(
         student_view_data=None,
         return_type='dict',
         block_types=None,
-        lti_url=None
 ):
     """
     Return a serialized representation of the course blocks
@@ -46,7 +45,6 @@ def get_blocks(
         'request': request,
         'block_structure': blocks,
         'requested_fields': requested_fields or [],
-        'lti_url': lti_url or False,
         'block_types': block_types or []
     }
 

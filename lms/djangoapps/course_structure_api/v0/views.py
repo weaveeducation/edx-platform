@@ -62,7 +62,6 @@ class CourseViewMixin(object):
         :param func: function to be wrapped
         :returns: the wrapped function
         """
-
         def func_wrapper(self, *args, **kwargs):
             """Wrapper function for this decorator.
 
@@ -438,7 +437,6 @@ class CourseBlocksAndNavigation(ListAPIView):
         """
         A class for encapsulating the result information, specifically the blocks and navigation data.
         """
-
         def __init__(self, return_blocks, return_nav):
             self.blocks = {}
             self.navigation = {}
@@ -460,7 +458,6 @@ class CourseBlocksAndNavigation(ListAPIView):
         """
         A class for encapsulating a block's information as needed during traversal of a block hierarchy.
         """
-
         def __init__(self, block, request_info, parent_block_info=None):
             # the block for which the recursion is being computed
             self.block = block

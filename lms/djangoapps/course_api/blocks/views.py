@@ -30,10 +30,9 @@ class BlocksView(DeveloperErrorViewMixin, ListAPIView):
         GET /api/courses/v1/blocks/<usage_id>/?
             username=anjali
             &depth=all
-            &requested_fields=graded,format,student_view_multi_device
+            &requested_fields=graded,format,student_view_multi_device,lti_url
             &block_counts=video
             &student_view_data=video
-            &lti_url=true
             &block_types=problem,html
 
     **Parameters**:
@@ -91,10 +90,6 @@ class BlocksView(DeveloperErrorViewMixin, ListAPIView):
           vertical, html, problem, video, and discussion.
 
           Example: block_types=vertical,html
-
-        * lti_url: (boolean) Indicates if it's required to show the field 'lti_url'.
-
-          Example: lti_url=true
 
     **Response Values**
 
@@ -191,7 +186,6 @@ class BlocksView(DeveloperErrorViewMixin, ListAPIView):
                     params.cleaned_data.get('student_view_data', []),
                     params.cleaned_data['return_type'],
                     params.cleaned_data.get('block_types', None),
-                    params.cleaned_data['lti_url'],
                 )
             )
         except ItemNotFoundError as exception:
@@ -212,10 +206,9 @@ class BlocksInCourseView(BlocksView):
         GET /api/courses/v1/blocks/?course_id=<course_id>
             &username=anjali
             &depth=all
-            &requested_fields=graded,format,student_view_multi_device
+            &requested_fields=graded,format,student_view_multi_device,lti_url
             &block_counts=video
             &student_view_data=video
-            &lti_url=true
             &block_types=problem,html
 
     **Parameters**:
