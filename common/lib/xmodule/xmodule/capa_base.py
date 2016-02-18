@@ -140,6 +140,14 @@ class CapaFields(object):
         scope=Scope.settings,
         default=default_reset_button
     )
+    require_answer_before_check = Boolean(
+        display_name=_("Require answer before check"),
+        help=_(
+            'Enter true or false. Make it impossible to click "check"/"final check" without selecting a choice.'
+        ),
+        default=True,
+        scope=Scope.settings
+    )
     rerandomize = Randomization(
         display_name=_("Randomization"),
         help=_(
@@ -673,6 +681,7 @@ class CapaMixin(CapaFields):
             'check_button': check_button,
             'check_button_checking': check_button_checking,
             'reset_button': self.should_show_reset_button(),
+            'require_answer_before_check': self.require_answer_before_check,
             'save_button': self.should_show_save_button(),
             'answer_available': self.answer_available(),
             'attempts_used': self.attempts,

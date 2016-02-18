@@ -17,7 +17,7 @@
     <div class="problem-hint" aria-live="polite"></div>
     % endif
     % if check_button:
-    <button class="check ${ check_button }" data-checking="${ check_button_checking }" data-value="${ check_button }"><span class="check-label">${ check_button }</span><span class="sr"> ${_("your answer")}</span></button>
+    <button class="check ${ check_button }" data-checking="${ check_button_checking }" data-require-answer-before-check="${ 1 if require_answer_before_check else 0 }" data-value="${ check_button }"><span class="check-label">${ check_button }</span><span class="sr"> ${_("your answer")}</span></button>
     % endif
     % if demand_hint_possible:
     <button class="hint-button" data-value="${_('Hint')}">${_('Hint')}</button>

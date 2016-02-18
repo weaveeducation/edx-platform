@@ -188,6 +188,14 @@ class InheritanceMixin(XBlockMixin):
         scope=Scope.settings,
         default=default_reset_button
     )
+    require_answer_before_check = Boolean(
+        display_name=_("Require answer before check"),
+        help=_(
+            'Enter true or false. Make it impossible to click "check"/"final check" without selecting a choice.'
+        ),
+        default=True,
+        scope=Scope.settings
+    )
     edxnotes = Boolean(
         display_name=_("Enable Student Notes"),
         help=_("Enter true or false. If true, students can use the Student Notes feature."),

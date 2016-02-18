@@ -31,6 +31,7 @@ class @Problem
     @checkButtonLabel = @$('div.action button.check span.check-label')
     @checkButtonCheckText = @checkButtonLabel.text()
     @checkButtonCheckingText = @checkButton.data('checking')
+    @requireAnswerBeforeCheck = @checkButton.data('require-answer-before-check')
     @checkButton.click @check_fd
 
     @$('div.action button.hint-button').click @hint_button
@@ -45,6 +46,8 @@ class @Problem
       window.globalTooltipManager.hide()
 
     @bindResetCorrectness()
+    if @requireAnswerBeforeCheck and @checkButton.length
+      @checkAnswersAndCheckButton true
 
     # Collapsibles
     Collapsible.setCollapsibles(@el)
@@ -450,6 +453,48 @@ class @Problem
       element.CodeMirror.save() if element.CodeMirror.save
     @answers = @inputs.serialize()
 
+  checkAnswersAndCheckButton: (bind=false) =>
+    answered = true
+
+    @el.find("input:text").each (i, v) =>
+      if $(v).is(':visible')
+        if $(v).val() is ''
+          answered = false
+        if bind
+          $(v).on 'input', (e) =>
+            @checkAnswersAndCheckButton()
+            return
+          return
+
+    @el.find(".choicegroup").each (i, v) =>
+      checked = false
+      $(v).find("input[type=checkbox], input[type=radio]").each (j, vv) =>
+        if $(vv).is(':checked')
+          checked = true
+        if bind
+          $(vv).on 'click', (e) =>
+            @checkAnswersAndCheckButton()
+            return
+          return
+      if not checked
+        answered = false
+        return
+
+    @el.find("select").each (i, v) =>
+      s = $(v).find("option:selected").text().trim()
+      if s is ''
+        answered = false
+      if bind
+        $(v).on 'change', (e) =>
+          @checkAnswersAndCheckButton()
+          return
+        return
+
+    if answered
+      @enableCheckButton true
+    else
+      @enableCheckButton false, false
+
   bindResetCorrectness: ->
     # Loop through all input types
     # Bind the reset functions at that scope.
@@ -674,16 +719,18 @@ class @Problem
       element = $(element)
       element.find("section[id^='forinput']").removeClass('choicetextgroup_show_correct')
 
-  enableCheckButton: (enable) =>
+  enableCheckButton: (enable, changeText = true) =>
     # Used to disable check button to reduce chance of accidental double-submissions.
     if enable
       @checkButton.removeClass 'is-disabled'
       @checkButton.attr({'aria-disabled': 'false'})
-      @checkButtonLabel.text(@checkButtonCheckText)
+      if changeText
+        @checkButtonLabel.text(@checkButtonCheckText)
     else
       @checkButton.addClass 'is-disabled'
       @checkButton.attr({'aria-disabled': 'true'})
-      @checkButtonLabel.text(@checkButtonCheckingText)
+      if changeText
+        @checkButtonLabel.text(@checkButtonCheckingText)
 
   enableCheckButtonAfterResponse: =>
     @has_response = true
