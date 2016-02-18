@@ -3,7 +3,7 @@ Course API Forms
 """
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.forms import Form, CharField, ChoiceField, IntegerField
+from django.forms import Form, CharField, ChoiceField, IntegerField, BooleanField
 from django.http import Http404
 from rest_framework.exceptions import PermissionDenied
 
@@ -30,6 +30,8 @@ class BlockListGetForm(Form):
         required=False,
         choices=[(choice, choice) for choice in ['dict', 'list']],
     )
+    lti_url = BooleanField(required=False)
+    block_types = MultiValueField(required=False)
 
     def clean_requested_fields(self):
         """
@@ -120,6 +122,8 @@ class BlockListGetForm(Form):
             'student_view_data',
             'block_counts',
             'nav_depth',
+            'lti_url',
+            'block_types'
         ]
         for additional_field in additional_requested_fields:
             field_value = cleaned_data.get(additional_field)

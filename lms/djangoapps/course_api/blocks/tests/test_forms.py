@@ -53,11 +53,13 @@ class TestBlockListGetForm(FormTestMixin, SharedModuleStoreTestCase):
             'depth': 0,
             'nav_depth': None,
             'return_type': 'dict',
-            'requested_fields': {'display_name', 'type'},
+            'requested_fields': {'display_name', 'type', 'lti_url'},
             'student_view_data': set(),
             'usage_key': usage_key,
             'username': self.student.username,
             'user': self.student,
+            'lti_url': False,
+            'block_types': set(),
         }
 
     def assert_raises_permission_denied(self):
