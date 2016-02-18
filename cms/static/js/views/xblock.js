@@ -29,6 +29,13 @@ define(["jquery", "underscore", "js/views/baseview", "xblock/runtime.v1"],
                 });
             },
 
+            initRuntimeData: function(xblock, options) {
+                if (options && options.initRuntimeData && xblock && xblock.runtime && !xblock.runtime.page) {
+                    xblock.runtime.page = options.initRuntimeData;
+                }
+                return xblock;
+            },
+
             handleXBlockFragment: function(fragment, options) {
                 var self = this,
                     wrapper = this.$el,
@@ -43,10 +50,16 @@ define(["jquery", "underscore", "js/views/baseview", "xblock/runtime.v1"],
                     xblockElement = self.$('.xblock').first();
                     try {
                         xblock = XBlock.initializeBlock(xblockElement);
-                        self.xblock = xblock;
-                        self.xblockReady(xblock);
+                        self.xblock = self.initRuntimeData(xblock, options);
+                        self.xblockReady(self.xblock);
+                        self.$('.xblock_asides-v1').each(function() {
+                            if (!$(this).hasClass('xblock-initialized')) {
+                                var aside = XBlock.initializeBlock($(this));
+                                self.initRuntimeData(aside, options);
+                            }
+                        });
                         if (successCallback) {
-                            successCallback(xblock);
+                            successCallback(self.xblock);
                         }
                     } catch (e) {
                         console.error(e.stack);
@@ -75,6 +88,15 @@ define(["jquery", "underscore", "js/views/baseview", "xblock/runtime.v1"],
                 var runtime = this.xblock && this.xblock.runtime;
                 if (runtime) {
                     runtime.notify(eventName, data);
+                } else {
+                    var xblock_children = this.xblock.element && $(this.xblock.element).prop('xblock_children');
+                    if (xblock_children) {
+                        $(xblock_children).each(function() {
+                            if (this.runtime) {
+                                this.runtime.notify(eventName, data);
+                            }
+                        });
+                    }
                 }
             },
 

@@ -455,7 +455,6 @@ class ImportManager(object):
             with self.store.bulk_operations(dest_id):
                 # Import all draft items into the courselike.
                 courselike = self.import_drafts(courselike, courselike_key, data_path, dest_id)
-
             yield courselike
 
 
@@ -736,11 +735,13 @@ def _update_and_import_module(
         )
 
     fields = _update_module_references(module, source_course_id, dest_course_id)
+    asides = module.get_asides() if isinstance(module, XModuleMixin) else None
 
-    return store.import_xblock(
+    imported_xblock = store.import_xblock(
         user_id, dest_course_id, module.location.category,
-        module.location.block_id, fields, runtime
+        module.location.block_id, fields, runtime, asides=asides
     )
+    return imported_xblock
 
 
 def _import_course_draft(

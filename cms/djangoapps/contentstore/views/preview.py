@@ -9,7 +9,8 @@ from django.http import Http404, HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required
 from edxmako.shortcuts import render_to_string
 
-from openedx.core.lib.xblock_utils import replace_static_urls, wrap_xblock, wrap_fragment, request_token
+from openedx.core.lib.xblock_utils import replace_static_urls, wrap_xblock, wrap_xblock_aside, wrap_fragment,\
+    request_token
 from xmodule.x_module import PREVIEW_VIEWS, STUDENT_VIEW, AUTHOR_VIEW
 from xmodule.contentstore.django import contentstore
 from xmodule.error_module import ErrorDescriptor
@@ -19,6 +20,7 @@ from xmodule.services import SettingsService
 from xmodule.modulestore.django import modulestore, ModuleI18nService
 from xmodule.mixin import wrap_with_license
 from opaque_keys.edx.keys import UsageKey
+from opaque_keys.edx.asides import AsideUsageKeyV1
 from xmodule.x_module import ModuleSystem
 from xblock.runtime import KvsFieldData
 from xblock.django.request import webob_to_django_response, django_to_webob_request
@@ -56,8 +58,17 @@ def preview_handler(request, usage_key_string, handler, suffix=''):
     """
     usage_key = UsageKey.from_string(usage_key_string)
 
-    descriptor = modulestore().get_item(usage_key)
-    instance = _load_preview_module(request, descriptor)
+    if isinstance(usage_key, AsideUsageKeyV1):
+        descriptor = modulestore().get_item(usage_key.usage_key)
+        asides = descriptor.runtime.get_asides(descriptor)
+        for aside in asides:
+            if aside.scope_ids.block_type == usage_key.aside_type:
+                instance = aside
+                break
+
+    else:
+        descriptor = modulestore().get_item(usage_key)
+        instance = _load_preview_module(request, descriptor)
     # Let the module handle the AJAX
     req = django_to_webob_request(request)
     try:
@@ -119,6 +130,20 @@ class PreviewModuleSystem(ModuleSystem):  # pylint: disable=abstract-method
         """
         return self.wrap_xblock(block, view_name, Fragment(), context)
 
+    def layout_asides(self, block, context, frag, view_name, aside_frag_fns):
+        position_for_asides = '<!-- footer for xblock_aside -->'
+        result = Fragment()
+        result.add_frag_resources(frag)
+
+        for aside, aside_fn in aside_frag_fns:
+            aside_frag = self.wrap_aside(block, aside, view_name, aside_fn(block, context), context)
+            aside.save()
+            result.add_frag_resources(aside_frag)
+            frag.content = frag.content.replace(position_for_asides, position_for_asides + aside_frag.content)
+
+        result.add_content(frag.content)
+        return result
+
 
 class StudioPermissionsService(object):
     """
@@ -167,11 +192,19 @@ def _preview_module_system(request, descriptor, field_data):
             usage_id_serializer=unicode,
             request_token=request_token(request)
         ),
-
         # This wrapper replaces urls in the output that start with /static
         # with the correct course-specific url for the static content
         partial(replace_static_urls, None, course_id=course_id),
         _studio_wrap_xblock,
+    ]
+
+    wrappers_asides = [
+        partial(
+            wrap_xblock_aside,
+            'PreviewRuntime',
+            usage_id_serializer=unicode,
+            request_token=request_token(request)
+        )
     ]
 
     if settings.FEATURES.get("LICENSING", False):
@@ -198,6 +231,7 @@ def _preview_module_system(request, descriptor, field_data):
 
         # Set up functions to modify the fragment produced by student_view
         wrappers=wrappers,
+        wrappers_asides=wrappers_asides,
         error_descriptor_class=ErrorDescriptor,
         get_user_role=lambda: get_user_role(request.user, course_id),
         # Get the raw DescriptorSystem, not the CombinedSystem
