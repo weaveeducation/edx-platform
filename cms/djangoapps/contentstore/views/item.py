@@ -54,6 +54,9 @@ from models.settings.course_grading import CourseGradingModel
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import LibraryUsageLocator
 from cms.lib.xblock.authoring_mixin import VISIBILITY_VIEW
+from contentstore.views.preview import StudioPermissionsService
+from xblock.exceptions import NoSuchServiceError
+
 
 __all__ = [
     'orphan_handler', 'xblock_handler', 'xblock_view_handler', 'xblock_outline_handler', 'xblock_container_handler'
@@ -155,9 +158,11 @@ def xblock_handler(request, usage_key_string):
             _delete_item(usage_key, request.user)
             return JsonResponse()
         else:  # Since we have a usage_key, we are updating an existing xblock.
+            xblock = _get_xblock(usage_key, request.user)
+            xblock = _update_studio_user_permissions(xblock, request)
             return _save_xblock(
                 request.user,
-                _get_xblock(usage_key, request.user),
+                xblock,
                 data=request.json.get('data'),
                 children_strings=request.json.get('children'),
                 metadata=request.json.get('metadata'),
@@ -212,10 +217,10 @@ def xblock_view_handler(request, usage_key_string, view_name):
         raise PermissionDenied()
 
     accept_header = request.META.get('HTTP_ACCEPT', 'application/json')
-
     if 'application/json' in accept_header:
         store = modulestore()
         xblock = store.get_item(usage_key)
+        xblock = _update_studio_user_permissions(xblock, request)
         container_views = ['container_preview', 'reorderable_container_child_preview', 'container_child_preview']
 
         # wrap the generated fragment in the xmodule_editor div so that the javascript
@@ -1098,3 +1103,22 @@ def _xblock_type_and_display_name(xblock):
     return _('{section_or_subsection} "{display_name}"').format(
         section_or_subsection=xblock_type_display_name(xblock),
         display_name=xblock.display_name_with_default)
+
+
+def _update_studio_user_permissions(xblock, request):
+    """
+    Return xblock with updated "studio_user_permissions" param according to the request
+    """
+    studio_user_permissions = None
+
+    try:
+        studio_user_permissions = xblock.runtime.service(xblock, 'studio_user_permissions')
+        if studio_user_permissions is not None:
+            studio_user_permissions.set_request(request)
+    except NoSuchServiceError:
+        pass
+
+    if studio_user_permissions is None:
+        xblock.runtime._descriptor_system._services['studio_user_permissions'] = StudioPermissionsService(request)   # pylint: disable=protected-access
+
+    return xblock

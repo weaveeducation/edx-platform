@@ -133,6 +133,10 @@ class StudioPermissionsService(object):
         super(StudioPermissionsService, self).__init__()
         self._request = request
 
+    def set_request(self, request):
+        """ Set the request param """
+        self._request = request
+
     def can_read(self, course_key):
         """ Does the user have read access to the given course/library? """
         return has_studio_read_access(self._request.user, course_key)
