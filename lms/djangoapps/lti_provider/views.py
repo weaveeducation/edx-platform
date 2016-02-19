@@ -91,7 +91,13 @@ def lti_launch(request, course_id, usage_id):
     # used earlier to verify the oauth signature.
     store_outcome_parameters(params, request.user, lti_consumer)
 
-    return render_courseware(request, params['usage_key'])
+    resp = render_courseware(request, params['usage_key'])
+
+    # this header should be used to save CSRF cookies in IE 10+ browser
+    # in case of display courseware through the iframe
+    # http://blogs.msdn.com/b/ieinternals/archive/2013/09/17/simple-introduction-to-p3p-cookie-blocking-frame.aspx
+    resp['P3P'] = 'CP="IDC DSP COR ADM DEVi TAIi PSA PSD IVAi IVDi CONi HIS OUR IND CNT"'
+    return resp
 
 
 def get_required_parameters(dictionary, additional_params=None):
