@@ -88,7 +88,7 @@ define(["jquery", "underscore", "js/views/baseview", "xblock/runtime.v1"],
                 var runtime = this.xblock && this.xblock.runtime;
                 if (runtime) {
                     runtime.notify(eventName, data);
-                } else {
+                } else if (this.xblock) {
                     var xblock_children = this.xblock.element && $(this.xblock.element).prop('xblock_children');
                     if (xblock_children) {
                         $(xblock_children).each(function() {
