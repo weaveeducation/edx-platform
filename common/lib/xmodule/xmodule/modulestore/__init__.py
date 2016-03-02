@@ -428,7 +428,7 @@ class BlockData(object):
             'block_type': self.block_type,
             'definition': self.definition,
             'defaults': self.defaults,
-            'asides': self.asides,
+            'asides': self.get_asides(),
             'edit_info': self.edit_info.to_storable(),
         }
 
