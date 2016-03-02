@@ -18,8 +18,6 @@ from .models import AvailableTags
 
 _ = lambda text: text
 
-_cached_tags = {}
-
 
 class AbstractTag(object):
     """
@@ -43,30 +41,8 @@ class AbstractTag(object):
 
     def get_values(self, course_id):
         """ Allowed values for the selector """
-        cached = self._get_value_from_cache(course_id)
-        if cached is None:
-            cached = [v.tag for v in AvailableTags.objects.filter(course_id=course_id, category=self.key)]
-            self._set_cache_value(course_id, cached)
-        return cached[:]
-
-    def _cache_key(self, course_id):
-        return u'_'.join([unicode(course_id), self.key])
-
-    def _get_value_from_cache(self, course_id):
-        cache_key = self._cache_key(course_id)
-        if cache_key in _cached_tags:
-            return _cached_tags[cache_key]
-        else:
-            return None
-
-    def _set_cache_value(self, course_id, data):
-        cache_key = self._cache_key(course_id)
-        _cached_tags[cache_key] = data
-
-    def clear_cache(self, course_id):
-        cache_key = self._cache_key(course_id)
-        if cache_key in _cached_tags:
-            del _cached_tags[cache_key]
+        tags = [v.tag for v in AvailableTags.objects.filter(course_id=course_id, category=self.key)]
+        return tags[:]
 
 
 class DifficultyTag(AbstractTag):
@@ -213,4 +189,4 @@ class StructuredTagsAside(XBlockAside):
         AvailableTags.objects.filter(course_id=course_id, category=tag.key).delete()
         for value in data:
             AvailableTags(course_id=course_id, category=tag.key, tag=value).save()
-        tag.clear_cache(course_id)
+
