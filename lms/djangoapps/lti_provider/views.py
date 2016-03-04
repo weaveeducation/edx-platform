@@ -14,6 +14,7 @@ from lti_provider.users import authenticate_lti_user
 from lms_xblock.runtime import unquote_slashes
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys import InvalidKeyError
+from util.views import add_p3p_header
 
 log = logging.getLogger("edx.lti_provider")
 
@@ -32,6 +33,7 @@ OPTIONAL_PARAMETERS = [
 
 
 @csrf_exempt
+@add_p3p_header
 def lti_launch(request, course_id, usage_id):
     """
     Endpoint for all requests to embed edX content via the LTI protocol. This
@@ -91,13 +93,7 @@ def lti_launch(request, course_id, usage_id):
     # used earlier to verify the oauth signature.
     store_outcome_parameters(params, request.user, lti_consumer)
 
-    resp = render_courseware(request, params['usage_key'])
-
-    # this header should be used to save CSRF cookies in IE 10+ browser
-    # in case of display courseware through the iframe
-    # http://blogs.msdn.com/b/ieinternals/archive/2013/09/17/simple-introduction-to-p3p-cookie-blocking-frame.aspx
-    resp['P3P'] = 'CP="IDC DSP COR ADM DEVi TAIi PSA PSD IVAi IVDi CONi HIS OUR IND CNT"'
-    return resp
+    return render_courseware(request, params['usage_key'])
 
 
 def get_required_parameters(dictionary, additional_params=None):
