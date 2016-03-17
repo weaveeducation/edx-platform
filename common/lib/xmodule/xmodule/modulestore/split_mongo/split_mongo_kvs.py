@@ -139,6 +139,8 @@ class SplitMongoKVS(InheritanceKeyValueStore):
         """
         Is the given field explicitly set in this kvs (not inherited nor default)
         """
+        if key.scope not in self.VALID_SCOPES:
+            return False
         # handle any special cases
         if key.scope == Scope.content:
             self._load_definition()
