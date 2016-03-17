@@ -269,6 +269,8 @@ FEATURES['ENABLE_COURSEWARE_INDEX'] = True
 FEATURES['ENABLE_LIBRARY_INDEX'] = True
 SEARCH_ENGINE = "search.tests.mock_search_engine.MockSearchEngine"
 
+# tagging
+INSTALLED_APPS += ('cms.lib.xblock.tagging',)
 
 # teams feature
 FEATURES['ENABLE_TEAMS'] = True

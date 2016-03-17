@@ -139,6 +139,8 @@ class SplitMongoKVS(InheritanceKeyValueStore):
         """
         Is the given field explicitly set in this kvs (not inherited nor default)
         """
+        if key.scope not in self.VALID_SCOPES:
+            return False
         # handle any special cases
         if key.scope == Scope.content:
             self._load_definition()
@@ -149,7 +151,10 @@ class SplitMongoKVS(InheritanceKeyValueStore):
             if key.scope == Scope.children:
                 return False
 
-            b_type = key.block_scope_id.block_type
+            try:
+                b_type = key.block_scope_id.block_type
+            except AttributeError:
+                return False
             return b_type in self.aside_fields and key.field_name in self.aside_fields[b_type]
         else:
             # it's not clear whether inherited values should return True. Right now they don't
