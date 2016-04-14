@@ -11,6 +11,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from django.db import IntegrityError, transaction
 from lti_provider.models import LtiUser
 from student.models import UserProfile
@@ -69,20 +70,21 @@ def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
     created = False
     while not created:
         try:
-            if 'email' in lti_params:
-                edx_email = cut_to_max_len(lti_params['email'], EMAIL_DB_FIELD_SIZE)
-                edx_username = cut_to_max_len(lti_params['email'], USERNAME_DB_FIELD_SIZE)
-                try:
-                    #if this username already exists then use the random username
-                    edx_user = User.objects.get(username=edx_username)
-                    edx_username = generate_random_edx_username()
-                except User.DoesNotExist:
-                    pass
-            else:
-                edx_username = generate_random_edx_username()
-                edx_email = "{}@{}".format(edx_username, settings.LTI_USER_EMAIL_DOMAIN)
-
             with transaction.atomic():
+                if 'email' in lti_params:
+                    edx_email = cut_to_max_len(lti_params['email'], EMAIL_DB_FIELD_SIZE)
+                    edx_username = cut_to_max_len(lti_params['email'], USERNAME_DB_FIELD_SIZE)
+                    try:
+                        #if the user with such username or email already exists then use the random username
+                        edx_user = User.objects.get(Q(username=edx_username)|Q(email=edx_username))
+                        edx_username = generate_random_edx_username()
+                        edx_email = "{}@{}".format(edx_username, settings.LTI_USER_EMAIL_DOMAIN)
+                    except User.DoesNotExist:
+                        pass
+                else:
+                    edx_username = generate_random_edx_username()
+                    edx_email = "{}@{}".format(edx_username, settings.LTI_USER_EMAIL_DOMAIN)
+
                 edx_user = User.objects.create_user(
                     username=edx_username,
                     password=edx_password,
