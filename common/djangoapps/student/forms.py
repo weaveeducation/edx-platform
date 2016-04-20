@@ -1,6 +1,15 @@
 """
 Utility functions for validating forms
 """
+<<<<<<< HEAD
+=======
+from importlib import import_module
+import re
+import socket
+import smtplib
+import dns.resolver
+
+>>>>>>> c26db53... edx-105: "Retype password" field + verification that a email really exists
 from django import forms
 from django.forms import widgets
 from django.core.exceptions import ValidationError
@@ -140,6 +149,11 @@ class AccountCreationForm(forms.Form):
             "min_length": _PASSWORD_INVALID_MSG,
         }
     )
+    password_copy = forms.CharField(
+        min_length=2,
+        error_messages={
+        }
+    )
     name = forms.CharField(
         min_length=2,
         error_messages={
@@ -225,6 +239,74 @@ class AccountCreationForm(forms.Form):
                 raise ValidationError(_("Password: ") + "; ".join(err.messages))
         return password
 
+<<<<<<< HEAD
+=======
+    def clean_password_copy(self):
+        """Enforce password policies (if applicable)"""
+        password_copy = self.cleaned_data["password_copy"]
+
+        if (
+                "password" in self.cleaned_data and
+                self.cleaned_data["password"] != password_copy
+        ):
+            raise ValidationError(_("Passwords don't match"))
+
+        return password_copy
+
+    def _verify_email_really_exists(self, email):
+        try:
+            domain = email.rsplit('@', 1)[-1]
+            records = dns.resolver.query(domain, 'MX')
+            mxRecord = records[0].exchange
+            mxRecord = str(mxRecord)
+
+            # Get local server hostname
+            host = socket.gethostname()
+
+            # SMTP lib setup (use debug level for full output)
+            server = smtplib.SMTP()
+            server.set_debuglevel(0)
+
+            # SMTP Conversation
+            server.connect(mxRecord)
+            server.helo(host)
+            server.mail(email)
+            code, message = server.rcpt(str(email))
+            server.quit()
+
+            if code != 250:
+                raise
+        except dns.resolver.NoNameservers:
+            pass
+        except:
+            raise ValidationError(
+                u"Email '{email}' doesn't exist".format(email=email)
+            )
+
+    def clean_email(self):
+        """ Enforce email restrictions (if applicable) """
+        email = self.cleaned_data["email"]
+        if settings.REGISTRATION_EMAIL_PATTERNS_ALLOWED is not None:
+            # This Open edX instance has restrictions on what email addresses are allowed.
+            allowed_patterns = settings.REGISTRATION_EMAIL_PATTERNS_ALLOWED
+            # We append a '$' to the regexs to prevent the common mistake of using a
+            # pattern like '.*@edx\\.org' which would match 'bob@edx.org.badguy.com'
+            if not any(re.match(pattern + "$", email) for pattern in allowed_patterns):
+                # This email is not on the whitelist of allowed emails. Check if
+                # they may have been manually invited by an instructor and if not,
+                # reject the registration.
+                if not CourseEnrollmentAllowed.objects.filter(email=email).exists():
+                    raise ValidationError(_("Unauthorized email address."))
+        if User.objects.filter(email__iexact=email).exists():
+            raise ValidationError(
+                _(
+                    "It looks like {email} belongs to an existing account. Try again with a different email address."
+                ).format(email=email)
+            )
+        self._verify_email_really_exists(email)
+        return email
+
+>>>>>>> c26db53... edx-105: "Retype password" field + verification that a email really exists
     def clean_year_of_birth(self):
         """
         Parse year_of_birth to an integer, but just use None instead of raising
