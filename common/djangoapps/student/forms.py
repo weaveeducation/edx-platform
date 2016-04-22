@@ -1,15 +1,10 @@
 """
 Utility functions for validating forms
 """
-<<<<<<< HEAD
-=======
-from importlib import import_module
-import re
 import socket
 import smtplib
 import dns.resolver
 
->>>>>>> c26db53... edx-105: "Retype password" field + verification that a email really exists
 from django import forms
 from django.forms import widgets
 from django.core.exceptions import ValidationError
@@ -239,8 +234,6 @@ class AccountCreationForm(forms.Form):
                 raise ValidationError(_("Password: ") + "; ".join(err.messages))
         return password
 
-<<<<<<< HEAD
-=======
     def clean_password_copy(self):
         """Enforce password policies (if applicable)"""
         password_copy = self.cleaned_data["password_copy"]
@@ -306,7 +299,7 @@ class AccountCreationForm(forms.Form):
         self._verify_email_really_exists(email)
         return email
 
->>>>>>> c26db53... edx-105: "Retype password" field + verification that a email really exists
+
     def clean_year_of_birth(self):
         """
         Parse year_of_birth to an integer, but just use None instead of raising
