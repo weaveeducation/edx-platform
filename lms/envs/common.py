@@ -2151,7 +2151,11 @@ REGISTRATION_EXTRA_FIELDS = {
     'terms_of_service': 'hidden',
     'city': 'hidden',
     'country': 'hidden',
+    'password_copy': 'hidden',
 }
+
+# Optionally verify if a registration email really exists
+REGISTRATION_EMAIL_FULL_VERIFICATION = None
 
 ########################## CERTIFICATE NAME ########################
 CERT_NAME_SHORT = "Certificate"
