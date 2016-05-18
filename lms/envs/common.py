@@ -1946,6 +1946,8 @@ INSTALLED_APPS = (
     'openedx.core.djangoapps.self_paced',
 
     'sorl.thumbnail',
+
+    'raven.contrib.django.raven_compat',
 )
 
 # Migrations which are not in the standard module "migrations"
