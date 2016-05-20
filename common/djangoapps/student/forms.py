@@ -1,6 +1,11 @@
 """
 Utility functions for validating forms
 """
+import re
+import socket
+import smtplib
+import dns.resolver
+
 from django import forms
 from django.forms import widgets
 from django.core.exceptions import ValidationError
@@ -44,6 +49,9 @@ class PasswordResetFormNoActive(PasswordResetForm):
         if any((user.password.startswith(UNUSABLE_PASSWORD_PREFIX))
                for user in self.users_cache):
             raise forms.ValidationError(self.error_messages['unusable'])
+
+        if getattr(settings, 'REGISTRATION_EMAIL_FULL_VERIFICATION', None) is not None:
+            self._verify_email_really_exists(email)
         return email
 
     def save(
@@ -91,6 +99,7 @@ class TrueCheckbox(widgets.CheckboxInput):
     """
     A checkbox widget that only accepts "true" (case-insensitive) as true.
     """
+
     def value_from_datadict(self, data, files, name):
         value = data.get(name, '')
         return value.lower() == 'true'
@@ -195,6 +204,13 @@ class AccountCreationForm(forms.Form):
                                 "required": _("To enroll, you must follow the honor code.")
                             }
                         )
+                elif field_name == "password_copy":
+                    if field_value == "required" and data.get("password"):
+                        self.fields[field_name] = forms.CharField(
+                            error_messages={
+                                "required": _("Please retype password.")
+                            }
+                        )
                 else:
                     required = field_value == "required"
                     min_length = 1 if field_name in ("gender", "level_of_education") else 2
@@ -237,10 +253,48 @@ class AccountCreationForm(forms.Form):
         """Enforce password policies (if applicable)"""
         password_copy = self.cleaned_data["password_copy"]
 
-        if "password" in self.cleaned_data and self.cleaned_data["password"] != password_copy:
+        if (
+            "password" in self.cleaned_data and
+            self.cleaned_data["password"] != password_copy
+        ):
             raise ValidationError(_("Passwords don't match"))
 
         return password_copy
+
+    def _verify_email_really_exists(self, email):
+        """Check if a email really exists"""
+        mx_record = None
+        try:
+            domain = email.rsplit('@', 1)[-1]
+            records = dns.resolver.query(domain, 'MX')
+            mx_record = records[0].exchange
+            mx_record = str(mx_record)
+        except (BaseException, StandardError):
+            raise ValidationError(
+                u"Email domain '{domain}' doesn't exist".format(domain=domain)
+            )
+        try:
+            # Get local server hostname
+            host = socket.gethostname()
+
+            # SMTP lib setup (use debug level for full output)
+            server = smtplib.SMTP()
+            server.set_debuglevel(0)
+            server.timeout = 10
+
+            # SMTP Conversation
+            server.connect(mx_record)
+            server.helo(host)
+            server.mail(email)
+            code = server.rcpt(str(email))
+            server.quit()
+
+            if code != 250:
+                raise ValidationError(
+                    u"Email '{email}' doesn't exist".format(email=email)
+                )
+        except (BaseException, StandardError):
+            pass
 
     def clean_year_of_birth(self):
         """
