@@ -158,7 +158,7 @@ class LoginSessionView(APIView):
 class RegistrationView(APIView):
     """HTTP end-points for creating a new user. """
 
-    DEFAULT_FIELDS = ["email", "name", "username", "password", "password_copy"]
+    DEFAULT_FIELDS = ["email", "name", "username", "password"]
 
     EXTRA_FIELDS = [
         "password_copy",
@@ -823,16 +823,6 @@ class RegistrationView(APIView):
                     # Hide the password field
                     form_desc.override_field_properties(
                         "password",
-                        default="",
-                        field_type="hidden",
-                        required=False,
-                        label="",
-                        instructions="",
-                        restrictions={}
-                    )
-
-                    form_desc.override_field_properties(
-                        "password_copy",
                         default="",
                         field_type="hidden",
                         required=False,

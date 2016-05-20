@@ -115,7 +115,6 @@ class TrueField(forms.BooleanField):
 _USERNAME_TOO_SHORT_MSG = _("Username must be minimum of two characters long")
 _EMAIL_INVALID_MSG = _("A properly formatted e-mail is required")
 _PASSWORD_INVALID_MSG = _("A valid password is required")
-_PASSWORD_COPY_INVALID_MSG = _("A copy of password is required")
 _NAME_TOO_SHORT_MSG = _("Your legal name must be a minimum of two characters long")
 
 
@@ -148,13 +147,6 @@ class AccountCreationForm(forms.Form):
         error_messages={
             "required": _PASSWORD_INVALID_MSG,
             "min_length": _PASSWORD_INVALID_MSG,
-        }
-    )
-    password_copy = forms.CharField(
-        min_length=2,
-        error_messages={
-            "required": _PASSWORD_COPY_INVALID_MSG,
-            "min_length": _PASSWORD_COPY_INVALID_MSG,
         }
     )
     name = forms.CharField(
