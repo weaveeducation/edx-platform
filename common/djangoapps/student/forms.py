@@ -49,9 +49,6 @@ class PasswordResetFormNoActive(PasswordResetForm):
         if any((user.password.startswith(UNUSABLE_PASSWORD_PREFIX))
                for user in self.users_cache):
             raise forms.ValidationError(self.error_messages['unusable'])
-
-        if getattr(settings, 'REGISTRATION_EMAIL_FULL_VERIFICATION', None) is not None:
-            self._verify_email_really_exists(email)
         return email
 
     def save(
@@ -252,6 +249,13 @@ class AccountCreationForm(forms.Form):
             raise ValidationError(_("Passwords don't match"))
 
         return password_copy
+
+    def clean_email(self):
+        """ Enforce email restrictions (if applicable) """
+        email = self.cleaned_data["email"]
+        if getattr(settings, 'REGISTRATION_EMAIL_FULL_VERIFICATION', None) is not None:
+            self._verify_email_really_exists(email)
+        return email
 
     def _verify_email_really_exists(self, email):
         """Check if a email really exists"""
