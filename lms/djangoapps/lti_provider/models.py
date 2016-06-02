@@ -72,6 +72,11 @@ class LtiConsumer(models.Model):
             consumer.save()
         return consumer
 
+    def save(self, *args, **kwargs):
+        if not self.instance_guid:
+            self.instance_guid = None
+        super(LtiConsumer, self).save(*args, **kwargs)
+
 
 class OutcomeService(models.Model):
     """
