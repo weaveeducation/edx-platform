@@ -29,7 +29,8 @@ from external_auth.login_and_register import (
 from student.models import UserProfile
 from student.views import (
     signin_user as old_login_view,
-    register_user as old_register_view
+    register_user as old_register_view,
+    register_user_credo_modules
 )
 from student.helpers import get_next_url_for_login_page
 import third_party_auth
@@ -66,6 +67,9 @@ def login_and_registration_form(request, initial_mode="login"):
 
     # Retrieve the form descriptions from the user API
     form_descriptions = _get_form_descriptions(request)
+
+    if microsite.is_request_in_microsite() and microsite.get_value('CREDO_MODULES_LOGIN_REGISTRATION', False):
+        return register_user_credo_modules(request)
 
     # If this is a microsite, revert to the old login/registration pages.
     # We need to do this for now to support existing themes.

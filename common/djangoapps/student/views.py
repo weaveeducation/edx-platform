@@ -23,6 +23,7 @@ from django.core.context_processors import csrf
 from django.core import mail
 from django.core.urlresolvers import reverse, NoReverseMatch
 from django.core.validators import validate_email, ValidationError
+from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, transaction
 from django.http import (HttpResponse, HttpResponseBadRequest, HttpResponseForbidden,
                          HttpResponseServerError, Http404)
@@ -2341,3 +2342,43 @@ def _get_course_programs(user, user_enrolled_courses):  # pylint: disable=invali
                 log.warning('Program structure is invalid, skipping display: %r', program)
 
     return programs_data
+
+
+def register_user_credo_modules(request):
+    created = False
+    edx_username = None
+    edx_password = None
+
+    while not created:
+        edx_username = str(uuid.uuid4())[0:30]
+        edx_password = str(uuid.uuid4())
+        edx_email = '%s@credomodules.com' % edx_username
+
+        try:
+            with transaction.atomic():
+                edx_user = User.objects.create_user(
+                    username=edx_username,
+                    password=edx_password,
+                    email=edx_email,
+                )
+                edx_user_profile = UserProfile(user=edx_user)
+                edx_user_profile.save()
+            created = True
+        except IntegrityError:
+            # The random edx_user_id wasn't unique. Since 'created' is still
+            # False, we will retry with a different random ID.
+            pass
+
+    edx_user_auth = authenticate(
+        username=edx_username,
+        password=edx_password,
+    )
+    if not edx_user_auth:
+        # This shouldn't happen, since we've created edX accounts for any LTI
+        # users by this point, but just in case we can return a 403.
+        raise PermissionDenied()
+    login(request, edx_user_auth)
+    request.session.set_expiry(0)
+
+    redirect_url = reverse('dashboard')
+    return redirect(redirect_url)
