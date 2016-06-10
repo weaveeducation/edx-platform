@@ -2344,10 +2344,11 @@ def _get_course_programs(user, user_enrolled_courses):  # pylint: disable=invali
     return programs_data
 
 
-def register_user_credo_modules(request):
+def register_login_and_enroll_anonymous_user(request, course_key, redirect_to):
     created = False
     edx_username = None
     edx_password = None
+    edx_user = None
 
     while not created:
         edx_username = str(uuid.uuid4())[0:30]
@@ -2378,7 +2379,11 @@ def register_user_credo_modules(request):
         # users by this point, but just in case we can return a 403.
         raise PermissionDenied()
     login(request, edx_user_auth)
+    CourseEnrollment.enroll(edx_user, course_key)
     request.session.set_expiry(0)
 
-    redirect_url = reverse('dashboard')
-    return redirect(redirect_url)
+    return redirect(redirect_to)
+
+
+def validate_credo_access(request):
+    return True

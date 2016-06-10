@@ -30,9 +30,11 @@ from student.models import UserProfile
 from student.views import (
     signin_user as old_login_view,
     register_user as old_register_view,
-    register_user_credo_modules
+    register_login_and_enroll_anonymous_user,
+    validate_credo_access
 )
 from student.helpers import get_next_url_for_login_page
+from courseware.courses import get_course
 import third_party_auth
 from third_party_auth import pipeline
 from third_party_auth.decorators import xframe_allow_whitelisted
@@ -40,6 +42,7 @@ from util.bad_request_rate_limiter import BadRequestRateLimiter
 
 from openedx.core.djangoapps.user_api.accounts.api import request_password_change
 from openedx.core.djangoapps.user_api.errors import UserNotFound
+from opaque_keys.edx.keys import CourseKey
 
 
 AUDIT_LOG = logging.getLogger("audit")
@@ -68,8 +71,15 @@ def login_and_registration_form(request, initial_mode="login"):
     # Retrieve the form descriptions from the user API
     form_descriptions = _get_form_descriptions(request)
 
-    if microsite.is_request_in_microsite() and microsite.get_value('CREDO_MODULES_LOGIN_REGISTRATION', False):
-        return register_user_credo_modules(request)
+    if microsite.is_request_in_microsite() and redirect_to.startswith('/courses'):
+        redirect_parts = [redirect_part for redirect_part in redirect_to.split('/') if redirect_part]
+        if len(redirect_parts) > 1:
+            course_key = CourseKey.from_string(redirect_parts[1])
+            course = get_course(course_key)
+            if course.credo_authentication:
+                credo_auth = validate_credo_access(request)
+            if course.allow_anonymous_access:
+                return register_login_and_enroll_anonymous_user(request, course_key, redirect_to)
 
     # If this is a microsite, revert to the old login/registration pages.
     # We need to do this for now to support existing themes.

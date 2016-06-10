@@ -7,6 +7,7 @@ A microsite enables the following features:
 3) Ability to swap out some branding elements in the website
 """
 
+from urlparse import urlparse
 from django.conf import settings
 from microsite_configuration import microsite
 
@@ -82,4 +83,19 @@ class MicrositeSessionCookieDomainMiddleware(object):
             response.set_cookie_wrapped_func = response.set_cookie
             response.set_cookie = _set_cookie_wrapper
 
+        return response
+
+
+class MicrositeRefererSaveMiddleware(object):
+
+    def process_response(self, request, response):
+        host_domain = request.META.get('HTTP_HOST', None)
+        referer_url = request.META.get('HTTP_REFERER', None)
+
+        if host_domain and referer_url:
+            cookie_referer = request.COOKIES.get('HTTP_REFERER', None)
+            parsed_referer_uri = urlparse(referer_url)
+            referer_domain = parsed_referer_uri.netloc
+            if referer_domain != host_domain and referer_domain != cookie_referer:
+                response.set_cookie('HTTP_REFERER', referer_url)
         return response

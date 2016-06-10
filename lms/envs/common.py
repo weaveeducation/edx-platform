@@ -1164,6 +1164,8 @@ MIDDLEWARE_CLASSES = (
 
     'course_wiki.middleware.WikiAccessMiddleware',
 
+    'microsite_configuration.middleware.MicrositeRefererSaveMiddleware',
+
     # This must be last
     'microsite_configuration.middleware.MicrositeSessionCookieDomainMiddleware',
 )
