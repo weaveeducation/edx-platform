@@ -19,7 +19,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
 from lang_pref.api import released_languages
-from edxmako.shortcuts import render_to_response
+from edxmako.shortcuts import render_to_response, render_to_string
 from microsite_configuration import microsite
 
 from external_auth.login_and_register import (
@@ -78,6 +78,8 @@ def login_and_registration_form(request, initial_mode="login"):
             course = get_course(course_key)
             if course.credo_authentication:
                 credo_auth = validate_credo_access(request)
+                if not credo_auth:
+                    return HttpResponseForbidden(render_to_string('static_templates/invalid_credo_auth.html', {}))
             if course.allow_anonymous_access:
                 return register_login_and_enroll_anonymous_user(request, course_key, redirect_to)
 

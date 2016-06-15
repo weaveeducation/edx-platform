@@ -127,6 +127,8 @@ from notification_prefs.views import enable_notifications
 # Note that this lives in openedx, so this dependency should be refactored.
 from openedx.core.djangoapps.user_api.preferences import api as preferences_api
 from openedx.core.djangoapps.programs.utils import get_programs_for_dashboard
+from credo.auth_helper import CredoIpHelper
+from credo.api_client import ApiRequestError
 
 
 log = logging.getLogger("edx.student")
@@ -2386,4 +2388,19 @@ def register_login_and_enroll_anonymous_user(request, course_key, redirect_to):
 
 
 def validate_credo_access(request):
-    return True
+    ip_helper = CredoIpHelper()
+    res = ip_helper.authenticate_by_ip_address(request)
+    log.info(u'Authenticate by ip address: %s', str(res))
+
+    try:
+        if not res or ('institutions' in res and not res['institutions']):
+            res = ip_helper.authenticate_by_referrer(request)
+            log.info(u'Authenticate by referrer: %s', str(res))
+
+        if res and ('institutions' in res) and len(res['institutions']) > 0:
+            res = res['institutions'][0]
+
+        return True if res else False
+    except ApiRequestError, e:
+        log.info(u'Validate Credo Access: ApiRequestError raised (HTTP code: %s, Message: %s)', e.http_code, e.http_msg)
+        return False
