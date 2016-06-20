@@ -1355,6 +1355,11 @@ def _track_successful_certificate_generation(user_id, course_id):  # pylint: dis
             }
         )
 
+@ensure_valid_course_key
+@login_required
+def render_xblock_course(request, course_id, usage_key_string):
+    return render_xblock(request, usage_key_string)
+
 
 @require_http_methods(["GET", "POST"])
 def render_xblock(request, usage_key_string, check_if_enrolled=True):

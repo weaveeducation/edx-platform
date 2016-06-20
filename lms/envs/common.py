@@ -1162,9 +1162,9 @@ MIDDLEWARE_CLASSES = (
     # to redirected unenrolled students to the course info page
     'courseware.middleware.RedirectUnenrolledMiddleware',
 
-    'course_wiki.middleware.WikiAccessMiddleware',
+    'courseware.middleware.RefererSaveMiddleware',
 
-    'microsite_configuration.middleware.MicrositeRefererSaveMiddleware',
+    'course_wiki.middleware.WikiAccessMiddleware',
 
     # This must be last
     'microsite_configuration.middleware.MicrositeSessionCookieDomainMiddleware',

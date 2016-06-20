@@ -71,7 +71,7 @@ def login_and_registration_form(request, initial_mode="login"):
     # Retrieve the form descriptions from the user API
     form_descriptions = _get_form_descriptions(request)
 
-    if microsite.is_request_in_microsite() and redirect_to.startswith('/courses'):
+    if redirect_to.startswith('/courses'):
         redirect_parts = [redirect_part for redirect_part in redirect_to.split('/') if redirect_part]
         if len(redirect_parts) > 1:
             course_key = CourseKey.from_string(redirect_parts[1])

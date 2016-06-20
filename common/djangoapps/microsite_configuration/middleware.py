@@ -8,7 +8,6 @@ A microsite enables the following features:
 """
 
 from django.conf import settings
-from credo.auth_helper import get_request_referer_from_other_domain, get_saved_referer, save_referer
 from microsite_configuration import microsite
 
 
@@ -82,18 +81,5 @@ class MicrositeSessionCookieDomainMiddleware(object):
             # the original around
             response.set_cookie_wrapped_func = response.set_cookie
             response.set_cookie = _set_cookie_wrapper
-
-        return response
-
-
-class MicrositeRefererSaveMiddleware(object):
-
-    def process_response(self, request, response):
-
-        referer_url = get_request_referer_from_other_domain(request)
-        if referer_url:
-            saved_referer = get_saved_referer(request)
-            if not saved_referer or saved_referer != referer_url:
-                save_referer(response, referer_url)
 
         return response

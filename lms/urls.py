@@ -308,6 +308,15 @@ urlpatterns += (
         name='render_xblock',
     ),
 
+    url(
+        r'^courses/{course_key}/xblock/{usage_key_string}/?$'.format(
+            course_key=settings.COURSE_ID_PATTERN,
+            usage_key_string=settings.USAGE_KEY_PATTERN
+        ),
+        'courseware.views.render_xblock_course',
+        name='render_xblock_course',
+    ),
+
     # xblock Resource URL
     url(
         r'xblock/resource/(?P<block_type>[^/]+)/(?P<uri>.*)$',
