@@ -1897,7 +1897,7 @@ def auto_auth(request):
             try:
                 # redirect to course info page in LMS
                 redirect_url = reverse(
-                    'info',
+                    'course_default_page',
                     kwargs={'course_id': course_id}
                 )
             except NoReverseMatch:

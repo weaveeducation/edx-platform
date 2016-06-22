@@ -553,7 +553,6 @@ def _index_bulk_op(request, course_key, chapter, section, position):
                     'prev_section_url': prev_section_url
                 }
             ))
-
         result = render_to_response('courseware/courseware.html', context)
     except Exception as e:
 
@@ -638,6 +637,18 @@ def jump_to(_request, course_id, location):
         raise Http404(u"This location is not in any class: {0}".format(usage_key))
 
     return redirect(redirect_url)
+
+
+@ensure_csrf_cookie
+@ensure_valid_course_key
+@login_required
+def course_default_page(request, course_id):
+    course_key = SlashSeparatedCourseKey.from_deprecated_string(course_id)
+    course = get_course_by_id(course_key, depth=2)
+    default_tab = course.default_tab.lower() if course.default_tab else 'info'
+
+    default_tab_url = ''.join([reverse('course_default_page', args=[unicode(course.id)]), default_tab])
+    return redirect(default_tab_url)
 
 
 @ensure_csrf_cookie

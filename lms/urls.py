@@ -366,8 +366,8 @@ urlpatterns += (
         r'^courses/{}/$'.format(
             settings.COURSE_ID_PATTERN,
         ),
-        'courseware.views.course_info',
-        name='course_root',
+        'courseware.views.course_default_page',
+        name='course_default_page',
     ),
     url(
         r'^courses/{}/info$'.format(
