@@ -4,6 +4,7 @@ Code to manage fetching and storing the metadata of IdPs.
 """
 
 from celery.task import task
+import pytz
 import datetime
 import dateutil.parser
 import logging
@@ -106,6 +107,10 @@ def _parse_metadata_xml(xml, entity_id):
         expires_at = dateutil.parser.parse(xml.attrib["validUntil"])
     if "cacheDuration" in xml.attrib:
         cache_expires = OneLogin_Saml2_Utils.parse_duration(xml.attrib["cacheDuration"])
+        if isinstance(expires_at, int):
+            expires_at = datetime.datetime.fromtimestamp(expires_at, tz=pytz.utc)
+        if isinstance(cache_expires, int):
+            cache_expires = datetime.datetime.fromtimestamp(cache_expires, tz=pytz.utc)
         if expires_at is None or cache_expires < expires_at:
             expires_at = cache_expires
 
