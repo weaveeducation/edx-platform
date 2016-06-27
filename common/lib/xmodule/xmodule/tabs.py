@@ -58,6 +58,8 @@ class CourseTab(object):
     # If there is a single view associated with this tab, this is the name of it
     view_name = None
 
+    hidden_from_students = False
+
     def __init__(self, tab_dict):
         """
         Initializes class members with values passed in by subclasses.
@@ -69,6 +71,7 @@ class CourseTab(object):
         self.name = tab_dict.get('name', self.title)
         self.tab_id = tab_dict.get('tab_id', getattr(self, 'tab_id', self.type))
         self.link_func = tab_dict.get('link_func', link_reverse_func(self.view_name))
+        self.hidden_from_students = tab_dict.get('hidden_from_students', False)
 
         self.is_hidden = tab_dict.get('is_hidden', False)
 
@@ -105,6 +108,8 @@ class CourseTab(object):
             return self.tab_id
         elif key == 'is_hidden':
             return self.is_hidden
+        elif key == 'hidden_from_students':
+            return self.hidden_from_students
         else:
             raise KeyError('Key {0} not present in tab {1}'.format(key, self.to_json()))
 
@@ -121,6 +126,8 @@ class CourseTab(object):
             self.tab_id = value
         elif key == 'is_hidden':
             self.is_hidden = value
+        elif key == 'hidden_from_students':
+            self.hidden_from_students = value
         else:
             raise KeyError('Key {0} cannot be set in tab {1}'.format(key, self.to_json()))
 
@@ -179,7 +186,7 @@ class CourseTab(object):
         Returns:
             a dictionary with keys for the properties of the CourseTab object.
         """
-        to_json_val = {'type': self.type, 'name': self.name}
+        to_json_val = {'type': self.type, 'name': self.name, 'hidden_from_students': self.hidden_from_students}
         if self.is_hidden:
             to_json_val.update({'is_hidden': True})
         return to_json_val

@@ -366,6 +366,13 @@ class StaticTabFields(object):
         scope=Scope.settings,
         default="Empty",
     )
+    hide_page_from_students = Boolean(
+        display_name=_("Hide Page From Students"),
+        help=_("If this option is selected, only users with the instructor role will see this page"
+               "tab in the course navigation"),
+        default=False,
+        scope=Scope.settings
+    )
     data = String(
         default=textwrap.dedent(u"""\
             <p>Add the content you want students to see on this page.</p>
