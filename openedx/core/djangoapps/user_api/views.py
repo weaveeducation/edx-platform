@@ -313,62 +313,10 @@ class RegistrationView(APIView):
             }
             return JsonResponse(errors, status=400)
 
-        password = data.get("password")
-        password_copy = data.get("password_copy")
-        if password and password_copy and password != password_copy:
-            errors = {
-                'password_copy': [{"user_message": "Passwords don't match."}]
-            }
-            return JsonResponse(errors, status=400)
-
         response = JsonResponse({"success": True})
         set_logged_in_cookies(request, response, user)
 
-        if getattr(settings, 'REGISTRATION_EMAIL_FULL_VERIFICATION', None) is not None:
-            email = data.get("email")
-            error = self._verify_email_really_exists(email)
-            if error:
-                errors = {
-                    'email': [{"user_message": error}]
-                }
-                return JsonResponse(errors, status=400)
-
         return response
-
-    def _verify_email_really_exists(self, email):
-        """Check if a email really exists,
-        returns None if success, otherwise an error message
-        """
-        mx_record = None
-        try:
-            domain = email.rsplit('@', 1)[-1]
-            records = dns.resolver.query(domain, 'MX')
-            mx_record = records[0].exchange
-            mx_record = str(mx_record)
-        except (BaseException, StandardError):
-            return u"Email domain '{domain}' doesn't exist.".format(domain=domain)
-
-        try:
-            # Get local server hostname
-            host = socket.gethostname()
-
-            # SMTP lib setup (use debug level for full output)
-            server = smtplib.SMTP()
-            server.set_debuglevel(0)
-            server.timeout = 10
-
-            # SMTP Conversation
-            server.connect(mx_record)
-            server.helo(host)
-            server.mail(email)
-            code = server.rcpt(str(email))
-            server.quit()
-
-            if code != 250:
-                return u"Email '{email}' doesn't exist.".format(email=email)
-        except (BaseException, StandardError):
-            pass
-        return None  # Success
 
     def _add_email_field(self, form_desc, required=True):
         """Add an email field to a form description.

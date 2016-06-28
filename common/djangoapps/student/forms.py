@@ -269,6 +269,7 @@ class AccountCreationForm(forms.Form):
             raise ValidationError(
                 u"Email domain '{domain}' doesn't exist".format(domain=domain)
             )
+        accept_email = True
         try:
             # Get local server hostname
             host = socket.gethostname()
@@ -285,12 +286,16 @@ class AccountCreationForm(forms.Form):
             code = server.rcpt(str(email))
             server.quit()
 
-            if code != 250:
-                raise ValidationError(
-                    u"Email '{email}' doesn't exist".format(email=email)
-                )
+            if isinstance(code, (list, tuple)):
+                code = code[0]
+            if int(code) != 250:
+                accept_email = False
         except (BaseException, StandardError):
             pass
+        if not accept_email:
+            raise ValidationError(
+                u"Email '{email}' doesn't exist".format(email=email)
+            )
 
     def clean_year_of_birth(self):
         """
