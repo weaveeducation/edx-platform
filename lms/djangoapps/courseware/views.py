@@ -647,7 +647,7 @@ def course_default_page(request, course_id):
     course = get_course_by_id(course_key, depth=2)
     default_tab = course.default_tab.lower() if course.default_tab else 'info'
 
-    default_tab_url = ''.join([reverse('course_default_page', args=[unicode(course.id)]), default_tab])
+    default_tab_url = ''.join([reverse('course_root', args=[unicode(course.id)]), default_tab])
     return redirect(default_tab_url)
 
 
