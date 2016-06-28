@@ -57,7 +57,7 @@ from student.helpers import (
   </div>
  % endif
 <article class="course${mode_class}">
-  <% course_target = reverse('course_default_page', args=[unicode(course_overview.id)]) %>
+  <% course_target = reverse('course_root', args=[unicode(course_overview.id)]) %>
   <section class="details">
     <div class="wrapper-course-image" aria-hidden="true">
       % if show_courseware_link:
