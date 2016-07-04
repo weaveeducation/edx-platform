@@ -758,6 +758,14 @@ class CourseFields(object):
         scope=Scope.settings
     )
 
+    credo_additional_profile_fields = Dict(
+        display_name=_("Credo Modules Additional Profile Fields"),
+        help=_(
+            'Credo Modules Additional Student Profile Fields.'
+        ),
+        scope=Scope.settings
+    )
+
 
 class CourseModule(CourseFields, SequenceModule):  # pylint: disable=abstract-method
     """

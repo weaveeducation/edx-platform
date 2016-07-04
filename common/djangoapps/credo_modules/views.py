@@ -1,0 +1,119 @@
+import json
+
+from collections import OrderedDict
+from courseware.courses import get_course_by_id
+from django.db import transaction
+from django.shortcuts import redirect
+from django.core.urlresolvers import reverse, NoReverseMatch
+from django.views.generic.base import View
+from django.contrib.auth.decorators import login_required
+from django.utils.http import urlunquote
+from django.utils.decorators import method_decorator
+from credo_modules.models import CredoModulesUserProfile
+from credo_modules.utils import additional_profile_fields_hash
+from util.json_request import JsonResponse
+
+from edxmako.shortcuts import render_to_response
+from opaque_keys.edx.keys import CourseKey
+
+
+class StudentProfileField(object):
+
+    alias = ""
+    required = False
+    title = ""
+    default = ""
+
+    def __init__(self, alias="", required=False, title="", default=""):
+        self.alias = alias
+        self.required = required
+        self.title = title
+        self.default = default
+
+    @classmethod
+    def init_from_course(cls, course, default_fields=None):
+        result = OrderedDict()
+        for k, v in course.credo_additional_profile_fields.iteritems():
+            kwargs = {
+                'alias': k,
+                'required': v['required'] if 'required' in v and v['required'] else False,
+                'title': v['title'] if 'title' in v and v['title'] else k,
+                'default': default_fields[k] if default_fields and (k in default_fields) else v['default'],
+            }
+            result[k] = StudentProfileField(**kwargs)
+        return result
+
+
+class StudentProfileView(View):
+
+    @method_decorator(login_required)
+    @method_decorator(transaction.atomic)
+    def get(self, request, course_id):
+        redirect_to = request.GET.get('next', None)
+        course_key = CourseKey.from_string(course_id)
+        course = get_course_by_id(course_key)
+
+        if not course.credo_additional_profile_fields:
+            if not redirect_to:
+                try:
+                    redirect_to = reverse('dashboard')
+                except NoReverseMatch:
+                    redirect_to = reverse('home')
+            else:
+                redirect_to = urlunquote(redirect_to)
+            return redirect(redirect_to)
+
+        profiles = CredoModulesUserProfile.objects.filter(user=request.user, course_id=course_key)
+        if len(profiles) > 0:
+            profile = profiles[0]
+            profile_fields = json.loads(profile.meta)
+        else:
+            profile_fields = {}
+
+        fields = StudentProfileField.init_from_course(course, profile_fields)
+        context = {
+            'fields': fields.values(),
+            'redirect_url': redirect_to,
+            'course_id': course_id
+        }
+        return render_to_response("credo_additional_profile.html", context)
+
+    @method_decorator(login_required)
+    @method_decorator(transaction.atomic)
+    def post(self, request, course_id):
+        course_key = CourseKey.from_string(course_id)
+        course = get_course_by_id(course_key)
+
+        if not course.credo_additional_profile_fields:
+            return JsonResponse({}, status=404)
+        else:
+            data = request.POST.copy()
+
+            to_save_fields = {}
+            errors = {}
+            form_fields = StudentProfileField.init_from_course(course)
+
+            for field_alias, field in form_fields.iteritems():
+                passed_field = data.get(field_alias, '')
+                if not passed_field and field.required:
+                    errors[field_alias] = ''.join([field.title, " field is required"])
+                else:
+                    to_save_fields[field_alias] = passed_field
+
+            if errors:
+                return JsonResponse(errors, status=400)
+            else:
+                to_save_fields_json = json.dumps(to_save_fields, sort_keys=True)
+                fields_version = additional_profile_fields_hash(course.credo_additional_profile_fields)
+                profiles = CredoModulesUserProfile.objects.filter(user=request.user, course_id=course_key)
+
+                if len(profiles) > 0:
+                    profile = profiles[0]
+                    profile.meta = to_save_fields_json
+                    profile.fields_version = fields_version
+                    profile.save()
+                else:
+                    profile = CredoModulesUserProfile(user=request.user, course_id=course_key,
+                                                      meta=to_save_fields_json, fields_version=fields_version)
+                    profile.save()
+                return JsonResponse({"success": True})
