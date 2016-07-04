@@ -6,7 +6,6 @@ from django.shortcuts import redirect
 from django.core.urlresolvers import reverse
 
 from courseware.courses import UserNotEnrolled
-from credo.auth_helper import get_request_referer_from_other_domain, get_saved_referer, save_referer
 
 
 class RedirectUnenrolledMiddleware(object):
@@ -23,16 +22,3 @@ class RedirectUnenrolledMiddleware(object):
                     args=[course_key.to_deprecated_string()]
                 )
             )
-
-
-class RefererSaveMiddleware(object):
-
-    def process_response(self, request, response):
-
-        referer_url = get_request_referer_from_other_domain(request)
-        if referer_url:
-            saved_referer = get_saved_referer(request)
-            if not saved_referer or saved_referer != referer_url:
-                save_referer(response, referer_url)
-
-        return response

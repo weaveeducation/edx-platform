@@ -1162,7 +1162,8 @@ MIDDLEWARE_CLASSES = (
     # to redirected unenrolled students to the course info page
     'courseware.middleware.RedirectUnenrolledMiddleware',
 
-    'courseware.middleware.RefererSaveMiddleware',
+    'credo_modules.middleware.RefererSaveMiddleware',
+    'credo_modules.middleware.CheckCredoAdditionalProfile',
 
     'course_wiki.middleware.WikiAccessMiddleware',
 
@@ -1950,6 +1951,8 @@ INSTALLED_APPS = (
     'sorl.thumbnail',
 
     'raven.contrib.django.raven_compat',
+
+    'credo_modules',
 )
 
 # Migrations which are not in the standard module "migrations"
