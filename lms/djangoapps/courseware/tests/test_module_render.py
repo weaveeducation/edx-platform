@@ -1600,18 +1600,11 @@ class TestModuleTrackingContext(ModuleStoreTestCase):
         AsideTestType.get_event_context = get_event_context
         context_info = self.handle_callback_and_get_context_info(mock_tracker, problem_display_name)
         self.assertIn('asides', context_info)
-        self.assertIn('content', context_info['asides'])
-        self.assertEquals(context_info['asides']['content'], 'test1')
-        self.assertIn('data_field', context_info['asides'])
-        self.assertEquals(context_info['asides']['data_field'], 'test2')
-
-    def handle_callback_and_get_module_info(self, mock_tracker, problem_display_name=None):
-        """
-        Creates a fake module, invokes the callback and extracts the 'module'
-        metadata from the emitted problem_check event.
-        """
-        event = self.handle_callback_and_get_context_info(mock_tracker, problem_display_name)
-        return event['module']
+        self.assertIn('test_aside', context_info['asides'])
+        self.assertIn('content', context_info['asides']['test_aside'])
+        self.assertEquals(context_info['asides']['test_aside']['content'], 'test1')
+        self.assertIn('data_field', context_info['asides']['test_aside'])
+        self.assertEquals(context_info['asides']['test_aside']['data_field'], 'test2')
 
     def handle_callback_and_get_context_info(self, mock_tracker, problem_display_name=None):
         """
@@ -1641,6 +1634,14 @@ class TestModuleTrackingContext(ModuleStoreTestCase):
 
         self.assertEquals(event['event_type'], 'problem_check')
         return event['context']
+
+    def handle_callback_and_get_module_info(self, mock_tracker, problem_display_name=None):
+        """
+        Creates a fake module, invokes the callback and extracts the 'module'
+        metadata from the emitted problem_check event.
+        """
+        event = self.handle_callback_and_get_context_info(mock_tracker, problem_display_name)
+        return event['module']
 
     def test_missing_display_name(self, mock_tracker):
         actual_display_name = self.handle_callback_and_get_module_info(mock_tracker)['display_name']
