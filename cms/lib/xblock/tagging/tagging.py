@@ -94,9 +94,7 @@ class StructuredTagsAside(XBlockAside):
         """
         This method return data that should be associated with the "check_problem" event
         """
-        if event_type != "problem_check":
-            return
-        if self.saved_tags:
+        if self.saved_tags and event_type == "problem_check":
             return {'saved_tags': self.saved_tags}
         else:
             return None

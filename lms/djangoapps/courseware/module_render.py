@@ -524,8 +524,8 @@ def get_module_system_for_user(user, student_data,  # TODO  # pylint: disable=to
             for aside in block.runtime.get_asides(block):
                 if hasattr(aside, 'get_event_context'):
                     aside_event_info = aside.get_event_context(event_type, event)
-                    if isinstance(aside_event_info, dict):
-                        aside_context.update(aside_event_info)
+                    if aside_event_info is not None:
+                        aside_context[aside.scope_ids.block_type] = aside_event_info
             with tracker.get_tracker().context('asides', {'asides': aside_context}):
                 track_function(event_type, event)
 
