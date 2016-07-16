@@ -1366,6 +1366,7 @@ def _track_successful_certificate_generation(user_id, course_id):  # pylint: dis
             }
         )
 
+
 @ensure_valid_course_key
 @login_required
 def render_xblock_course(request, course_id, usage_key_string):

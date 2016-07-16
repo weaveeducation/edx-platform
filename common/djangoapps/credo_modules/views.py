@@ -4,7 +4,7 @@ from collections import OrderedDict
 from courseware.courses import get_course_by_id
 from django.db import transaction
 from django.shortcuts import redirect
-from django.core.urlresolvers import reverse, NoReverseMatch
+from django.core.urlresolvers import resolve, reverse, NoReverseMatch, Http404
 from django.views.generic.base import View
 from django.contrib.auth.decorators import login_required
 from django.utils.http import urlunquote
@@ -52,6 +52,8 @@ class StudentProfileView(View):
         redirect_to = request.GET.get('next', None)
         course_key = CourseKey.from_string(course_id)
         course = get_course_by_id(course_key)
+        simple_layout = False
+        views_with_simple_layout = ('render_xblock_course', 'lti_launch')
 
         if not course.credo_additional_profile_fields:
             if not redirect_to:
@@ -62,6 +64,14 @@ class StudentProfileView(View):
             else:
                 redirect_to = urlunquote(redirect_to)
             return redirect(redirect_to)
+
+        if redirect_to:
+            try:
+                redirect_url_info = resolve(redirect_to)
+                if redirect_url_info.view_name in views_with_simple_layout:
+                    simple_layout = True
+            except Http404:
+                pass
 
         profiles = CredoModulesUserProfile.objects.filter(user=request.user, course_id=course_key)
         if len(profiles) > 0:
@@ -74,8 +84,18 @@ class StudentProfileView(View):
         context = {
             'fields': fields.values(),
             'redirect_url': redirect_to,
-            'course_id': course_id
+            'course_id': course_id,
         }
+        if simple_layout:
+            context.update({
+                'disable_accordion': True,
+                'allow_iframing': True,
+                'disable_header': True,
+                'disable_footer': True,
+                'disable_window_wrap': True,
+                'disable_preview_menu': True,
+            })
+
         return render_to_response("credo_additional_profile.html", context)
 
     @method_decorator(login_required)
