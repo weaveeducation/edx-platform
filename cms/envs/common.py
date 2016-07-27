@@ -823,6 +823,7 @@ INSTALLED_APPS = (
     'lms.djangoapps.verify_student',
 
     'raven.contrib.django.raven_compat',
+    'cms.lib.xblock.tagging',
 )
 
 
