@@ -25,7 +25,7 @@ class RefererSaveMiddleware(object):
 class CheckCredoAdditionalProfile(object):
 
     def process_request(self, request):
-        if not request.path.startswith('/credo_modules/profile') and request.user.is_authenticated:
+        if not request.path.startswith('/credo_modules/profile') and request.user.is_authenticated():
             course_key = course_id_from_url(request.path)
             if course_key:
                 course = get_course_by_id(course_key)

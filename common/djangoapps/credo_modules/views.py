@@ -23,12 +23,14 @@ class StudentProfileField(object):
     required = False
     title = ""
     default = ""
+    options = []
 
-    def __init__(self, alias="", required=False, title="", default=""):
+    def __init__(self, alias="", required=False, title="", default="", options=None):
         self.alias = alias
         self.required = required
         self.title = title
         self.default = default
+        self.options = options
 
     @classmethod
     def init_from_course(cls, course, default_fields=None):
@@ -39,6 +41,7 @@ class StudentProfileField(object):
                 'required': v['required'] if 'required' in v and v['required'] else False,
                 'title': v['title'] if 'title' in v and v['title'] else k,
                 'default': default_fields[k] if default_fields and (k in default_fields) else v['default'],
+                'options': v['options'] if 'options' in v and v['options'] else None
             }
             result[k] = StudentProfileField(**kwargs)
         return result
