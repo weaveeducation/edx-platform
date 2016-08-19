@@ -81,8 +81,8 @@ from django.core.urlresolvers import reverse
                             % for option in field.options:
                                 <%
                                     selected = ''
-                                    if v == field.default:
-                                        selected = 'selected'
+                                    if option == field.default:
+                                        selected = 'selected=""'
                                 %>
                                 <option value="${option}" ${selected}>${option}</option>
                             % endfor
