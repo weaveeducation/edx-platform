@@ -36,6 +36,7 @@ from django_comment_common.models import FORUM_ROLE_ADMINISTRATOR
 from student.models import CourseEnrollment
 from shoppingcart.models import Coupon, PaidCourseRegistration, CourseRegCodeItem
 from course_modes.models import CourseMode, CourseModesArchive
+from instructor.models import InstructorAvailableSections
 from student.roles import CourseFinanceAdminRole, CourseSalesAdminRole
 from certificates.models import (
     CertificateGenerationConfiguration,
@@ -76,6 +77,7 @@ class InstructorDashboardTab(CourseTab):
 @cache_control(no_cache=True, no_store=True, must_revalidate=True)
 def instructor_dashboard_2(request, course_id):
     """ Display the instructor dashboard for a course. """
+    user = request.user
     try:
         course_key = CourseKey.from_string(course_id)
     except InvalidKeyError:
@@ -85,12 +87,12 @@ def instructor_dashboard_2(request, course_id):
     course = get_course_by_id(course_key, depth=0)
 
     access = {
-        'admin': request.user.is_staff,
-        'instructor': bool(has_access(request.user, 'instructor', course)),
-        'finance_admin': CourseFinanceAdminRole(course_key).has_user(request.user),
-        'sales_admin': CourseSalesAdminRole(course_key).has_user(request.user),
-        'staff': bool(has_access(request.user, 'staff', course)),
-        'forum_admin': has_forum_access(request.user, course_key, FORUM_ROLE_ADMINISTRATOR),
+        'admin': user.is_staff,
+        'instructor': bool(has_access(user, 'instructor', course)),
+        'finance_admin': CourseFinanceAdminRole(course_key).has_user(user),
+        'sales_admin': CourseSalesAdminRole(course_key).has_user(user),
+        'staff': bool(has_access(user, 'staff', course)),
+        'forum_admin': has_forum_access(user, course_key, FORUM_ROLE_ADMINISTRATOR),
     }
 
     if not access['staff']:
@@ -98,16 +100,22 @@ def instructor_dashboard_2(request, course_id):
 
     is_white_label = CourseMode.is_white_label(course_key)
 
-    sections = [
-        _section_course_info(course, access),
-        _section_membership(course, access, is_white_label),
-        _section_cohort_management(course, access),
-        _section_student_admin(course, access),
-        _section_data_download(course, access),
-    ]
+    sections = []
+    available_tabs = user.instructor_dashboard_tabs if hasattr(user, 'instructor_dashboard_tabs') else InstructorAvailableSections()
+
+    if available_tabs.show_course_info:
+        sections.append(_section_course_info(course, access))
+    if available_tabs.show_membership:
+        sections.append(_section_membership(course, access, is_white_label))
+    if available_tabs.show_cohort:
+        sections.append(_section_cohort_management(course, access))
+    if available_tabs.show_student_admin:
+        sections.append(_section_student_admin(course, access))
+    if available_tabs.show_data_download:
+        sections.append(_section_data_download(course, access))
 
     analytics_dashboard_message = None
-    if settings.ANALYTICS_DASHBOARD_URL:
+    if available_tabs.show_analytics and settings.ANALYTICS_DASHBOARD_URL:
         # Construct a URL to the external analytics dashboard
         analytics_dashboard_url = '{0}/courses/{1}'.format(settings.ANALYTICS_DASHBOARD_URL, unicode(course_key))
         link_start = "<a href=\"{}\" target=\"_blank\">".format(analytics_dashboard_url)
@@ -137,7 +145,7 @@ def instructor_dashboard_2(request, course_id):
         sections.insert(3, _section_extensions(course))
 
     # Gate access to course email by feature flag & by course-specific authorization
-    if bulk_email_is_enabled_for_course(course_key):
+    if available_tabs.show_email and bulk_email_is_enabled_for_course(course_key):
         sections.append(_section_send_email(course, access))
 
     # Gate access to Metrics tab by featue flag and staff authorization
@@ -155,7 +163,7 @@ def instructor_dashboard_2(request, course_id):
     # (user.is_staff) will be able to view the special exams tab. This may
     # change in the future
     can_see_special_exams = (
-        ((course.enable_proctored_exams and request.user.is_staff) or course.enable_timed_exams) and
+        ((course.enable_proctored_exams and user.is_staff) or course.enable_timed_exams) and
         settings.FEATURES.get('ENABLE_SPECIAL_EXAMS', False)
     )
     if can_see_special_exams:
@@ -186,7 +194,7 @@ def instructor_dashboard_2(request, course_id):
 
     context = {
         'course': course,
-        'studio_url': get_studio_url(course, 'course'),
+        'studio_url': get_studio_url(course, 'course') if available_tabs.show_studio_link else None,
         'sections': sections,
         'disable_buttons': disable_buttons,
         'analytics_dashboard_message': analytics_dashboard_message,
@@ -199,7 +207,6 @@ def instructor_dashboard_2(request, course_id):
         context['old_dashboard_url'] = reverse('instructor_dashboard_legacy', kwargs={'course_id': unicode(course_key)})
 
     return render_to_response('instructor/instructor_dashboard_2/instructor_dashboard_2.html', context)
-
 
 ## Section functions starting with _section return a dictionary of section data.
 

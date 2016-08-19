@@ -294,7 +294,9 @@ def add_staff_markup(user, has_instructor_access, disable_staff_debug_info, bloc
         is_mongo_course = modulestore().get_modulestore_type(block.location.course_key) != ModuleStoreEnum.Type.xml
         is_studio_course = block.course_edit_method == "Studio"
 
-        if is_studio_course and is_mongo_course:
+        show_studio_link = user.instructor_dashboard_tabs.show_studio_link if hasattr(user, 'instructor_dashboard_tabs') else True
+
+        if show_studio_link and is_studio_course and is_mongo_course:
             # build edit link to unit in CMS. Can't use reverse here as lms doesn't load cms's urls.py
             edit_link = "//" + settings.CMS_BASE + '/container/' + unicode(block.location)
 
