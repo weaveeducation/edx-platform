@@ -47,6 +47,35 @@ class StudentProfileField(object):
         return result
 
 
+def show_student_profile_form(request, course, simple_layout=False, redirect_to=None):
+    course_key = course.id
+
+    profiles = CredoModulesUserProfile.objects.filter(user=request.user, course_id=course_key)
+    if len(profiles) > 0:
+        profile = profiles[0]
+        profile_fields = json.loads(profile.meta)
+    else:
+        profile_fields = {}
+
+    fields = StudentProfileField.init_from_course(course, profile_fields)
+    context = {
+        'fields': fields.values(),
+        'redirect_url': redirect_to if redirect_to else '',
+        'course_id': unicode(course.id),
+    }
+    if simple_layout:
+        context.update({
+            'disable_accordion': True,
+            'allow_iframing': True,
+            'disable_header': True,
+            'disable_footer': True,
+            'disable_window_wrap': True,
+            'disable_preview_menu': True,
+        })
+
+    return render_to_response("credo_additional_profile.html", context)
+
+
 class StudentProfileView(View):
 
     @method_decorator(login_required)
@@ -76,30 +105,7 @@ class StudentProfileView(View):
             except Http404:
                 pass
 
-        profiles = CredoModulesUserProfile.objects.filter(user=request.user, course_id=course_key)
-        if len(profiles) > 0:
-            profile = profiles[0]
-            profile_fields = json.loads(profile.meta)
-        else:
-            profile_fields = {}
-
-        fields = StudentProfileField.init_from_course(course, profile_fields)
-        context = {
-            'fields': fields.values(),
-            'redirect_url': redirect_to,
-            'course_id': course_id,
-        }
-        if simple_layout:
-            context.update({
-                'disable_accordion': True,
-                'allow_iframing': True,
-                'disable_header': True,
-                'disable_footer': True,
-                'disable_window_wrap': True,
-                'disable_preview_menu': True,
-            })
-
-        return render_to_response("credo_additional_profile.html", context)
+        return show_student_profile_form(request, course, simple_layout=simple_layout, redirect_to=redirect_to)
 
     @method_decorator(login_required)
     @method_decorator(transaction.atomic)

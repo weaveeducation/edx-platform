@@ -10,6 +10,14 @@ from django.core.urlresolvers import reverse
       toggleSubmitButton(true);
       var nextUrl = "${redirect_url}";
 
+      function updatePage() {
+          if (nextUrl) {
+              location.href = nextUrl;
+          } else {
+              location.reload();
+          }
+      }
+
       $('#credo-additional-fields-form').on('submit', function() {
         $(".field-error").removeClass('field-error');
         $(".submission-error").addClass('hidden');
@@ -22,12 +30,12 @@ from django.core.urlresolvers import reverse
       });
 
       $('#credo-additional-fields-form').on('ajax:success', function(event, json, xhr) {
-          location.href = nextUrl;
+          updatePage();
       });
 
       $('#credo-additional-fields-form').on('ajax:error', function(event, jqXHR, textStatus) {
         if (jqXHR.status == 404) {
-            location.href = nextUrl;
+            updatePage();
             return null;
         }
         toggleSubmitButton(true);

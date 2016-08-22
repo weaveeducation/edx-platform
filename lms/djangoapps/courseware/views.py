@@ -67,8 +67,10 @@ from .entrance_exams import (
 from courseware.user_state_client import DjangoXBlockUserStateClient
 from course_modes.models import CourseMode
 
+from credo_modules.models import user_must_fill_additional_profile_fields
+from credo_modules.views import show_student_profile_form
 from student.models import UserTestGroup, CourseEnrollment
-from student.views import is_course_blocked
+from student.views import (is_course_blocked, register_login_and_enroll_anonymous_user, validate_credo_access)
 from util.cache import cache, cache_if_anonymous
 from util.date_utils import strftime_localized
 from util.db import outer_atomic
@@ -1368,8 +1370,24 @@ def _track_successful_certificate_generation(user_id, course_id):  # pylint: dis
 
 
 @ensure_valid_course_key
-@login_required
 def render_xblock_course(request, course_id, usage_key_string):
+    course_key = CourseKey.from_string(course_id)
+    course = modulestore().get_course(course_key, depth=2)
+
+    if not request.user.is_authenticated():
+        if course.credo_authentication:
+            credo_auth = validate_credo_access(request)
+            if not credo_auth:
+                return HttpResponseForbidden('Invalid Credo authentication. '
+                                             'You have no permissions to access the content')
+        if course.allow_anonymous_access:
+            register_login_and_enroll_anonymous_user(request, course_key)
+        else:
+            return HttpResponseForbidden('Unauthorized')
+
+    if user_must_fill_additional_profile_fields(course, request.user):
+        return show_student_profile_form(request, course, True)
+
     return render_xblock(request, usage_key_string)
 
 

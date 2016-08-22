@@ -705,6 +705,9 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
     err_rows = [["id", "username", "error_msg"]]
     current_step = {'step': 'Calculating Grades'}
 
+    additional_profile_fields = []
+    users_with_additional_profile = {}
+
     total_enrolled_students = enrolled_students.count()
     student_counter = 0
     TASK_LOG.info(
@@ -738,8 +741,16 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
             task_progress.succeeded += 1
             if not header:
                 header = [section['label'] for section in gradeset[u'section_breakdown']]
+
+                # additional profile fields from credo modules
+                if course.credo_additional_profile_fields:
+                    additional_profile_fields_title = []
+                    for k, v in StudentProfileField.init_from_course(course).iteritems():
+                        additional_profile_fields.append(v.alias)
+                        additional_profile_fields_title.append(v.title)
+                    users_with_additional_profile = CredoModulesUserProfile.users_with_additional_profile(course_id)
                 rows.append(
-                    ["id", "email", "username", "grade"] + header + cohorts_header +
+                    ["id", "email", "username"] + additional_profile_fields_title + ["grade"] + header + cohorts_header +
                     group_configs_header + teams_header +
                     ['Enrollment Track', 'Verification Status'] + certificate_info_header
                 )
@@ -788,8 +799,16 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
             # possible for a student to have a 0.0 show up in their row but
             # still have 100% for the course.
             row_percents = [percents.get(label, 0.0) for label in header]
+
+            # additional profile fields from credo modules
+            row_additional_profile = []
+            if course.credo_additional_profile_fields:
+                additional_student_fields = users_with_additional_profile.get(student.id, {})
+                for field in additional_profile_fields:
+                    row_additional_profile.append(additional_student_fields.get(field, ''))
+
             rows.append(
-                [student.id, student.email, student.username, gradeset['percent']] +
+                [student.id, student.email, student.username] + row_additional_profile + [gradeset['percent']] +
                 row_percents + cohorts_group_name + group_configs_group_names + team_name +
                 [enrollment_mode] + [verification_status] + certificate_info
             )

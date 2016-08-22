@@ -2346,7 +2346,7 @@ def _get_course_programs(user, user_enrolled_courses):  # pylint: disable=invali
     return programs_data
 
 
-def register_login_and_enroll_anonymous_user(request, course_key, redirect_to):
+def register_login_and_enroll_anonymous_user(request, course_key, redirect_to=None):
     created = False
     edx_username = None
     edx_password = None
@@ -2384,7 +2384,8 @@ def register_login_and_enroll_anonymous_user(request, course_key, redirect_to):
     CourseEnrollment.enroll(edx_user, course_key)
     request.session.set_expiry(0)
 
-    return redirect(redirect_to)
+    if redirect_to:
+        return redirect(redirect_to)
 
 
 def validate_credo_access(request):
