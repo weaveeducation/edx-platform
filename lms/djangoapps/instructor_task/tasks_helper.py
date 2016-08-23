@@ -706,6 +706,7 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
     current_step = {'step': 'Calculating Grades'}
 
     additional_profile_fields = []
+    additional_profile_fields_title = []
     users_with_additional_profile = {}
 
     total_enrolled_students = enrolled_students.count()
@@ -744,7 +745,6 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
 
                 # additional profile fields from credo modules
                 if course.credo_additional_profile_fields:
-                    additional_profile_fields_title = []
                     for k, v in StudentProfileField.init_from_course(course).iteritems():
                         additional_profile_fields.append(v.alias)
                         additional_profile_fields_title.append(v.title)
