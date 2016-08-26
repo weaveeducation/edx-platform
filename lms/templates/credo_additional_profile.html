@@ -61,8 +61,23 @@ from django.core.urlresolvers import reverse
   </script>
 </%block>
 
+<%block name="headextra">
+    <style>
+        section[class='register container'] {
+            padding-left: 20px;
+            padding-right: 20px;
+            max-width: 600px;
+            min-width: 380px;
+        }
+
+        section[class='register container'] section {
+            width: 100%;
+        }
+    </style>
+</%block>
+
 <section class="register container" style="padding-left: 20px;">
-    <section role="main" class="content">
+    <section role="main">
         <form role="form" id="credo-additional-fields-form" method="post" data-remote="true" action="/credo_modules/profile/${course_id}/">
             <div role="alert" class="status message submission-error hidden" tabindex="-1">
                 <h3 class="message-title">${_("The following errors occurred:")} </h3>
