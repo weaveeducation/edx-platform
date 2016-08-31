@@ -16,6 +16,7 @@ class InstructorAvailableSections(models.Model):
     show_data_download = models.BooleanField(default=True, verbose_name = 'Show "Data Download" section')
     show_email = models.BooleanField(default=True, verbose_name = 'Show "Email" section')
     show_analytics = models.BooleanField(default=True, verbose_name = 'Show "Analytics" section')
+    show_certificates = models.BooleanField(default=True, verbose_name = 'Show "Certificates" section')
     show_studio_link = models.BooleanField(default=True, verbose_name = 'Show "View In Studio" link')
 
     class Meta:
