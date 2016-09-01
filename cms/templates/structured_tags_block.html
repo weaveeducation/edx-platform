@@ -12,5 +12,8 @@
             <option value="${v}" ${selected}>${v}</option>
         % endfor
     </select>
+    % if tag['editable']:
+    <a href="javascript: void(0);" class="edit_tags" tag_category="${tag['key']}">[ Edit ]</a>
+    % endif
     % endfor
 </div>

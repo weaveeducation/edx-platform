@@ -10,8 +10,9 @@ from xmodule.x_module import AUTHOR_VIEW
 from xmodule.capa_module import CapaModule
 from edxmako.shortcuts import render_to_string
 from django.conf import settings
+from django.db import transaction
 from webob import Response
-from .models import TagCategories
+from .models import TagCategories, TagAvailableValues
 
 
 _ = lambda text: text
@@ -43,10 +44,15 @@ class StructuredTagsAside(XBlockAside):
         Display the tag selector with specific categories and allowed values,
         depending on the context.
         """
+        course_id = self.scope_ids.usage_id.course_key
         if isinstance(block, CapaModule):
             tags = []
             for tag in self.get_available_tags():
-                values = tag.get_values()
+                if tag.scoped_by_course:
+                    course_id = self.scope_ids.usage_id.course_key
+                else:
+                    course_id = None
+                values = tag.get_values(course_id=course_id)
                 current_value = self.saved_tags.get(tag.name, None)
 
                 if current_value is not None and current_value not in values:
@@ -56,7 +62,8 @@ class StructuredTagsAside(XBlockAside):
                     'key': tag.name,
                     'title': tag.title,
                     'values': values,
-                    'current_value': current_value
+                    'current_value': current_value,
+                    'editable': tag.editable_in_studio
                 })
             fragment = Fragment(render_to_string('structured_tags_block.html', {'tags': tags,
                                                                                 'block_location': block.location}))
@@ -67,9 +74,78 @@ class StructuredTagsAside(XBlockAside):
             return Fragment(u'')
 
     @XBlock.handler
+    def edit_tags_view(self, request=None, suffix=None):  # pylint: disable=unused-argument
+        tag_category_param = request.GET.get('tag_category', None)
+
+        if tag_category_param:
+            try:
+                tag = TagCategories.objects.get(name=tag_category_param)
+
+                if tag.scoped_by_course:
+                    course_id = self.scope_ids.usage_id.course_key
+                else:
+                    course_id = None
+
+                tpl_params = {
+                    'key': tag.name,
+                    'title': tag.title,
+                    'values': '\n'.join(tag.get_values(course_id=course_id))
+                }
+
+                data = {
+                    'html': render_to_string('structured_tags_block_editor.html', tpl_params)
+                }
+                return Response(json=data)
+            except TagCategories.DoesNotExist:
+                pass
+
+        return Response("Invalid 'tag_category' parameter", status=400)
+
+    @XBlock.handler
+    def update_values(self, request=None, suffix=None):  # pylint: disable=unused-argument
+        with transaction.atomic():
+            for tag_key in request.POST:
+                for tag in self.get_available_tags():
+                    if tag.name == tag_key:
+                        if tag.scoped_by_course:
+                            course_id = self.scope_ids.usage_id.course_key
+                        else:
+                            course_id = None
+
+                        tag_values = tag.get_values(course_id=course_id)
+                        tmp_list = [v for v in request.POST[tag_key].splitlines() if v.strip()]
+
+                        values_to_add = list(set(tmp_list) - set(tag_values))
+                        values_to_remove = list(set(tag_values) - set(tmp_list))
+
+                        self._add_tag_values(tag, values_to_add, course_id)
+                        self._remove_tag_values(tag, values_to_remove, course_id)
+        return Response()
+
+    def _add_tag_values(self, tag_category, values, course_id=None):
+        for val in values:
+            kwargs = {
+                'category': tag_category,
+                'value': val
+            }
+            if course_id:
+                kwargs['course_id'] = course_id
+            TagAvailableValues(**kwargs).save()
+
+    def _remove_tag_values(self, tag_category, values, course_id=None):
+        for val in values:
+            kwargs = {
+                'category': tag_category,
+                'value': val
+            }
+            if course_id:
+                kwargs['course_id'] = course_id
+            TagAvailableValues.objects.filter(**kwargs).delete()
+
+    @XBlock.handler
     def save_tags(self, request=None, suffix=None):  # pylint: disable=unused-argument
         """
-        Handler to save choosen tags with connected XBlock
+        Handler to save chosen tags with connected XBlock
         """
         found = False
         if 'tag' not in request.params:

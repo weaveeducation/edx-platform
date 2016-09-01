@@ -1,33 +1,51 @@
 """
-Django Model for tags
+Django Models for tags
 """
 from django.db import models
+from django.utils.translation import ugettext_lazy as _
+from django.core.exceptions import ValidationError
+from xmodule_django.models import CourseKeyField
 
 
 class TagCategories(models.Model):
 
     name = models.CharField(max_length=255)
     title = models.CharField(max_length=255)
+    editable_in_studio = models.BooleanField(default=False, verbose_name=_("Editable in studio"))
+    scoped_by_course = models.BooleanField(default=False, verbose_name=_("Scoped by course"))
 
     class Meta(object):
         app_label = "tagging"
         ordering = ('title',)
+        verbose_name = "tag category"
 
     def __unicode__(self):
         return "[TagCategories] {}: {}".format(self.name, self.title)
 
-    def get_values(self):
-        return [t.value for t in TagAvailableValues.objects.filter(category=self)]
+    def get_values(self, course_id=None):
+        kwargs = {
+            'category': self
+        }
+        if course_id:
+            kwargs['course_id'] = course_id
+        return [t.value for t in TagAvailableValues.objects.filter(**kwargs).order_by('value')]
 
 
 class TagAvailableValues(models.Model):
 
     category = models.ForeignKey(TagCategories, db_index=True)
+    course_id = CourseKeyField(max_length=255, db_index=True, null=True, blank=True)
     value = models.CharField(max_length=255)
 
     class Meta(object):
         app_label = "tagging"
         ordering = ('id',)
+        verbose_name = "tag available value"
+
+    def clean(self):
+        if self.category.scoped_by_course and not self.course_id:
+            raise ValidationError(_('"course_id" is a required field (because in the related tag category'
+                                    '"scoped_by_course" setting is enabled)'))
 
     def __unicode__(self):
         return "[TagAvailableValues] {}: {}".format(self.category, self.value)
