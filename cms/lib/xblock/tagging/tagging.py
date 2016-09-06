@@ -53,19 +53,22 @@ class StructuredTagsAside(XBlockAside):
                 else:
                     course_id = None
                 values = tag.get_values(course_id=course_id)
-                current_value = self.saved_tags.get(tag.name, None)
+                current_values = self.saved_tags.get(tag.name, [])
 
-                if current_value is not None and current_value not in values:
-                    values.insert(0, current_value)
+                if isinstance(current_values, basestring):
+                    current_values = [current_values]
+
+                values_not_exists = [cur_val for cur_val in current_values if cur_val not in values]
 
                 tags.append({
                     'key': tag.name,
                     'title': tag.title,
                     'values': values,
-                    'current_value': current_value,
+                    'current_values': values_not_exists + current_values,
                     'editable': tag.editable_in_studio
                 })
             fragment = Fragment(render_to_string('structured_tags_block.html', {'tags': tags,
+                                                                                'tags_count': len(tags),
                                                                                 'block_location': block.location}))
             fragment.add_javascript_url(self._get_studio_resource_url('/js/xblock_asides/structured_tags.js'))
             fragment.initialize_js('StructuredTagsInit')
@@ -147,24 +150,15 @@ class StructuredTagsAside(XBlockAside):
         """
         Handler to save chosen tags with connected XBlock
         """
-        found = False
-        if 'tag' not in request.params:
-            return Response("The required parameter 'tag' is not passed", status=400)
-
-        tag = request.params['tag'].split(':')
+        posted_data = request.params.dict_of_lists()
+        saved_tags = {}
 
         for av_tag in self.get_available_tags():
-            if av_tag.name == tag[0]:
-                if tag[1] == '':
-                    self.saved_tags[tag[0]] = None
-                    found = True
-                elif tag[1] in av_tag.get_values():
-                    self.saved_tags[tag[0]] = tag[1]
-                    found = True
+            tag_key = '%s[]' % av_tag.name
+            if tag_key in posted_data and len(posted_data[tag_key]) > 0:
+                saved_tags[av_tag.name] = posted_data[tag_key]
 
-        if not found:
-            return Response("Invalid 'tag' parameter", status=400)
-
+        self.saved_tags = saved_tags
         return Response()
 
     def get_event_context(self, event_type, event):  # pylint: disable=unused-argument

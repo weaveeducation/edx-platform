@@ -92,28 +92,31 @@
     function StructuredTagsView(runtime, element) {
 
         var $element = $(element);
+        var saveTagsInProgress = false;
 
-        $element.find("select").each(function() {
-            var loader = this;
-            var sts = $(this).attr('structured-tags-select-init');
+        $($element).find('.save_tags').click(function(e){
+            if (!saveTagsInProgress) {
+                saveTagsInProgress = true;
+                var dataToPost = {};
 
-            if (typeof sts === typeof undefined || sts === false) {
-                $(this).attr('structured-tags-select-init', 1);
-                $(this).change(function(e) {
-                    e.preventDefault();
-                    var selectedKey = $(loader).find('option:selected').val();
+                $element.find("select").each(function() {
+                    var select_values = $(this).val();
+                    if (select_values) {
+                        dataToPost[$(this).attr('name')] = select_values;
+                    }
+                });
+
+                e.preventDefault();
+                runtime.notify('save', {
+                    state: 'start',
+                    element: element,
+                    message: gettext('Updating Tags')
+                });
+
+                $.post(runtime.handlerUrl(element, 'save_tags'), dataToPost).done(function() {
                     runtime.notify('save', {
-                        state: 'start',
-                        element: element,
-                        message: gettext('Updating Tags')
-                    });
-                    $.post(runtime.handlerUrl(element, 'save_tags'), {
-                        'tag': $(loader).attr('name') + ':' + selectedKey
-                    }).done(function() {
-                        runtime.notify('save', {
-                            state: 'end',
-                            element: element
-                        });
+                        state: 'end',
+                        element: element
                     });
                 });
             }
