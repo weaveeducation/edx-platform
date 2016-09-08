@@ -11,6 +11,7 @@ from .models import (
     OAuth2ProviderConfig,
     SAMLProviderConfig,
     SAMLConfiguration,
+    SAMLConfigurationPerMicrosite,
     SAMLProviderData,
     LTIProviderConfig,
     ProviderApiPermissions
@@ -84,6 +85,13 @@ class SAMLConfigurationAdmin(ConfigurationModelAdmin):
     key_summary.allow_tags = True
 
 admin.site.register(SAMLConfiguration, SAMLConfigurationAdmin)
+
+
+class SAMLConfigurationPerMicrositeAdmin(admin.ModelAdmin):
+    """ Django Admin class for SAMLConfigurationPerMicrosite """
+    list_display = ('id', 'domain', 'entity_id')
+
+admin.site.register(SAMLConfigurationPerMicrosite, SAMLConfigurationPerMicrositeAdmin)
 
 
 class SAMLProviderDataAdmin(admin.ModelAdmin):

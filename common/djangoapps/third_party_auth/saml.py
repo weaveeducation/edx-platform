@@ -23,12 +23,27 @@ class SAMLAuthBackend(SAMLAuth):  # pylint: disable=abstract-method
     def setting(self, name, default=None):
         """ Get a setting, from SAMLConfiguration """
         if not hasattr(self, '_config'):
-            from .models import SAMLConfiguration
+            from .models import SAMLConfiguration, SAMLConfigurationPerMicrosite
+            from microsite_configuration import microsite
             self._config = SAMLConfiguration.current()  # pylint: disable=attribute-defined-outside-init
+            self._microsite_config = None  # pylint: disable=attribute-defined-outside-init
+
+            if self._config.separate_settings_per_microsite and microsite.is_request_in_microsite():
+                site_domain = microsite.get_value('site_domain')
+                if site_domain:
+                    try:
+                        self._microsite_config = SAMLConfigurationPerMicrosite.objects.get(domain=site_domain)
+                    except SAMLConfigurationPerMicrosite.DoesNotExist:
+                        pass
+
         if not self._config.enabled:
             from django.core.exceptions import ImproperlyConfigured
             raise ImproperlyConfigured("SAML Authentication is not enabled.")
         try:
+            if self._microsite_config:
+                setting = self._microsite_config.get_setting(name)
+                if setting:
+                    return setting
             return self._config.get_setting(name)
         except KeyError:
             return self.strategy.setting(name, default)
