@@ -183,3 +183,6 @@ pynliner==0.5.2
 
 # for sailthru integration
 sailthru-client==2.2.3
+
+# Library to send info to Sentry
+raven==5.26.0

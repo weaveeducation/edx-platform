@@ -2090,6 +2090,8 @@ INSTALLED_APPS = (
 
     # Email marketing integration
     'email_marketing',
+
+    'raven.contrib.django.raven_compat',
 )
 
 # Migrations which are not in the standard module "migrations"
