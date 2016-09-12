@@ -1122,9 +1122,11 @@ MIDDLEWARE_CLASSES = (
 
     # CORS and CSRF
     'corsheaders.middleware.CorsMiddleware',
-    'cors_csrf.middleware.CorsCSRFMiddleware',
+# disable CSRF check - temporary solution!!
+#    'cors_csrf.middleware.CorsCSRFMiddleware',
     'cors_csrf.middleware.CsrfCrossDomainCookieMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+# disable CSRF check - temporary solution!!
+#    'django.middleware.csrf.CsrfViewMiddleware',
 
     'splash.middleware.SplashMiddleware',
 
