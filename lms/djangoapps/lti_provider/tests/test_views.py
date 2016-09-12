@@ -5,7 +5,7 @@ Tests for the LTI provider views
 from django.core.urlresolvers import reverse
 from django.test import TestCase
 from django.test.client import RequestFactory
-from mock import patch, MagicMock
+from mock import patch, MagicMock, ANY
 from nose.plugins.attrib import attr
 
 from courseware.testutils import RenderXBlockTestMixin
@@ -13,6 +13,8 @@ from lti_provider import views, models
 from opaque_keys.edx.locator import CourseLocator, BlockUsageLocator
 from student.tests.factories import UserFactory
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
+from django.contrib.auth.models import User
+from student.models import CourseEnrollment
 
 
 LTI_DEFAULT_PARAMS = {
@@ -30,6 +32,9 @@ LTI_DEFAULT_PARAMS = {
 LTI_OPTIONAL_PARAMS = {
     'lis_result_sourcedid': u'result sourcedid',
     'lis_outcome_service_url': u'outcome service URL',
+    'lis_person_contact_email_primary': u'rob.smith@example.com',
+    'lis_person_name_given': u'Rob',
+    'lis_person_name_family': u'Smith',
     'tool_consumer_instance_guid': u'consumer instance guid'
 }
 
@@ -84,13 +89,15 @@ class LtiLaunchTest(LtiTestMixin, TestCase):
     """
     @patch('lti_provider.views.render_courseware')
     @patch('lti_provider.views.authenticate_lti_user')
-    def test_valid_launch(self, _authenticate, render):
+    @patch('lti_provider.views.enroll_user_to_course')
+    def test_valid_launch(self, enroll_mock, _authenticate, render):
         """
         Verifies that the LTI launch succeeds when passed a valid request.
         """
         request = build_launch_request()
         views.lti_launch(request, unicode(COURSE_KEY), unicode(USAGE_KEY))
         render.assert_called_with(request, USAGE_KEY)
+        enroll_mock.assert_called_with(request.user, COURSE_KEY)
 
     @patch('lti_provider.views.render_courseware')
     @patch('lti_provider.views.store_outcome_parameters')
@@ -147,7 +154,6 @@ class LtiLaunchTest(LtiTestMixin, TestCase):
         request = build_launch_request()
         response = views.lti_launch(request, None, None)
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.status_code, 403)
 
     @patch('lti_provider.views.render_courseware')
     def test_lti_consumer_record_supplemented_with_guid(self, _render):
@@ -161,6 +167,30 @@ class LtiLaunchTest(LtiTestMixin, TestCase):
             consumer_key=LTI_DEFAULT_PARAMS['oauth_consumer_key']
         )
         self.assertEqual(consumer.instance_guid, u'consumer instance guid')
+
+    @patch('lti_provider.views.render_courseware')
+    @patch('lti_provider.views.authenticate_lti_user')
+    def test_lti_optional_param_email_is_used(self, _authenticate, _render):
+        request = build_launch_request()
+        if not hasattr(request, 'POST'):
+            request.POST = {}
+        request.POST.update(LTI_OPTIONAL_PARAMS)
+        views.lti_launch(request, unicode(COURSE_KEY), unicode(USAGE_KEY))
+        lti_params = {'email': 'rob.smith@example.com', 'first_name': 'Rob', 'last_name': 'Smith'}
+        _authenticate.assert_called_with(ANY, ANY, ANY, lti_params)
+
+    def test_enroll_user_to_course(self):
+        email = 'rob.smith@example.com'
+        user = User.objects.create_user(
+            username=email,
+            password='password',
+            email=email,
+        )
+        views.enroll_user_to_course(user, COURSE_KEY)
+        self.assertTrue(CourseEnrollment.is_enrolled(user, COURSE_KEY))
+        with self.assertNumQueries(1):
+            #don't enroll 2d time
+            views.enroll_user_to_course(user, COURSE_KEY)
 
 
 @attr('shard_3')
