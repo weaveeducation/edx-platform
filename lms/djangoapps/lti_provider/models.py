@@ -72,6 +72,15 @@ class LtiConsumer(models.Model):
             consumer.save()
         return consumer
 
+    def save(self, *args, **kwargs):
+        """
+        Overload default save method. Allow to save two or more LTI consumers
+        through the Django admin with empty instance_guid field.
+        """
+        if not self.instance_guid:
+            self.instance_guid = None
+        super(LtiConsumer, self).save(*args, **kwargs)
+
 
 class OutcomeService(models.Model):
     """
