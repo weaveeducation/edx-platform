@@ -187,6 +187,7 @@ class AdvancedSettingsPage(CoursePage):
             'display_organization',
             'catalog_visibility',
             'days_early_for_beta',
+            'default_tab',
             'disable_progress_graph',
             'discussion_blackouts',
             'discussion_sort_alpha',

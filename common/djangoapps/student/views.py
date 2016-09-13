@@ -1999,9 +1999,9 @@ def auto_auth(request):
         # Redirect to course info page if course_id is known
         elif course_id:
             try:
-                # redirect to course info page in LMS
+                # redirect to course default page in LMS
                 redirect_url = reverse(
-                    'info',
+                    'course_root',
                     kwargs={'course_id': course_id}
                 )
             except NoReverseMatch:

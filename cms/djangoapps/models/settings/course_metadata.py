@@ -53,7 +53,6 @@ class CourseMetadata(object):
         'hide_after_due',
         'self_paced',
         'chrome',
-        'default_tab',
     ]
 
     @classmethod

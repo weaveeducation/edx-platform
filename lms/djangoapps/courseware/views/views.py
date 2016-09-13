@@ -263,6 +263,18 @@ def jump_to(_request, course_id, location):
 
 @ensure_csrf_cookie
 @ensure_valid_course_key
+@login_required
+def course_default_page(request, course_id):
+    course_key = SlashSeparatedCourseKey.from_deprecated_string(course_id)
+    course = get_course_by_id(course_key, depth=2)
+    default_tab = course.default_tab.lower() if course.default_tab else 'info'
+
+    default_tab_url = ''.join([reverse('course_root', args=[unicode(course.id)]), default_tab])
+    return redirect(default_tab_url)
+
+
+@ensure_csrf_cookie
+@ensure_valid_course_key
 def course_info(request, course_id):
     """
     Display the course's info.html, or 404 if there is no such course.
