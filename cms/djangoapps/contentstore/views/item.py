@@ -546,8 +546,14 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
             # find the course's reference to this tab and update the name.
             static_tab = CourseTabList.get_tab_by_slug(course.tabs, xblock.location.name)
             # only update if changed
+            update_tab = False
             if static_tab and static_tab['name'] != xblock.display_name:
                 static_tab['name'] = xblock.display_name
+                update_tab = True
+            if static_tab and static_tab['instructors_only'] != xblock.instructors_only:
+                static_tab['instructors_only'] = xblock.instructors_only
+                update_tab = True
+            if update_tab:
                 store.update_item(course, user.id)
 
         result = {

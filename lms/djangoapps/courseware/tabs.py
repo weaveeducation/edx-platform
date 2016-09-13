@@ -299,9 +299,12 @@ def get_course_tab_list(request, course):
         if must_complete_ee:
             # Hide all of the tabs except for 'Courseware'
             # Rename 'Courseware' tab to 'Entrance Exam'
-            if tab.type is not 'courseware':
+            if tab.type != 'courseware':
                 continue
             tab.name = _("Entrance Exam")
+        if tab.type == 'static_tab' and tab.instructors_only and \
+                not bool(user and has_access(user, 'staff', course, course.id)):
+            continue
         course_tab_list.append(tab)
 
     # Add in any dynamic tabs, i.e. those that are not persisted
