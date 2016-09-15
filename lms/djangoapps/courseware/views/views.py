@@ -81,12 +81,16 @@ from shoppingcart.utils import is_shopping_cart_enabled
 from openedx.core.djangoapps.self_paced.models import SelfPacedConfiguration
 from student.models import UserTestGroup, CourseEnrollment
 from student.roles import GlobalStaff
+from student.views import register_login_and_enroll_anonymous_user, validate_credo_access
+from credo_modules.models import user_must_fill_additional_profile_fields
+from credo_modules.views import show_student_profile_form
 from util.cache import cache, cache_if_anonymous
 from util.date_utils import strftime_localized
 from util.db import outer_atomic
 from util.milestones_helpers import get_prerequisite_courses_display
 from util.views import _record_feedback_in_zendesk
 from util.views import ensure_valid_course_key
+from util.views import add_p3p_header
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError, NoPathToItem
 from xmodule.tabs import CourseTabList
@@ -275,6 +279,7 @@ def course_default_page(request, course_id):
 
 @ensure_csrf_cookie
 @ensure_valid_course_key
+@login_required
 def course_info(request, course_id):
     """
     Display the course's info.html, or 404 if there is no such course.
@@ -1162,6 +1167,29 @@ def _track_successful_certificate_generation(user_id, course_id):  # pylint: dis
                 }
             }
         )
+
+
+@ensure_valid_course_key
+@add_p3p_header
+def render_xblock_course(request, course_id, usage_key_string):
+    course_key = CourseKey.from_string(course_id)
+    course = modulestore().get_course(course_key, depth=2)
+
+    if not request.user.is_authenticated():
+        if course.credo_authentication:
+            credo_auth = validate_credo_access(request)
+            if not credo_auth:
+                return HttpResponseForbidden('Invalid Credo authentication. '
+                                             'You have no permissions to access the content')
+        if course.allow_anonymous_access:
+            register_login_and_enroll_anonymous_user(request, course_key)
+        else:
+            return HttpResponseForbidden('Unauthorized')
+
+    if user_must_fill_additional_profile_fields(course, request.user):
+        return show_student_profile_form(request, course, True)
+
+    return render_xblock(request, usage_key_string)
 
 
 @require_http_methods(["GET", "POST"])

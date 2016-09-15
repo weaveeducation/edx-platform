@@ -1167,6 +1167,9 @@ MIDDLEWARE_CLASSES = (
 
     'openedx.core.djangoapps.theming.middleware.CurrentSiteThemeMiddleware',
 
+    'credo_modules.middleware.RefererSaveMiddleware',
+    'credo_modules.middleware.CheckCredoAdditionalProfile',
+
     # This must be last
     'microsite_configuration.middleware.MicrositeSessionCookieDomainMiddleware',
 )
@@ -2092,6 +2095,8 @@ INSTALLED_APPS = (
     'email_marketing',
 
     'raven.contrib.django.raven_compat',
+
+    'credo_modules',
 )
 
 # Migrations which are not in the standard module "migrations"
