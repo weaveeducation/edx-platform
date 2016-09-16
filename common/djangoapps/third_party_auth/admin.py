@@ -11,6 +11,7 @@ from .models import (
     OAuth2ProviderConfig,
     SAMLProviderConfig,
     SAMLConfiguration,
+    SAMLConfigurationPerMicrosite,
     SAMLProviderData,
     LTIProviderConfig,
     ProviderApiPermissions,
@@ -78,6 +79,13 @@ class SAMLProviderConfigAdmin(KeyedConfigurationModelAdmin):
         fetch_saml_metadata.apply_async((), countdown=2)
 
 admin.site.register(SAMLProviderConfig, SAMLProviderConfigAdmin)
+
+
+class SAMLConfigurationPerMicrositeAdmin(admin.ModelAdmin):
+    """ Django Admin class for SAMLConfigurationPerMicrosite """
+    list_display = ('id', 'domain', 'entity_id')
+
+admin.site.register(SAMLConfigurationPerMicrosite, SAMLConfigurationPerMicrositeAdmin)
 
 
 class SAMLConfigurationAdmin(ConfigurationModelAdmin):
