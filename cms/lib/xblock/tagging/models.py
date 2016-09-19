@@ -11,6 +11,7 @@ class TagCategories(models.Model):
 
     name = models.CharField(max_length=255)
     title = models.CharField(max_length=255)
+    role = models.CharField(max_length=64, null=True, blank=True, verbose_name=_("Access role"))
     editable_in_studio = models.BooleanField(default=False, verbose_name=_("Editable in studio"))
     scoped_by_course = models.BooleanField(default=False, verbose_name=_("Scoped by course"))
 
@@ -18,6 +19,7 @@ class TagCategories(models.Model):
         app_label = "tagging"
         ordering = ('title',)
         verbose_name = "tag category"
+        verbose_name_plural = "tag categories"
 
     def __unicode__(self):
         return "[TagCategories] {}: {}".format(self.name, self.title)

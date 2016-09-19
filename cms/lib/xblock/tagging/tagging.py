@@ -11,8 +11,12 @@ from xmodule.capa_module import CapaModule
 from edxmako.shortcuts import render_to_string
 from django.conf import settings
 from django.db import transaction
+from django.core.exceptions import ObjectDoesNotExist
 from webob import Response
 from .models import TagCategories, TagAvailableValues
+from student.auth import user_has_role
+from student.models import User
+from student.roles import CourseStaffRole, CourseInstructorRole
 
 
 _ = lambda text: text
@@ -38,15 +42,32 @@ class StructuredTagsAside(XBlockAside):
         """
         return settings.STATIC_URL + relative_url
 
+    def _check_user_access(self, role, user=None):
+        roles = {
+            CourseStaffRole.ROLE: CourseStaffRole,
+            CourseInstructorRole.ROLE: CourseInstructorRole
+        }
+
+        if not user:
+            return False
+        elif self.runtime.user_is_superuser:
+            return True
+        elif role in roles:
+            return user_has_role(user, roles[role](self.runtime.course_id))
+
+        return False
+
     @XBlockAside.aside_for(AUTHOR_VIEW)
     def student_view_aside(self, block, context):  # pylint: disable=unused-argument
         """
         Display the tag selector with specific categories and allowed values,
         depending on the context.
         """
-        course_id = self.scope_ids.usage_id.course_key
         if isinstance(block, CapaModule):
             tags = []
+            user = None
+            has_access_any_tag = False
+
             for tag in self.get_available_tags():
                 if tag.scoped_by_course:
                     course_id = self.scope_ids.usage_id.course_key
@@ -59,17 +80,33 @@ class StructuredTagsAside(XBlockAside):
                     current_values = [current_values]
 
                 values_not_exists = [cur_val for cur_val in current_values if cur_val not in values]
+                has_access_this_tag = True
+
+                if tag.role:
+                    if not user:
+                        try:
+                            user = User.objects.get(pk=self.runtime.user_id)
+                        except ObjectDoesNotExist:
+                            pass
+                    has_access_this_tag = self._check_user_access(tag.role, user)
+                    if has_access_this_tag:
+                        has_access_any_tag = True
+                else:
+                    has_access_any_tag = True
 
                 tags.append({
                     'key': tag.name,
                     'title': tag.title,
                     'values': values,
                     'current_values': values_not_exists + current_values,
-                    'editable': tag.editable_in_studio
+                    'editable': tag.editable_in_studio,
+                    'has_access': has_access_this_tag,
                 })
             fragment = Fragment(render_to_string('structured_tags_block.html', {'tags': tags,
                                                                                 'tags_count': len(tags),
-                                                                                'block_location': block.location}))
+                                                                                'block_location': block.location,
+                                                                                'show_save_btn': has_access_any_tag,
+                                                                                }))
             fragment.add_javascript_url(self._get_studio_resource_url('/js/xblock_asides/structured_tags.js'))
             fragment.initialize_js('StructuredTagsInit')
             return fragment

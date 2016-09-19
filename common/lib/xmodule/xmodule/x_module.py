@@ -1707,6 +1707,7 @@ class ModuleSystem(MetricsMixin, ConfigurableFragmentWrapper, Runtime):
         self.anonymous_student_id = anonymous_student_id
         self.course_id = course_id
         self.user_is_staff = user is not None and user.is_staff
+        self.user_is_superuser = user is not None and user.is_superuser
 
         if publish:
             self.publish = publish
