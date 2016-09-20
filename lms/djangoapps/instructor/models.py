@@ -7,7 +7,7 @@ class InstructorAvailableSections(models.Model):
     Enumerates list of tabs which could be switched off on Instructor Dashboard panel
     """
     user = models.OneToOneField(User, on_delete=models.SET_NULL, related_name='instructor_dashboard_tabs',
-                                null=True, blank=True, limit_choices_to={'is_staff': True}, verbose_name = 'Instructor')
+                                null=True, blank=True, verbose_name = 'Instructor')
 
     show_course_info = models.BooleanField(default=True, verbose_name = 'Show "Course Info" section')
     show_membership = models.BooleanField(default=True, verbose_name = 'Show "Membership" section')
