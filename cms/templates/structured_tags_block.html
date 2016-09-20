@@ -5,16 +5,18 @@
             <div><label for="tags_${tag['key']}_${block_location}">${tag['title']}</label>:</div>
             <div>
             % if tag['has_access']:
-            <select id="tags_${tag['key']}_${block_location}" name="${tag['key']}" multiple>
-                % for v in tag['values']:
-                    <%
-                        selected = ''
-                        if v in tag['current_values']:
-                            selected = 'selected'
-                    %>
-                    <option value="${v}" ${selected}>${v}</option>
-                % endfor
-            </select>
+                % if len(tag['values']) > 0:
+                <select id="tags_${tag['key']}_${block_location}" name="${tag['key']}" multiple>
+                    % for v in tag['values']:
+                        <%
+                            selected = ''
+                            if v in tag['current_values']:
+                                selected = 'selected'
+                        %>
+                        <option value="${v}" ${selected}>${v}</option>
+                    % endfor
+                </select>
+                % endif
             % else:
                 % if tag['current_values']:
                     % for v in tag['current_values']:
