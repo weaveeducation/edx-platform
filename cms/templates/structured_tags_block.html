@@ -1,38 +1,42 @@
 <div class="xblock-render" class="studio-xblock-wrapper">
     <div class="wrapper">
         % for tag in tags:
-        <div class="wrapper-content left">
-            <div><label for="tags_${tag['key']}_${block_location}">${tag['title']}</label>:</div>
-            <div>
-            % if tag['has_access']:
-                % if len(tag['values']) > 0:
-                <select id="tags_${tag['key']}_${block_location}" name="${tag['key']}" multiple>
-                    % for v in tag['values']:
-                        <%
-                            selected = ''
-                            if v in tag['current_values']:
-                                selected = 'selected'
-                        %>
-                        <option value="${v}" ${selected}>${v}</option>
-                    % endfor
-                </select>
-                % endif
-            % else:
-                % if tag['current_values']:
-                    % for v in tag['current_values']:
-                        <strong>${v}</strong><br />
-                    % endfor
+            % if tag['editable'] or len(tag['values']) > 0:
+            <div class="wrapper-content left">
+                <div><label for="tags_${tag['key']}_${block_location}">${tag['title']}</label>:</div>
+                <div>
+                % if tag['has_access']:
+                    % if len(tag['values']) > 0:
+                    <select id="tags_${tag['key']}_${block_location}" name="${tag['key']}" multiple>
+                        % for v in tag['values']:
+                            <%
+                                selected = ''
+                                if v in tag['current_values']:
+                                    selected = 'selected'
+                            %>
+                            <option value="${v}" ${selected}>${v}</option>
+                        % endfor
+                    </select>
+                    % else:
+                        <strong>There are no tag available values</strong>
+                    % endif
                 % else:
-                    <strong>Not Selected</strong>
+                    % if tag['current_values']:
+                        % for v in tag['current_values']:
+                            <strong>${v}</strong><br />
+                        % endfor
+                    % else:
+                        <strong>Not Selected</strong>
+                    % endif
                 % endif
-            % endif
+                </div>
+                <div>
+                % if tag['editable'] and tag['has_access']:
+                <a href="javascript: void(0);" class="edit_tags" tag_category="${tag['key']}">[ Edit values ]</a>
+                % endif
+                </div>
             </div>
-            <div>
-            % if tag['editable'] and tag['has_access']:
-            <a href="javascript: void(0);" class="edit_tags" tag_category="${tag['key']}">[ Edit values ]</a>
             % endif
-            </div>
-        </div>
         % endfor
         % if tags_count > 0 and show_save_btn:
         <div class="wrapper-content left">

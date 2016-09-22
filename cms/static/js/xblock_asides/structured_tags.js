@@ -114,6 +114,7 @@
                 });
 
                 $.post(runtime.handlerUrl(element, 'save_tags'), dataToPost).done(function() {
+                    saveTagsInProgress = false;
                     runtime.notify('save', {
                         state: 'end',
                         element: element

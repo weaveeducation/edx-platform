@@ -69,11 +69,16 @@ class StructuredTagsAside(XBlockAside):
             has_access_any_tag = False
 
             for tag in self.get_available_tags():
-                if tag.scoped_by_course:
-                    course_id = self.scope_ids.usage_id.course_key
-                else:
-                    course_id = None
-                values = tag.get_values(course_id=course_id)
+                course_id = None
+                org = None
+
+                if tag.scoped_by:
+                    if tag.scoped_by == 'course':
+                        course_id = self.scope_ids.usage_id.course_key
+                    elif tag.scoped_by == 'org':
+                        org = self.scope_ids.usage_id.course_key.org
+
+                values = tag.get_values(course_id=course_id, org=org)
                 current_values = self.saved_tags.get(tag.name, [])
 
                 if isinstance(current_values, basestring):
@@ -121,15 +126,19 @@ class StructuredTagsAside(XBlockAside):
             try:
                 tag = TagCategories.objects.get(name=tag_category_param)
 
-                if tag.scoped_by_course:
-                    course_id = self.scope_ids.usage_id.course_key
-                else:
-                    course_id = None
+                course_id = None
+                org = None
+
+                if tag.scoped_by:
+                    if tag.scoped_by == 'course':
+                        course_id = self.scope_ids.usage_id.course_key
+                    elif tag.scoped_by == 'org':
+                        org = self.scope_ids.usage_id.course_key.org
 
                 tpl_params = {
                     'key': tag.name,
                     'title': tag.title,
-                    'values': '\n'.join(tag.get_values(course_id=course_id))
+                    'values': '\n'.join(tag.get_values(course_id=course_id, org=org))
                 }
 
                 data = {
@@ -147,22 +156,26 @@ class StructuredTagsAside(XBlockAside):
             for tag_key in request.POST:
                 for tag in self.get_available_tags():
                     if tag.name == tag_key:
-                        if tag.scoped_by_course:
-                            course_id = self.scope_ids.usage_id.course_key
-                        else:
-                            course_id = None
+                        course_id = None
+                        org = None
 
-                        tag_values = tag.get_values(course_id=course_id)
+                        if tag.scoped_by:
+                            if tag.scoped_by == 'course':
+                                course_id = self.scope_ids.usage_id.course_key
+                            elif tag.scoped_by == 'org':
+                                org = self.scope_ids.usage_id.course_key.org
+
+                        tag_values = tag.get_values(course_id=course_id, org=org)
                         tmp_list = [v for v in request.POST[tag_key].splitlines() if v.strip()]
 
                         values_to_add = list(set(tmp_list) - set(tag_values))
                         values_to_remove = list(set(tag_values) - set(tmp_list))
 
-                        self._add_tag_values(tag, values_to_add, course_id)
-                        self._remove_tag_values(tag, values_to_remove, course_id)
+                        self._add_tag_values(tag, values_to_add, course_id, org)
+                        self._remove_tag_values(tag, values_to_remove, course_id, org)
         return Response()
 
-    def _add_tag_values(self, tag_category, values, course_id=None):
+    def _add_tag_values(self, tag_category, values, course_id=None, org=None):
         for val in values:
             kwargs = {
                 'category': tag_category,
@@ -170,9 +183,11 @@ class StructuredTagsAside(XBlockAside):
             }
             if course_id:
                 kwargs['course_id'] = course_id
+            if org:
+                kwargs['org'] = org
             TagAvailableValues(**kwargs).save()
 
-    def _remove_tag_values(self, tag_category, values, course_id=None):
+    def _remove_tag_values(self, tag_category, values, course_id=None, org=None):
         for val in values:
             kwargs = {
                 'category': tag_category,
@@ -180,6 +195,8 @@ class StructuredTagsAside(XBlockAside):
             }
             if course_id:
                 kwargs['course_id'] = course_id
+            if org:
+                kwargs['org'] = org
             TagAvailableValues.objects.filter(**kwargs).delete()
 
     @XBlock.handler
