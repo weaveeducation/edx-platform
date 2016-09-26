@@ -1,5 +1,6 @@
 from django.contrib import admin
 from instructor.models import InstructorAvailableSections
+from django_extensions.admin import ForeignKeyAutocompleteAdmin
 
 
 def available_sections_bulk_action(field, is_set):
@@ -14,7 +15,7 @@ def available_sections_bulk_action(field, is_set):
     return action
 
 
-class InstructorAvailableSectionsAdmin(admin.ModelAdmin):
+class InstructorAvailableSectionsAdmin(ForeignKeyAutocompleteAdmin):
     bulk_fields_names = ['show_course_info', 'show_membership', 'show_cohort', 'show_student_admin',
                                   'show_data_download', 'show_email', 'show_analytics', 'show_studio_link']
 
@@ -27,6 +28,10 @@ class InstructorAvailableSectionsAdmin(admin.ModelAdmin):
     bulk_unset_actions = [available_sections_bulk_action(field, is_set=False) for field in bulk_fields]
 
     actions = bulk_set_actions + bulk_unset_actions
+
+    related_search_fields = {
+        'user': ('email', 'username', 'first_name', 'last_name'),
+    }
 
 
 admin.site.register(InstructorAvailableSections, InstructorAvailableSectionsAdmin)
