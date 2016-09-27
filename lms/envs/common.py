@@ -1168,7 +1168,6 @@ MIDDLEWARE_CLASSES = (
     'openedx.core.djangoapps.theming.middleware.CurrentSiteThemeMiddleware',
 
     'credo_modules.middleware.RefererSaveMiddleware',
-    'credo_modules.middleware.CheckCredoAdditionalProfile',
     'third_party_auth.middleware.SSOAuthMiddleware',
 
     # This must be last

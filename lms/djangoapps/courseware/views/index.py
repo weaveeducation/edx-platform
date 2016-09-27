@@ -36,6 +36,7 @@ from util.views import ensure_valid_course_key
 from xmodule.modulestore.django import modulestore
 from xmodule.x_module import STUDENT_VIEW
 from survey.utils import must_answer_survey
+from credo_modules.decorators import credo_additional_profile
 
 from ..access import has_access, _adjust_start_date_for_beta_testers
 from ..access_utils import in_preview_mode
@@ -67,6 +68,7 @@ class CoursewareIndex(View):
     @method_decorator(ensure_csrf_cookie)
     @method_decorator(cache_control(no_cache=True, no_store=True, must_revalidate=True))
     @method_decorator(ensure_valid_course_key)
+    @credo_additional_profile
     def get(self, request, course_id, chapter=None, section=None, position=None):
         """
         Displays courseware accordion and associated content.  If course, chapter,

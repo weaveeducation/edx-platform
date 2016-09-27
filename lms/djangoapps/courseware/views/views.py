@@ -1186,7 +1186,8 @@ def render_xblock_course(request, course_id, usage_key_string):
         else:
             return HttpResponseForbidden('Unauthorized')
 
-    if user_must_fill_additional_profile_fields(course, request.user):
+    block = modulestore().get_item(UsageKey.from_string(usage_key_string))
+    if user_must_fill_additional_profile_fields(course, request.user, block):
         return show_student_profile_form(request, course, True)
 
     return render_xblock(request, usage_key_string)
