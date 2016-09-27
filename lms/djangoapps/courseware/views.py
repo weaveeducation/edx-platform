@@ -49,6 +49,8 @@ from courseware.courses import (
     UserNotEnrolled
 )
 from courseware.masquerade import setup_masquerade
+
+from credo_modules.decorators import credo_additional_profile
 from openedx.core.djangoapps.credit.api import (
     get_credit_requirement_status,
     is_user_eligible_for_credit,
@@ -299,6 +301,7 @@ def save_positions_recursively_up(user, request, field_data_cache, xmodule, cour
 @cache_control(no_cache=True, no_store=True, must_revalidate=True)
 @ensure_valid_course_key
 @outer_atomic(read_committed=True)
+@credo_additional_profile
 def index(request, course_id, chapter=None, section=None,
           position=None):
     """
@@ -1385,7 +1388,8 @@ def render_xblock_course(request, course_id, usage_key_string):
         else:
             return HttpResponseForbidden('Unauthorized')
 
-    if user_must_fill_additional_profile_fields(course, request.user):
+    block = modulestore().get_item(UsageKey.from_string(usage_key_string))
+    if user_must_fill_additional_profile_fields(course, request.user, block):
         return show_student_profile_form(request, course, True)
 
     return render_xblock(request, usage_key_string)

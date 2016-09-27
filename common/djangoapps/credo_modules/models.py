@@ -30,9 +30,10 @@ class CredoModulesUserProfile(models.Model):
         return result
 
 
-def user_must_fill_additional_profile_fields(course, user):
+def user_must_fill_additional_profile_fields(course, user, block=None):
+    graded = block.graded if block else False
     course_key = course.id
-    if course.credo_additional_profile_fields and user.email.endswith('@credomodules.com') \
+    if graded and course.credo_additional_profile_fields and user.email.endswith('@credomodules.com') \
             and CourseEnrollment.is_enrolled(user, course_key):
         fields_version = additional_profile_fields_hash(course.credo_additional_profile_fields)
         profiles = CredoModulesUserProfile.objects.filter(user=user, course_id=course_key)
