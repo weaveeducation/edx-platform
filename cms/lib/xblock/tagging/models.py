@@ -45,7 +45,7 @@ class TagAvailableValues(models.Model):
     class Meta(object):
         app_label = "tagging"
         ordering = ('id',)
-        verbose_name = "tag available value"
+        verbose_name = "available tag value"
 
     def clean(self):
         if self.category.scoped_by == 'course' and not self.course_id:
