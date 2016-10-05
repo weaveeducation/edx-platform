@@ -84,7 +84,7 @@ class LoginSessionView(APIView):
         if email_or_username:
             message = _("The email address or username you used "
                         "to register with {platform_name}")
-        email_instructions += temaplate.format(
+        email_instructions += message.format(
             platform_name=configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
         )
 
