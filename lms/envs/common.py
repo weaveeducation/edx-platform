@@ -1163,7 +1163,6 @@ MIDDLEWARE_CLASSES = (
     'courseware.middleware.RedirectUnenrolledMiddleware',
 
     'credo_modules.middleware.RefererSaveMiddleware',
-    'credo_modules.middleware.CheckCredoAdditionalProfile',
     'third_party_auth.middleware.SSOAuthMiddleware',
 
     'course_wiki.middleware.WikiAccessMiddleware',
