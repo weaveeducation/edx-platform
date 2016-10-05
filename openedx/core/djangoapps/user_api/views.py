@@ -79,9 +79,11 @@ class LoginSessionView(APIView):
 
         # Translators: These instructions appear on the login form, immediately
         # below a field meant to hold the user's email address.
-        message = _("The email address you used to register with {platform_name}")
+        message = _("The email address you used "
+                    "to register with {platform_name}")
         if email_or_username:
-            message = _("The email address or username you used to register with {platform_name}")
+            message = _("The email address or username you used "
+                        "to register with {platform_name}")
         email_instructions += temaplate.format(
             platform_name=configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
         )
