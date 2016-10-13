@@ -384,7 +384,7 @@ def _calculate_totaled_scores(
 
                     for descendant in section_info['scored_descendants']:
 
-                        (correct, total) = get_score(
+                        (correct, total, modified) = get_score(
                             student,
                             descendant,
                             scores_client,
@@ -410,7 +410,8 @@ def _calculate_totaled_scores(
                                 total,
                                 graded,
                                 block_metadata_utils.display_name_with_default_escaped(descendant),
-                                descendant.location
+                                descendant.location,
+                                modified
                             )
                         )
 
@@ -537,7 +538,7 @@ def _progress_summary(student, course, course_structure=None):
             ):
                 descendant = course_structure[descendant_key]
 
-                (correct, total) = get_score(
+                (correct, total, modified) = get_score(
                     student,
                     descendant,
                     scores_client,
@@ -580,12 +581,12 @@ def _progress_summary(student, course, course_structure=None):
     return ProgressSummary(chapters, locations_to_weighted_scores, course_structure.get_children)
 
 
-def weighted_score(raw_correct, raw_total, weight):
+def weighted_score(raw_correct, raw_total, weight, modified):
     """Return a tuple that represents the weighted (correct, total) score."""
     # If there is no weighting, or weighting can't be applied, return input.
     if weight is None or raw_total == 0:
-        return (raw_correct, raw_total)
-    return (float(raw_correct) * weight / raw_total, float(weight))
+        return (raw_correct, raw_total, modified)
+    return (float(raw_correct) * weight / raw_total, float(weight), modified)
 
 
 def get_score(user, block, scores_client, submissions_scores_cache):
@@ -605,15 +606,20 @@ def get_score(user, block, scores_client, submissions_scores_cache):
     submissions_scores_cache = submissions_scores_cache or {}
 
     if not user.is_authenticated():
-        return (None, None)
+        return (None, None, None)
 
     location_url = unicode(block.location)
     if location_url in submissions_scores_cache:
+        score = scores_client.get(block.location)
+        if score:
+            from_cache = submissions_scores_cache[location_url]
+            return (from_cache[0], from_cache[1], score.modified)
+
         return submissions_scores_cache[location_url]
 
     if not getattr(block, 'has_score', False):
         # These are not problems, and do not have a score
-        return (None, None)
+        return (None, None, None)
 
     # Check the score that comes from the ScoresClient (out of CSM).
     # If an entry exists and has a total associated with it, we trust that
@@ -625,18 +631,20 @@ def get_score(user, block, scores_client, submissions_scores_cache):
         # We have a valid score, just use it.
         correct = score.correct if score.correct is not None else 0.0
         total = score.total
+        modified = score.modified
     else:
         # This means we don't have a valid score entry and we don't have a
         # cached_max_score on hand. We know they've earned 0.0 points on this.
         correct = 0.0
         total = block.transformer_data[GradesTransformer].max_score
+        modified = None
 
         # Problem may be an error module (if something in the problem builder failed)
         # In which case total might be None
         if total is None:
-            return (None, None)
+            return (None, None, None)
 
-    return weighted_score(correct, total, block.weight)
+    return weighted_score(correct, total, block.weight, modified)
 
 
 def iterate_grades_for(course_or_id, students, keep_raw_scores=False):
