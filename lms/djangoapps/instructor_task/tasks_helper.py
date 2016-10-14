@@ -744,7 +744,7 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
                 for section in gradeset[u'section_breakdown']:
                     header.append(section['label'])
                     if 'last_answer_timestamp' in section:
-                        label_tmst = '%s Timestamp' % section['label']
+                        label_tmst = '%s Timestamp (UTC)' % section['label']
                         header.append(label_tmst)
                         header_timestamp.append(label_tmst)
 
@@ -766,7 +766,7 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
                 if 'label' in section:
                     label_timestamp = '%s Timestamp (UTC)' % section['label']
                     last_answer_timestamp = section.get('last_answer_timestamp', None)
-                    percents[label_timestamp] = str(last_answer_timestamp) if last_answer_timestamp else ''
+                    percents[label_timestamp] = last_answer_timestamp.strftime("%Y-%m-%d %H:%M:%S") if last_answer_timestamp else ''
                     percents[section['label']] = section.get('percent', 0.0)
 
             cohorts_group_name = []
