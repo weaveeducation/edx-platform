@@ -368,10 +368,10 @@ class StaticTabFields(object):
         scope=Scope.settings,
         default="Empty",
     )
-    instructors_only = Boolean(
-        display_name=_("Hide Page From Students"),
-        help=_("If this option is selected, only users with the instructor role will see this page"
-               " tab in the course navigation"),
+    course_staff_only = Boolean(
+        display_name=_("Hide Page From Learners"),
+        help=_("If you select this option, only course team members with"
+               " the Staff or Admin role see this page."),
         default=False,
         scope=Scope.settings
     )

@@ -686,16 +686,16 @@ class CourseTabListTestCase(TabListTestCase):
             # get tab by id
             self.assertEquals(xmodule_tabs.CourseTabList.get_tab_by_id(self.course.tabs, tab.tab_id), tab)
 
-    def test_course_tabs_instructors_only(self):
+    def test_course_tabs_course_staff_only(self):
         """
         Tests the static tabs that available only for instructor
         """
         self.course.tabs.append(xmodule_tabs.CourseTab.load('static_tab', name='Static Tab Free',
                                                             url_slug='extra_tab_1',
-                                                            instructors_only=False))
+                                                            course_staff_only=False))
         self.course.tabs.append(xmodule_tabs.CourseTab.load('static_tab', name='Static Tab Instructors Only',
                                                             url_slug='extra_tab_2',
-                                                            instructors_only=True))
+                                                            course_staff_only=True))
         self.course.save()
 
         user = self.create_mock_user(is_authenticated=True, is_staff=False, is_enrolled=True)
