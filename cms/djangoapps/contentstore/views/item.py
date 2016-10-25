@@ -550,8 +550,8 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
             if static_tab and static_tab['name'] != xblock.display_name:
                 static_tab['name'] = xblock.display_name
                 update_tab = True
-            if static_tab and static_tab['instructors_only'] != xblock.instructors_only:
-                static_tab['instructors_only'] = xblock.instructors_only
+            if static_tab and static_tab['course_staff_only'] != xblock.course_staff_only:
+                static_tab['course_staff_only'] = xblock.course_staff_only
                 update_tab = True
             if update_tab:
                 store.update_item(course, user.id)
