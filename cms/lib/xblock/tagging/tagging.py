@@ -10,8 +10,13 @@ from xmodule.x_module import AUTHOR_VIEW
 from xmodule.capa_module import CapaModule
 from edxmako.shortcuts import render_to_string
 from django.conf import settings
+from django.db import transaction
+from django.core.exceptions import ObjectDoesNotExist
 from webob import Response
-from .models import TagCategories
+from .models import TagCategories, TagAvailableValues
+from student.auth import user_has_role
+from student.models import User
+from student.roles import CourseStaffRole, CourseInstructorRole
 
 
 _ = lambda text: text
@@ -37,6 +42,21 @@ class StructuredTagsAside(XBlockAside):
         """
         return settings.STATIC_URL + relative_url
 
+    def _check_user_access(self, role, user=None):
+        roles = {
+            CourseStaffRole.ROLE: CourseStaffRole,
+            CourseInstructorRole.ROLE: CourseInstructorRole
+        }
+
+        if not user:
+            return False
+        elif self.runtime.user_is_superuser:
+            return True
+        elif role in roles:
+            return user_has_role(user, roles[role](self.runtime.course_id))
+
+        return False
+
     @XBlockAside.aside_for(AUTHOR_VIEW)
     def student_view_aside(self, block, context):  # pylint: disable=unused-argument
         """
@@ -45,21 +65,53 @@ class StructuredTagsAside(XBlockAside):
         """
         if isinstance(block, CapaModule):
             tags = []
-            for tag in self.get_available_tags():
-                values = tag.get_values()
-                current_value = self.saved_tags.get(tag.name, None)
+            user = None
+            has_access_any_tag = False
 
-                if current_value is not None and current_value not in values:
-                    values.insert(0, current_value)
+            for tag in self.get_available_tags():
+                course_id = None
+                org = None
+
+                if tag.scoped_by:
+                    if tag.scoped_by == 'course':
+                        course_id = self.scope_ids.usage_id.course_key
+                    elif tag.scoped_by == 'org':
+                        org = self.scope_ids.usage_id.course_key.org
+
+                values = tag.get_values(course_id=course_id, org=org)
+                current_values = self.saved_tags.get(tag.name, [])
+
+                if isinstance(current_values, basestring):
+                    current_values = [current_values]
+
+                values_not_exists = [cur_val for cur_val in current_values if cur_val not in values]
+                has_access_this_tag = True
+
+                if tag.role:
+                    if not user:
+                        try:
+                            user = User.objects.get(pk=self.runtime.user_id)
+                        except ObjectDoesNotExist:
+                            pass
+                    has_access_this_tag = self._check_user_access(tag.role, user)
+                    if has_access_this_tag:
+                        has_access_any_tag = True
+                else:
+                    has_access_any_tag = True
 
                 tags.append({
                     'key': tag.name,
                     'title': tag.title,
                     'values': values,
-                    'current_value': current_value
+                    'current_values': values_not_exists + current_values,
+                    'editable': tag.editable_in_studio,
+                    'has_access': has_access_this_tag,
                 })
             fragment = Fragment(render_to_string('structured_tags_block.html', {'tags': tags,
-                                                                                'block_location': block.location}))
+                                                                                'tags_count': len(tags),
+                                                                                'block_location': block.location,
+                                                                                'show_save_btn': has_access_any_tag,
+                                                                                }))
             fragment.add_javascript_url(self._get_studio_resource_url('/js/xblock_asides/structured_tags.js'))
             fragment.initialize_js('StructuredTagsInit')
             return fragment
@@ -67,28 +119,100 @@ class StructuredTagsAside(XBlockAside):
             return Fragment(u'')
 
     @XBlock.handler
+    def edit_tags_view(self, request=None, suffix=None):  # pylint: disable=unused-argument
+        tag_category_param = request.GET.get('tag_category', None)
+
+        if tag_category_param:
+            try:
+                tag = TagCategories.objects.get(name=tag_category_param)
+
+                course_id = None
+                org = None
+
+                if tag.scoped_by:
+                    if tag.scoped_by == 'course':
+                        course_id = self.scope_ids.usage_id.course_key
+                    elif tag.scoped_by == 'org':
+                        org = self.scope_ids.usage_id.course_key.org
+
+                tpl_params = {
+                    'key': tag.name,
+                    'title': tag.title,
+                    'values': '\n'.join(tag.get_values(course_id=course_id, org=org))
+                }
+
+                data = {
+                    'html': render_to_string('structured_tags_block_editor.html', tpl_params)
+                }
+                return Response(json=data)
+            except TagCategories.DoesNotExist:
+                pass
+
+        return Response("Invalid 'tag_category' parameter", status=400)
+
+    @XBlock.handler
+    def update_values(self, request=None, suffix=None):  # pylint: disable=unused-argument
+        with transaction.atomic():
+            for tag_key in request.POST:
+                for tag in self.get_available_tags():
+                    if tag.name == tag_key:
+                        course_id = None
+                        org = None
+
+                        if tag.scoped_by:
+                            if tag.scoped_by == 'course':
+                                course_id = self.scope_ids.usage_id.course_key
+                            elif tag.scoped_by == 'org':
+                                org = self.scope_ids.usage_id.course_key.org
+
+                        tag_values = tag.get_values(course_id=course_id, org=org)
+                        tmp_list = [v for v in request.POST[tag_key].splitlines() if v.strip()]
+
+                        values_to_add = list(set(tmp_list) - set(tag_values))
+                        values_to_remove = list(set(tag_values) - set(tmp_list))
+
+                        self._add_tag_values(tag, values_to_add, course_id, org)
+                        self._remove_tag_values(tag, values_to_remove, course_id, org)
+        return Response()
+
+    def _add_tag_values(self, tag_category, values, course_id=None, org=None):
+        for val in values:
+            kwargs = {
+                'category': tag_category,
+                'value': val
+            }
+            if course_id:
+                kwargs['course_id'] = course_id
+            if org:
+                kwargs['org'] = org
+            TagAvailableValues(**kwargs).save()
+
+    def _remove_tag_values(self, tag_category, values, course_id=None, org=None):
+        for val in values:
+            kwargs = {
+                'category': tag_category,
+                'value': val
+            }
+            if course_id:
+                kwargs['course_id'] = course_id
+            if org:
+                kwargs['org'] = org
+            TagAvailableValues.objects.filter(**kwargs).delete()
+
+    @XBlock.handler
     def save_tags(self, request=None, suffix=None):  # pylint: disable=unused-argument
         """
-        Handler to save choosen tags with connected XBlock
+        Handler to save chosen tags with connected XBlock
         """
-        found = False
-        if 'tag' not in request.params:
-            return Response("The required parameter 'tag' is not passed", status=400)
-
-        tag = request.params['tag'].split(':')
+        posted_data = request.params.dict_of_lists()
+        saved_tags = {}
 
         for av_tag in self.get_available_tags():
-            if av_tag.name == tag[0]:
-                if tag[1] == '':
-                    self.saved_tags[tag[0]] = None
-                    found = True
-                elif tag[1] in av_tag.get_values():
-                    self.saved_tags[tag[0]] = tag[1]
-                    found = True
+            tag_key = '%s[]' % av_tag.name
+            if tag_key in posted_data and len(posted_data[tag_key]) > 0:
+                saved_tags[av_tag.name] = posted_data[tag_key]
 
-        if not found:
-            return Response("Invalid 'tag' parameter", status=400)
-
+        self.saved_tags = saved_tags
         return Response()
 
     def get_event_context(self, event_type, event):  # pylint: disable=unused-argument
