@@ -24,27 +24,36 @@ class StudentProfileField(object):
     title = ""
     default = ""
     options = []
+    order = None
 
-    def __init__(self, alias="", required=False, title="", default="", options=None):
+    def __init__(self, alias="", required=False, title="", default="", options=None, order=None):
         self.alias = alias
         self.required = required
         self.title = title
         self.default = default
         self.options = options
+        self.order = order
 
     @classmethod
     def init_from_course(cls, course, default_fields=None):
-        result = OrderedDict()
+        result_unsorted = OrderedDict()
         for k, v in course.credo_additional_profile_fields.iteritems():
+            order = None
+            try:
+                order = int(v['order']) if 'order' in v and v['order'] else None
+            except ValueError:
+                pass
+
             kwargs = {
                 'alias': k,
                 'required': v['required'] if 'required' in v and v['required'] else False,
                 'title': v['title'] if 'title' in v and v['title'] else k,
                 'default': default_fields[k] if default_fields and (k in default_fields) else v['default'],
-                'options': v['options'] if 'options' in v and v['options'] else None
+                'options': v['options'] if 'options' in v and v['options'] else None,
+                'order': order
             }
-            result[k] = StudentProfileField(**kwargs)
-        return result
+            result_unsorted[k] = StudentProfileField(**kwargs)
+        return OrderedDict(sorted(result_unsorted.items(), key=lambda t: t[1].order if t[1].order else t[0]))
 
 
 def show_student_profile_form(request, course, simple_layout=False, redirect_to=None):
