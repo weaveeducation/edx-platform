@@ -86,6 +86,12 @@ def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
                     edx_username = generate_random_edx_username()
                     edx_email = "{}@{}".format(edx_username, settings.LTI_USER_EMAIL_DOMAIN)
 
+                try:
+                    _ = User.objects.get(email=edx_email)
+                    edx_email = "{}@{}".format(generate_random_edx_username(), settings.LTI_USER_EMAIL_DOMAIN)
+                except User.DoesNotExist:
+                    pass
+
                 edx_user = User.objects.create_user(
                     username=edx_username,
                     password=edx_password,
