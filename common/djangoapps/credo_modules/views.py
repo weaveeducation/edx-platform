@@ -36,11 +36,11 @@ class StudentProfileField(object):
 
     @classmethod
     def init_from_course(cls, course, default_fields=None):
-        result_unsorted = OrderedDict()
+        res_unsorted = OrderedDict()
         for k, v in course.credo_additional_profile_fields.iteritems():
             order = None
             try:
-                order = int(v['order']) if 'order' in v and v['order'] else None
+                order = int(v['order']) if 'order' in v else None
             except ValueError:
                 pass
 
@@ -52,8 +52,8 @@ class StudentProfileField(object):
                 'options': v['options'] if 'options' in v and v['options'] else None,
                 'order': order
             }
-            result_unsorted[k] = StudentProfileField(**kwargs)
-        return OrderedDict(sorted(result_unsorted.items(), key=lambda t: t[1].order if t[1].order else t[0]))
+            res_unsorted[k] = StudentProfileField(**kwargs)
+        return OrderedDict(sorted(res_unsorted.items(), key=lambda t: t[1].order if t[1].order is not None else t[0]))
 
 
 def show_student_profile_form(request, course, simple_layout=False, redirect_to=None):
