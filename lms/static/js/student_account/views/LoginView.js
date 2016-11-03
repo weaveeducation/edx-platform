@@ -29,6 +29,7 @@
                 this.errorMessage = data.thirdPartyAuth.errorMessage || '';
                 this.platformName = data.platformName;
                 this.resetModel = data.resetModel;
+                this.disableRegistrationButton = data.disableRegistrationButton || false;
 
                 this.listenTo( this.model, 'sync', this.saveSuccess );
                 this.listenTo( this.resetModel, 'sync', this.resetEmail );
@@ -46,7 +47,8 @@
                         errorMessage: this.errorMessage,
                         providers: this.providers,
                         hasSecondaryProviders: this.hasSecondaryProviders,
-                        platformName: this.platformName
+                        platformName: this.platformName,
+                        disableRegistrationButton: this.disableRegistrationButton
                     }
                 }));
 

@@ -81,6 +81,7 @@
     <% } %>
 </form>
 
+<% if ( !context.disableRegistrationButton ) { %>
 <div class="toggle-form">
     <div class="section-title">
         <h2>
@@ -89,3 +90,4 @@
     </div>
     <button class="nav-btn form-toggle" data-type="register"><%- gettext("Create an account") %></button>
 </div>
+<% } %>

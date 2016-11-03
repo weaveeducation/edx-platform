@@ -140,9 +140,11 @@ site_status_msg = get_site_status_msg(course_id)
                 <a class="btn-neutral" href="${reverse('course-specific-register', args=[course.id.to_deprecated_string()])}">${_("Register")}</a>
               </li>
             % else:
-              <li class="item nav-global-04">
-                <a class="btn-neutral" href="/register${login_query()}">${_("Register")}</a>
-              </li>
+              % if not configuration_helpers.get_value('DISABLE_REGISTER_BUTTON', settings.FEATURES['DISABLE_REGISTER_BUTTON']):
+                <li class="item nav-global-04">
+                  <a class="btn-neutral" href="/register${login_query()}">${_("Register")}</a>
+                </li>
+              % endif
             % endif
           % endif
         </%block>
