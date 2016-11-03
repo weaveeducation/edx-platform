@@ -10,7 +10,8 @@ log = logging.getLogger("edx.courseware")
 
 # This is a tuple for holding scores, either from problems or sections.
 # Section either indicates the name of the problem or the name of the section
-Score = namedtuple("Score", "earned possible graded section module_id")
+Score = namedtuple("Score", "earned possible graded section module_id last_answer_timestamp")
+Score.__new__.__defaults__ = (None,)
 
 
 def aggregate_scores(scores, section_name="summary"):
@@ -26,13 +27,18 @@ def aggregate_scores(scores, section_name="summary"):
     total_correct = sum(score.earned for score in scores)
     total_possible = sum(score.possible for score in scores)
 
+    modified_graded_lst = [score.last_answer_timestamp for score in scores if score.graded
+                            and score.last_answer_timestamp]
+    modified_lst = [score.last_answer_timestamp for score in scores if score.last_answer_timestamp]
+
     #regardless of whether or not it is graded
     all_total = Score(
         total_correct,
         total_possible,
         False,
         section_name,
-        None
+        None,
+        max(modified_lst) if modified_lst else None
     )
     #selecting only graded things
     graded_total = Score(
@@ -40,7 +46,8 @@ def aggregate_scores(scores, section_name="summary"):
         total_possible_graded,
         True,
         section_name,
-        None
+        None,
+        max(modified_graded_lst) if modified_graded_lst else None
     )
 
     return all_total, graded_total
@@ -318,17 +325,19 @@ class AssignmentFormatGrader(CourseGrader):
         #Figure the homework scores
         scores = grade_sheet.get(self.type, [])
         breakdown = []
+        last_answer_timestamp = None
         for i in range(max(self.min_count, len(scores))):
+            last_answer_timestamp = None
             if i < len(scores) or generate_random_scores:
                 if generate_random_scores:  	# for debugging!
                     earned = random.randint(2, 15)
                     possible = random.randint(earned, 15)
                     section_name = "Generated"
-
                 else:
                     earned = scores[i].earned
                     possible = scores[i].possible
                     section_name = scores[i].section
+                    last_answer_timestamp = scores[i].last_answer_timestamp
 
                 percentage = earned / float(possible)
                 summary_format = u"{section_type} {index} - {name} - {percent:.0%} ({earned:.3n}/{possible:.3n})"
@@ -353,7 +362,8 @@ class AssignmentFormatGrader(CourseGrader):
             )
 
             breakdown.append({'percent': percentage, 'label': short_label,
-                              'detail': summary, 'category': self.category})
+                              'detail': summary, 'category': self.category,
+                              'last_answer_timestamp': last_answer_timestamp})
 
         total_percent, dropped_indices = total_with_drops(breakdown, self.drop_count)
 
@@ -371,7 +381,8 @@ class AssignmentFormatGrader(CourseGrader):
             )
             total_label = u"{short_label}".format(short_label=self.short_label)
             breakdown = [{'percent': total_percent, 'label': total_label,
-                          'detail': total_detail, 'category': self.category, 'prominent': True}, ]
+                          'detail': total_detail, 'category': self.category, 'prominent': True,
+                          'last_answer_timestamp': last_answer_timestamp},]
         else:
             total_detail = u"{section_type} Average = {percent:.0%}".format(
                 percent=total_percent,

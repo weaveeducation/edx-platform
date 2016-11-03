@@ -698,6 +698,7 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
 
     # Loop over all our students and build our CSV lists in memory
     header = None
+    header_timestamp = None
     rows = []
     err_rows = [["id", "username", "error_msg"]]
     current_step = {'step': 'Calculating Grades'}
@@ -738,7 +739,14 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
             # We were able to successfully grade this student for this course.
             task_progress.succeeded += 1
             if not header:
-                header = [section['label'] for section in gradeset[u'section_breakdown']]
+                header = []
+                header_timestamp = []
+                for section in gradeset[u'section_breakdown']:
+                    header.append(section['label'])
+                    if 'last_answer_timestamp' in section:
+                        label_tmst = '%s Timestamp (UTC)' % section['label']
+                        header.append(label_tmst)
+                        header_timestamp.append(label_tmst)
 
                 # additional profile fields from credo modules
                 if course.credo_additional_profile_fields:
@@ -753,11 +761,13 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
                     ['Enrollment Track', 'Verification Status'] + certificate_info_header
                 )
 
-            percents = {
-                section['label']: section.get('percent', 0.0)
-                for section in gradeset[u'section_breakdown']
-                if 'label' in section
-            }
+            percents = {}
+            for section in gradeset[u'section_breakdown']:
+                if 'label' in section:
+                    label_timestamp = '%s Timestamp (UTC)' % section['label']
+                    last_answer_timestamp = section.get('last_answer_timestamp', None)
+                    percents[label_timestamp] = last_answer_timestamp.strftime("%Y-%m-%d %H:%M:%S") if last_answer_timestamp else ''
+                    percents[section['label']] = section.get('percent', 0.0)
 
             cohorts_group_name = []
             if course_is_cohorted:
@@ -796,7 +806,12 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
             # without regard for the item they didn't have access to, so it's
             # possible for a student to have a 0.0 show up in their row but
             # still have 100% for the course.
-            row_percents = [percents.get(label, 0.0) for label in header]
+            row_percents = []
+            for label in header:
+                if label in header_timestamp:
+                    row_percents.append(percents.get(label, ''))
+                else:
+                    row_percents.append(percents.get(label, 0.0))
 
             # additional profile fields from credo modules
             row_additional_profile = []
