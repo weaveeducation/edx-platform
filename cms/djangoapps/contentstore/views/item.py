@@ -16,7 +16,7 @@ from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseBadRequest, HttpResponse, Http404
 from django.utils.translation import ugettext as _
 from django.views.decorators.http import require_http_methods
-from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys.edx.locator import LibraryUsageLocator
 from pytz import UTC
 from xblock.fields import Scope
@@ -47,7 +47,7 @@ from xmodule.course_module import DEFAULT_START_DATE
 from xmodule.modulestore import ModuleStoreEnum, EdxJSONEncoder
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.draft_and_published import DIRECT_ONLY_CATEGORIES
-from xmodule.modulestore.exceptions import ItemNotFoundError, InvalidLocationError
+from xmodule.modulestore.exceptions import ItemNotFoundError, InvalidLocationError, DuplicateItemError
 from xmodule.modulestore.inheritance import own_metadata
 from xmodule.tabs import CourseTabList
 from xmodule.x_module import PREVIEW_VIEWS, STUDIO_VIEW, STUDENT_VIEW, DEPRECATION_VSCOMPAT_EVENT
@@ -160,20 +160,24 @@ def xblock_handler(request, usage_key_string):
             _delete_item(usage_key, request.user)
             return JsonResponse()
         else:  # Since we have a usage_key, we are updating an existing xblock.
-            return _save_xblock(
-                request.user,
-                _get_xblock(usage_key, request.user),
-                data=request.json.get('data'),
-                children_strings=request.json.get('children'),
-                metadata=request.json.get('metadata'),
-                nullout=request.json.get('nullout'),
-                grader_type=request.json.get('graderType'),
-                is_prereq=request.json.get('isPrereq'),
-                prereq_usage_key=request.json.get('prereqUsageKey'),
-                prereq_min_score=request.json.get('prereqMinScore'),
-                publish=request.json.get('publish'),
-                fields=request.json.get('fields'),
-            )
+            copy_to_course = request.json.get('copy_to_course', None)
+            if copy_to_course:
+                return _copy_to_other_course(request.user, _get_xblock(usage_key, request.user), copy_to_course)
+            else:
+                return _save_xblock(
+                    request.user,
+                    _get_xblock(usage_key, request.user),
+                    data=request.json.get('data'),
+                    children_strings=request.json.get('children'),
+                    metadata=request.json.get('metadata'),
+                    nullout=request.json.get('nullout'),
+                    grader_type=request.json.get('graderType'),
+                    is_prereq=request.json.get('isPrereq'),
+                    prereq_usage_key=request.json.get('prereqUsageKey'),
+                    prereq_min_score=request.json.get('prereqMinScore'),
+                    publish=request.json.get('publish'),
+                    fields=request.json.get('fields'),
+                )
     elif request.method in ('PUT', 'POST'):
         if 'duplicate_source_locator' in request.json:
             parent_usage_key = usage_key_with_run(request.json['parent_locator'])
@@ -432,6 +436,34 @@ def _update_with_callback(xblock, user, old_metadata=None, old_content=None):
 
     # Update after the callback so any changes made in the callback will get persisted.
     return modulestore().update_item(xblock, user.id)
+
+
+def _copy_to_other_course(user, xblock, course_dst_id):
+    store = modulestore()
+
+    course_dst_key = CourseKey.from_string(course_dst_id)
+    course_dst = modulestore().get_course(course_dst_key)
+
+    new_fields = {'display_name': xblock.display_name,
+                  'visible_to_staff_only': xblock.visible_to_staff_only,
+                  'start': xblock.start,
+                  'due': xblock.due}
+
+    usage_lst = [v.location for v in xblock.get_children()]
+
+    # Perform all xblock changes within a (single-versioned) transaction
+    with store.bulk_operations(course_dst_key):
+        try:
+            child = modulestore().create_child(user.id, UsageKey.from_string(unicode(course_dst.location)),
+                                               xblock.location.block_type, block_id=xblock.location.block_id,
+                                               fields=new_fields, runtime=xblock.runtime)
+
+            modulestore().copy_from_template(usage_lst, dest_key=child.location, user_id=user.id)
+        except DuplicateItemError:
+            return JsonResponse({"error": "Item with id " + unicode(xblock.location.block_id) +
+                                 " already exists in the course: " + course_dst_id}, 404)
+
+    return JsonResponse({'id': unicode(xblock.location)}, encoder=EdxJSONEncoder)
 
 
 def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, nullout=None,

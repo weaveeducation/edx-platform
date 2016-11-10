@@ -81,6 +81,7 @@ urlpatterns += patterns(
 
     url(r'^course_team/{}(?:/(?P<email>.+))?$'.format(COURSELIKE_KEY_PATTERN), 'course_team_handler'),
     url(r'^course_info/{}$'.format(settings.COURSE_KEY_PATTERN), 'course_info_handler'),
+    url(r'^course_listing/?$', 'course_listing_short', name='course_listing_short'),
     url(
         r'^course_info_update/{}/(?P<provided_id>\d+)?$'.format(settings.COURSE_KEY_PATTERN),
         'course_info_update_handler'
