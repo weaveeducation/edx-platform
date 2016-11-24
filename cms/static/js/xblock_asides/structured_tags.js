@@ -6,13 +6,12 @@
         function ($, _, gettext, BaseModal, ViewUtils) {
 
         EditTagsModal = BaseModal.extend({
-            events: {
+            events: _.extend({}, BaseModal.prototype.events, {
                 "click .action-save": "save"
-            },
+            }),
 
             initialize: function(options) {
                 BaseModal.prototype.initialize.call(this, options);
-                this.events = _.extend({}, BaseModal.prototype.events, this.events);
                 this.html = '';
                 this.initState = null;
                 this.saveDisabled = true;
