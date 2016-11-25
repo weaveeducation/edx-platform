@@ -1780,8 +1780,10 @@ class ModuleSystem(MetricsMixin, ConfigurableFragmentWrapper, Runtime):
         self.descriptor_runtime = descriptor_runtime
         self.rebind_noauth_module_to_user = rebind_noauth_module_to_user
 
+        self.user_src = None
         if user:
             self.user_id = user.id
+            self.user_src = user
 
     def get(self, attr):
         """	provide uniform access to attributes (like etree)."""
