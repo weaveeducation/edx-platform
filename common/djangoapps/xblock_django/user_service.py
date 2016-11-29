@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from opaque_keys.edx.keys import CourseKey
 from xblock.reference.user_service import XBlockUser, UserService
 from student.models import anonymous_id_for_user, get_user_by_username_or_email
+from student.roles import CourseStaffRole
 
 ATTR_KEY_IS_AUTHENTICATED = 'edx-platform.is_authenticated'
 ATTR_KEY_USER_ID = 'edx-platform.user_id'
@@ -27,6 +28,12 @@ class DjangoXBlockUserService(UserService):
         Returns the currently-logged in user, as an instance of XBlockUser
         """
         return self._convert_django_user_to_xblock_user(self._django_user)
+
+    def is_staff_user(self, course_id):
+        if self._django_user:
+            return CourseStaffRole(course_id).has_user(self._django_user)
+        else:
+            return False
 
     def get_anonymous_user_id(self, username, course_id):
         """

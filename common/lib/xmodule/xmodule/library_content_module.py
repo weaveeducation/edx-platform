@@ -11,7 +11,6 @@ from lazy import lazy
 
 from .mako_module import MakoModuleDescriptor
 from opaque_keys.edx.locator import LibraryLocator
-from student.roles import CourseStaffRole
 import random
 from webob import Response
 from xblock.core import XBlock
@@ -469,8 +468,9 @@ class LibraryContentDescriptor(LibraryContentFields, MakoModuleDescriptor, XmlDe
         """
         latest_version = lib_tools.get_library_version(library_key)
         if latest_version is not None:
+            user_service = self.runtime.service(self, 'user')
             if version is None or version != unicode(latest_version) \
-              and not CourseStaffRole(self.course_id).has_user(self.runtime.user_src):
+                    and (hasattr(user_service, 'is_staff_user') and not user_service.is_staff_user(self.course_id)):
                 validation.set_summary(
                     StudioValidationMessage(
                         StudioValidationMessage.WARNING,
