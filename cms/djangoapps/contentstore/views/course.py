@@ -103,7 +103,7 @@ from xmodule.tabs import CourseTab, CourseTabList, InvalidTabsException
 
 log = logging.getLogger(__name__)
 
-__all__ = ['course_info_handler', 'course_handler', 'course_listing',
+__all__ = ['course_info_handler', 'course_handler', 'course_listing', 'course_listing_short',
            'course_info_update_handler', 'course_search_index_handler',
            'course_rerun_handler',
            'settings_handler',
@@ -528,6 +528,14 @@ def course_listing(request):
         'programs': programs,
         'program_authoring_url': reverse('programs'),
     })
+
+
+@login_required
+@ensure_csrf_cookie
+def course_listing_short(request):
+    courses, in_process_course_actions = get_courses_accessible_to_user(request)
+    courses = _remove_in_process_courses(courses, in_process_course_actions)
+    return JsonResponse(courses)
 
 
 def _get_rerun_link_for_item(course_key):
