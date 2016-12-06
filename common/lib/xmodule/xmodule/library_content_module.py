@@ -468,9 +468,9 @@ class LibraryContentDescriptor(LibraryContentFields, MakoModuleDescriptor, XmlDe
         """
         latest_version = lib_tools.get_library_version(library_key)
         if latest_version is not None:
-            user_service = self.runtime.service(self, 'user')
+            us = self.runtime.service(self, 'user')
             if version is None or version != unicode(latest_version) \
-                    and (hasattr(user_service, 'is_staff_user') and not user_service.is_staff_user(self.course_id)):
+                    and ((hasattr(us, 'is_instructor_user') and us.is_instructor_user(self.course_id)) or us.is_superadmin_user()):
                 validation.set_summary(
                     StudioValidationMessage(
                         StudioValidationMessage.WARNING,
