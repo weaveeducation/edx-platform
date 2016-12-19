@@ -2159,6 +2159,8 @@ INSTALLED_APPS = (
 
     # Unusual migrations
     'database_fixups',
+
+    'raven.contrib.django.raven_compat',
 )
 
 # Migrations which are not in the standard module "migrations"
