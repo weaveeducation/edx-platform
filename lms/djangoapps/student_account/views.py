@@ -19,6 +19,7 @@ from django.views.decorators.http import require_http_methods
 from django_countries import countries
 
 import third_party_auth
+from courseware.courses import get_course
 from commerce.models import CommerceConfiguration
 from edxmako.shortcuts import render_to_response, render_to_string
 from lms.djangoapps.commerce.utils import EcommerceService
@@ -35,9 +36,12 @@ from openedx.core.lib.edx_api_utils import get_edx_api_data
 from openedx.core.lib.time_zone_utils import TIME_ZONE_CHOICES
 from openedx.features.enterprise_support.api import enterprise_customer_for_request
 from student.helpers import destroy_oauth_tokens, get_next_url_for_login_page
+from opaque_keys.edx.keys import CourseKey
 from student.models import UserProfile
 from student.views import register_user as old_register_view
 from student.views import signin_user as old_login_view
+from student.views import register_login_and_enroll_anonymous_user
+from student.views import validate_credo_access
 from third_party_auth import pipeline
 from third_party_auth.decorators import xframe_allow_whitelisted
 from util.bad_request_rate_limiter import BadRequestRateLimiter
@@ -69,6 +73,18 @@ def login_and_registration_form(request, initial_mode="login"):
 
     # Retrieve the form descriptions from the user API
     form_descriptions = _get_form_descriptions(request)
+
+    if redirect_to.startswith('/courses'):
+        redirect_parts = [redirect_part for redirect_part in redirect_to.split('/') if redirect_part]
+        if len(redirect_parts) > 1:
+            course_key = CourseKey.from_string(redirect_parts[1])
+            course = get_course(course_key)
+            if course.credo_authentication:
+                credo_auth = validate_credo_access(request)
+                if not credo_auth:
+                    return HttpResponseForbidden(render_to_string('static_templates/invalid_credo_auth.html', {}))
+            if course.allow_anonymous_access:
+                return register_login_and_enroll_anonymous_user(request, course_key, redirect_to)
 
     # Our ?next= URL may itself contain a parameter 'tpa_hint=x' that we need to check.
     # If present, we display a login page focused on third-party auth with that provider.

@@ -19,6 +19,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import AnonymousUser, User
 from django.contrib.auth.views import password_reset_confirm
 from django.core import mail
+from django.core.exceptions import PermissionDenied
 from django.core.context_processors import csrf
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.core.urlresolvers import NoReverseMatch, reverse, reverse_lazy
@@ -129,6 +130,9 @@ from util.json_request import JsonResponse
 from util.milestones_helpers import get_pre_requisite_courses_not_completed
 from util.password_policy_validators import validate_password_strength
 from xmodule.modulestore.django import modulestore
+
+from credo.auth_helper import CredoIpHelper
+from credo.api_client import ApiRequestError
 
 log = logging.getLogger("edx.student")
 AUDIT_LOG = logging.getLogger("audit")
@@ -2900,3 +2904,65 @@ class LogoutView(TemplateView):
         })
 
         return context
+
+
+def register_login_and_enroll_anonymous_user(request, course_key, redirect_to=None):
+    created = False
+    edx_username = None
+    edx_password = None
+    edx_user = None
+
+    while not created:
+        edx_username = str(uuid.uuid4())[0:30]
+        edx_password = str(uuid.uuid4())
+        edx_email = '%s@credomodules.com' % edx_username
+
+        try:
+            with transaction.atomic():
+                edx_user = User.objects.create_user(
+                    username=edx_username,
+                    password=edx_password,
+                    email=edx_email,
+                )
+                edx_user_profile = UserProfile(user=edx_user)
+                edx_user_profile.save()
+            created = True
+        except IntegrityError:
+            # The random edx_user_id wasn't unique. Since 'created' is still
+            # False, we will retry with a different random ID.
+            pass
+
+    edx_user_auth = authenticate(
+        username=edx_username,
+        password=edx_password,
+    )
+    if not edx_user_auth:
+        # This shouldn't happen, since we've created edX accounts for any LTI
+        # users by this point, but just in case we can return a 403.
+        raise PermissionDenied()
+    login(request, edx_user_auth)
+    CourseEnrollment.enroll(edx_user, course_key)
+    request.session.set_expiry(0)
+
+    if redirect_to:
+        return redirect(redirect_to)
+
+
+def validate_credo_access(request):
+    ip_helper = CredoIpHelper()
+
+    try:
+        res = ip_helper.authenticate_by_ip_address(request)
+        log.info(u'Authenticate by ip address: %s', str(res))
+
+        if not res or ('institutions' in res and not res['institutions']):
+            res = ip_helper.authenticate_by_referrer(request)
+            log.info(u'Authenticate by referrer: %s', str(res))
+
+        if res and ('institutions' in res) and len(res['institutions']) > 0:
+            res = res['institutions'][0]
+
+        return True if res else False
+    except ApiRequestError, e:
+        log.info(u'Validate Credo Access: ApiRequestError raised (HTTP code: %s, Message: %s)', e.http_code, e.http_msg)
+        return False

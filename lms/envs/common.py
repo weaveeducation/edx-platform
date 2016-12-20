@@ -1239,6 +1239,8 @@ MIDDLEWARE_CLASSES = (
 
     # This must be last
     'openedx.core.djangoapps.site_configuration.middleware.SessionCookieDomainOverrideMiddleware',
+
+    'credo_modules.middleware.RefererSaveMiddleware',
 )
 
 # Clickjacking protection can be enabled by setting this to 'DENY'
@@ -2242,6 +2244,8 @@ INSTALLED_APPS = (
     'experiments',
 
     'raven.contrib.django.raven_compat',
+
+    'credo_modules',
 )
 
 ######################### CSRF #########################################
