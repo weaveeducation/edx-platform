@@ -71,6 +71,8 @@ from track.views import task_track
 from util.db import outer_atomic
 from util.file import course_filename_prefix_generator, UniversalNewlineIterator
 from xblock.runtime import KvsFieldData
+from credo_modules.models import CredoModulesUserProfile
+from credo_modules.views import StudentProfileField
 
 # define different loggers for use within tasks and on client side
 TASK_LOG = logging.getLogger('edx.celery.task')
@@ -738,6 +740,10 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
     err_rows = [["id", "username", "error_msg"]]
     current_step = {'step': 'Calculating Grades'}
 
+    additional_profile_fields = []
+    additional_profile_fields_title = []
+    users_with_additional_profile = {}
+
     student_counter = 0
     TASK_LOG.info(
         u'%s, Task type: %s, Current step: %s, Starting grade calculation for total students: %s',
@@ -754,8 +760,15 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
             grade_header.extend(assignment_info['subsection_headers'].itervalues())
         grade_header.append(assignment_info['average_header'])
 
+    # additional profile fields from credo modules
+    if course.credo_additional_profile_fields:
+        for k, v in StudentProfileField.init_from_course(course).iteritems():
+            additional_profile_fields.append(v.alias)
+            additional_profile_fields_title.append(v.title)
+        users_with_additional_profile = CredoModulesUserProfile.users_with_additional_profile(course_id)
+
     rows.append(
-        ["Student ID", "Email", "Username", "Grade"] +
+        ["Student ID", "Email", "Username"] + additional_profile_fields_title + ["Grade"] +
         grade_header +
         cohorts_header +
         group_configs_header +
@@ -842,8 +855,15 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
 
         grade_results = list(chain.from_iterable(grade_results))
 
+        # additional profile fields from credo modules
+        row_additional_profile = []
+        if course.credo_additional_profile_fields:
+            additional_student_fields = users_with_additional_profile.get(student.id, {})
+            for field in additional_profile_fields:
+                row_additional_profile.append(additional_student_fields.get(field, ''))
+
         rows.append(
-            [student.id, student.email, student.username, course_grade.percent] +
+            [student.id, student.email, student.username] + row_additional_profile + [course_grade.percent] +
             grade_results + cohorts_group_name + group_configs_group_names + team_name +
             [enrollment_mode] + [verification_status] + certificate_info
         )
@@ -973,6 +993,7 @@ def upload_problem_grade_report(_xmodule_instance_args, _entry_id, course_id, _t
     start_time = time()
     start_date = datetime.now(UTC)
     status_interval = 100
+    course = get_course_by_id(course_id)
     enrolled_students = CourseEnrollment.objects.users_enrolled_in(course_id)
     task_progress = TaskProgress(action_name, enrolled_students.count(), start_time)
 
@@ -981,16 +1002,35 @@ def upload_problem_grade_report(_xmodule_instance_args, _entry_id, course_id, _t
     # as the keys.  It is structured in this way to keep the values related.
     header_row = OrderedDict([('id', 'Student ID'), ('email', 'Email'), ('username', 'Username')])
 
+    # additional profile fields from credo modules
+    additional_profile_fields = OrderedDict()
+    users_with_additional_profile_dict = {}
+    if course.credo_additional_profile_fields:
+        users_with_additional_profile_dict = CredoModulesUserProfile.users_with_additional_profile(course_id)
+        additional_profile_fields = StudentProfileField.init_from_course(course)
+
     graded_scorable_blocks = _graded_scorable_blocks_to_header(course_id)
 
     # Just generate the static fields for now.
-    rows = [list(header_row.values()) + ['Grade'] + list(chain.from_iterable(graded_scorable_blocks.values()))]
+    first_row = list(header_row.values())
+    if additional_profile_fields:
+        first_row += [v.title for k, v in additional_profile_fields.iteritems()]
+    first_row += ['Grade'] + list(chain.from_iterable(graded_scorable_blocks.values()))
+
+    rows = [first_row]
     error_rows = [list(header_row.values()) + ['error_msg']]
     current_step = {'step': 'Calculating Grades'}
 
     course = get_course_by_id(course_id)
     for student, course_grade, err_msg in CourseGradeFactory().iter(course, enrolled_students):
         student_fields = [getattr(student, field_name) for field_name in header_row]
+
+        # additional profile fields from credo modules
+        if additional_profile_fields:
+            additional_student_fields = users_with_additional_profile_dict.get(student.id, {})
+            for field in additional_profile_fields:
+                student_fields.append(additional_student_fields.get(field, ''))
+
         task_progress.attempted += 1
 
         if not course_grade:

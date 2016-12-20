@@ -1190,6 +1190,8 @@ MIDDLEWARE_CLASSES = (
 
     # This must be last
     'openedx.core.djangoapps.site_configuration.middleware.SessionCookieDomainOverrideMiddleware',
+
+    'credo_modules.middleware.RefererSaveMiddleware',
 )
 
 # Clickjacking protection can be enabled by setting this to 'DENY'
@@ -2161,6 +2163,8 @@ INSTALLED_APPS = (
     'database_fixups',
 
     'raven.contrib.django.raven_compat',
+
+    'credo_modules',
 )
 
 # Migrations which are not in the standard module "migrations"
