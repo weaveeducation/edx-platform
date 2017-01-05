@@ -167,7 +167,7 @@ class CourseList(CourseViewMixin, ListAPIView):
             results = modulestore().get_course_summaries()
 
         # Ensure only courses accessible by the user are returned.
-        results = (course for course in results if self.user_can_access_course(self.request.user, course))
+        results = (course for course in results if self.user_can_access_course(self.request.user, course.id))
 
         # Sort the results in a predictable manner.
         return sorted(results, key=lambda course: unicode(course.id))
