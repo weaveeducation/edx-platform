@@ -1,5 +1,6 @@
 """Middleware classes for third_party_auth."""
 
+import third_party_auth
 from social.apps.django_app.middleware import SocialAuthExceptionMiddleware
 
 from . import pipeline
@@ -87,7 +88,7 @@ class SSOAuthMiddleware(object):
 
         sso_login_as = request.GET.get('sso-login-as', None)
         if sso_login_as and not request.user.is_authenticated():
-            for enabled in third_party_auth.provider.Registry.accepting_logins():
+            for enabled in third_party_auth.provider.Registry.displayed_for_login():
                 if enabled.provider_id == sso_login_as:
                     login_url = pipeline.get_login_url(
                         sso_login_as,
