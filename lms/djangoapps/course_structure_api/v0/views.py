@@ -151,7 +151,7 @@ class CourseList(CourseViewMixin, ListAPIView):
             * end: The course end date. If course end date is not specified, the
               value is null.
     """
-    serializer_class = serializers.CourseSerializer
+    serializer_class = serializers.CourseSummarySerializer
 
     def get_queryset(self):
         course_ids = self.request.query_params.get('course_id', None)
@@ -164,10 +164,7 @@ class CourseList(CourseViewMixin, ListAPIView):
                 course_descriptor = courses.get_course(course_key)
                 results.append(course_descriptor)
         else:
-            results = modulestore().get_courses()
-
-        # Ensure only course descriptors are returned.
-        results = (course for course in results if course.scope_ids.block_type == 'course')
+            results = modulestore().get_course_summaries()
 
         # Ensure only courses accessible by the user are returned.
         results = (course for course in results if self.user_can_access_course(self.request.user, course))
