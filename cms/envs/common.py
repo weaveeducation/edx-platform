@@ -319,6 +319,7 @@ XQUEUE_INTERFACE = {
                     'password': 'local'},
     'basic_auth': None,
 }
+XQUEUE_WAITTIME_BETWEEN_REQUESTS = 5  # seconds
 
 ################################# Deprecation warnings #####################
 
