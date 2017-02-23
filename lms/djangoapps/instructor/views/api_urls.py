@@ -167,4 +167,12 @@ urlpatterns = patterns(
     url(r'^certificate_invalidation_view/$',
         'instructor.views.api.certificate_invalidation_view',
         name='certificate_invalidation_view'),
+
+    url(r'^open_response_assessment_course_items/$',
+        'lms.djangoapps.instructor.views.api.open_response_assessment_course_items',
+        name='open_response_assessment_course_items'),
+
+    url(r'^open_response_assessment_block_display/(?P<ora_block_id>[^/]*)',
+        'lms.djangoapps.instructor.views.api.open_response_assessment_block_display',
+        name='open_response_assessment_block_display'),
 )

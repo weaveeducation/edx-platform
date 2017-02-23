@@ -46,8 +46,10 @@ from django.core.urlresolvers import reverse
   <script type="text/javascript" src="${static.url('js/vendor/jquery.event.drop-2.2.js')}"></script>
   <script type="text/javascript" src="${static.url('js/vendor/slick.core.js')}"></script>
   <script type="text/javascript" src="${static.url('js/vendor/slick.grid.js')}"></script>
+  <script type="text/javascript" src="${static.url('js/vendor/backgrid.js')}"></script>
   <link rel="stylesheet" href="${static.url('css/vendor/slickgrid/smoothness/jquery-ui-1.8.16.custom.css')}">
   <link rel="stylesheet" href="${static.url('css/vendor/slickgrid/slick.grid.css')}">
+  <link rel="stylesheet" href="${static.url('css/vendor/backgrid.css')}">
   <script type="text/javascript" src="${static.url('js/vendor/codemirror-compressed.js')}"></script>
   <script type="text/javascript" src="${static.url('js/vendor/tinymce/js/tinymce/tinymce.full.min.js')}"></script>
   <script type="text/javascript" src="${static.url('js/vendor/tinymce/js/tinymce/jquery.tinymce.min.js')}"></script>
@@ -62,12 +64,13 @@ from django.core.urlresolvers import reverse
   <script type="text/javascript" src="${static.url('js/models/notification.js')}"></script>
   <script type="text/javascript" src="${static.url('js/views/notification.js')}"></script>
   <script type="text/javascript" src="${static.url('js/views/file_uploader.js')}"></script>
+  <script type="text/javascript" src="${static.url('js/views/xblock_fragment.js')}"></script>
   <script type="text/javascript" src="${static.url('js/utils/animation.js')}"></script>
 </%block>
 
 ## Include Underscore templates
 <%block name="header_extras">
-% for template_name in ["cohorts", "enrollment-code-lookup-links", "cohort-editor", "cohort-group-header", "cohort-selector", "cohort-form", "notification", "cohort-state", "cohort-discussions-inline", "cohort-discussions-course-wide", "cohort-discussions-category", "cohort-discussions-subcategory", "certificate-white-list", "certificate-white-list-editor", "certificate-bulk-white-list", "certificate-invalidation"]:
+% for template_name in ["cohorts", "enrollment-code-lookup-links", "cohort-editor", "cohort-group-header", "cohort-selector", "cohort-form", "notification", "cohort-state", "cohort-discussions-inline", "cohort-discussions-course-wide", "cohort-discussions-category", "cohort-discussions-subcategory", "certificate-white-list", "certificate-white-list-editor", "certificate-bulk-white-list", "certificate-invalidation", "open-response-assessment-summary"]:
 <script type="text/template" id="${template_name}-tpl">
   <%static:include path="instructor/instructor_dashboard_2/${template_name}.underscore" />
 </script>

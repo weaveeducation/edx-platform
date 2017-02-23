@@ -181,6 +181,10 @@ def instructor_dashboard_2(request, course_id):
     if available_tabs.show_certificates and certs_enabled and access['admin']:
         sections.append(_section_certificates(course))
 
+    openassessment_blocks = modulestore().get_items(course_key, qualifiers={'category': 'openassessment'})
+    if len(openassessment_blocks) > 0:
+        sections.append(_section_open_response_assessment(course, openassessment_blocks, access))
+
     disable_buttons = not _is_small_course(course_key)
 
     certificate_white_list = CertificateWhitelist.get_certificate_white_list(course_key)
@@ -679,5 +683,19 @@ def _section_metrics(course, access):
         'get_students_opened_subsection_url': reverse('get_students_opened_subsection'),
         'get_students_problem_grades_url': reverse('get_students_problem_grades'),
         'post_metrics_data_csv_url': reverse('post_metrics_data_csv'),
+    }
+    return section_data
+
+
+def _section_open_response_assessment(course, openassessment_blocks, access):
+    """Provide data for the corresponding dashboard section """
+    course_key = course.id
+    section_data = {
+        'section_key': 'open_response_assessment',
+        'section_display_name': _('Open Responses'),
+        'access': access,
+        'course_id': unicode(course_key),
+        'get_open_response_assessment_course_items': reverse('open_response_assessment_course_items',
+                                                             kwargs={'course_id': unicode(course_key)})
     }
     return section_data

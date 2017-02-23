@@ -1,0 +1,17 @@
+<%page args="section_data" expression_filter="h"/>
+<%! from django.utils.translation import ugettext as _ %>
+<section class="open-response-assessment-block"
+         data-endpoint="${section_data['get_open_response_assessment_course_items']}"
+         data-course-id="${section_data['course_id']}"
+         data-rendered=0>
+    <div class="open-response-assessment-msg">${_('Please wait')}</div>
+    <div class="open-response-assessment-content">
+        <div class="open-response-assessment-summary"></div>
+        <hr/>
+        <div class="open-response-assessment-main-table"></div>
+    </div>
+    <div class="open-response-assessment-item">
+        <div class="open-response-assessment-item-breadcrumbs"></div>
+        <div class="open-response-assessment-item-block"></div>
+    </div>
+</section>

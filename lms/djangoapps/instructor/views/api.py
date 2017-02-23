@@ -10,10 +10,12 @@ import json
 import logging
 import re
 import time
+from collections import OrderedDict
 from django.conf import settings
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
 from django.views.decorators.cache import cache_control
+from django.core.context_processors import csrf
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.core.mail.message import EmailMessage
 from django.core.exceptions import ObjectDoesNotExist
@@ -24,6 +26,7 @@ from django.utils.translation import ugettext as _
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotFound
 from django.utils.html import strip_tags
 from django.shortcuts import redirect
+from urllib import unquote
 import string
 import random
 import unicodecsv
@@ -36,6 +39,7 @@ from util.file import (
 )
 from util.json_request import JsonResponse, JsonResponseBadRequest
 from instructor.views.instructor_task_helpers import extract_email_features, extract_task_features
+from lms.djangoapps.courseware.module_render import get_module_by_usage_id, hash_resource
 
 from courseware.access import has_access
 from courseware.courses import get_course_with_access, get_course_by_id
@@ -109,6 +113,9 @@ from opaque_keys.edx.locations import SlashSeparatedCourseKey
 from opaque_keys import InvalidKeyError
 from openedx.core.djangoapps.course_groups.cohorts import is_course_cohorted
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+from openassessment.data import OraAggregateData
+from xmodule.modulestore.django import modulestore
+from xblock.exceptions import NoSuchViewError
 
 log = logging.getLogger(__name__)
 
@@ -3309,3 +3316,102 @@ def validate_request_data_and_get_certificate(certificate_invalidation, course_k
             "username/email and the selected course are correct and try again."
         ).format(student=student.username, course=course_key.course))
     return certificate
+
+
+@transaction.non_atomic_requests
+@ensure_csrf_cookie
+@cache_control(no_cache=True, no_store=True, must_revalidate=True)
+@require_level('staff')
+def open_response_assessment_course_items(request, course_id):
+    """
+    Fetch and return information about all ORA problems in the course.
+
+    :param request: HttpRequest object
+    :param course_id: course identifier
+    :return: JsonResponse object
+    """
+    course_key = CourseKey.from_string(course_id)
+    results = []
+    parents = {}
+    ora2_steps = ['training', 'peer', 'self', 'staff', 'done']
+
+    openassessment_blocks = modulestore().get_items(course_key, qualifiers={'category': 'openassessment'})
+    if len(openassessment_blocks):
+        responses = OraAggregateData.collect_ora2_responses(course_id)
+        for block in openassessment_blocks:
+            if block.parent not in parents:
+                parents[block.parent] = modulestore().get_item(block.parent)
+            result_item_id = unicode(block.location)
+            staff_assessment = "staff-assessment" in block.assessment_steps
+            result_item = {
+                'id': result_item_id,
+                'name': block.display_name,
+                'parent_id': unicode(block.parent),
+                'parent_name': parents[block.parent].display_name,
+                'total': 0,
+                'staff_assessment': staff_assessment,
+                'url': reverse('open_response_assessment_block_display', kwargs={
+                    'course_id': unicode(course_key),
+                    'ora_block_id': result_item_id
+                })
+            }
+            total = 0
+            if result_item_id in responses:
+                result_item.update(responses[result_item_id])
+            for step in ora2_steps:
+                if step in result_item:
+                    total += result_item[step]
+                else:
+                    result_item[step] = 0
+            result_item['total'] = total
+            results.append(result_item)
+
+    return JsonResponse(results)
+
+
+@transaction.non_atomic_requests
+@ensure_csrf_cookie
+@cache_control(no_cache=True, no_store=True, must_revalidate=True)
+@require_level('staff')
+def open_response_assessment_block_display(request, course_id, ora_block_id):
+    """
+    Returns the rendered view of a given ORA XBlock, with related resources.
+
+    :param request: HttpRequest object
+    :param course_id: course identifier
+    :param ora_block_id: chosen ORA block identifier
+    :return: JsonResponse object
+    """
+    is_staff_view = request.GET.get('is_staff', False)
+    ora_block_id = unquote(ora_block_id)
+    usage_key = UsageKey.from_string(ora_block_id)
+    course_key = CourseKey.from_string(course_id)
+    view_name = 'student_view' if not is_staff_view else 'grade_available_responses_view'
+
+    with modulestore().bulk_operations(course_key):
+        # verify the user has access to the course, including enrollment check
+        course = get_course_with_access(request.user, 'load', course_key, check_if_enrolled=False)
+
+        # get the block, which verifies whether the user has access to the block.
+        block, _ = get_module_by_usage_id(
+            request, unicode(course_key), unicode(usage_key), disable_staff_debug_info=True, course=course
+        )
+
+        if block.category != 'openassessment':
+            return HttpResponseForbidden()
+
+        try:
+            fragment = block.render(view_name, context=request.GET)
+        except NoSuchViewError:
+            log.exception("Attempt to render missing view on %s: %s", block, view_name)
+            return HttpResponseNotFound()
+
+        hashed_resources = OrderedDict()
+        for resource in fragment.resources:
+            hashed_resources[hash_resource(resource)] = resource
+
+        return JsonResponse({
+            'html': fragment.content,
+            'resources': hashed_resources.items(),
+            'csrf_token': unicode(csrf(request)['csrf_token']),
+        })
