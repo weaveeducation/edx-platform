@@ -95,7 +95,11 @@
         var tagSelectors = {};
 
         $element.find("input").each(function() {
-            tagSelectors[$(this).attr('name')] = $(this).magicSuggest({
+            var rubric = $(this).data('rubric');
+            if (!(rubric in tagSelectors)) {
+                tagSelectors[rubric] = {};
+            }
+            tagSelectors[rubric][$(this).attr('name')] = $(this).magicSuggest({
                 data: $(this).data('values'),
                 width: 700,
                 value: $(this).data('current-values'),
@@ -110,8 +114,13 @@
                 saveTagsInProgress = true;
                 var dataToPost = {};
 
-                $.each(tagSelectors, function(tagName, tagSelector) {
-                    dataToPost[tagName] = tagSelector.getValue();
+                $.each(tagSelectors, function (rubric, selector) {
+                    $.each(selector, function(tagName, tagSelector) {
+                        if (!(rubric in dataToPost)) {
+                            dataToPost[rubric] = {};
+                        }
+                        dataToPost[rubric][tagName] = tagSelector.getValue();
+                    });
                 });
 
                 e.preventDefault();
@@ -121,12 +130,18 @@
                     message: gettext('Updating Tags')
                 });
 
-                $.post(runtime.handlerUrl(element, 'save_tags'), dataToPost).done(function() {
-                    saveTagsInProgress = false;
+                $.ajax({
+                    type: 'POST',
+                    url: runtime.handlerUrl(element, 'save_tags'),
+                    data: JSON.stringify(dataToPost),
+                    dataType: 'json',
+                    contentType: 'application/json; charset=utf-8'
+                }).always(function() {
                     runtime.notify('save', {
                         state: 'end',
                         element: element
                     });
+                    saveTagsInProgress = false;
                 });
             }
         });

@@ -3,6 +3,7 @@
 Structured Tagging based on XBlockAsides
 """
 
+import json
 from xblock.core import XBlockAside, XBlock
 from xblock.fragment import Fragment
 from xblock.fields import Scope, Dict
@@ -103,7 +104,9 @@ class StructuredTagsAside(XBlockAside):
                     'key': tag.name,
                     'title': tag.title,
                     'values': values,
+                    'values_json': json.dumps(values),
                     'current_values': values_not_exists + current_values,
+                    'current_values_json': json.dumps(values_not_exists + current_values),
                     'editable': tag.editable_in_studio,
                     'has_access': has_access_this_tag,
                 })
@@ -112,6 +115,8 @@ class StructuredTagsAside(XBlockAside):
                                                                                 'block_location': block.location,
                                                                                 'show_save_btn': has_access_any_tag,
                                                                                 }))
+            fragment.add_css_url(self._get_studio_resource_url('/cms/css/magicsuggest-1.3.1.css'))
+            fragment.add_javascript_url(self._get_studio_resource_url('/cms/js/magicsuggest-1.3.1.js'))
             fragment.add_javascript_url(self._get_studio_resource_url('/js/xblock_asides/structured_tags.js'))
             fragment.initialize_js('StructuredTagsInit')
             return fragment
