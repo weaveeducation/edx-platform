@@ -128,7 +128,7 @@ class OraStructuredTagsAside(StructuredTagsAside):
                         saved_tags[rubric] = {}
                     saved_tags[rubric][av_tag.name] = rubric_tags[av_tag.name]
                     need_update = True
-                if av_tag.name in rubric:
+                if av_tag.name in rubric_tags:
                     need_update = True
 
         if need_update:
