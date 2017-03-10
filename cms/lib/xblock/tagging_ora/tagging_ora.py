@@ -93,7 +93,7 @@ class OraStructuredTagsAside(StructuredTagsAside):
             fragment.add_css_url(self._get_studio_resource_url('/cms/css/magicsuggest-1.3.1.css'))
             fragment.add_javascript_url(self._get_studio_resource_url('/cms/js/magicsuggest-1.3.1.js'))
             fragment.add_javascript_url(self._get_studio_resource_url('/js/xblock_asides/ora_structured_tags.js'))
-            fragment.initialize_js('StructuredTagsInit')
+            fragment.initialize_js('OraStructuredTagsInit')
             return fragment
         else:
             return Fragment(u'')

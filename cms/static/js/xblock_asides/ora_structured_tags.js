@@ -1,11 +1,11 @@
 (function($) {
     'use strict';
-    var EditTagsModal = null;
+    var OraEditTagsModal = null;
 
     require(["jquery", "underscore", "gettext", "js/views/modals/base_modal", "common/js/components/utils/view_utils"],
         function ($, _, gettext, BaseModal, ViewUtils) {
 
-        EditTagsModal = BaseModal.extend({
+        OraEditTagsModal = BaseModal.extend({
             events: _.extend({}, BaseModal.prototype.events, {
                 "click .action-save": "save"
             }),
@@ -88,7 +88,7 @@
         });
     });
 
-    function StructuredTagsView(runtime, element) {
+    function OraStructuredTagsView(runtime, element) {
 
         var $element = $(element);
         var saveTagsInProgress = false;
@@ -147,8 +147,8 @@
         });
 
         $($element).find('.edit_tags').click(function(){
-            if (EditTagsModal) {
-                var editTagModal = new EditTagsModal({
+            if (OraEditTagsModal) {
+                var editTagModal = new OraEditTagsModal({
                     modalName: 'edit-xblockaside-tags',
                     addSaveButton: true,
                     modalSize: 'med',
@@ -164,9 +164,9 @@
         });
     }
 
-    function initializeStructuredTags(runtime, element) {
-        return new StructuredTagsView(runtime, element);
+    function initializeOraStructuredTags(runtime, element) {
+        return new OraStructuredTagsView(runtime, element);
     }
 
-    window.StructuredTagsInit = initializeStructuredTags;
+    window.OraStructuredTagsInit = initializeOraStructuredTags;
 })($);
