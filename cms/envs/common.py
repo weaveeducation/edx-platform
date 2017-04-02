@@ -946,6 +946,7 @@ INSTALLED_APPS = (
 
     # Tagging
     'cms.lib.xblock.tagging',
+    'cms.lib.xblock.tagging_ora',
 
     # Enables default site and redirects
     'django_sites_extensions',

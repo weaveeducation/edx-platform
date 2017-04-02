@@ -1,11 +1,11 @@
 (function($) {
     'use strict';
-    var EditTagsModal = null;
+    var OraEditTagsModal = null;
 
     require(["jquery", "underscore", "gettext", "js/views/modals/base_modal", "common/js/components/utils/view_utils"],
         function ($, _, gettext, BaseModal, ViewUtils) {
 
-        EditTagsModal = BaseModal.extend({
+        OraEditTagsModal = BaseModal.extend({
             events: _.extend({}, BaseModal.prototype.events, {
                 "click .action-save": "save"
             }),
@@ -88,14 +88,18 @@
         });
     });
 
-    function StructuredTagsView(runtime, element) {
+    function OraStructuredTagsView(runtime, element) {
 
         var $element = $(element);
         var saveTagsInProgress = false;
         var tagSelectors = {};
 
         $element.find("input").each(function() {
-            tagSelectors[$(this).attr('name')] = $(this).magicSuggest({
+            var rubric = $(this).data('rubric');
+            if (!(rubric in tagSelectors)) {
+                tagSelectors[rubric] = {};
+            }
+            tagSelectors[rubric][$(this).attr('name')] = $(this).magicSuggest({
                 data: $(this).data('values'),
                 width: 700,
                 value: $(this).data('current-values'),
@@ -110,8 +114,13 @@
                 saveTagsInProgress = true;
                 var dataToPost = {};
 
-                $.each(tagSelectors, function(tagName, tagSelector) {
-                    dataToPost[tagName] = tagSelector.getValue();
+                $.each(tagSelectors, function (rubric, selector) {
+                    $.each(selector, function(tagName, tagSelector) {
+                        if (!(rubric in dataToPost)) {
+                            dataToPost[rubric] = {};
+                        }
+                        dataToPost[rubric][tagName] = tagSelector.getValue();
+                    });
                 });
 
                 e.preventDefault();
@@ -121,19 +130,25 @@
                     message: gettext('Updating Tags')
                 });
 
-                $.post(runtime.handlerUrl(element, 'save_tags'), dataToPost).done(function() {
-                    saveTagsInProgress = false;
+                $.ajax({
+                    type: 'POST',
+                    url: runtime.handlerUrl(element, 'save_tags'),
+                    data: JSON.stringify(dataToPost),
+                    dataType: 'json',
+                    contentType: 'application/json; charset=utf-8'
+                }).always(function() {
                     runtime.notify('save', {
                         state: 'end',
                         element: element
                     });
+                    saveTagsInProgress = false;
                 });
             }
         });
 
         $($element).find('.edit_tags').click(function(){
-            if (EditTagsModal) {
-                var editTagModal = new EditTagsModal({
+            if (OraEditTagsModal) {
+                var editTagModal = new OraEditTagsModal({
                     modalName: 'edit-xblockaside-tags',
                     addSaveButton: true,
                     modalSize: 'med',
@@ -149,9 +164,9 @@
         });
     }
 
-    function initializeStructuredTags(runtime, element) {
-        return new StructuredTagsView(runtime, element);
+    function initializeOraStructuredTags(runtime, element) {
+        return new OraStructuredTagsView(runtime, element);
     }
 
-    window.StructuredTagsInit = initializeStructuredTags;
+    window.OraStructuredTagsInit = initializeOraStructuredTags;
 })($);
