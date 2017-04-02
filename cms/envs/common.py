@@ -339,6 +339,8 @@ XQUEUE_INTERFACE = {
     'basic_auth': None,
 }
 
+XQUEUE_WAITTIME_BETWEEN_REQUESTS = 5  # seconds
+
 ################################# Deprecation warnings #####################
 
 # Ignore deprecation warnings (so we don't clutter Jenkins builds/production)
