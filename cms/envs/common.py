@@ -1042,6 +1042,8 @@ INSTALLED_APPS = (
     'openedx.core.djangoapps.waffle_utils',
 
     'raven.contrib.django.raven_compat',
+
+    'credo_modules',
 )
 
 

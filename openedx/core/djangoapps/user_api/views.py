@@ -258,6 +258,15 @@ class RegistrationView(APIView):
             for field_name in self.DEFAULT_FIELDS:
                 self.field_handlers[field_name](form_desc, required=True)
 
+            # Extra fields configured in Django settings
+            # may be required, optional, or hidden
+            for field_name in self.EXTRA_FIELDS:
+                if self._is_field_visible(field_name):
+                    self.field_handlers[field_name](
+                        form_desc,
+                        required=self._is_field_required(field_name)
+                    )
+
             for field_name, field in custom_form.fields.items():
                 restrictions = {}
                 if getattr(field, 'max_length', None):
@@ -276,23 +285,18 @@ class RegistrationView(APIView):
                         )
                     )
                 form_desc.add_field(
-                    field_name, label=field.label,
-                    default=field_options.get('default'),
+                    field_name,
+                    label=field.label,
+                    default=field.initial,
                     field_type=field_options.get('field_type', FormDescription.FIELD_TYPE_MAP.get(field.__class__)),
-                    placeholder=field.initial, instructions=field.help_text, required=field.required,
+                    # placeholder=field.initial,
+                    instructions=field.help_text,
+                    required=field.required,
                     restrictions=restrictions,
-                    options=getattr(field, 'choices', None), error_messages=field.error_messages,
+                    options=getattr(field, 'choices', None),
+                    error_messages=field.error_messages,
                     include_default_option=field_options.get('include_default_option'),
                 )
-
-            # Extra fields configured in Django settings
-            # may be required, optional, or hidden
-            for field_name in self.EXTRA_FIELDS:
-                if self._is_field_visible(field_name):
-                    self.field_handlers[field_name](
-                        form_desc,
-                        required=self._is_field_required(field_name)
-                    )
         else:
             # Go through the fields in the fields order and add them if they are required or visible
             for field_name in self.field_order:
