@@ -241,6 +241,15 @@ class RegistrationView(APIView):
         for field_name in self.DEFAULT_FIELDS:
             self.field_handlers[field_name](form_desc, required=True)
 
+        # Extra fields configured in Django settings
+        # may be required, optional, or hidden
+        for field_name in self.EXTRA_FIELDS:
+            if self._is_field_visible(field_name):
+                self.field_handlers[field_name](
+                    form_desc,
+                    required=self._is_field_required(field_name)
+                )
+
         # Custom form fields can be added via the form set in settings.REGISTRATION_EXTENSION_FORM
         custom_form = get_registration_extension_form()
 
@@ -270,15 +279,6 @@ class RegistrationView(APIView):
                     restrictions=restrictions,
                     options=getattr(field, 'choices', None), error_messages=field.error_messages,
                     include_default_option=field_options.get('include_default_option'),
-                )
-
-        # Extra fields configured in Django settings
-        # may be required, optional, or hidden
-        for field_name in self.EXTRA_FIELDS:
-            if self._is_field_visible(field_name):
-                self.field_handlers[field_name](
-                    form_desc,
-                    required=self._is_field_required(field_name)
                 )
 
         # Add any Enterprise fields if the app is enabled
