@@ -27,8 +27,11 @@ class StudentPropertiesAside(XBlockAside):
 
             if user:
                 profile = UserProfile.objects.get(user=user)
-                result['registration']['gender'] = profile.gender
-                result['registration']['year_of_birth'] = profile.year_of_birth
+                if profile.gender:
+                    result['registration']['gender'] = profile.gender
+
+                #if profile.year_of_birth:
+                #    result['registration']['year_of_birth'] = profile.year_of_birth
 
                 properties = CredoStudentProperties.objects.filter(user=user)
                 for prop in properties:
