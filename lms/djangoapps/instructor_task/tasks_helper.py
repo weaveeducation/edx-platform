@@ -761,6 +761,8 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
                 grade_header.append(subsection_headers)
                 grade_header.append('%s Timestamp (UTC)' % subsection_headers)
         grade_header.append(assignment_info['average_header'])
+        if not assignment_info['use_subsection_headers']:
+            grade_header.append('%s Timestamp (UTC)' % assignment_info['average_header'])
 
     # additional profile fields from credo modules
     if course.credo_additional_profile_fields:
@@ -844,22 +846,19 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
                     subsection_grade = course_grade.graded_subsections_by_format[assignment_type][subsection_location]
                 except KeyError:
                     grade_results.append([u'Not Available'])
-                    if assignment_info['use_subsection_headers']:
-                        grade_results.append([u'Not Available'])
+                    grade_results.append([u'Not Available'])
                 else:
                     if subsection_grade.graded_total.attempted:
                         grade_results.append(
                             [subsection_grade.graded_total.earned / subsection_grade.graded_total.possible]
                         )
-                        if assignment_info['use_subsection_headers']:
-                            last_answer_timestamp = subsection_grade.graded_total.last_answer_timestamp
-                            last_answer_timestamp_str = last_answer_timestamp.strftime("%Y-%m-%d %H:%M:%S") \
+                        last_answer_timestamp = subsection_grade.graded_total.last_answer_timestamp
+                        last_answer_timestamp_str = last_answer_timestamp.strftime("%Y-%m-%d %H:%M:%S") \
                                 if last_answer_timestamp else ''
-                            grade_results.append([last_answer_timestamp_str])
+                        grade_results.append([last_answer_timestamp_str])
                     else:
                         grade_results.append([u'Not Attempted'])
-                        if assignment_info['use_subsection_headers']:
-                            grade_results.append([u'Not Attempted'])
+                        grade_results.append([u'Not Attempted'])
             if assignment_info['use_subsection_headers']:
                 assignment_average = course_grade.grade_value['grade_breakdown'].get(assignment_type, {}).get('percent')
                 grade_results.append([assignment_average])
