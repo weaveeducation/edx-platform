@@ -844,19 +844,22 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
                     subsection_grade = course_grade.graded_subsections_by_format[assignment_type][subsection_location]
                 except KeyError:
                     grade_results.append([u'Not Available'])
-                    grade_results.append([u'Not Available'])
+                    if assignment_info['use_subsection_headers']:
+                        grade_results.append([u'Not Available'])
                 else:
                     if subsection_grade.graded_total.attempted:
                         grade_results.append(
                             [subsection_grade.graded_total.earned / subsection_grade.graded_total.possible]
                         )
-                        last_answer_timestamp = subsection_grade.graded_total.last_answer_timestamp
-                        last_answer_timestamp_str = last_answer_timestamp.strftime("%Y-%m-%d %H:%M:%S") \
-                            if last_answer_timestamp else ''
-                        grade_results.append([last_answer_timestamp_str])
+                        if assignment_info['use_subsection_headers']:
+                            last_answer_timestamp = subsection_grade.graded_total.last_answer_timestamp
+                            last_answer_timestamp_str = last_answer_timestamp.strftime("%Y-%m-%d %H:%M:%S") \
+                                if last_answer_timestamp else ''
+                            grade_results.append([last_answer_timestamp_str])
                     else:
                         grade_results.append([u'Not Attempted'])
-                        grade_results.append([u'Not Attempted'])
+                        if assignment_info['use_subsection_headers']:
+                            grade_results.append([u'Not Attempted'])
             if assignment_info['use_subsection_headers']:
                 assignment_average = course_grade.grade_value['grade_breakdown'].get(assignment_type, {}).get('percent')
                 grade_results.append([assignment_average])
