@@ -761,6 +761,8 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
                 grade_header.append(subsection_headers)
                 grade_header.append('%s Timestamp (UTC)' % subsection_headers)
         grade_header.append(assignment_info['average_header'])
+        if not assignment_info['use_subsection_headers']:
+            grade_header.append('%s Timestamp (UTC)' % assignment_info['average_header'])
 
     # additional profile fields from credo modules
     if course.credo_additional_profile_fields:
