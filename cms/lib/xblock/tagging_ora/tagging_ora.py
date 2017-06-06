@@ -109,7 +109,6 @@ class OraStructuredTagsAside(StructuredTagsAside):
             return Response("Invalid request body", status=400)
 
         saved_tags = {}
-        need_update = False
 
         for av_tag in self.get_available_tags():
             for rubric, rubric_tags in posted_data.iteritems():
@@ -127,15 +126,9 @@ class OraStructuredTagsAside(StructuredTagsAside):
                     if rubric not in saved_tags:
                         saved_tags[rubric] = {}
                     saved_tags[rubric][av_tag.name] = rubric_tags[av_tag.name]
-                    need_update = True
-                if av_tag.name in rubric:
-                    need_update = True
 
-        if need_update:
-            self.saved_tags = saved_tags
-            return Response()
-        else:
-            return Response("Tags parameters were not passed", status=400)
+        self.saved_tags = saved_tags
+        return Response()
 
     def get_event_context(self, event_type, event):  # pylint: disable=unused-argument
         """
