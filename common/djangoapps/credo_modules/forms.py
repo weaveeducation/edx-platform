@@ -1,4 +1,5 @@
 import json
+from collections import OrderedDict
 from django.forms import Form, CharField, ChoiceField
 from credo_modules.models import StudentAttributesRegistrationModel, RegistrationPropertiesPerMicrosite
 from microsite_configuration import microsite
@@ -38,28 +39,52 @@ class StudentAttributesRegistrationForm(Form):
             return
 
         if self._registration_attributes:
+            registration_attributes_list = []
+            registration_attributes_list_sorted = []
+
             for k, v in self._registration_attributes.iteritems():
+                order = None
+                try:
+                    order = int(v['order']) if 'order' in v else None
+                except ValueError:
+                    pass
+
                 required = v['required'] if 'required' in v and v['required'] else False
                 title = v['title'] if 'title' in v and v['title'] else k
                 default = v['default'] if 'default' in v and v['default'] else None
                 options = v['options'] if 'options' in v and v['options'] else None
                 required_msq = "%s field is required." % title
-                key = self._key_pattern % k
 
-                kwargs = {
+                data = {
                     'required': required,
                     'label': title,
                     'initial': default,
                     'error_messages': {
                         "required": required_msq,
-                    }
+                    },
+                    'order': order,
+                    'options': options,
+                    'key': self._key_pattern % k
                 }
 
-                if options:
-                    kwargs['choices'] = [(choice, choice) for choice in options]
-                    self.fields[key] = ChoiceField(**kwargs)
-                else:
-                    self.fields[key] = CharField(**kwargs)
+                registration_attributes_list.append(data)
+
+            if registration_attributes_list:
+                registration_attributes_list_sorted = sorted(registration_attributes_list, key=lambda k: k['order'])
+
+            if registration_attributes_list_sorted:
+                for val in registration_attributes_list_sorted:
+                    kwargs = val.copy()
+                    kwargs.pop('order', None)
+                    key = kwargs.pop('key', None)
+
+                    if kwargs['options']:
+                        kwargs['choices'] = [(choice, choice) for choice in kwargs['options']]
+                        kwargs.pop('options', None)
+                        self.fields[key] = ChoiceField(**kwargs)
+                    else:
+                        kwargs.pop('options', None)
+                        self.fields[key] = CharField(**kwargs)
 
     def save(self, **kwargs):
         values = []
