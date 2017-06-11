@@ -272,12 +272,16 @@ class RegistrationView(APIView):
                         )
                     )
                 form_desc.add_field(
-                    field_name, label=field.label,
-                    default=field_options.get('default'),
+                    field_name,
+                    label=field.label,
+                    default=field.initial,
                     field_type=field_options.get('field_type', FormDescription.FIELD_TYPE_MAP.get(field.__class__)),
-                    placeholder=field.initial, instructions=field.help_text, required=field.required,
+#                    placeholder=field.initial,
+                    instructions=field.help_text,
+                    required=field.required,
                     restrictions=restrictions,
-                    options=getattr(field, 'choices', None), error_messages=field.error_messages,
+                    options=getattr(field, 'choices', None),
+                    error_messages=field.error_messages,
                     include_default_option=field_options.get('include_default_option'),
                 )
 
