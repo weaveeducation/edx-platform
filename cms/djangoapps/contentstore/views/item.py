@@ -439,11 +439,13 @@ def _update_with_callback(xblock, user, old_metadata=None, old_content=None):
 
 
 def _copy_to_other_course(user, xblock, course_dst_id):
+    broken_blocks = {}
     course_key = CourseKey.from_string(course_dst_id)
     course = modulestore().get_course(course_key)
     duplicate_source_usage_key = usage_key_with_run(str(course.location))
-    _duplicate_item(duplicate_source_usage_key, xblock.location, user, xblock.display_name, course_key=course_key)
-    return JsonResponse({'id': unicode(xblock.location)}, encoder=EdxJSONEncoder)
+    _duplicate_item(duplicate_source_usage_key, xblock.location, user, xblock.display_name, course_key=course_key,
+                    broken_blocks=broken_blocks)
+    return JsonResponse({'id': unicode(xblock.location), 'broken_blocks': broken_blocks}, encoder=EdxJSONEncoder)
 
 
 def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, nullout=None,
@@ -647,11 +649,31 @@ def _create_item(request):
     )
 
 
+def _get_breadcrumbs(item):
+    names_list = []
+    first = True
+    parent = None
+    while first or parent:
+        if first:
+            first = False
+            names_list.append(item.display_name)
+            parent = item.get_parent()
+        else:
+            names_list.append(parent.display_name)
+            parent = parent.get_parent()
+        if parent.category == 'course':
+            parent = None
+    return u' / ' .join(names_list[::-1])
+
+
 def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_name=None, is_child=False,
-                    course_key=None):
+                    course_key=None, broken_blocks=None):
     """
     Duplicate an existing xblock as a child of the supplied parent_usage_key.
     """
+    if broken_blocks is None:
+        broken_blocks = {}
+
     store = modulestore()
     with store.bulk_operations(course_key if course_key else duplicate_source_usage_key.course_key):
         source_item = store.get_item(duplicate_source_usage_key)
@@ -714,14 +736,19 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
             # These blocks may handle their own children or parenting if needed. Let them return booleans to
             # let us know if we need to handle these or not.
             dest_module.xmodule_runtime = StudioEditModuleRuntime(user)
-            children_handled = dest_module.studio_post_duplicate(store, source_item)
+
+            try:
+                children_handled = dest_module.studio_post_duplicate(store, source_item)
+            except ItemNotFoundError:
+                broken_blocks[str(source_item.location)] = _get_breadcrumbs(source_item)
 
         # Children are not automatically copied over (and not all xblocks have a 'children' attribute).
         # Because DAGs are not fully supported, we need to actually duplicate each child as well.
         if source_item.has_children and not children_handled:
             dest_module.children = dest_module.children or []
             for child in source_item.children:
-                dupe = _duplicate_item(dest_module.location, child, user=user, is_child=True, course_key=course_key)
+                dupe = _duplicate_item(dest_module.location, child, user=user, is_child=True, course_key=course_key,
+                                       broken_blocks=broken_blocks)
                 if dupe not in dest_module.children:  # _duplicate_item may add the child for us.
                     dest_module.children.append(dupe)
             store.update_item(dest_module, user.id)
