@@ -964,6 +964,8 @@ INSTALLED_APPS = (
     'database_fixups',
 
     'raven.contrib.django.raven_compat',
+
+    'credo_modules',
 )
 
 

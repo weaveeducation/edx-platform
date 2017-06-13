@@ -1,7 +1,9 @@
 import json
+import re
 from django.contrib.auth.models import User
 from django.db import models
 from openedx.core.djangoapps.xmodule_django.models import CourseKeyField
+from django.core.exceptions import ValidationError
 
 from credo_modules.utils import additional_profile_fields_hash
 from student.models import CourseEnrollment
@@ -61,12 +63,27 @@ class CredoStudentProperties(models.Model):
     value = models.CharField(max_length=255)
 
 
+def validate_json_props(value):
+    try:
+        json_data = json.loads(value)
+        if json_data:
+            for key in json_data:
+                if not re.match(r'\w+$', key):
+                    raise ValidationError(
+                        '%(key)s should contain only alphanumeric characters and underscores',
+                        params={'key': key},
+                    )
+    except ValueError:
+        raise ValidationError('Invalid JSON')
+
+
 class RegistrationPropertiesPerMicrosite(models.Model):
     org = models.CharField(max_length=255, verbose_name='Org', unique=True)
     domain = models.CharField(max_length=255, verbose_name='Microsite Domain Name', unique=True)
     data = models.TextField(
         verbose_name="Registration Properties",
         help_text="Config in JSON format",
+        validators=[validate_json_props]
     )
 
     class Meta(object):
