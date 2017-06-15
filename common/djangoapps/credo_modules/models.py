@@ -49,6 +49,29 @@ class StudentAttributesRegistrationModel(object):
                 CredoStudentProperties(**values).save()
 
 
+def check_and_save_enrollment_attributes(post_data, user, course_id):
+    try:
+        properties = EnrollmentPropertiesPerCourse.objects.get(course_id=course_id)
+        try:
+            enrollment_properties = json.loads(properties.data)
+        except ValueError:
+            return
+        if enrollment_properties:
+            CredoStudentProperties.objects.filter(course_id=course_id, user=user).delete()
+            for k, v in enrollment_properties.iteritems():
+                lti_key = v['lti'] if 'lti' in v else False
+                default = v['default'] if 'default' in v and v['default'] else None
+                if lti_key:
+                    if lti_key in post_data:
+                        CredoStudentProperties(user=user, course_id=course_id,
+                                               name=k, value=post_data[lti_key]).save()
+                    elif default:
+                        CredoStudentProperties(user=user, course_id=course_id,
+                                               name=k, value=default).save()
+    except EnrollmentPropertiesPerCourse.DoesNotExist:
+        return
+
+
 class CredoStudentProperties(models.Model):
     """
     This table contains info about the custom student properties.
@@ -90,6 +113,20 @@ class RegistrationPropertiesPerMicrosite(models.Model):
         db_table = "credo_registration_properties"
         verbose_name = "registration properties item"
         verbose_name_plural = "registration properties per microsite"
+
+
+class EnrollmentPropertiesPerCourse(models.Model):
+    course_id = CourseKeyField(db_index=True, max_length=255)
+    data = models.TextField(
+        verbose_name="Enrollment Properties",
+        help_text="Config in JSON format",
+        validators=[validate_json_props]
+    )
+
+    class Meta(object):
+        db_table = "credo_enrollment_properties"
+        verbose_name = "enrollment properties item"
+        verbose_name_plural = "enrollment properties per course"
 
 
 def user_must_fill_additional_profile_fields(course, user, block=None):
