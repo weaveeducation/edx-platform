@@ -718,6 +718,10 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
                 if field.scope not in (Scope.settings, Scope.content,):
                     field.delete_from(aside)
 
+        # temporary fix (should be removed in the future - after the old copied sections will be outdated)
+        if 'start' in duplicate_metadata:
+            duplicate_metadata.pop('start', None)
+
         dest_module = store.create_item(
             user.id,
             course_key if course_key else dest_usage_key.course_key,
