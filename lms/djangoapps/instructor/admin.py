@@ -29,6 +29,7 @@ class InstructorAvailableSectionsAdmin(ForeignKeyAutocompleteAdmin):
     bulk_unset_actions = [available_sections_bulk_action(field, is_set=False) for field in bulk_fields]
 
     actions = bulk_set_actions + bulk_unset_actions
+    search_fields = ('user__username', 'user__email', 'user__first_name', 'user__last_name')
 
     related_search_fields = {
         'user': ('email', 'username', 'first_name', 'last_name'),
