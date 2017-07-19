@@ -7,6 +7,7 @@ import re
 from django import forms
 from django.forms import widgets
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.hashers import UNUSABLE_PASSWORD_PREFIX
@@ -109,19 +110,35 @@ _PASSWORD_INVALID_MSG = _("A valid password is required")
 _NAME_TOO_SHORT_MSG = _("Your legal name must be a minimum of two characters long")
 
 
+extended_slug_validator = RegexValidator(
+    re.compile(r'^[-a-zA-Z0-9_.@]+\Z'),
+    u"Enter a valid 'slug' consisting of letters, numbers, underscores, "
+    u"dots, at symbols (@) or hyphens.", 'invalid'
+)
+
+
+class ExtendedSlugField(forms.SlugField):
+    """A custom field where dots and @-symbols *are* allowed in the slug."""
+    default_error_messages = {
+        'invalid': u"Enter a valid 'slug' consisting of letters, numbers, "
+                   u"underscores, dots, at symbols (@) or hyphens.",
+    }
+    default_validators = [extended_slug_validator]
+
+
 class AccountCreationForm(forms.Form):
     """
     A form to for account creation data. It is currently only used for
     validation, not rendering.
     """
     # TODO: Resolve repetition
-    username = forms.SlugField(
+    username = ExtendedSlugField(
         min_length=2,
         max_length=30,
         error_messages={
             "required": _USERNAME_TOO_SHORT_MSG,
-            "invalid": _("Usernames can only contain Roman letters, western numerals (0-9), underscores (_), and "
-                         "hyphens (-)."),
+            "invalid": _("Usernames can only contain Roman letters, western numerals (0-9), underscores (_), dots (.), "
+                         "at symbols (@) and hyphens (-)."),
             "min_length": _USERNAME_TOO_SHORT_MSG,
             "max_length": _("Username cannot be more than %(limit_value)s characters long"),
         }
