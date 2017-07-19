@@ -291,6 +291,7 @@ div.problem {
 
     legend {
       margin-bottom: $baseline;
+      max-width: 100%;
     }
 
     legend + .question-description {
