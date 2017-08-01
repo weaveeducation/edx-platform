@@ -1,0 +1,18 @@
+<%page expression_filter="h"/>
+<%namespace name='static' file='../static_content.html'/>
+<%!
+from django.utils.translation import ugettext as _
+from openedx.core.djangolib.markup import HTML, Text
+%>
+<%inherit file="../main.html" />
+
+<%block name="pagetitle">${_("Bad Request (400)")}</%block>
+
+<main id="main" aria-label="Content" tabindex="-1">
+    <section class="outside-app">
+        <h1>${_("Bad Request (400)")}
+            <br>
+            <a href="javascript:history.back()">Go Back</a>
+        </h1>
+    </section>
+</main>

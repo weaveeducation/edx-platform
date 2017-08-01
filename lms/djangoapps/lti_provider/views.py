@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 import logging
 
 from credo_modules.models import check_and_save_enrollment_attributes
+from edxmako.shortcuts import render_to_string
 from lti_provider.outcomes import store_outcome_parameters
 from lti_provider.models import LtiConsumer
 from lti_provider.signature_validator import SignatureValidator
@@ -59,7 +60,7 @@ def lti_launch(request, course_id, usage_id):
     # missing
     params = get_required_parameters(request.POST)
     if not params:
-        return HttpResponseBadRequest()
+        return HttpResponseBadRequest(render_to_string('static_templates/400.html', {}, None))
     params.update(get_optional_parameters(request.POST))
 
     # Get the consumer information from either the instance GUID or the consumer
