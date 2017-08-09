@@ -16,6 +16,7 @@ from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys import InvalidKeyError
 from openedx.core.lib.url_utils import unquote_slashes
 from student.models import CourseEnrollment
+from student.roles import CourseStaffRole
 from util.views import add_p3p_header
 
 log = logging.getLogger("edx.lti_provider")
@@ -99,7 +100,7 @@ def lti_launch(request, course_id, usage_id):
             lti_params[lti_keys[key]] = params[key]
     authenticate_lti_user(request, params['user_id'], lti_consumer, lti_params)
     if request.user.is_authenticated():
-        enroll_result = enroll_user_to_course(request.user, course_key)
+        enroll_result = enroll_user_to_course(request.user, course_key, params.get('roles', None))
         if enroll_result:
             check_and_save_enrollment_attributes(request.POST, request.user, course_key)
 
@@ -111,12 +112,14 @@ def lti_launch(request, course_id, usage_id):
     return render_courseware(request, params['usage_key'])
 
 
-def enroll_user_to_course(edx_user, course_key):
+def enroll_user_to_course(edx_user, course_key, roles=None):
     """
     Enrolles the user to the course if he is not already enrolled.
     """
     if course_key is not None and not CourseEnrollment.is_enrolled(edx_user, course_key):
         CourseEnrollment.enroll(edx_user, course_key)
+        if roles:
+            set_user_roles(edx_user, course_key, roles)
         return True
     return False
 
@@ -181,3 +184,11 @@ def parse_course_and_usage_keys(course_id, usage_id):
     usage_id = unquote_slashes(usage_id)
     usage_key = UsageKey.from_string(usage_id).map_into_course(course_key)
     return course_key, usage_key
+
+
+def set_user_roles(edx_user, course_key, roles):
+    # LIS vocabulary for System Role
+    # https://www.imsglobal.org/specs/ltiv1p0/implementation-guide#toc-9
+    external_roles = ['Administrator', 'Instructor', 'Staff']
+    if any(role in roles for role in external_roles):
+        CourseStaffRole(course_key).add_users(edx_user)
