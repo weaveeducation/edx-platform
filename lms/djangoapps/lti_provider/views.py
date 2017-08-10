@@ -56,22 +56,21 @@ def lti_launch(request, course_id, usage_id):
           pair
     """
     if not settings.FEATURES['ENABLE_LTI_PROVIDER']:
-        return HttpResponseForbidden()
+        return render_response_forbidden(None)
 
     # Check the LTI parameters, and return 400 if any required parameters are
     # missing
     params = get_required_parameters(request.POST)
     
     return_url = request.POST.get('launch_presentation_return_url')
-    template400 = Template(render_to_string('static_templates/400.html', {'return_url': return_url}))
     if not params:
-        return HttpResponseBadRequest(template400.render())
+        return render_bad_request(return_url)
 
     if params['lti_version'] != 'LTI-1p0':
-        return HttpResponseBadRequest(template400.render())
+        return render_bad_request(return_url)
 
     if params['lti_message_type'] != 'basic-lti-launch-request':
-        return HttpResponseBadRequest(template400.render())
+        return render_bad_request(return_url)
 
     params.update(get_optional_parameters(request.POST))
 
@@ -83,13 +82,11 @@ def lti_launch(request, course_id, usage_id):
             params['oauth_consumer_key']
         )
     except LtiConsumer.DoesNotExist:
-        template403 = Template(render_to_string('static_templates/403.html', {'return_url': return_url}))
-        return HttpResponseForbidden(template403.render())
+        return render_response_forbidden(return_url)
 
     # Check the OAuth signature on the message
     if not SignatureValidator(lti_consumer).verify(request):
-        template403 = Template(render_to_string('static_templates/403.html', {'return_url': return_url}))
-        return HttpResponseForbidden(template403.render())
+        return render_response_forbidden(return_url)
 
     # Add the course and usage keys to the parameters array
     try:
@@ -196,3 +193,19 @@ def parse_course_and_usage_keys(course_id, usage_id):
     usage_id = unquote_slashes(usage_id)
     usage_key = UsageKey.from_string(usage_id).map_into_course(course_key)
     return course_key, usage_key
+
+def render_bad_request(return_url):
+    """
+    Render the error template and log an Http 400 error on invalid launch
+    (required by IMS)
+    """
+    template400 = Template(render_to_string('static_templates/400.html', {'return_url': return_url}))
+    return HttpResponseBadRequest(template400.render())
+
+def render_response_forbidden(return_url):
+    """
+    Render the error template and log an Http 403 error on invalid launch
+    (required by IMS)
+    """
+    template403 = Template(render_to_string('static_templates/403.html', {'return_url': return_url}))
+    return HttpResponseForbidden(template403.render())
