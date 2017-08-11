@@ -209,3 +209,4 @@ def render_response_forbidden(return_url):
     """
     template403 = Template(render_to_string('static_templates/403.html', {'return_url': return_url}))
     return HttpResponseForbidden(template403.render())
+    
