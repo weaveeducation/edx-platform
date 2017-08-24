@@ -5,13 +5,16 @@ LTI Provider view functions
 from django.conf import settings
 from django.http import HttpResponseBadRequest, HttpResponseForbidden, Http404
 from django.views.decorators.csrf import csrf_exempt
+from django.shortcuts import render
 import logging
 
 from credo_modules.models import check_and_save_enrollment_attributes
+from edxmako.shortcuts import render_to_string
 from lti_provider.outcomes import store_outcome_parameters
 from lti_provider.models import LtiConsumer
 from lti_provider.signature_validator import SignatureValidator
 from lti_provider.users import authenticate_lti_user
+from mako.template import Template
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys import InvalidKeyError
 from openedx.core.lib.url_utils import unquote_slashes
@@ -28,7 +31,7 @@ LTI_PARAM_LAST_NAME = 'lis_person_name_family'
 REQUIRED_PARAMETERS = [
     'roles', 'context_id', 'oauth_version', 'oauth_consumer_key',
     'oauth_signature', 'oauth_signature_method', 'oauth_timestamp',
-    'oauth_nonce', 'user_id'
+    'oauth_nonce', 'user_id', 'resource_link_id', 'lti_version', 'lti_message_type'
 ]
 
 OPTIONAL_PARAMETERS = [
@@ -53,13 +56,22 @@ def lti_launch(request, course_id, usage_id):
           pair
     """
     if not settings.FEATURES['ENABLE_LTI_PROVIDER']:
-        return HttpResponseForbidden()
+        return render_response_forbidden(None)
 
     # Check the LTI parameters, and return 400 if any required parameters are
     # missing
     params = get_required_parameters(request.POST)
+    
+    return_url = request.POST.get('launch_presentation_return_url')
     if not params:
-        return HttpResponseBadRequest()
+        return render_bad_request(return_url)
+
+    if params['lti_version'] != 'LTI-1p0':
+        return render_bad_request(return_url)
+
+    if params['lti_message_type'] != 'basic-lti-launch-request':
+        return render_bad_request(return_url)
+
     params.update(get_optional_parameters(request.POST))
 
     # Get the consumer information from either the instance GUID or the consumer
@@ -70,11 +82,11 @@ def lti_launch(request, course_id, usage_id):
             params['oauth_consumer_key']
         )
     except LtiConsumer.DoesNotExist:
-        return HttpResponseForbidden()
+        return render_response_forbidden(return_url)
 
     # Check the OAuth signature on the message
     if not SignatureValidator(lti_consumer).verify(request):
-        return HttpResponseForbidden()
+        return render_response_forbidden(return_url)
 
     # Add the course and usage keys to the parameters array
     try:
@@ -181,3 +193,20 @@ def parse_course_and_usage_keys(course_id, usage_id):
     usage_id = unquote_slashes(usage_id)
     usage_key = UsageKey.from_string(usage_id).map_into_course(course_key)
     return course_key, usage_key
+
+def render_bad_request(return_url):
+    """
+    Render the error template and log an Http 400 error on invalid launch
+    (required by IMS)
+    """
+    template400 = Template(render_to_string('static_templates/400.html', {'return_url': return_url}))
+    return HttpResponseBadRequest(template400.render())
+
+def render_response_forbidden(return_url):
+    """
+    Render the error template and log an Http 403 error on invalid launch
+    (required by IMS)
+    """
+    template403 = Template(render_to_string('static_templates/403.html', {'return_url': return_url}))
+    return HttpResponseForbidden(template403.render())
+    
