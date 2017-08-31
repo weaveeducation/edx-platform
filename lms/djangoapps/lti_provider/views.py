@@ -8,10 +8,12 @@ from django.views.decorators.csrf import csrf_exempt
 import logging
 
 from credo_modules.models import check_and_save_enrollment_attributes
+from edxmako.shortcuts import render_to_string
 from lti_provider.outcomes import store_outcome_parameters
 from lti_provider.models import LtiConsumer
 from lti_provider.signature_validator import SignatureValidator
 from lti_provider.users import authenticate_lti_user
+from mako.template import Template
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys import InvalidKeyError
 from openedx.core.lib.url_utils import unquote_slashes
@@ -30,6 +32,10 @@ REQUIRED_PARAMETERS = [
     'roles', 'context_id', 'oauth_version', 'oauth_consumer_key',
     'oauth_signature', 'oauth_signature_method', 'oauth_timestamp',
     'oauth_nonce', 'user_id'
+]
+
+REQUIRED_PARAMETERS_STRICT = [
+    'resource_link_id', 'lti_version', 'lti_message_type'
 ]
 
 OPTIONAL_PARAMETERS = [
@@ -59,8 +65,10 @@ def lti_launch(request, course_id, usage_id):
     # Check the LTI parameters, and return 400 if any required parameters are
     # missing
     params = get_required_parameters(request.POST)
+    return_url = request.POST.get('launch_presentation_return_url', None)
+
     if not params:
-        return HttpResponseBadRequest()
+        return render_bad_request(return_url)
     params.update(get_optional_parameters(request.POST))
 
     # Get the consumer information from either the instance GUID or the consumer
@@ -72,6 +80,13 @@ def lti_launch(request, course_id, usage_id):
         )
     except LtiConsumer.DoesNotExist:
         return HttpResponseForbidden()
+
+    if lti_consumer.lti_strict_mode:
+        params_strict = get_required_strict_parameters(request.POST)
+        if not params_strict or params_strict['lti_version'] != 'LTI-1p0' \
+                or params_strict['lti_message_type'] != 'basic-lti-launch-request':
+            return render_bad_request(return_url)
+        params.update(params_strict)
 
     # Check the OAuth signature on the message
     if not SignatureValidator(lti_consumer).verify(request):
@@ -100,7 +115,8 @@ def lti_launch(request, course_id, usage_id):
             lti_params[lti_keys[key]] = params[key]
     authenticate_lti_user(request, params['user_id'], lti_consumer, lti_params)
     if request.user.is_authenticated():
-        enroll_result = enroll_user_to_course(request.user, course_key, params.get('roles', None))
+        roles = params.get('roles', None) if lti_consumer.allow_to_add_instructors_via_lti else None
+        enroll_result = enroll_user_to_course(request.user, course_key, roles)
         if enroll_result:
             check_and_save_enrollment_attributes(request.POST, request.user, course_key)
 
@@ -140,6 +156,19 @@ def get_required_parameters(dictionary, additional_params=None):
     params = {}
     additional_params = additional_params or []
     for key in REQUIRED_PARAMETERS + additional_params:
+        if key not in dictionary:
+            return None
+        params[key] = dictionary[key]
+    return params
+
+
+def get_required_strict_parameters(dictionary):
+    """
+    Extract all required LTI parameters (consumer strict mode) from a dictionary and verify that none
+    are missing.
+    """
+    params = {}
+    for key in REQUIRED_PARAMETERS_STRICT:
         if key not in dictionary:
             return None
         params[key] = dictionary[key]
@@ -192,3 +221,21 @@ def set_user_roles(edx_user, course_key, roles):
     external_roles = ['Administrator', 'Instructor', 'Staff']
     if any(role in roles for role in external_roles):
         CourseStaffRole(course_key).add_users(edx_user)
+
+
+def render_bad_request(return_url):
+    """
+    Render the error template and log an Http 400 error on invalid launch
+    (required by IMS)
+    """
+    template400 = Template(render_to_string('static_templates/400.html', {'return_url': return_url}))
+    return HttpResponseBadRequest(template400.render())
+
+
+def render_response_forbidden(return_url):
+    """
+    Render the error template and log an Http 403 error on invalid launch
+    (required by IMS)
+    """
+    template403 = Template(render_to_string('static_templates/403.html', {'return_url': return_url}))
+    return HttpResponseForbidden(template403.render())
