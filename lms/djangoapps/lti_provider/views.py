@@ -79,7 +79,7 @@ def lti_launch(request, course_id, usage_id):
             params['oauth_consumer_key']
         )
     except LtiConsumer.DoesNotExist:
-        return HttpResponseForbidden()
+        return render_response_forbidden(return_url)
 
     if lti_consumer.lti_strict_mode:
         params_strict = get_required_strict_parameters(request.POST)
@@ -90,7 +90,7 @@ def lti_launch(request, course_id, usage_id):
 
     # Check the OAuth signature on the message
     if not SignatureValidator(lti_consumer).verify(request):
-        return HttpResponseForbidden()
+        return render_response_forbidden(return_url)
 
     # Add the course and usage keys to the parameters array
     try:
