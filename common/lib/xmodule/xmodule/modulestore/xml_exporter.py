@@ -225,7 +225,15 @@ class CourseExportCCManager(ExportManager):
                 </manifest>
                 """
 
-    def __items_entry(self):
+    def _chapter_entry(self):
+        return """
+        <item identifier="{counter}">
+            <title> {title} </title>
+        </item>
+        
+        """
+
+    def _items_entry(self):
         return """<item xmlns="http://www.imsglobal.org/xsd/imsccv1p2/imscp_v1p1"
                     xmlns:lomimscc="http://ltsc.ieee.org/xsd/imsccv1p2/LOM/manifest"
                     identifier="{counter}" identifierref="{counter}_R">
@@ -243,7 +251,8 @@ class CourseExportCCManager(ExportManager):
                 </item>
                 """
 
-    def __resource_entry(self):
+
+    def _resource_entry(self):
         return """<resource xmlns="http://www.imsglobal.org/xsd/imsccv1p2/imscp_v1p1"
                     xmlns:lom="http://ltsc.ieee.org/xsd/imsccv1p2/LOM/resource"
                     xmlns:csm="http://www.imsglobal.org/xsd/imsccv1p2/imscsmd_v1p0"
@@ -253,7 +262,7 @@ class CourseExportCCManager(ExportManager):
             </resource>
             """
 
-    def __resource_file_entry(self):
+    def _resource_file_entry(self):
         return """<?xml version="1.0" encoding="UTF-8"?>
             <cartridge_basiclti_link
                 xmlns="http://www.imsglobal.org/xsd/imslticc_v1p0"
@@ -287,29 +296,43 @@ class CourseExportCCManager(ExportManager):
                                                                  xmlns_link=xmlns_link)
                 tree = lxml.etree.ElementTree(element=None, file=StringIO(minifest_doc))
                 root = tree.getroot()
-                blocks = self.modulestore.get_items(self.courselike_key, qualifiers={'category': 'sequential'})
-                if blocks:
-                    orgs_root = root.find("{%s}organizations" % xmlns_link)[0]
-                    items_root = lxml.etree.Element("item", identifier=format_num.format("0"))
-                    resources_root = root.find("{%s}resources" % xmlns_link)
-                    orgs_root.append(items_root)
+                chapters = self.modulestore.get_course(self.courselike_key, depth=0).get_children()
+                orgs_root = root.find("{%s}organizations" % xmlns_link)[0]
+                items_root = lxml.etree.Element("item")
+                resources_root = root.find("{%s}resources" % xmlns_link)
+                orgs_root.append(items_root)
 
-                    filename_fmt = "I_{:0>6}_R"
-                    for i, seq in enumerate(blocks):
+                filename_fmt = "I_{:0>6}_R"
+                i = 0
+                for ch in chapters:
+                    seqs = ch.get_children()
+                    chapter_root = lxml.etree.fromstring(
+                        self._chapter_entry().format(counter=format_num.format(i), title=ch.display_name),
+                        parser=lxml.etree.XMLParser(recover=True))
+                    seqs_root = lxml.etree.Element("item")
+                    chapter_root.append(seqs_root)
+                    items_root.append(chapter_root)
+
+                    for s in seqs:
+                        i += 1
+                        display_name = s.display_name.replace('&', '&amp;')
                         filename = filename_fmt.format(i)
-                        items_root.append(lxml.etree.fromstring(
-                            self.__items_entry().format(counter=format_num.format(i), title=seq.display_name)))
+
+                        seqs_root.append(lxml.etree.fromstring(
+                            self._items_entry().format(counter=format_num.format(i), title=display_name),
+                            parser=lxml.etree.XMLParser(recover=True)))
                         resources_root.append(lxml.etree.XML(
-                            self.__resource_entry().format(counter=format_num.format(i),
-                                                           filename=os.path.join(filename, 'BasicLTI.xml'))))
+                            self._resource_entry().format(counter=format_num.format(i),
+                                                          filename=os.path.join(filename, 'BasicLTI.xml'))))
 
                         if not os.path.isdir(os.path.join(self.root_dir, filename)):
                             os.makedirs(os.path.join(self.root_dir, filename))
                         with OSFS(os.path.join(self.root_dir, filename)).open('BasicLTI.xml', 'w') as resource_file:
-                            resource_file.write(self.__resource_file_entry().format(title=seq.display_name,
-                                                                  lti_link=self.lti_link_fmt.format(
-                                                                      unicode(self.courselike_key),
-                                                                      unicode(seq.location))))
+                            resource_file.write(self._resource_file_entry().format(title=display_name,
+                                                                                   lti_link=self.lti_link_fmt.format(
+                                                                                       unicode(self.courselike_key),
+                                                                                       unicode(s.location))))
+                    i += 1
 
                 course_xml.write(lxml.etree.tostring(root, pretty_print=True))
 
