@@ -9,6 +9,8 @@ from xblock.fragment import Fragment
 from xblock.fields import Scope, Dict
 from xmodule.x_module import AUTHOR_VIEW
 from xmodule.capa_module import CapaModule
+from xmodule.html_module import HtmlModule
+from xmodule.video_module import VideoModule
 from edxmako.shortcuts import render_to_string
 from django.conf import settings
 from django.db import transaction
@@ -64,7 +66,9 @@ class StructuredTagsAside(XBlockAside):
         Display the tag selector with specific categories and allowed values,
         depending on the context.
         """
-        if isinstance(block, CapaModule):
+        if isinstance(block, CapaModule) \
+                or isinstance(block, HtmlModule) \
+                or isinstance(block, VideoModule):
             tags = []
             user = None
             has_access_any_tag = False
