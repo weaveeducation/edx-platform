@@ -854,7 +854,7 @@ def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input,
                         )
                         last_answer_timestamp = subsection_grade.graded_total.last_answer_timestamp
                         last_answer_timestamp_str = last_answer_timestamp.strftime("%Y-%m-%d %H:%M:%S") \
-                            if last_answer_timestamp else ''
+                                if last_answer_timestamp else ''
                         grade_results.append([last_answer_timestamp_str])
                     else:
                         grade_results.append([u'Not Attempted'])

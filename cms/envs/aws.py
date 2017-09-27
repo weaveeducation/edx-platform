@@ -482,3 +482,6 @@ RAVEN_CONFIG = ENV_TOKENS.get('RAVEN_CONFIG', {})
 
 # Credo API settings
 CREDO_API_CONFIG = ENV_TOKENS.get('CREDO_API_CONFIG', {})
+
+# base format for LTI links
+BASE_LTI_LINK = ENV_TOKENS.get('BASE_LTI_LINK', 'http://127.0.0.1/lti_provider/courses/{}/{}')

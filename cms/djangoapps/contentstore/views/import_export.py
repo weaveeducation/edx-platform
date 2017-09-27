@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import tarfile
+import zipfile
 from path import Path as path
 from tempfile import mkdtemp
 
@@ -29,7 +30,7 @@ from xmodule.modulestore.django import modulestore
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import LibraryLocator
 from xmodule.modulestore.xml_importer import import_course_from_xml, import_library_from_xml
-from xmodule.modulestore.xml_exporter import export_course_to_xml, export_library_to_xml
+from xmodule.modulestore.xml_exporter import export_course_to_xml, export_library_to_xml, export_course_to_xml_cc
 from xmodule.modulestore import COURSE_ROOT, LIBRARY_ROOT
 
 from student.auth import has_course_author_access
@@ -48,7 +49,7 @@ from contentstore.utils import reverse_course_url, reverse_usage_url, reverse_li
 
 __all__ = [
     'import_handler', 'import_status_handler',
-    'export_handler',
+    'export_handler', 'export_handler_cc'
 ]
 
 
@@ -445,6 +446,51 @@ def create_export_tarball(course_module, course_key, context):
     return export_file
 
 
+def create_export_tarball_cc(course_module, course_key, context):
+    """
+    Generates the export tarball, or returns None if there was an error.
+
+    Updates the context with any error information if applicable.
+    """
+    name = course_module.url_name
+    export_file = NamedTemporaryFile(prefix=name + '.', suffix=".imscc")
+    root_dir = path(mkdtemp())
+
+    try:
+        export_course_to_xml_cc(modulestore(), contentstore(), course_module.id, root_dir, name, settings.BASE_LTI_LINK)
+
+        logging.debug(u'tar file being generated at %s', export_file.name)
+        zipf = zipfile.ZipFile(export_file.name, 'w', zipfile.ZIP_DEFLATED)
+        for root, dirs, files in os.walk(root_dir):
+            for item in files:
+                zipf.write(os.path.join(root, item), os.path.join(root[len(root_dir) + 1:], item))
+        zipf.close()
+
+    except SerializationError as exc:
+        log.exception(u'There was an error exporting %s', course_key)
+        unit = None
+        failed_item = None
+        parent = None
+
+        context.update({
+            'in_err': True,
+            'raw_err_msg': str(exc),
+            'failed_module': failed_item,
+            'unit': unit,
+            'edit_unit_url': reverse_usage_url("container_handler", parent.location) if parent else "",
+        })
+        raise
+    except Exception as exc:
+        log.exception('There was an error exporting %s', course_key)
+        context.update({
+            'in_err': True,
+            'unit': None,
+            'raw_err_msg': str(exc)})
+        raise
+
+    return export_file
+
+
 def send_tarball(tarball):
     """
     Renders a tarball to response, for use when sending a tar.gz file to the user.
@@ -511,6 +557,53 @@ def export_handler(request, course_key_string):
 
     elif 'text/html' in requested_format:
         return render_to_response('export.html', context)
+
+    else:
+        # Only HTML or x-tgz request formats are supported (no JSON).
+        return HttpResponse(status=406)
+
+
+@ensure_csrf_cookie
+@login_required
+@require_http_methods(("GET",))
+@ensure_valid_course_key
+def export_handler_cc(request, course_key_string):
+    """
+    The restful handler for exporting a course in common cartridge format.
+
+    GET
+        html: return html page for import page
+        application/x-tgz: return .imscc file containing exported course
+        json: not supported
+    """
+    course_key = CourseKey.from_string(course_key_string)
+    export_url_cc = reverse_course_url('export_handler_cc', course_key)
+    if not has_course_author_access(request.user, course_key):
+        raise PermissionDenied()
+
+    courselike_module = modulestore().get_course(course_key)
+    if courselike_module is None:
+        raise Http404
+    context = {
+        'context_course': courselike_module,
+        'courselike_home_url': reverse_course_url("course_handler", course_key),
+        'library': False
+    }
+
+    context['export_url_cc'] = export_url_cc + '?_accept=application/x-tgz'
+
+    # an _accept URL parameter will be preferred over HTTP_ACCEPT in the header.
+    requested_format = request.GET.get('_accept', request.META.get('HTTP_ACCEPT', 'text/html'))
+
+    if 'application/x-tgz' in requested_format:
+        try:
+            tarball = create_export_tarball_cc(courselike_module, course_key, context)
+        except SerializationError:
+            return render_to_response('export_cc.html', context)
+        return send_tarball(tarball)
+
+    elif 'text/html' in requested_format:
+        return render_to_response('export_cc.html', context)
 
     else:
         # Only HTML or x-tgz request formats are supported (no JSON).
