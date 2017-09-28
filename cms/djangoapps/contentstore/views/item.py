@@ -51,6 +51,9 @@ from xmodule.modulestore.exceptions import ItemNotFoundError, InvalidLocationErr
 from xmodule.modulestore.inheritance import own_metadata
 from xmodule.tabs import CourseTabList
 from xmodule.x_module import PREVIEW_VIEWS, STUDIO_VIEW, STUDENT_VIEW, DEPRECATION_VSCOMPAT_EVENT
+from xmodule.contentstore.content import StaticContent
+from xmodule.contentstore.django import contentstore
+from xmodule.exceptions import NotFoundError
 
 
 __all__ = [
@@ -732,6 +735,18 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
             runtime=source_item.runtime,
             asides=asides_to_create
         )
+
+        if course_key and dest_module.category == 'video' and dest_module.sub:
+            filename = 'subs_{0}.srt.sjson'.format(dest_module.sub)
+            content_location_src = StaticContent.compute_location(source_item.location.course_key, filename)
+            content_location_dst = StaticContent.compute_location(course_key, filename)
+            try:
+                sjson_transcripts = contentstore().find(content_location_src)
+                new_content = StaticContent(content_location_dst, filename,
+                                            sjson_transcripts.content_type, sjson_transcripts.data)
+                contentstore().save(new_content)
+            except NotFoundError:
+                pass
 
         children_handled = False
 
