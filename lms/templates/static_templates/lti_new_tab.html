@@ -1,0 +1,9 @@
+<%! from django.utils.translation import ugettext as _ %>
+
+<main id="main" aria-label="Content" tabindex="-1">
+    <h3>${_("This tool needs to be loaded in a new browser window")}</h3>
+    <form class="nav-item donate-form" method="post" target="_blank">
+        <input name="hash" type="hidden" value="${hash}" />
+        <button class="btn action-primary action-donate" type="submit" name="open">${_("Open in new window")}</button>
+    </form>
+</main>

@@ -1,10 +1,13 @@
 """
 LTI Provider view functions
 """
+import json
+import hashlib
 
 from django.conf import settings
-from django.http import HttpResponseBadRequest, HttpResponseForbidden, Http404
+from django.http import HttpResponseBadRequest, HttpResponseForbidden, Http404, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.core.cache import caches
 import logging
 
 from credo_modules.models import check_and_save_enrollment_attributes
@@ -26,6 +29,9 @@ log = logging.getLogger("edx.lti_provider")
 LTI_PARAM_EMAIL = 'lis_person_contact_email_primary'
 LTI_PARAM_FIRST_NAME = 'lis_person_name_given'
 LTI_PARAM_LAST_NAME = 'lis_person_name_family'
+
+POST_PARAMS_CACHE_TIMEOUT = 60*60
+POST_PARAMS_CACHE_PREFIX = "post_params"
 
 # LTI launch parameters that must be present for a successful launch
 REQUIRED_PARAMETERS = [
@@ -64,7 +70,8 @@ def lti_launch(request, course_id, usage_id):
 
     # Check the LTI parameters, and return 400 if any required parameters are
     # missing
-    params = get_required_parameters(request.POST)
+    params, is_cached = get_params(request.POST)
+    params = get_required_parameters(params)
     return_url = request.POST.get('launch_presentation_return_url', None)
 
     if not params:
@@ -89,7 +96,7 @@ def lti_launch(request, course_id, usage_id):
         params.update(params_strict)
 
     # Check the OAuth signature on the message
-    if not SignatureValidator(lti_consumer).verify(request):
+    if not is_cached and not SignatureValidator(lti_consumer).verify(request):
         return render_response_forbidden(return_url)
 
     # Add the course and usage keys to the parameters array
@@ -105,6 +112,15 @@ def lti_launch(request, course_id, usage_id):
         raise Http404()
     params['course_key'] = course_key
     params['usage_key'] = usage_key
+
+    if not is_cached and request.META.get('HTTP_DNT') and not request.META.get('HTTP_COOKIE'):
+        cache = caches['default']
+        json_params = json.dumps(request.POST)
+        params_hash = hashlib.md5(json_params).hexdigest()
+        cache_key = ':'.join([POST_PARAMS_CACHE_PREFIX, params_hash])
+        cache.set(cache_key, json_params, POST_PARAMS_CACHE_TIMEOUT)
+        template = Template(render_to_string('static_templates/lti_new_tab.html', {'hash': params_hash}))
+        return HttpResponse(template.render())
 
     # Create an edX account if the user identifed by the LTI launch doesn't have
     # one already, and log the edX account into the platform.
@@ -160,6 +176,23 @@ def get_required_parameters(dictionary, additional_params=None):
             return None
         params[key] = dictionary[key]
     return params
+
+
+def get_params(post_params):
+
+    """
+    Getting params from request or from cache
+    :param post_params: params from request
+    :return: dictionary of params, flag: from cache or not
+    """
+    is_cached = False
+    if 'hash' in post_params:
+        is_cached = True
+        cache = caches['default']
+        cached = cache.get(':'.join([POST_PARAMS_CACHE_PREFIX, post_params['hash']]))
+        if cached:
+            post_params = json.loads(cached)
+    return post_params, is_cached
 
 
 def get_required_strict_parameters(dictionary):
