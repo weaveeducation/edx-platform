@@ -307,8 +307,9 @@ class CourseExportCCManager(ExportManager):
                 for ch in chapters:
                     seqs = ch.get_children()
                     chapter_root = lxml.etree.fromstring(
-                        self._chapter_entry().format(counter=format_num.format(i), title=ch.display_name),
-                        parser=lxml.etree.XMLParser(recover=True))
+                        self._chapter_entry().format(counter=format_num.format(i),
+                                                     title=ch.display_name.encode('utf-8')),
+                                                     parser=lxml.etree.XMLParser(recover=True, encoding='utf-8'))
                     seqs_root = lxml.etree.Element("item")
                     chapter_root.append(seqs_root)
                     items_root.append(chapter_root)
