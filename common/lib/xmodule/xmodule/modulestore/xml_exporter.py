@@ -307,8 +307,9 @@ class CourseExportCCManager(ExportManager):
                 for ch in chapters:
                     seqs = ch.get_children()
                     chapter_root = lxml.etree.fromstring(
-                        self._chapter_entry().format(counter=format_num.format(i), title=ch.display_name),
-                        parser=lxml.etree.XMLParser(recover=True))
+                        self._chapter_entry().format(counter=format_num.format(i),
+                                                     title=ch.display_name.encode('utf-8')),
+                                                     parser=lxml.etree.XMLParser(recover=True, encoding='utf-8'))
                     seqs_root = lxml.etree.Element("item")
                     chapter_root.append(seqs_root)
                     items_root.append(chapter_root)
@@ -319,8 +320,9 @@ class CourseExportCCManager(ExportManager):
                         filename = filename_fmt.format(i)
 
                         seqs_root.append(lxml.etree.fromstring(
-                            self._items_entry().format(counter=format_num.format(i), title=display_name),
-                            parser=lxml.etree.XMLParser(recover=True)))
+                            self._items_entry().format(counter=format_num.format(i),
+                                                       title=display_name.encode('utf-8')),
+                            parser=lxml.etree.XMLParser(recover=True, encoding='utf-8')))
                         resources_root.append(lxml.etree.XML(
                             self._resource_entry().format(counter=format_num.format(i),
                                                           filename=os.path.join(filename, 'BasicLTI.xml'))))
@@ -328,7 +330,7 @@ class CourseExportCCManager(ExportManager):
                         if not os.path.isdir(os.path.join(self.root_dir, filename)):
                             os.makedirs(os.path.join(self.root_dir, filename))
                         with OSFS(os.path.join(self.root_dir, filename)).open('BasicLTI.xml', 'w') as resource_file:
-                            resource_file.write(self._resource_file_entry().format(title=display_name,
+                            resource_file.write(self._resource_file_entry().format(title=display_name.encode('utf-8'),
                                                                                    lti_link=self.lti_link_fmt.format(
                                                                                        unicode(self.courselike_key),
                                                                                        unicode(s.location))))
