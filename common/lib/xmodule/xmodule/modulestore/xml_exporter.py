@@ -316,7 +316,8 @@ class CourseExportCCManager(ExportManager):
 
                     for s in seqs:
                         i += 1
-                        display_name = s.display_name.replace('&', '&amp;')
+                        name = s.display_name or s.display_name_with_default_escaped
+                        display_name = name.replace('&', '&amp;')
                         filename = filename_fmt.format(i)
 
                         seqs_root.append(lxml.etree.fromstring(
