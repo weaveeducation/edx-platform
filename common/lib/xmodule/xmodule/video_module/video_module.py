@@ -26,11 +26,12 @@ from django.conf import settings
 from openedx.core.lib.cache_utils import memoize_in_request_cache
 from xblock.core import XBlock
 from xblock.fields import ScopeIds
+from xblock.fragment import Fragment
 from xblock.runtime import KvsFieldData
 from opaque_keys.edx.locator import AssetLocator
 
 from xmodule.modulestore.inheritance import InheritanceKeyValueStore, own_metadata
-from xmodule.x_module import XModule, module_attr
+from xmodule.x_module import XModule, module_attr, AUTHOR_VIEW
 from xmodule.editing_module import TabsEditingDescriptor
 from xmodule.raw_module import EmptyDataRawDescriptor
 from xmodule.xml_module import is_pointer_tag, name_to_pathname, deserialize_field
@@ -152,6 +153,19 @@ class VideoModule(VideoFields, VideoTranscriptsMixin, VideoStudentViewHandlers, 
         resource_string(module, 'css/video/accessible_menu.scss'),
     ]}
     js_module_name = "Video"
+
+    has_author_view = True
+
+    def author_view(self, context):
+        """
+        Return a fragment with the html from this XModule
+
+        Doesn't yet add any of the javascript to the fragment, nor the css.
+        Also doesn't expect any javascript binding, yet.
+
+        Makes no use of the context parameter
+        """
+        return Fragment(self.get_html())
 
     def validate(self):
         """
@@ -390,6 +404,19 @@ class VideoDescriptor(VideoFields, VideoTranscriptsMixin, VideoStudioViewHandler
             'template': "tabs/metadata-edit-tab.html"
         }
     ]
+
+    has_author_view = True
+
+    def author_view(self, context):
+        """
+        Return a fragment with the html from this XModule
+
+        Doesn't yet add any of the javascript to the fragment, nor the css.
+        Also doesn't expect any javascript binding, yet.
+
+        Makes no use of the context parameter
+        """
+        return Fragment(self.get_html())
 
     def __init__(self, *args, **kwargs):
         """
