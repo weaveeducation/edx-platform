@@ -1,6 +1,6 @@
 <%! from django.utils.translation import ugettext as _ %>
 
 <main id="main" aria-label="Content" tabindex="-1">
-    <h3>${_("This tool needs to be loaded in a new browser window")}</h3>
-    <a target="_blank" href="?hash=${hash}&is_new_tab=1">Open</a>
+    <h3>${_("Your browser prohibits this from showing in the frame. It must be loaded in a new tab.")} </h3>
+    <a target="_blank" href="?hash=${hash}&is_new_tab=1">Click here to load in a new tab</a>
 </main>
