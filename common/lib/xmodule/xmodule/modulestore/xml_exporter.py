@@ -17,6 +17,7 @@ from xmodule.modulestore import LIBRARY_ROOT
 from fs.osfs import OSFS
 from json import dumps
 import os
+import cgi
 
 from xmodule.modulestore.draft_and_published import DIRECT_ONLY_CATEGORIES
 from opaque_keys.edx.locator import CourseLocator, LibraryLocator
@@ -308,7 +309,7 @@ class CourseExportCCManager(ExportManager):
                     seqs = ch.get_children()
                     chapter_root = lxml.etree.fromstring(
                         self._chapter_entry().format(counter=format_num.format(i),
-                                                     title=ch.display_name.encode('utf-8')),
+                                                     title=cgi.escape(ch.display_name).encode('utf-8')),
                                                      parser=lxml.etree.XMLParser(recover=True, encoding='utf-8'))
                     seqs_root = lxml.etree.Element("item")
                     chapter_root.append(seqs_root)
@@ -316,7 +317,8 @@ class CourseExportCCManager(ExportManager):
 
                     for s in seqs:
                         i += 1
-                        display_name = s.display_name.replace('&', '&amp;')
+                        name = s.display_name or s.display_name_with_default_escaped
+                        display_name = cgi.escape(name)
                         filename = filename_fmt.format(i)
 
                         seqs_root.append(lxml.etree.fromstring(

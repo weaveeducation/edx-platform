@@ -30,9 +30,6 @@ LTI_PARAM_EMAIL = 'lis_person_contact_email_primary'
 LTI_PARAM_FIRST_NAME = 'lis_person_name_given'
 LTI_PARAM_LAST_NAME = 'lis_person_name_family'
 
-POST_PARAMS_CACHE_TIMEOUT = 60*60
-POST_PARAMS_CACHE_PREFIX = "post_params"
-
 # LTI launch parameters that must be present for a successful launch
 REQUIRED_PARAMETERS = [
     'roles', 'context_id', 'oauth_version', 'oauth_consumer_key',
@@ -70,7 +67,7 @@ def lti_launch(request, course_id, usage_id):
 
     # Check the LTI parameters, and return 400 if any required parameters are
     # missing
-    params, is_cached = get_params(request.POST)
+    params, is_cached = get_params(request)
     params = get_required_parameters(params)
     return_url = request.POST.get('launch_presentation_return_url', None)
 
@@ -113,13 +110,13 @@ def lti_launch(request, course_id, usage_id):
     params['course_key'] = course_key
     params['usage_key'] = usage_key
 
-    if not is_cached and request.META.get('HTTP_DNT') and not request.META.get('HTTP_COOKIE'):
+    if not is_cached and not request.META.get('HTTP_COOKIE'):
         cache = caches['default']
         json_params = json.dumps(request.POST)
         params_hash = hashlib.md5(json_params).hexdigest()
-        cache_key = ':'.join([POST_PARAMS_CACHE_PREFIX, params_hash])
-        cache.set(cache_key, json_params, POST_PARAMS_CACHE_TIMEOUT)
-        template = Template(render_to_string('static_templates/lti_new_tab.html', {'hash': params_hash}))
+        cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
+        cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
+        template = Template(render_to_string('static_templates/embedded_new_tab.html', {'hash': params_hash}))
         return HttpResponse(template.render())
 
     # Create an edX account if the user identifed by the LTI launch doesn't have
@@ -178,21 +175,19 @@ def get_required_parameters(dictionary, additional_params=None):
     return params
 
 
-def get_params(post_params):
+def get_params(request):
 
     """
     Getting params from request or from cache
-    :param post_params: params from request
+    :param request: request
     :return: dictionary of params, flag: from cache or not
     """
-    is_cached = False
-    if 'hash' in post_params:
-        is_cached = True
+    if request.GET.get('hash'):
         cache = caches['default']
-        cached = cache.get(':'.join([POST_PARAMS_CACHE_PREFIX, post_params['hash']]))
+        cached = cache.get(':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, request.GET.get('hash')]))
         if cached:
-            post_params = json.loads(cached)
-    return post_params, is_cached
+            return json.loads(cached), True
+    return request.POST, False
 
 
 def get_required_strict_parameters(dictionary):
