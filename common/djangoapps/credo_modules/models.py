@@ -139,3 +139,19 @@ def user_must_fill_additional_profile_fields(course, user, block=None):
         if len(profiles) == 0 or profiles[0].fields_version != fields_version:
             return True
     return False
+
+
+class TermPerOrg(models.Model):
+    org = models.CharField(max_length=255, verbose_name='Org', null=False, blank=False, db_index=True)
+    term = models.CharField(max_length=255, verbose_name='Term', null=False, blank=False)
+    start_date = models.DateField(verbose_name='Start Date', null=False, blank=False)
+    end_date = models.DateField(verbose_name='End Date', null=False, blank=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'org': self.org,
+            'term': self.term,
+            'start_date': self.start_date.strftime('%-m/%-d/%Y'),
+            'end_date': self.end_date.strftime('%-m/%-d/%Y')
+        }

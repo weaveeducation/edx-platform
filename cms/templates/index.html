@@ -303,6 +303,8 @@ from openedx.core.djangolib.markup import HTML, Text
           <li class="libraries-tab"><a>${_("Libraries")}</a></li>
         % endif
 
+        <li class="settings-tab"><a>${_("Settings")}</a></li>
+
         % if is_programs_enabled:
           <li class="programs-tab"><a>${_("Programs")}</a></li>
         % endif
@@ -515,6 +517,16 @@ from openedx.core.djangolib.markup import HTML, Text
         % endif
       </div>
       %endif
+
+      <div class="settings settings-tab">
+        <ul class="list-courses">
+          <li class="course-item">
+            <a class="course-link" href="${manage_terms_url}">
+              <h3 class="course-title">Manage Terms</h3>
+            </a>
+          </li>
+        </ul>
+      </div>
 
       % if is_programs_enabled:
         % if len(programs) > 0:
