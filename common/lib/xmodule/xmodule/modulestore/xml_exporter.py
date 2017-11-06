@@ -257,7 +257,7 @@ class CourseExportCCManager(ExportManager):
         return """<resource xmlns="http://www.imsglobal.org/xsd/imsccv1p2/imscp_v1p1"
                     xmlns:lom="http://ltsc.ieee.org/xsd/imsccv1p2/LOM/resource"
                     xmlns:csm="http://www.imsglobal.org/xsd/imsccv1p2/imscsmd_v1p0"
-                identifier="{counter}_R" type="imsbasiclti_xmlv1p0">
+                identifier="{counter}_R" type="imsbasiclti_xmlv1p3">
               <file href="{filename}"/>
               <metadata></metadata>
             </resource>
