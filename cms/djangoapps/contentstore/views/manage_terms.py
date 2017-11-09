@@ -1,6 +1,6 @@
-import datetime
 import json
 
+from dateutil.parser import parse
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.urlresolvers import reverse
@@ -75,19 +75,48 @@ def save_org_term(request, org):
     term = posted_data['title'].strip()
     start_date = posted_data['startDate'].strip()
     end_date = posted_data['endDate'].strip()
-    term_id = int(posted_data['id']) if 'id' in posted_data else None
 
-    start_date_arr = start_date.split('/')
-    start_date = datetime.date(int(start_date_arr[2]), int(start_date_arr[0]), int(start_date_arr[1]))
+    if not term or not start_date or not end_date:
+        return JsonResponse({
+            "success": False,
+            "errorMessage": _("Some required fields were not passed")
+        })
 
-    end_date_arr = end_date.split('/')
-    end_date = datetime.date(int(end_date_arr[2]), int(end_date_arr[0]), int(end_date_arr[1]))
+    try:
+        term_id = int(posted_data['id']) if 'id' in posted_data else None
+    except ValueError:
+        return JsonResponse({
+            "success": False,
+            "errorMessage": _("Invalid term ID format")
+        })
+
+    try:
+        start_date = parse(start_date).date()
+    except ValueError as e:
+        return JsonResponse({
+            "success": False,
+            "errorMessage": _("Start date is invalid: ") + str(e)
+        })
+
+    try:
+        end_date = parse(end_date).date()
+    except ValueError as e:
+        return JsonResponse({
+            "success": False,
+            "errorMessage": _("End date is invalid: ") + str(e)
+        })
+
+    if start_date >= end_date:
+        return JsonResponse({
+            "success": False,
+            "errorMessage": _("End Date must be after the Start Date")
+        })
 
     overlap_items = TermPerOrg.objects.filter(
         Q(org=org, start_date__lte=start_date, end_date__gte=start_date) |
         Q(org=org, start_date__lte=end_date, end_date__gte=end_date))
 
-    if len(overlap_items) > 0:
+    if overlap_items:
         for overlap_item in overlap_items:
             if (term_id and term_id != overlap_item.id) or term_id is None:
                 overlap_item_dict = overlap_item.to_dict()

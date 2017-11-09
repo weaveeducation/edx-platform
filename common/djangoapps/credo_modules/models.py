@@ -83,10 +83,8 @@ def get_custom_term(org):
 
 
 def save_custom_term_student_property(term, user, course_id):
-    try:
-        CredoStudentProperties.objects.get(user=user, course_id=course_id, name='term')
-    except CredoStudentProperties.DoesNotExist:
-        CredoStudentProperties(user=user, course_id=course_id, name='term', value=term).save()
+    return CredoStudentProperties.objects.get_or_create(user=user, course_id=course_id, name='term',
+                                                        defaults={'value': term})
 
 
 class CredoStudentProperties(models.Model):
