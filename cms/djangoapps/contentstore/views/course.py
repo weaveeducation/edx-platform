@@ -528,6 +528,7 @@ def course_listing(request):
         'is_programs_enabled': programs_config.is_studio_tab_enabled and request.user.is_staff,
         'programs': programs,
         'program_authoring_url': reverse('programs'),
+        'manage_terms_url': reverse('manage_terms'),
     })
 
 

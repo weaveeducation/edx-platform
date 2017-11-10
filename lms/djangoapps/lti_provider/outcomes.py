@@ -139,16 +139,13 @@ def send_score_update(assignment, score):
     # That way we can manually fix things up on the campus system later if
     # necessary.
     if not (response and check_replace_result_response(response)):
-        log.error(
-            "Outcome Service: Failed to update score on LTI consumer. "
-            "User: %s, course: %s, usage: %s, score: %s, status: %s, body: %s",
-            assignment.user,
-            assignment.course_key,
-            assignment.usage_key,
-            score,
-            response,
-            response.text if response else 'Unknown'
-        )
+        error_msg = "Outcome Service: Failed to update score on LTI consumer. " \
+                    "User: %s, course: %s, usage: %s, score: %s, url: %s, status: %s, body: %s" %\
+                    (assignment.user, assignment.course_key, assignment.usage_key, score,
+                     assignment.outcome_service.lis_outcome_service_url,
+                     response, response.text if response else 'Unknown')
+        log.error(error_msg, exc_info=True)
+        raise Exception(error_msg)
 
 
 def sign_and_send_replace_result(assignment, xml):
@@ -191,7 +188,8 @@ def check_replace_result_response(response):
     if response.status_code != 200:
         log.error(
             "Outcome service response: Unexpected status code %s",
-            response.status_code
+            response.status_code,
+            exc_info=True
         )
         return False
 
@@ -199,7 +197,7 @@ def check_replace_result_response(response):
         xml = response.content
         root = etree.fromstring(xml)
     except etree.ParseError as ex:
-        log.error("Outcome service response: Failed to parse XML: %s\n %s", ex, xml)
+        log.error("Outcome service response: Failed to parse XML: %s\n %s", ex, xml, exc_info=True)
         return False
 
     major_codes = root.xpath(
@@ -208,14 +206,16 @@ def check_replace_result_response(response):
     if len(major_codes) != 1:
         log.error(
             "Outcome service response: Expected exactly one imsx_codeMajor field in response. Received %s",
-            major_codes
+            major_codes,
+            exc_info=True
         )
         return False
 
     if major_codes[0].text != 'success':
         log.error(
             "Outcome service response: Unexpected major code: %s.",
-            major_codes[0].text
+            major_codes[0].text,
+            exc_info=True
         )
         return False
 

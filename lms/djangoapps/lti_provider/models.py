@@ -11,6 +11,10 @@ changes. To do that,
 from django.contrib.auth.models import User
 from django.db import models
 import logging
+import time
+import datetime
+import json
+import platform
 
 from openedx.core.djangoapps.xmodule_django.models import CourseKeyField, UsageKeyField
 from openedx.core.djangolib.fields import CharNullField
@@ -18,6 +22,7 @@ from openedx.core.djangolib.fields import CharNullField
 from provider.utils import short_token
 
 log = logging.getLogger("edx.lti_provider")
+log_json = logging.getLogger("credo_json")
 
 
 class LtiConsumer(models.Model):
@@ -145,3 +150,25 @@ class LtiUser(models.Model):
 
     class Meta(object):
         unique_together = ('lti_consumer', 'lti_user_id')
+
+
+def log_lti(action, user_id, message, course_id, is_error, assignment=None, grade=None, task_id=None, **kwargs):
+    hostname = platform.node().split(".")[0]
+    data = {
+        'type': 'lti_task',
+        'task_id': task_id,
+        'hostname': hostname,
+        'datetime': str(datetime.datetime.now()),
+        'timestamp': time.time(),
+        'is_error': is_error,
+        'action': action,
+        'user_id': int(user_id),
+        'message': message,
+        'course_id': str(course_id),
+        'assignment_id': int(assignment.id) if assignment else None,
+        'assignment_version_number': int(assignment.version_number) if assignment else None,
+        'assignment_usage_key': str(assignment.usage_key) if assignment else None,
+        'grade': grade
+    }
+    data.update(kwargs)
+    log_json.info(json.dumps(data))
