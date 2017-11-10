@@ -191,18 +191,18 @@ class CourseExportCCManager(ExportManager):
 
     def __imsmanifest_entry(self):
         return """
-                <manifest identifier="SoftChalk" xmlns="{xmlns_link}"
-                    xmlns:lom="http://ltsc.ieee.org/xsd/imsccv1p2/LOM/resource"
-                    xmlns:lomimscc="http://ltsc.ieee.org/xsd/imsccv1p2/LOM/manifest"
+                <manifest identifier="CredoCourseware" xmlns="{xmlns_link}"
+                    xmlns:lom="http://ltsc.ieee.org/xsd/imsccv1p3/LOM/resource"
+                    xmlns:lomimscc="http://ltsc.ieee.org/xsd/imsccv1p3/LOM/manifest"
                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                    xmlns:csm="http://www.imsglobal.org/xsd/imsccv1p2/imscsmd_v1p0"
-                    xsi:schemaLocation="{xmlns_link} http://www.imsglobal.org/profile/cc/ccv1p2/ccv1p2_imscp_v1p2_v1p0.xsd
-                    http://ltsc.ieee.org/xsd/imsccv1p2/LOM/resource http://www.imsglobal.org/profile/cc/ccv1p2/LOM/ccv1p2_lomresource_v1p0.xsd
-                    http://ltsc.ieee.org/xsd/imsccv1p2/LOM/manifest http://www.imsglobal.org/profile/cc/ccv1p2/LOM/ccv1p2_lommanifest_v1p0.xsd
-                    http://www.imsglobal.org/xsd/imsccv1p2/imscsmd_v1p0 http://www.imsglobal.org/profile/cc/ccv1p2/ccv1p2_imscsmd_v1p0.xsd">
+                    xmlns:csm="http://www.imsglobal.org/xsd/imsccv1p3/imscsmd_v1p0"
+                    xsi:schemaLocation="{xmlns_link} http://www.imsglobal.org/profile/cc/ccv1p3/ccv1p3_imscp_v1p2_v1p0.xsd
+                    http://ltsc.ieee.org/xsd/imsccv1p3/LOM/resource http://www.imsglobal.org/profile/cc/ccv1p3/LOM/ccv1p3_lomresource_v1p0.xsd
+                    http://ltsc.ieee.org/xsd/imsccv1p3/LOM/manifest http://www.imsglobal.org/profile/cc/ccv1p3/LOM/ccv1p3_lommanifest_v1p0.xsd
+                    http://www.imsglobal.org/xsd/imsccv1p3/imscsmd_v1p0 http://www.imsglobal.org/profile/cc/ccv1p3/ccv1p3_imscsmd_v1p0.xsd">
                     <metadata>
-                        <schema>IMS Common Cartridge</schema>
-                        <schemaversion>1.2.0</schemaversion>
+                        <schema>IMS Thin Common Cartridge</schema>
+                        <schemaversion>1.3.0</schemaversion>
                         <lomimscc:lom>
                             <lomimscc:general>
                                 <lomimscc:title>
@@ -227,52 +227,33 @@ class CourseExportCCManager(ExportManager):
                 """
 
     def _chapter_entry(self):
-        return """
-        <item identifier="{counter}">
-            <title> {title} </title>
-        </item>
-        
-        """
-
-    def _items_entry(self):
-        return """<item xmlns="http://www.imsglobal.org/xsd/imsccv1p2/imscp_v1p1"
-                    xmlns:lomimscc="http://ltsc.ieee.org/xsd/imsccv1p2/LOM/manifest"
-                    identifier="{counter}" identifierref="{counter}_R">
-                    <title>{title}</title>
-                    <metadata>
-                        <lomimscc:lom>
-                            <lomimscc:general>
-                                <lomimscc:identifier>
-                                </lomimscc:identifier>
-                                <lomimscc:keyword>
-                                </lomimscc:keyword>
-                            </lomimscc:general>
-                        </lomimscc:lom>
-                    </metadata>
-                </item>
+        return """<item identifier="{counter}">
+                    <title> {title} </title>
+                  </item>
                 """
 
+    def _items_entry(self):
+        return """<item identifier="{counter}" identifierref="{counter}_R">
+                    <title>{title}</title>
+                  </item>
+               """
 
     def _resource_entry(self):
-        return """<resource xmlns="http://www.imsglobal.org/xsd/imsccv1p2/imscp_v1p1"
-                    xmlns:lom="http://ltsc.ieee.org/xsd/imsccv1p2/LOM/resource"
-                    xmlns:csm="http://www.imsglobal.org/xsd/imsccv1p2/imscsmd_v1p0"
-                identifier="{counter}_R" type="imsbasiclti_xmlv1p0">
-              <file href="{filename}"/>
-              <metadata></metadata>
-            </resource>
-            """
+        return """<resource identifier="{counter}_R" type="imsbasiclti_xmlv1p3">
+                    <file href="{filename}"/>
+                  </resource>
+               """
 
     def _resource_file_entry(self):
         return """<?xml version="1.0" encoding="UTF-8"?>
             <cartridge_basiclti_link
-                xmlns="http://www.imsglobal.org/xsd/imslticc_v1p0"
+                xmlns="http://www.imsglobal.org/xsd/imslticc_v1p3"
                 xmlns:blti="http://www.imsglobal.org/xsd/imsbasiclti_v1p0"
                 xmlns:lticm="http://www.imsglobal.org/xsd/imslticm_v1p0"
                 xmlns:lticp="http://www.imsglobal.org/xsd/imslticp_v1p0"
                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                xsi:schemaLocation="http://www.imsglobal.org/xsd/imslticc_v1p0
-                http://www.imsglobal.org/xsd/lti/ltiv1p0/imslticc_v1p0p1.xsd
+                xsi:schemaLocation="http://www.imsglobal.org/xsd/imslticc_v1p3
+                http://www.imsglobal.org/xsd/lti/ltiv1p3/imslticc_v1p3.xsd
                 http://www.imsglobal.org/xsd/imsbasiclti_v1p0
                 http://www.imsglobal.org/xsd/lti/ltiv1p0/imsbasiclti_v1p0p1.xsd
                 http://www.imsglobal.org/xsd/imslticm_v1p0
@@ -282,6 +263,14 @@ class CourseExportCCManager(ExportManager):
                 >    
                 <blti:title>{title}</blti:title>
                 <blti:secure_launch_url>{lti_link}</blti:secure_launch_url>
+                <blti:icon>url to an icon for this tool (optional)</blti:icon>
+                <blti:secure_icon>secure url to an icon for this tool (optional)></blti:secure_icon>
+                <blti:vendor>
+                    <lticp:code>credocourseware</lticp:code>
+                    <lticp:name>Credo Education</lticp:name>
+                    <lticp:description>Credo Education foundational skills solutions</lticp:description>
+                    <lticp:url>http://www.credoeducation.com</lticp:url>
+                </blti:vendor>
             </cartridge_basiclti_link>"""
 
     def export(self):
@@ -290,7 +279,7 @@ class CourseExportCCManager(ExportManager):
         """
         with self.modulestore.bulk_operations(self.courselike_key):
             export_fs = OSFS(self.root_dir)
-            xmlns_link = "http://www.imsglobal.org/xsd/imsccv1p2/imscp_v1p1"
+            xmlns_link = "http://www.imsglobal.org/xsd/imsccv1p3/imscp_v1p1"
             format_num = "I_{:0>6}"
             with export_fs.open('imsmanifest.xml', 'w') as course_xml:
                 minifest_doc = self.__imsmanifest_entry().format(title=self.courselike_key.course,
@@ -299,7 +288,7 @@ class CourseExportCCManager(ExportManager):
                 root = tree.getroot()
                 chapters = self.modulestore.get_course(self.courselike_key, depth=0).get_children()
                 orgs_root = root.find("{%s}organizations" % xmlns_link)[0]
-                items_root = lxml.etree.Element("item")
+                items_root = lxml.etree.Element("item", {'identifier': 'R_0'})
                 resources_root = root.find("{%s}resources" % xmlns_link)
                 orgs_root.append(items_root)
 
@@ -311,8 +300,6 @@ class CourseExportCCManager(ExportManager):
                         self._chapter_entry().format(counter=format_num.format(i),
                                                      title=cgi.escape(ch.display_name).encode('utf-8')),
                                                      parser=lxml.etree.XMLParser(recover=True, encoding='utf-8'))
-                    seqs_root = lxml.etree.Element("item")
-                    chapter_root.append(seqs_root)
                     items_root.append(chapter_root)
 
                     for s in seqs:
@@ -321,7 +308,7 @@ class CourseExportCCManager(ExportManager):
                         display_name = cgi.escape(name)
                         filename = filename_fmt.format(i)
 
-                        seqs_root.append(lxml.etree.fromstring(
+                        chapter_root.append(lxml.etree.fromstring(
                             self._items_entry().format(counter=format_num.format(i),
                                                        title=display_name.encode('utf-8')),
                             parser=lxml.etree.XMLParser(recover=True, encoding='utf-8')))
