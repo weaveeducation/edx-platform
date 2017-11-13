@@ -200,9 +200,10 @@ def check_replace_result_response(response):
         log.error("Outcome service response: Failed to parse XML: %s\n %s", ex, xml, exc_info=True)
         return False
 
-    major_codes = root.xpath(
-        '//ns:imsx_codeMajor',
-        namespaces={'ns': 'http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0'})
+#    major_codes = root.xpath(
+#        '//ns:imsx_codeMajor',
+#        namespaces={'ns': 'http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0'})
+    major_codes = root.xpath("//*[local-name() = 'imsx_codeMajor']")
     if len(major_codes) != 1:
         log.error(
             "Outcome service response: Expected exactly one imsx_codeMajor field in response. Received %s",
