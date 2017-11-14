@@ -10,6 +10,7 @@ define(['jquery', 'jquery.ui', 'js/views/baseview', 'common/js/components/views/
                     this.removeOrgTermUrl = options.removeOrgTermUrl;
 
                     if (options.availableOrgs.length > 1) {
+                        var d = $("<div></div>");
                         var s = $("<select id=\"orgSelector\" name=\"orgSelector\" />");
                         s.on("change", $.proxy(this, "changeOrg"));
                         var opts = [];
@@ -23,7 +24,9 @@ define(['jquery', 'jquery.ui', 'js/views/baseview', 'common/js/components/views/
                             opts.push($("<option />", tmp));
                         });
                         s.append(opts);
-                        this.$el.find('#orgSelectorBlock').append(s);
+                        d.append($('<h2>Please select Organization:</h2>'));
+                        d.append(s);
+                        this.$el.find('#orgSelectorBlock').append(d);
                     } else if (options.availableOrgs.length === 1) {
                         this.$el.find('.main-block').show();
                         this.selectedOrg = options.availableOrgs[0];
@@ -67,7 +70,7 @@ define(['jquery', 'jquery.ui', 'js/views/baseview', 'common/js/components/views/
                     }
                     return '<li class="field-group field-group-course-start block-%id"> \
                           <div class="field"> \
-                            <input type="text" value="%title" id="title-%id" autocomplete="off"> \
+                            <input type="text" value="%title" id="title-%id" maxlength="20" autocomplete="off" > \
                           </div> \
                           <div class="field field-date"> \
                             <input type="text" id="start-date-%id" class="start-date date"\
@@ -127,14 +130,13 @@ define(['jquery', 'jquery.ui', 'js/views/baseview', 'common/js/components/views/
                     this.currentOrgTerms.push(newItem);
                 },
 
-                updateStorage: function(id, newItem) {
-                    id = parseInt(id);
+                updateStorage: function(newItem) {
                     var newTerms = [];
-                    $.each(this.currentOrgTerms, function(index, value) {
-                        if (value.id !== id) {
-                            newTerms.push(newItem);
-                        } else {
+                    $.each(this.currentOrgTerms, function(idx, value) {
+                        if (value.id !== newItem.id) {
                             newTerms.push(value);
+                        } else {
+                            newTerms.push(newItem);
                         }
                     });
                     this.currentOrgTerms = newTerms;
