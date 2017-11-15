@@ -139,11 +139,12 @@ def send_score_update(assignment, score):
     # That way we can manually fix things up on the campus system later if
     # necessary.
     if not (response and check_replace_result_response(response)):
+        log.debug('Response body: %s', response.text if response else 'Unknown')
         error_msg = "Outcome Service: Failed to update score on LTI consumer. " \
-                    "User: %s, course: %s, usage: %s, score: %s, url: %s, status: %s, body: %s" %\
+                    "User: %s, course: %s, usage: %s, score: %s, url: %s, status: %s" %\
                     (assignment.user, assignment.course_key, assignment.usage_key, score,
                      assignment.outcome_service.lis_outcome_service_url,
-                     response, response.text if response else 'Unknown')
+                     response)
         log.error(error_msg, exc_info=True)
         raise Exception(error_msg)
 

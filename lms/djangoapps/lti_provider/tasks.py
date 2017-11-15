@@ -78,7 +78,7 @@ def increment_assignment_versions(course_key, usage_key, user_id):
     return assignments
 
 
-@CELERY_APP.task(name='lti_provider.tasks.send_composite_outcome', max_retries=None, bind=True, default_retry_delay=5 * 60)  # retry in 5 minutes
+@CELERY_APP.task(name='lti_provider.tasks.send_composite_outcome', max_retries=10, bind=True)
 def send_composite_outcome(self, user_id, course_id, assignment_id, version):
     """
     Calculate and transmit the score for a composite module (such as a
@@ -141,10 +141,11 @@ def send_composite_outcome(self, user_id, course_id, assignment_id, version):
     except Exception as exc:
         log_lti('send_composite_outcome_task_error', user_id, getattr(exc, 'message', repr(exc)), course_id, True,
                 assignment, None, task_id, version=version)
-        raise self.retry(exc=exc)
+        countdown = (int(2.71 ** self.request.retries) + 5) * 60
+        raise self.retry(exc=exc, countdown=countdown)
 
 
-@CELERY_APP.task(max_retries=None, bind=True, default_retry_delay=5 * 60)  # retry in 5 minutes
+@CELERY_APP.task(max_retries=10, bind=True)
 def send_leaf_outcome(self, assignment_id, points_earned, points_possible):
     """
     Calculate and transmit the score for a single problem. This method assumes
@@ -176,4 +177,5 @@ def send_leaf_outcome(self, assignment_id, points_earned, points_possible):
         log_lti('send_leaf_outcome_task_error', assignment.user.id, getattr(exc, 'message', repr(exc)),
                 str(assignment.course_key), True, assignment, None, task_id, points_earned=points_earned,
                 points_possible=points_possible)
-        raise self.retry(exc=exc)
+        countdown = (int(2.71 ** self.request.retries) + 5) * 60
+        raise self.retry(exc=exc, countdown=countdown)
