@@ -152,7 +152,8 @@ class LtiUser(models.Model):
         unique_together = ('lti_consumer', 'lti_user_id')
 
 
-def log_lti(action, user_id, message, course_id, is_error, assignment=None, grade=None, task_id=None, **kwargs):
+def log_lti(action, user_id, message, course_id, is_error,
+            assignment=None, grade=None, task_id=None, response_body=None, **kwargs):
     hostname = platform.node().split(".")[0]
     data = {
         'type': 'lti_task',
@@ -168,7 +169,8 @@ def log_lti(action, user_id, message, course_id, is_error, assignment=None, grad
         'assignment_id': int(assignment.id) if assignment else None,
         'assignment_version_number': int(assignment.version_number) if assignment else None,
         'assignment_usage_key': str(assignment.usage_key) if assignment else None,
-        'grade': grade
+        'grade': grade,
+        'response_body': response_body
     }
     data.update(kwargs)
     log_json.info(json.dumps(data))
