@@ -17,6 +17,12 @@ from lti_provider.models import GradedAssignment, OutcomeService
 log = logging.getLogger("edx.lti_provider")
 
 
+class OutcomeServiceSendScoreError(Exception):
+    def __init__(self, message, response_body):
+        super(OutcomeServiceSendScoreError, self).__init__(message)
+        self.response_body = response_body
+
+
 def store_outcome_parameters(request_params, user, lti_consumer):
     """
     Determine whether a set of LTI launch parameters contains information about
@@ -139,14 +145,17 @@ def send_score_update(assignment, score):
     # That way we can manually fix things up on the campus system later if
     # necessary.
     if not (response and check_replace_result_response(response)):
-        log.debug('Response body: %s', response.text if response else 'Unknown')
+        response_body = response.text if response else 'Unknown'
+        log.debug('Response body: %s', response_body)
         error_msg = "Outcome Service: Failed to update score on LTI consumer. " \
                     "User: %s, course: %s, usage: %s, score: %s, url: %s, status: %s" %\
                     (assignment.user, assignment.course_key, assignment.usage_key, score,
                      assignment.outcome_service.lis_outcome_service_url,
                      response)
         log.error(error_msg, exc_info=True)
-        raise Exception(error_msg)
+        raise OutcomeServiceSendScoreError(error_msg, response_body)
+
+    return {'response_body': response.text if response else 'Unknown'}
 
 
 def sign_and_send_replace_result(assignment, xml):
