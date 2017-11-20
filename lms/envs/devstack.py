@@ -187,10 +187,10 @@ COURSE_DISCOVERY_MEANINGS = {
     'language': LANGUAGE_MAP,
 }
 
-FEATURES['ENABLE_COURSE_DISCOVERY'] = True
+#FEATURES['ENABLE_COURSE_DISCOVERY'] = False
 # Setting for overriding default filtering facets for Course discovery
 # COURSE_DISCOVERY_FILTERS = ["org", "language", "modes"]
-FEATURES['COURSES_ARE_BROWSEABLE'] = True
+#FEATURES['COURSES_ARE_BROWSEABLE'] = True
 HOMEPAGE_COURSE_MAX = 9
 
 # Software secure fake page feature flag
