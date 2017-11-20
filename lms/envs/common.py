@@ -2240,6 +2240,8 @@ INSTALLED_APPS = (
     'openedx.features.enterprise_support',
 
     'experiments',
+
+    'raven.contrib.django.raven_compat',
 )
 
 ######################### CSRF #########################################

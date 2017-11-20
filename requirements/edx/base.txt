@@ -213,3 +213,6 @@ xblock==1.0.0
 
 # Third Party XBlocks
 edx-sga==0.6.2
+
+# Library to send info to Sentry
+raven==6.3.0
