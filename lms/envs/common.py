@@ -1241,6 +1241,8 @@ MIDDLEWARE_CLASSES = (
     'openedx.core.djangoapps.site_configuration.middleware.SessionCookieDomainOverrideMiddleware',
 
     'credo_modules.middleware.RefererSaveMiddleware',
+
+    'third_party_auth.middleware.SSOAuthMiddleware',
 )
 
 # Clickjacking protection can be enabled by setting this to 'DENY'
