@@ -1,12 +1,14 @@
+import datetime
 import json
 import re
+from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.db import models
 from openedx.core.djangoapps.xmodule_django.models import CourseKeyField
 from django.core.exceptions import ValidationError
 
 from credo_modules.utils import additional_profile_fields_hash
-from student.models import CourseEnrollment
+from student.models import CourseEnrollment, ENROLL_STATUS_CHANGE, EnrollStatusChange
 
 
 class CredoModulesUserProfile(models.Model):
@@ -70,6 +72,19 @@ def check_and_save_enrollment_attributes(post_data, user, course_id):
                                                name=k, value=default).save()
     except EnrollmentPropertiesPerCourse.DoesNotExist:
         return
+
+
+def get_custom_term(org):
+    current_date = datetime.date.today()
+    data = TermPerOrg.objects.filter(org=org, start_date__lte=current_date, end_date__gte=current_date)
+    if len(data) > 0:
+        return data[0]
+    return None
+
+
+def save_custom_term_student_property(term, user, course_id):
+    return CredoStudentProperties.objects.get_or_create(user=user, course_id=course_id, name='term',
+                                                        defaults={'value': term})
 
 
 class CredoStudentProperties(models.Model):
@@ -139,3 +154,27 @@ def user_must_fill_additional_profile_fields(course, user, block=None):
         if len(profiles) == 0 or profiles[0].fields_version != fields_version:
             return True
     return False
+
+
+class TermPerOrg(models.Model):
+    org = models.CharField(max_length=255, verbose_name='Org', null=False, blank=False, db_index=True)
+    term = models.CharField(max_length=255, verbose_name='Term', null=False, blank=False)
+    start_date = models.DateField(verbose_name='Start Date', null=False, blank=False)
+    end_date = models.DateField(verbose_name='End Date', null=False, blank=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'org': self.org,
+            'term': self.term,
+            'start_date': self.start_date.strftime('%-m/%-d/%Y'),
+            'end_date': self.end_date.strftime('%-m/%-d/%Y')
+        }
+
+
+@receiver(ENROLL_STATUS_CHANGE)
+def add_custom_term_student_property_on_enrollment(sender, event=None, user=None, course_id=None, **kwargs):
+    if event == EnrollStatusChange.enroll:
+        item = get_custom_term(course_id.org)
+        if item:
+            save_custom_term_student_property(item.term, user, course_id)

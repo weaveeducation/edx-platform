@@ -162,6 +162,7 @@ define(['domReady', 'jquery', 'underscore', 'js/utils/cancel_on_escape', 'js/vie
                 e.preventDefault();
                 $('.courses-tab').toggleClass('active', tab === 'courses');
                 $('.libraries-tab').toggleClass('active', tab === 'libraries');
+                $('.settings-tab').toggleClass('active', tab === 'settings');
                 $('.programs-tab').toggleClass('active', tab === 'programs');
 
             // Also toggle this course-related notice shown below the course tab, if it is present:
@@ -181,6 +182,7 @@ define(['domReady', 'jquery', 'underscore', 'js/utils/cancel_on_escape', 'js/vie
 
             $('#course-index-tabs .courses-tab').bind('click', showTab('courses'));
             $('#course-index-tabs .libraries-tab').bind('click', showTab('libraries'));
+            $('#course-index-tabs .settings-tab').bind('click', showTab('settings'));
             $('#course-index-tabs .programs-tab').bind('click', showTab('programs'));
         };
 

@@ -83,6 +83,12 @@ urlpatterns += patterns(
         'course_info_update_handler'
     ),
     url(r'^home/?$', 'course_listing', name='home'),
+
+    url(r'^manage_terms/?$', 'manage_terms', name='manage_terms'),
+    url(r'^get_org_terms/(?P<org>.+)?$', 'get_org_terms', name='get_org_terms'),
+    url(r'^save_org_term/(?P<org>.+)?$', 'save_org_term', name='save_org_term'),
+    url(r'^remove_org_term/(?P<org>.+)?$', 'remove_org_term', name='remove_org_term'),
+
     url(
         r'^course/{}/search_reindex?$'.format(settings.COURSE_KEY_PATTERN),
         'course_search_index_handler',

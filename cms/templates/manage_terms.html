@@ -1,0 +1,104 @@
+<%page expression_filter="h"/>
+<%!
+from django.utils.translation import ugettext as _
+from openedx.core.djangolib.js_utils import dump_js_escaped_json
+from openedx.core.djangolib.markup import HTML, Text
+%>
+
+<%inherit file="base.html" />
+
+<%block name="title">${_("Manage Terms")}</%block>
+<%block name="bodyclass">is-signedin course schedule view-settings feature-upload</%block>
+
+<%namespace name='static' file='static_content.html'/>
+
+<%block name="requirejs">
+    require(["js/factories/manage_terms"], function(ManageTermsFactory) {
+        ManageTermsFactory(
+            ${available_orgs | n, dump_js_escaped_json},
+            ${get_org_terms_url},
+            ${save_org_term},
+            ${remove_org_term}
+        );
+    });
+</%block>
+
+<%block name="header_extras">
+    <style>
+        #orgSelectorBlock {
+            margin-top: 20px;
+            margin-bottom: 25px;
+        }
+
+        #orgSelectorBlock h2 {
+            padding-bottom: 10px;
+        }
+
+        #settings_details .list-header {
+            margin-bottom: 0px !important;
+        }
+
+        #settings_details .main-block, #settings_details .no-courses {
+            display: none
+        }
+
+        #settings_details .error-msg {
+            color: #ff0000;
+            clear: both;
+        }
+
+        #settings_details .field {
+            width: 25%;
+        }
+
+        #settings_details .field-date {
+            width: 15%;
+        }
+
+        #settings_details .loading {
+            margin-bottom: 10px;
+        }
+    </style>
+</%block>
+
+<%block name="content">
+    <div class="wrapper-mast wrapper">
+      <header class="mast has-actions">
+        <h1 class="page-header">${_("Manage Terms")}</h1>
+      </header>
+    </div>
+
+    <div class="wrapper-content wrapper">
+        <div class="content">
+            <div class="content-primary" role="main">
+                <form id="settings_details" class="settings-details" method="post" action="">
+                    <div class="group-settings schedule main-block">
+                        <div id="orgSelectorBlock"></div>
+                        <ol class="list-input list-header">
+                            <li class="field-group field-group-course-start">
+                                <div class="field">
+                                    <label>${_("Term Title")}</label>
+                                </div>
+                                <div class="field field-date">
+                                    <label>${_("Term Start Date")}</label>
+                                </div>
+                                <div class="field field-date">
+                                    <label>${_("Term End Date")}</label>
+                                </div>
+                                <div class="field">
+                                    <label>&nbsp;</label>
+                                </div>
+                            </li>
+                        </ol>
+                        <ol class="list-input list-terms">
+
+                        </ol>
+                    </div>
+                    <div class="no-courses">${_("To manage terms you should have access to at least one course")}</div>
+                    <div class="loading">${_("Loading...")}</div>
+                </form>
+            </div>
+        </div>
+    </div>
+</%block>
+
