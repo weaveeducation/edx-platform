@@ -58,6 +58,7 @@ from openedx.core.djangolib.markup import HTML, Text
       <input type="button" name="list-problem-responses-csv" value="${_("Download a CSV of problem responses")}" data-endpoint="${ section_data['get_problem_responses_url'] }" data-csv="true">
     </p>
 
+    %if show_certificates:
     <div class="issued_certificates">
       <p>${_("Click to list certificates that are issued for this course:")}</p>
       <p>
@@ -67,6 +68,7 @@ from openedx.core.djangolib.markup import HTML, Text
       <div class="data-display-table certificate-data-display-table" id="data-issued-certificates-table"></div>
       <div class="issued-certificates-error request-response-error msg msg-error copy"></div>
     </div>
+    %endif
 
   % if not disable_buttons:
     <p>${_("For smaller courses, click to list profile information for enrolled students directly on this page:")}</p>

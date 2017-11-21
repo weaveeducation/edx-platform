@@ -36,6 +36,7 @@ from certificates.models import (
 )
 from class_dashboard.dashboard_data import get_array_section_has_problem, get_section_display_name
 from course_modes.models import CourseMode, CourseModesArchive
+from lms.djangoapps.instructor.models import InstructorAvailableSections
 from courseware.access import has_access
 from courseware.courses import get_course_by_id, get_studio_url
 from django_comment_client.utils import available_division_schemes, has_forum_access
@@ -121,17 +122,23 @@ def instructor_dashboard_2(request, course_id):
 
     reports_enabled = configuration_helpers.get_value('SHOW_ECOMMERCE_REPORTS', False)
 
-    sections = [
-        _section_course_info(course, access),
-        _section_membership(course, access, is_white_label),
-        _section_cohort_management(course, access),
-        _section_discussions_management(course, access),
-        _section_student_admin(course, access),
-        _section_data_download(course, access),
-    ]
+    sections = []
+    available_tabs = request.user.instructor_dashboard_tabs if hasattr(request.user, 'instructor_dashboard_tabs') \
+        else InstructorAvailableSections()
+
+    if available_tabs.show_course_info:
+        sections.append(_section_course_info(course, access))
+    if available_tabs.show_membership:
+        sections.append(_section_membership(course, access, is_white_label))
+    if available_tabs.show_cohort:
+        sections.append(_section_cohort_management(course, access))
+    if available_tabs.show_student_admin:
+        sections.append(_section_student_admin(course, access))
+    if available_tabs.show_data_download:
+        sections.append(_section_data_download(course, access))
 
     analytics_dashboard_message = None
-    if show_analytics_dashboard_message(course_key):
+    if available_tabs.show_analytics and show_analytics_dashboard_message(course_key):
         # Construct a URL to the external analytics dashboard
         analytics_dashboard_url = '{0}/courses/{1}'.format(settings.ANALYTICS_DASHBOARD_URL, unicode(course_key))
         link_start = HTML("<a href=\"{}\" target=\"_blank\">").format(analytics_dashboard_url)
@@ -161,7 +168,7 @@ def instructor_dashboard_2(request, course_id):
         sections.insert(3, _section_extensions(course))
 
     # Gate access to course email by feature flag & by course-specific authorization
-    if BulkEmailFlag.feature_enabled(course_key):
+    if available_tabs.show_email and BulkEmailFlag.feature_enabled(course_key):
         sections.append(_section_send_email(course, access))
 
     # Gate access to Metrics tab by featue flag and staff authorization
@@ -190,7 +197,7 @@ def instructor_dashboard_2(request, course_id):
     # and enable self-generated certificates for a course.
     # Note: This is hidden for all CCXs
     certs_enabled = CertificateGenerationConfiguration.current().enabled and not hasattr(course_key, 'ccx')
-    if certs_enabled and access['admin']:
+    if available_tabs.show_certificates and certs_enabled and access['admin']:
         sections.append(_section_certificates(course))
 
     openassessment_blocks = modulestore().get_items(
@@ -228,10 +235,11 @@ def instructor_dashboard_2(request, course_id):
 
     context = {
         'course': course,
-        'studio_url': get_studio_url(course, 'course'),
+        'studio_url': get_studio_url(course, 'course') if available_tabs.show_studio_link else None,
         'sections': sections,
         'disable_buttons': disable_buttons,
         'analytics_dashboard_message': analytics_dashboard_message,
+        'show_certificates': available_tabs.show_certificates,
         'certificate_white_list': certificate_white_list,
         'certificate_invalidations': certificate_invalidations,
         'generate_certificate_exceptions_url': generate_certificate_exceptions_url,
