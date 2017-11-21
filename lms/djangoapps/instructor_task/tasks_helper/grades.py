@@ -298,8 +298,12 @@ class CourseGradeReport(object):
         grades_header = []
         for assignment_info in graded_assignments.itervalues():
             if assignment_info['separate_subsection_avg_headers']:
-                grades_header.extend(assignment_info['subsection_headers'].itervalues())
+                for subsection_headers in assignment_info['subsection_headers'].itervalues():
+                    grades_header.append(subsection_headers)
+                    grades_header.append('%s Timestamp (UTC)' % subsection_headers)
             grades_header.append(assignment_info['average_header'])
+            if not assignment_info['separate_subsection_avg_headers']:
+                grades_header.append('%s Timestamp (UTC)' % assignment_info['average_header'])
         return grades_header
 
     def _batch_users(self, context):
@@ -325,13 +329,20 @@ class CourseGradeReport(object):
                 try:
                     subsection_grade = course_grade.graded_subsections_by_format[assignment_type][subsection_location]
                 except KeyError:
-                    grade_result = u'Not Available'
+                    grade_results.append([u'Not Available'])
+                    grade_results.append([u'Not Available'])
                 else:
                     if subsection_grade.graded_total.first_attempted is not None:
-                        grade_result = subsection_grade.graded_total.earned / subsection_grade.graded_total.possible
+                        grade_results.append(
+                            [subsection_grade.graded_total.earned / subsection_grade.graded_total.possible]
+                        )
+                        last_answer_timestamp = subsection_grade.graded_total.last_answer_timestamp
+                        last_answer_timestamp_str = last_answer_timestamp.strftime("%Y-%m-%d %H:%M:%S")\
+                            if last_answer_timestamp else ''
+                        grade_results.append([last_answer_timestamp_str])
                     else:
-                        grade_result = u'Not Attempted'
-                grade_results.append([grade_result])
+                        grade_results.append([u'Not Attempted'])
+                        grade_results.append([u'Not Attempted'])
             if assignment_info['separate_subsection_avg_headers']:
                 assignment_average = course_grade.grader_result['grade_breakdown'].get(assignment_type, {}).get(
                     'percent'
