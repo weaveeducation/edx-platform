@@ -9,6 +9,7 @@ from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.status import HTTP_406_NOT_ACCEPTABLE, HTTP_409_CONFLICT
 from rest_framework.views import APIView
+from django.conf import settings
 
 from commerce.constants import Messages
 from commerce.exceptions import InvalidResponseError
@@ -24,6 +25,8 @@ from openedx.core.lib.api.authentication import OAuth2AuthenticationAllowInactiv
 from openedx.core.lib.log_utils import audit_log
 from student.models import CourseEnrollment, RegistrationCookieConfiguration
 from util.json_request import JsonResponse
+
+from student.models import CourseEnrollmentAllowed
 
 log = logging.getLogger(__name__)
 SAILTHRU_CAMPAIGN_COOKIE = 'sailthru_bid'
@@ -129,7 +132,11 @@ class BasketsView(APIView):
                 username=user.username
             )
             log.info(msg)
-            self._enroll(course_key, user, default_enrollment_mode.slug)
+            if settings.FEATURES.get('ENROLL_ACTIVE_USERS_ONLY', False) and not user.is_active:
+                CourseEnrollmentAllowed.objects.get_or_create(course_id=course_key, email=user.email,
+                                                              auto_enroll=True)
+            else:
+                self._enroll(course_key, user, default_enrollment_mode.slug)
             self._handle_marketing_opt_in(request, course_key, user)
             return DetailResponse(msg)
 
@@ -139,7 +146,11 @@ class BasketsView(APIView):
             api_session = requests.Session()
             api = ecommerce_api_client(user, session=api_session)
         except ValueError:
-            self._enroll(course_key, user)
+            if settings.FEATURES.get('ENROLL_ACTIVE_USERS_ONLY', False) and not user.is_active:
+                CourseEnrollmentAllowed.objects.get_or_create(course_id=course_key, email=user.email,
+                                                              auto_enroll=True)
+            else:
+                self._enroll(course_key, user)
             msg = Messages.NO_ECOM_API.format(username=user.username, course_id=unicode(course_key))
             log.debug(msg)
             return DetailResponse(msg)

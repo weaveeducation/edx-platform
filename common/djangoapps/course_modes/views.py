@@ -15,6 +15,7 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
 from django.utils.translation import get_language, to_locale
 from django.views.generic.base import View
+from django.conf import settings
 from ipware.ip import get_ip
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locations import SlashSeparatedCourseKey
@@ -26,7 +27,7 @@ from lms.djangoapps.commerce.utils import EcommerceService
 from openedx.core.djangoapps.embargo import api as embargo_api
 from openedx.features.enterprise_support import api as enterprise_api
 from openedx.features.enterprise_support.api import get_enterprise_consent_url
-from student.models import CourseEnrollment
+from student.models import CourseEnrollment, CourseEnrollmentAllowed
 from third_party_auth.decorators import tpa_hint_ends_existing_session
 from util import organizations_helpers as organization_api
 from util.db import outer_atomic
@@ -116,7 +117,11 @@ class ChooseModeView(View):
             # In this particular case, Audit is the ONLY option available, and thus we need to ensure
             # that the learner is truly enrolled before we redirect them away to the dashboard.
             if len(modes) == 1 and modes.get(CourseMode.AUDIT):
-                CourseEnrollment.enroll(request.user, course_key, CourseMode.AUDIT)
+                if settings.FEATURES.get('ENROLL_ACTIVE_USERS_ONLY', False) and not request.user.is_active:
+                    CourseEnrollmentAllowed.objects.get_or_create(course_id=course_key, email=request.user.email,
+                                                                  auto_enroll=True)
+                else:
+                    CourseEnrollment.enroll(request.user, course_key, CourseMode.AUDIT)
                 return redirect(self._get_redirect_url_for_audit_enrollment(request, course_id))
             return redirect(reverse('dashboard'))
 
