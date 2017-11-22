@@ -122,6 +122,8 @@ def login_and_registration_form(request, initial_mode="login"):
     if ext_auth_response is not None:
         return ext_auth_response
 
+    disable_signin_button = configuration_helpers.get_value('DISABLE_LOGIN_BUTTON',
+                                                            settings.FEATURES['DISABLE_LOGIN_BUTTON'])
     disable_registration_button = configuration_helpers.get_value('DISABLE_REGISTER_BUTTON',
                                                                   settings.FEATURES['DISABLE_REGISTER_BUTTON'])
 
@@ -156,6 +158,7 @@ def login_and_registration_form(request, initial_mode="login"):
             'account_creation_allowed': configuration_helpers.get_value(
                 'ALLOW_PUBLIC_ACCOUNT_CREATION', settings.FEATURES.get('ALLOW_PUBLIC_ACCOUNT_CREATION', True)),
             'disable_registration_button': disable_registration_button,
+            'disable_signin_button': disable_signin_button
         },
         'login_redirect_url': redirect_to,  # This gets added to the query string of the "Sign In" button in header
         'responsive': True,

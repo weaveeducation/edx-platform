@@ -136,7 +136,6 @@ site_status_msg = get_site_status_msg(course_id)
           </li>
         % endif
       </%block>
-      % if not configuration_helpers.get_value('DISABLE_LOGIN_BUTTON', settings.FEATURES['DISABLE_LOGIN_BUTTON']):
         % if course and settings.FEATURES.get('RESTRICT_ENROLL_BY_REG_METHOD') and course.enrollment_domain:
           <li class="nav-global-04">
             <a class="btn-neutral btn-register" href="${reverse('course-specific-register', args=[course.id.to_deprecated_string()])}">${_("Register Now")}</a>
@@ -146,7 +145,6 @@ site_status_msg = get_site_status_msg(course_id)
             <a class="btn-neutral btn-register" href="/register">${_("Register Now")}</a>
           </li>
         % endif
-      % endif
     </ol>
 
     <ol class="right nav-courseware">
