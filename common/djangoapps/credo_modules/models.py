@@ -33,6 +33,13 @@ class CredoModulesUserProfile(models.Model):
             result[profile.user_id] = json.loads(profile.meta)
         return result
 
+    def converted_meta(self):
+        try:
+            meta_dict = json.loads(self.meta)
+        except ValueError:
+            meta_dict = {}
+        return meta_dict
+
 
 class StudentAttributesRegistrationModel(object):
     """
