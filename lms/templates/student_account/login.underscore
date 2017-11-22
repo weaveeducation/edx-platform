@@ -2,10 +2,12 @@
 </div>
 
 <% if ( context.createAccountOption !== false ) { %>
+<% if ( !context.disableRegistrationButton ) { %>
 <div class="toggle-form">
     <span class="text"><%- gettext("First time here?") %></span>
     <a href="#login" class="form-toggle" data-type="register"><%- gettext("Create an Account.") %></a>
 </div>
+<% } %>
 <% } %>
 
 <h2><%- gettext("Sign In") %></h2>

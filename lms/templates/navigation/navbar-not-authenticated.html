@@ -34,6 +34,7 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
           <a class="btn" href="/courses">${_("Explore Courses")}</a>
         </li>
       %endif
+      % if not configuration_helpers.get_value('DISABLE_REGISTER_BUTTON', settings.FEATURES['DISABLE_REGISTER_BUTTON']):
       % if course and settings.FEATURES.get('RESTRICT_ENROLL_BY_REG_METHOD') and course.enrollment_domain:
         <li class="item nav-global-04">
           <a class="btn-neutral btn-register" href="${reverse('course-specific-register', args=[course.id.to_deprecated_string()])}">${_("Register")}</a>
@@ -42,6 +43,7 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
         <li class="item nav-global-04">
           <a class="btn-neutral btn-register" href="/register${login_query()}">${_("Register")}</a>
         </li>
+      % endif
       % endif
     % endif
   </%block>
