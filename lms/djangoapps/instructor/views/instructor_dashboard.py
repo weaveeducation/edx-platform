@@ -200,15 +200,16 @@ def instructor_dashboard_2(request, course_id):
     if available_tabs.show_certificates and certs_enabled and access['admin']:
         sections.append(_section_certificates(course))
 
-    openassessment_blocks = modulestore().get_items(
-        course_key, qualifiers={'category': 'openassessment'}
-    )
-    # filter out orphaned openassessment blocks
-    openassessment_blocks = [
-        block for block in openassessment_blocks if block.parent is not None
-    ]
-    if len(openassessment_blocks) > 0:
-        sections.append(_section_open_response_assessment(request, course, openassessment_blocks, access))
+    if available_tabs.show_open_responses:
+        openassessment_blocks = modulestore().get_items(
+            course_key, qualifiers={'category': 'openassessment'}
+        )
+        # filter out orphaned openassessment blocks
+        openassessment_blocks = [
+            block for block in openassessment_blocks if block.parent is not None
+        ]
+        if len(openassessment_blocks) > 0:
+            sections.append(_section_open_response_assessment(request, course, openassessment_blocks, access))
 
     disable_buttons = not _is_small_course(course_key)
 
