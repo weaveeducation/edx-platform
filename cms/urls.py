@@ -105,6 +105,7 @@ urlpatterns += patterns(
         include('cms.djangoapps.contentstore.api.urls', namespace='courses_api')
     ),
     url(r'^export/{}$'.format(COURSELIKE_KEY_PATTERN), 'export_handler'),
+    url(r'^export_cc/{}$'.format(COURSELIKE_KEY_PATTERN), 'export_handler_cc'),
     url(r'^export_output/{}$'.format(COURSELIKE_KEY_PATTERN), 'export_output_handler'),
     url(r'^export_status/{}$'.format(COURSELIKE_KEY_PATTERN), 'export_status_handler'),
     url(r'^xblock/outline/{}$'.format(settings.USAGE_KEY_PATTERN), 'xblock_outline_handler'),
