@@ -74,9 +74,6 @@ class ProblemScore(ScoreBase):
 
             :param weight: Weight of this problem
             :type weight: int|float|None
-            
-            :param last_answer_timestamp: last answer for some question in the graded block
-            :type last_answer_timestamp: int|None
         """
         super(ProblemScore, self).__init__(*args, **kwargs)
         self.raw_earned = float(raw_earned) if raw_earned is not None else None
@@ -100,9 +97,6 @@ class AggregatedScore(ScoreBase):
 
             :param tw_possible: Total aggregated sum of all weighted possible values
             :type tw_possible: int|float|None
-            
-            :param last_answer_timestamp: last answer for some question in the graded block
-            :type last_answer_timestamp: int|None
         """
         super(AggregatedScore, self).__init__(*args, **kwargs)
         self.earned = float(tw_earned) if tw_earned is not None else None
