@@ -317,6 +317,7 @@ from openedx.core.djangolib.markup import HTML, Text
       <ul id="course-index-tabs">
         <li class="courses-tab active"><a>${_("Courses")}</a></li>
         <li class="libraries-tab"><a>${_("Libraries")}</a></li>
+        <li class="settings-tab"><a>${_("Settings")}</a></li>
       </ul>
       % endif
 
@@ -526,6 +527,16 @@ from openedx.core.djangolib.markup import HTML, Text
         % endif
       </div>
       %endif
+
+      <div class="settings settings-tab">
+        <ul class="list-courses">
+          <li class="course-item">
+            <a class="course-link" href="${manage_terms_url}">
+              <h3 class="course-title">Manage Terms</h3>
+            </a>
+          </li>
+        </ul>
+      </div>
 
     </article>
     <aside class="content-supplementary" role="complementary">
