@@ -3,6 +3,7 @@ Asynchronous tasks for the LTI provider app.
 """
 
 import logging
+import uuid
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -13,7 +14,7 @@ import lti_provider.outcomes as outcomes
 from lms import CELERY_APP
 from lms.djangoapps.grades.new.course_grade_factory import CourseGradeFactory
 from lms.djangoapps.grades.signals.signals import PROBLEM_WEIGHTED_SCORE_CHANGED
-from lti_provider.models import GradedAssignment
+from lti_provider.models import GradedAssignment, log_lti
 from lti_provider.views import parse_course_and_usage_keys
 from xmodule.modulestore.django import modulestore
 
@@ -40,18 +41,23 @@ def score_changed_handler(sender, **kwargs):  # pylint: disable=unused-argument
                 send_leaf_outcome.delay(
                     assignment.id, points_earned, points_possible
                 )
+                log_lti('send_leaf_outcome_task_added', user_id, '', course_id, False, assignment, None,
+                        points_possible=points_possible, points_earned=points_earned, usage_id=usage_id)
             else:
                 send_composite_outcome.apply_async(
                     (user_id, course_id, assignment.id, assignment.version_number),
                     countdown=settings.LTI_AGGREGATE_SCORE_PASSBACK_DELAY
                 )
+                log_lti('send_composite_outcome_task_added', user_id, '', course_id, False, assignment, None,
+                        points_possible=points_possible, points_earned=points_earned, usage_id=usage_id,
+                        countdown=settings.LTI_AGGREGATE_SCORE_PASSBACK_DELAY)
     else:
-        log.error(
-            "Outcome Service: Required signal parameter is None. "
-            "points_possible: %s, points_earned: %s, user_id: %s, "
-            "course_id: %s, usage_id: %s",
-            points_possible, points_earned, user_id, course_id, usage_id
-        )
+        error_msg = "Outcome Service: Required signal parameter is None. points_possible: %s," \
+                    " points_earned: %s, user_id: %s, course_id: %s, usage_id: %s" %\
+                    (points_possible, points_earned, user_id, course_id, usage_id)
+        log_lti('score_changed_error', user_id, error_msg, course_id, True, None, None,
+                points_possible=points_possible, points_earned=points_earned, usage_id=usage_id)
+        log.error(error_msg)
 
 
 def increment_assignment_versions(course_key, usage_key, user_id):
@@ -73,8 +79,8 @@ def increment_assignment_versions(course_key, usage_key, user_id):
     return assignments
 
 
-@CELERY_APP.task(name='lti_provider.tasks.send_composite_outcome')
-def send_composite_outcome(user_id, course_id, assignment_id, version):
+@CELERY_APP.task(name='lti_provider.tasks.send_composite_outcome', max_retries=10, bind=True)
+def send_composite_outcome(self, user_id, course_id, assignment_id, version):
     """
     Calculate and transmit the score for a composite module (such as a
     vertical).
@@ -100,30 +106,58 @@ def send_composite_outcome(user_id, course_id, assignment_id, version):
     in the wrong order.
     """
     assignment = GradedAssignment.objects.get(id=assignment_id)
-    if version != assignment.version_number:
-        log.info(
-            "Score passback for GradedAssignment %s skipped. More recent score available.",
-            assignment.id
-        )
-        return
-    course_key = CourseKey.from_string(course_id)
-    mapped_usage_key = assignment.usage_key.map_into_course(course_key)
-    user = User.objects.get(id=user_id)
-    course = modulestore().get_course(course_key, depth=0)
-    course_grade = CourseGradeFactory().create(user, course)
-    earned, possible = course_grade.score_for_module(mapped_usage_key)
-    if possible == 0:
-        weighted_score = 0
-    else:
-        weighted_score = float(earned) / float(possible)
+    task_id = str(uuid.uuid4())
 
-    assignment = GradedAssignment.objects.get(id=assignment_id)
-    if assignment.version_number == version:
-        outcomes.send_score_update(assignment, weighted_score)
+    try:
+        log_lti('send_composite_outcome_task_started', user_id, '', course_id, False, assignment, None, task_id,
+                version=version)
+
+        if version != assignment.version_number:
+            log_lti('send_composite_outcome_task_skipped', user_id, '', course_id, False, assignment, None, task_id,
+                    version=version)
+            log.info(
+                "Score passback for GradedAssignment %s skipped. More recent score available.",
+                assignment.id
+            )
+            return
+        course_key = CourseKey.from_string(course_id)
+        mapped_usage_key = assignment.usage_key.map_into_course(course_key)
+        user = User.objects.get(id=user_id)
+        course = modulestore().get_course(course_key, depth=0)
+        course_grade = CourseGradeFactory().create(user, course)
+        earned, possible = course_grade.score_for_module(mapped_usage_key)
+        if possible == 0:
+            weighted_score = 0
+        else:
+            weighted_score = float(earned) / float(possible)
+
+        request_body = None
+        response_body = None
+        lis_outcome_service_url = None
+
+        assignment = GradedAssignment.objects.get(id=assignment_id)
+        if assignment.version_number == version:
+            log_lti('send_composite_outcome_task_send_score', user_id, '', course_id, False, assignment, weighted_score,
+                    task_id, version=version)
+            response_data = outcomes.send_score_update(assignment, weighted_score)
+            request_body = response_data['request_body']
+            response_body = response_data['response_body']
+            lis_outcome_service_url = response_data['lis_outcome_service_url']
+
+        log_lti('send_composite_outcome_task_finished', user_id, '', course_id, False, assignment, weighted_score,
+                task_id, response_body, request_body, lis_outcome_service_url, version=version)
+    except Exception as exc:
+        request_body = getattr(exc, 'request_body', None)
+        response_body = getattr(exc, 'response_body', None)
+        lis_outcome_service_url = getattr(exc, 'lis_outcome_service_url', None)
+        log_lti('send_composite_outcome_task_error', user_id, getattr(exc, 'message', repr(exc)), course_id, True,
+                assignment, None, task_id, response_body, request_body, lis_outcome_service_url, version=version)
+        countdown = (int(2.71 ** self.request.retries) + 5) * 60
+        raise self.retry(exc=exc, countdown=countdown)
 
 
-@CELERY_APP.task
-def send_leaf_outcome(assignment_id, points_earned, points_possible):
+@CELERY_APP.task(max_retries=10, bind=True)
+def send_leaf_outcome(self, assignment_id, points_earned, points_possible):
     """
     Calculate and transmit the score for a single problem. This method assumes
     that the individual problem was the source of a score update, and so it
@@ -132,8 +166,35 @@ def send_leaf_outcome(assignment_id, points_earned, points_possible):
     than send_outcome_for_composite_assignment.
     """
     assignment = GradedAssignment.objects.get(id=assignment_id)
-    if points_possible == 0:
-        weighted_score = 0
-    else:
-        weighted_score = float(points_earned) / float(points_possible)
-    outcomes.send_score_update(assignment, weighted_score)
+    task_id = str(uuid.uuid4())
+
+    try:
+        log_lti('send_leaf_outcome_task_started', assignment.user.id, '', str(assignment.course_key), False, assignment,
+                None, task_id, points_earned=points_earned, points_possible=points_possible)
+
+        if points_possible == 0:
+            weighted_score = 0
+        else:
+            weighted_score = float(points_earned) / float(points_possible)
+
+        log_lti('send_leaf_outcome_task_send_score', assignment.user.id, '', str(assignment.course_key), False,
+                assignment, weighted_score, task_id, points_earned=points_earned, points_possible=points_possible)
+
+        response_data = outcomes.send_score_update(assignment, weighted_score)
+        request_body = response_data['request_body']
+        response_body = response_data['response_body']
+        lis_outcome_service_url = response_data['lis_outcome_service_url']
+
+        log_lti('send_leaf_outcome_task_finished', assignment.user.id, '', str(assignment.course_key), False,
+                assignment, weighted_score, task_id, response_body, request_body, lis_outcome_service_url,
+                points_earned=points_earned, points_possible=points_possible)
+    except Exception as exc:
+        request_body = getattr(exc, 'request_body', None)
+        response_body = getattr(exc, 'response_body', None)
+        lis_outcome_service_url = getattr(exc, 'lis_outcome_service_url', None)
+        log_lti('send_leaf_outcome_task_error', assignment.user.id, getattr(exc, 'message', repr(exc)),
+                str(assignment.course_key), True, assignment, None, task_id, response_body,
+                request_body, lis_outcome_service_url,
+                points_earned=points_earned, points_possible=points_possible)
+        countdown = (int(2.71 ** self.request.retries) + 5) * 60
+        raise self.retry(exc=exc, countdown=countdown)

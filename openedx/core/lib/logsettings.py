@@ -55,7 +55,7 @@ def get_logger_config(log_dir,
                                              logging_env=logging_env,
                                              hostname=hostname)
 
-    handlers = ['console', 'local']
+    handlers = ['console', 'local', 'sentry']
     if syslog_addr:
         handlers.append('syslogger-remote')
 
@@ -89,6 +89,11 @@ def get_logger_config(log_dir,
             },
         },
         'loggers': {
+            'credo_json': {
+                'handlers': ['console', 'local', 'credo_json'],
+                'level': 'DEBUG',
+                'propagate': False,
+            },
             'tracking': {
                 'handlers': ['tracking'],
                 'level': 'DEBUG',
@@ -136,6 +141,14 @@ def get_logger_config(log_dir,
                 'maxBytes': 1024 * 1024 * 2,
                 'backupCount': 5,
             },
+            'credo_json': {
+                'level': 'DEBUG',
+                'class': 'logging.handlers.RotatingFileHandler',
+                'filename': 'credo_json.log',
+                'formatter': 'raw',
+                'maxBytes': 1024 * 1024 * 2,
+                'backupCount': 5,
+            }
         })
     else:
         # for production environments we will only
@@ -155,6 +168,17 @@ def get_logger_config(log_dir,
                 'address': '/dev/log',
                 'facility': SysLogHandler.LOG_LOCAL1,
                 'formatter': 'raw',
+            },
+            'credo_json': {
+                'level': 'DEBUG',
+                'class': 'logging.handlers.SysLogHandler',
+                'address': '/dev/log',
+                'facility': SysLogHandler.LOG_LOCAL2,
+                'formatter': 'raw',
+            },
+            'sentry': {
+                'level': 'ERROR',
+                'class': 'raven.contrib.django.raven_compat.handlers.SentryHandler'
             },
         })
 
