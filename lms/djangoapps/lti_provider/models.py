@@ -153,7 +153,8 @@ class LtiUser(models.Model):
 
 
 def log_lti(action, user_id, message, course_id, is_error,
-            assignment=None, grade=None, task_id=None, response_body=None, **kwargs):
+            assignment=None, grade=None, task_id=None, response_body=None, request_body=None,
+            lis_outcome_service_url=None, **kwargs):
     hostname = platform.node().split(".")[0]
     data = {
         'type': 'lti_task',
@@ -170,7 +171,9 @@ def log_lti(action, user_id, message, course_id, is_error,
         'assignment_version_number': int(assignment.version_number) if assignment else None,
         'assignment_usage_key': str(assignment.usage_key) if assignment else None,
         'grade': grade,
-        'response_body': response_body
+        'request_body': request_body,
+        'response_body': response_body,
+        'lis_outcome_service_url': lis_outcome_service_url
     }
     data.update(kwargs)
     log_json.info(json.dumps(data))

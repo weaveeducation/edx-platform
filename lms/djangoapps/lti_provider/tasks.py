@@ -130,21 +130,27 @@ def send_composite_outcome(self, user_id, course_id, assignment_id, version):
         else:
             weighted_score = float(earned) / float(possible)
 
+        request_body = None
         response_body = None
+        lis_outcome_service_url = None
 
         assignment = GradedAssignment.objects.get(id=assignment_id)
         if assignment.version_number == version:
             log_lti('send_composite_outcome_task_send_score', user_id, '', course_id, False, assignment, weighted_score,
                     task_id, version=version)
             response_data = outcomes.send_score_update(assignment, weighted_score)
+            request_body = response_data['request_body']
             response_body = response_data['response_body']
+            lis_outcome_service_url = response_data['lis_outcome_service_url']
 
         log_lti('send_composite_outcome_task_finished', user_id, '', course_id, False, assignment, weighted_score,
-                task_id, response_body, version=version)
+                task_id, response_body, request_body, lis_outcome_service_url, version=version)
     except Exception as exc:
+        request_body = getattr(exc, 'request_body', None)
         response_body = getattr(exc, 'response_body', None)
+        lis_outcome_service_url = getattr(exc, 'lis_outcome_service_url', None)
         log_lti('send_composite_outcome_task_error', user_id, getattr(exc, 'message', repr(exc)), course_id, True,
-                assignment, None, task_id, response_body, version=version)
+                assignment, None, task_id, response_body, request_body, lis_outcome_service_url, version=version)
         countdown = (int(2.71 ** self.request.retries) + 5) * 60
         raise self.retry(exc=exc, countdown=countdown)
 
@@ -174,15 +180,20 @@ def send_leaf_outcome(self, assignment_id, points_earned, points_possible):
                 assignment, weighted_score, task_id, points_earned=points_earned, points_possible=points_possible)
 
         response_data = outcomes.send_score_update(assignment, weighted_score)
+        request_body = response_data['request_body']
         response_body = response_data['response_body']
+        lis_outcome_service_url = response_data['lis_outcome_service_url']
 
         log_lti('send_leaf_outcome_task_finished', assignment.user.id, '', str(assignment.course_key), False,
-                assignment, weighted_score, task_id, response_body,
+                assignment, weighted_score, task_id, response_body, request_body, lis_outcome_service_url,
                 points_earned=points_earned, points_possible=points_possible)
     except Exception as exc:
+        request_body = getattr(exc, 'request_body', None)
         response_body = getattr(exc, 'response_body', None)
+        lis_outcome_service_url = getattr(exc, 'lis_outcome_service_url', None)
         log_lti('send_leaf_outcome_task_error', assignment.user.id, getattr(exc, 'message', repr(exc)),
                 str(assignment.course_key), True, assignment, None, task_id, response_body,
+                request_body, lis_outcome_service_url,
                 points_earned=points_earned, points_possible=points_possible)
         countdown = (int(2.71 ** self.request.retries) + 5) * 60
         raise self.retry(exc=exc, countdown=countdown)

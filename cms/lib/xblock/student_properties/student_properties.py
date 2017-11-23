@@ -2,7 +2,7 @@
 """
 XBlockAside to add student properties to the problem_check event
 """
-import json
+
 from submissions import api as sub_api
 from credo_modules.models import CredoStudentProperties, CredoModulesUserProfile, get_custom_term
 from django.core.exceptions import ObjectDoesNotExist
@@ -59,6 +59,5 @@ class StudentPropertiesAside(XBlockAside):
                 item = get_custom_term(self.runtime.course_id.org)
                 if item:
                     result['enrollment']['term'] = item.term
-
             return {'student_properties': result}
         return None
