@@ -1,14 +1,16 @@
 """
 LTI Provider view functions
 """
-
+import json
 import logging
+import hashlib
 
 from django.conf import settings
-from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden
+from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
+from django.core.cache import caches
 
 from lti_provider.models import LtiConsumer
 from lti_provider.outcomes import store_outcome_parameters
@@ -16,6 +18,7 @@ from lti_provider.signature_validator import SignatureValidator
 from lti_provider.users import authenticate_lti_user
 from openedx.core.lib.url_utils import unquote_slashes
 from student.models import CourseEnrollment
+from student.roles import CourseStaffRole
 from util.views import add_p3p_header
 from credo_modules.models import check_and_save_enrollment_attributes
 from edxmako.shortcuts import render_to_string
@@ -64,7 +67,8 @@ def lti_launch(request, course_id, usage_id):
 
     # Check the LTI parameters, and return 400 if any required parameters are
     # missing
-    params = get_required_parameters(request.POST)
+    params, is_cached = get_params(request)
+    params = get_required_parameters(params)
     return_url = request.POST.get('launch_presentation_return_url', None)
 
     if not params:
@@ -89,7 +93,7 @@ def lti_launch(request, course_id, usage_id):
         params.update(params_strict)
 
     # Check the OAuth signature on the message
-    if not SignatureValidator(lti_consumer).verify(request):
+    if not is_cached and not SignatureValidator(lti_consumer).verify(request):
         return render_response_forbidden(return_url)
 
     # Add the course and usage keys to the parameters array
@@ -105,6 +109,15 @@ def lti_launch(request, course_id, usage_id):
         raise Http404()
     params['course_key'] = course_key
     params['usage_key'] = usage_key
+
+    if not is_cached and not request.META.get('HTTP_COOKIE'):
+        cache = caches['default']
+        json_params = json.dumps(request.POST)
+        params_hash = hashlib.md5(json_params).hexdigest()
+        cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
+        cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
+        template = Template(render_to_string('static_templates/embedded_new_tab.html', {'hash': params_hash}))
+        return HttpResponse(template.render())
 
     # Create an edX account if the user identifed by the LTI launch doesn't have
     # one already, and log the edX account into the platform.
@@ -128,12 +141,14 @@ def lti_launch(request, course_id, usage_id):
     return render_courseware(request, params['usage_key'])
 
 
-def enroll_user_to_course(edx_user, course_key):
+def enroll_user_to_course(edx_user, course_key, roles=None):
     """
     Enrolles the user to the course if he is not already enrolled.
     """
     if course_key is not None and not CourseEnrollment.is_enrolled(edx_user, course_key):
         CourseEnrollment.enroll(edx_user, course_key)
+        if roles:
+            set_user_roles(edx_user, course_key, roles)
         return True
     return False
 
@@ -229,3 +244,26 @@ def render_response_forbidden(return_url):
     """
     template403 = Template(render_to_string('static_templates/403.html', {'return_url': return_url}))
     return HttpResponseForbidden(template403.render())
+
+
+def get_params(request):
+
+    """
+    Getting params from request or from cache
+    :param request: request
+    :return: dictionary of params, flag: from cache or not
+    """
+    if request.GET.get('hash'):
+        cache = caches['default']
+        cached = cache.get(':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, request.GET.get('hash')]))
+        if cached:
+            return json.loads(cached), True
+    return request.POST, False
+
+
+def set_user_roles(edx_user, course_key, roles):
+    # LIS vocabulary for System Role
+    # https://www.imsglobal.org/specs/ltiv1p0/implementation-guide#toc-9
+    external_roles = ['Administrator', 'Instructor', 'Staff']
+    if any(role in roles for role in external_roles):
+        CourseStaffRole(course_key).add_users(edx_user)

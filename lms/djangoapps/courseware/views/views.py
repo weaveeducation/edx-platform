@@ -33,6 +33,7 @@ from opaque_keys.edx.keys import CourseKey, UsageKey
 from pytz import utc
 from rest_framework import status
 from web_fragments.fragment import Fragment
+from mako.template import Template
 
 import shoppingcart
 import survey.utils
@@ -1435,6 +1436,10 @@ def _track_successful_certificate_generation(user_id, course_id):  # pylint: dis
 def render_xblock_course(request, course_id, usage_key_string):
     course_key = CourseKey.from_string(course_id)
     course = modulestore().get_course(course_key, depth=2)
+
+    if not request.GET.get('is_new_tab') and not request.META.get('HTTP_COOKIE'):
+        template = Template(render_to_string('static_templates/embedded_new_tab.html', {'hash': ''}))
+        return HttpResponse(template.render())
 
     if not request.user.is_authenticated():
         if course.credo_authentication:

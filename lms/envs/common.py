@@ -3226,3 +3226,6 @@ COURSES_API_CACHE_TIMEOUT = 3600  # Value is in seconds
 
 ############## Settings for CourseGraph ############################
 COURSEGRAPH_JOB_QUEUE = LOW_PRIORITY_QUEUE
+
+EMBEDDED_CODE_CACHE_TIMEOUT = 60 * 60
+EMBEDDED_CODE_CACHE_PREFIX = "embedded_code"
