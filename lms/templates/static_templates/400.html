@@ -1,0 +1,6 @@
+<h1>BAD REQUEST (400).</h1>
+<h2>Your LMS sent a request that this server could not understand</h2>
+% if context.get('return_url') is not None:
+    <h2><a href=${return_url}>Go Back</a></h2>
+% endif
+
