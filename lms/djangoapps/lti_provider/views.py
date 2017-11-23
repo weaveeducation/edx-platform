@@ -17,6 +17,7 @@ from lti_provider.users import authenticate_lti_user
 from openedx.core.lib.url_utils import unquote_slashes
 from student.models import CourseEnrollment
 from util.views import add_p3p_header
+from credo_modules.models import check_and_save_enrollment_attributes
 
 log = logging.getLogger("edx.lti_provider")
 
@@ -99,8 +100,9 @@ def lti_launch(request, course_id, usage_id):
             lti_params[lti_keys[key]] = params[key]
     authenticate_lti_user(request, params['user_id'], lti_consumer, lti_params)
     if request.user.is_authenticated():
-        enroll_user_to_course(request.user, course_key)
-
+        enroll_result = enroll_user_to_course(request.user, course_key)
+        if enroll_result:
+            check_and_save_enrollment_attributes(request.POST, request.user, course_key)
 
     # Store any parameters required by the outcome service in order to report
     # scores back later. We know that the consumer exists, since the record was
@@ -116,6 +118,8 @@ def enroll_user_to_course(edx_user, course_key):
     """
     if course_key is not None and not CourseEnrollment.is_enrolled(edx_user, course_key):
         CourseEnrollment.enroll(edx_user, course_key)
+        return True
+    return False
 
 
 def get_required_parameters(dictionary, additional_params=None):
