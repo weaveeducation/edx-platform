@@ -18,9 +18,11 @@ log = logging.getLogger("edx.lti_provider")
 
 
 class OutcomeServiceSendScoreError(Exception):
-    def __init__(self, message, response_body):
+    def __init__(self, message, response_body, request_body, lis_outcome_service_url):
         super(OutcomeServiceSendScoreError, self).__init__(message)
         self.response_body = response_body
+        self.request_body = request_body
+        self.lis_outcome_service_url = lis_outcome_service_url
 
 
 def store_outcome_parameters(request_params, user, lti_consumer):
@@ -146,6 +148,8 @@ def send_score_update(assignment, score):
     # necessary.
     if not (response and check_replace_result_response(response)):
         response_body = response.text if response else 'Unknown'
+        log.debug('Outcome service url: %s', assignment.outcome_service.lis_outcome_service_url)
+        log.debug('Request body: %s', xml)
         log.debug('Response body: %s', response_body)
         error_msg = "Outcome Service: Failed to update score on LTI consumer. " \
                     "User: %s, course: %s, usage: %s, score: %s, url: %s, status: %s" %\
@@ -153,9 +157,14 @@ def send_score_update(assignment, score):
                      assignment.outcome_service.lis_outcome_service_url,
                      response)
         log.error(error_msg, exc_info=True)
-        raise OutcomeServiceSendScoreError(error_msg, response_body)
+        raise OutcomeServiceSendScoreError(error_msg, response_body, xml,
+                                           assignment.outcome_service.lis_outcome_service_url)
 
-    return {'response_body': response.text if response else 'Unknown'}
+    return {
+        'request_body': xml,
+        'response_body': response.text if response else 'Unknown',
+        'lis_outcome_service_url': assignment.outcome_service.lis_outcome_service_url
+    }
 
 
 def sign_and_send_replace_result(assignment, xml):
