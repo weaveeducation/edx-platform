@@ -1500,7 +1500,12 @@ class DescriptorSystem(MetricsMixin, ConfigurableFragmentWrapper, Runtime):
         """
         See :meth:`xblock.runtime.Runtime:applicable_aside_types` for documentation.
         """
-        potential_set = set(super(DescriptorSystem, self).applicable_aside_types(block))
+        lst = super(DescriptorSystem, self).applicable_aside_types(block)
+        if block.scope_ids.block_type == 'problem' and 'tagging_ora_aside' in lst:
+            lst.remove('tagging_ora_aside')
+        if block.scope_ids.block_type == 'openassessment' and 'tagging_aside' in lst:
+            lst.remove('tagging_aside')
+        potential_set = set(lst)
         if getattr(block, 'xmodule_runtime', None) is not None:
             if hasattr(block.xmodule_runtime, 'applicable_aside_types'):
                 application_set = set(block.xmodule_runtime.applicable_aside_types(block))
