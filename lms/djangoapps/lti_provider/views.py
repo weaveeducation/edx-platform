@@ -69,7 +69,7 @@ def lti_launch(request, course_id, usage_id):
     # missing
     request_params, is_cached = get_params(request)
     params = get_required_parameters(request_params)
-    return_url = request.POST.get('launch_presentation_return_url', None)
+    return_url = request_params.get('launch_presentation_return_url', None)
 
     if not params:
         return render_bad_request(return_url)
@@ -131,7 +131,7 @@ def lti_launch(request, course_id, usage_id):
         roles = params.get('roles', None) if lti_consumer.allow_to_add_instructors_via_lti else None
         enroll_result = enroll_user_to_course(request.user, course_key, roles)
         if enroll_result:
-            check_and_save_enrollment_attributes(request.POST, request.user, course_key)
+            check_and_save_enrollment_attributes(request_params, request.user, course_key)
 
     # Store any parameters required by the outcome service in order to report
     # scores back later. We know that the consumer exists, since the record was
