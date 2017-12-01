@@ -67,13 +67,13 @@ def lti_launch(request, course_id, usage_id):
 
     # Check the LTI parameters, and return 400 if any required parameters are
     # missing
-    params, is_cached = get_params(request)
-    params = get_required_parameters(params)
+    request_params, is_cached = get_params(request)
+    params = get_required_parameters(request_params)
     return_url = request.POST.get('launch_presentation_return_url', None)
 
     if not params:
         return render_bad_request(return_url)
-    params.update(get_optional_parameters(request.POST))
+    params.update(get_optional_parameters(request_params))
 
     # Get the consumer information from either the instance GUID or the consumer
     # key
@@ -86,7 +86,7 @@ def lti_launch(request, course_id, usage_id):
         return render_response_forbidden(return_url)
 
     if lti_consumer.lti_strict_mode:
-        params_strict = get_required_strict_parameters(request.POST)
+        params_strict = get_required_strict_parameters(request_params)
         if not params_strict or params_strict['lti_version'] != 'LTI-1p0' \
                 or params_strict['lti_message_type'] != 'basic-lti-launch-request':
             return render_bad_request(return_url)
