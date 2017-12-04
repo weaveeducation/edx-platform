@@ -15,7 +15,7 @@ from edxmako.shortcuts import render_to_string
 from lti_provider.outcomes import store_outcome_parameters
 from lti_provider.models import LtiConsumer
 from lti_provider.signature_validator import SignatureValidator
-from lti_provider.users import authenticate_lti_user
+from lti_provider.users import authenticate_lti_user, update_lti_user_data
 from mako.template import Template
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys import InvalidKeyError
@@ -137,6 +137,7 @@ def lti_launch(request, course_id, usage_id):
     # scores back later. We know that the consumer exists, since the record was
     # used earlier to verify the oauth signature.
     store_outcome_parameters(params, request.user, lti_consumer)
+    update_lti_user_data(request.user, lti_params['email'])
 
     return render_courseware(request, params['usage_key'])
 
