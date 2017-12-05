@@ -137,7 +137,8 @@ def lti_launch(request, course_id, usage_id):
     # scores back later. We know that the consumer exists, since the record was
     # used earlier to verify the oauth signature.
     store_outcome_parameters(params, request.user, lti_consumer)
-    update_lti_user_data(request.user, lti_params['email'])
+    if lti_params and 'email' in lti_params:
+        update_lti_user_data(request.user, lti_params['email'])
 
     return render_courseware(request, params['usage_key'])
 
