@@ -78,7 +78,7 @@ def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
                     edx_username = cut_to_max_len(lti_params['email'], USERNAME_DB_FIELD_SIZE)
                     try:
                         #if the user with such username or email already exists then use the random username
-                        edx_user = User.objects.get(Q(username=edx_username)|Q(email=edx_username))
+                        edx_user = User.objects.get(Q(username=edx_username)|Q(email=edx_email))
                         edx_username = generate_random_edx_username()
                         edx_email = "{}@{}".format(edx_username, settings.LTI_USER_EMAIL_DOMAIN)
                     except User.DoesNotExist:
@@ -202,13 +202,16 @@ class LtiBackend(object):
 def update_lti_user_data(user, lti_email):
     edx_email = cut_to_max_len(lti_email, EMAIL_DB_FIELD_SIZE)
     edx_username = cut_to_max_len(lti_email, USERNAME_DB_FIELD_SIZE)
-    
-    updated = False
-    if user.email != edx_email:
-        updated = True
-        user.email = edx_email
-    if user.username != edx_username:
-        updated = True
-        user.username = edx_username
-    if updated:
-        user.save()
+    if user.email != edx_email or user.username != edx_username:
+        try:
+            edx_user = User.objects.get(Q(username=edx_username)|Q(email=edx_email))
+        except User.DoesNotExist:
+            updated = False
+            if user.email != edx_email:
+                updated = True
+                user.email = edx_email
+            if user.username != edx_username:
+                updated = True
+                user.username = edx_username
+            if updated:
+                user.save()
