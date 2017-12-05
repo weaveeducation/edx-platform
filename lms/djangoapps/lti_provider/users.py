@@ -198,3 +198,21 @@ class LtiBackend(object):
             return User.objects.get(id=user_id)
         except User.DoesNotExist:
             return None
+
+
+def update_lti_user_data(user, lti_email):
+    edx_email = cut_to_max_len(lti_email, EMAIL_DB_FIELD_SIZE)
+    edx_username = cut_to_max_len(lti_email, USERNAME_DB_FIELD_SIZE)
+    if user.email != edx_email or user.username != edx_username:
+        try:
+            _ = User.objects.get(Q(username=edx_username)|Q(email=edx_email))
+        except User.DoesNotExist:
+            updated = False
+            if user.email != edx_email:
+                updated = True
+                user.email = edx_email
+            if user.username != edx_username:
+                updated = True
+                user.username = edx_username
+            if updated:
+                user.save()

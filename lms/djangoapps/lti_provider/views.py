@@ -15,7 +15,7 @@ from django.core.cache import caches
 from lti_provider.models import LtiConsumer
 from lti_provider.outcomes import store_outcome_parameters
 from lti_provider.signature_validator import SignatureValidator
-from lti_provider.users import authenticate_lti_user
+from lti_provider.users import authenticate_lti_user, update_lti_user_data
 from openedx.core.lib.url_utils import unquote_slashes
 from student.models import CourseEnrollment
 from student.roles import CourseStaffRole
@@ -67,13 +67,13 @@ def lti_launch(request, course_id, usage_id):
 
     # Check the LTI parameters, and return 400 if any required parameters are
     # missing
-    params, is_cached = get_params(request)
-    params = get_required_parameters(params)
-    return_url = request.POST.get('launch_presentation_return_url', None)
+    request_params, is_cached = get_params(request)
+    params = get_required_parameters(request_params)
+    return_url = request_params.get('launch_presentation_return_url', None)
 
     if not params:
         return render_bad_request(return_url)
-    params.update(get_optional_parameters(request.POST))
+    params.update(get_optional_parameters(request_params))
 
     # Get the consumer information from either the instance GUID or the consumer
     # key
@@ -86,7 +86,7 @@ def lti_launch(request, course_id, usage_id):
         return render_response_forbidden(return_url)
 
     if lti_consumer.lti_strict_mode:
-        params_strict = get_required_strict_parameters(request.POST)
+        params_strict = get_required_strict_parameters(request_params)
         if not params_strict or params_strict['lti_version'] != 'LTI-1p0' \
                 or params_strict['lti_message_type'] != 'basic-lti-launch-request':
             return render_bad_request(return_url)
@@ -131,12 +131,13 @@ def lti_launch(request, course_id, usage_id):
         roles = params.get('roles', None) if lti_consumer.allow_to_add_instructors_via_lti else None
         enroll_result = enroll_user_to_course(request.user, course_key, roles)
         if enroll_result:
-            check_and_save_enrollment_attributes(request.POST, request.user, course_key)
+            check_and_save_enrollment_attributes(request_params, request.user, course_key)
 
     # Store any parameters required by the outcome service in order to report
     # scores back later. We know that the consumer exists, since the record was
     # used earlier to verify the oauth signature.
     store_outcome_parameters(params, request.user, lti_consumer)
+    update_lti_user_data(request.user, lti_params['email'])
 
     return render_courseware(request, params['usage_key'])
 
