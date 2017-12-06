@@ -26,7 +26,7 @@ class CourseUsageMiddleware(object):
         path = request.path
         path_data = path.split('/')
 
-        if request.user.is_authenticated() and len(path_data) > 2:
+        if hasattr(request, 'user') and request.user.is_authenticated() and len(path_data) > 2:
             course_id = path_data[2]
 
             course_usage_cookie = request.COOKIES.get(self.course_usage_cookie, '{}')
