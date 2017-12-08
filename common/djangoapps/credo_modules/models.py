@@ -185,3 +185,11 @@ def add_custom_term_student_property_on_enrollment(sender, event=None, user=None
         item = get_custom_term(course_id.org)
         if item:
             save_custom_term_student_property(item.term, user, course_id)
+
+
+class CourseUsage(models.Model):
+    user = models.ForeignKey(User)
+    course_id = CourseKeyField(max_length=255, db_index=True, null=True, blank=True)
+    usage_count = models.IntegerField(null=True)
+    first_usage_time = models.DateTimeField(verbose_name='First Usage Time', null=True, blank=True)
+    last_usage_time = models.DateTimeField(verbose_name='Last Usage Time', null=True, blank=True)
