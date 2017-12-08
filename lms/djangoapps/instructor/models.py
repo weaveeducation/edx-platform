@@ -19,6 +19,7 @@ class InstructorAvailableSections(models.Model):
     show_certificates = models.BooleanField(default=True, verbose_name='Show "Certificates" section')
     show_studio_link = models.BooleanField(default=True, verbose_name='Show "View In Studio" link')
     show_open_responses = models.BooleanField(default=True, verbose_name='Show "Open responses" section')
+    show_lti_constructor = models.BooleanField(default=True, verbose_name='Show "Link Constructor" section')
 
     class Meta:
         verbose_name = 'Instructor dashboard available sections'
