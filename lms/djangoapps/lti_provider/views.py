@@ -132,13 +132,13 @@ def lti_launch(request, course_id, usage_id):
         enroll_result = enroll_user_to_course(request.user, course_key, roles)
         if enroll_result:
             check_and_save_enrollment_attributes(request_params, request.user, course_key)
+        if lti_params and 'email' in lti_params:
+            update_lti_user_data(request.user, lti_params['email'])
 
     # Store any parameters required by the outcome service in order to report
     # scores back later. We know that the consumer exists, since the record was
     # used earlier to verify the oauth signature.
     store_outcome_parameters(params, request.user, lti_consumer)
-    if lti_params and 'email' in lti_params:
-        update_lti_user_data(request.user, lti_params['email'])
 
     return render_courseware(request, params['usage_key'])
 
