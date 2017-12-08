@@ -12,7 +12,8 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
-from django.db import IntegrityError, transaction
+from django.db import transaction
+
 from lti_provider.models import LtiUser
 from student.models import UserProfile
 
@@ -20,7 +21,7 @@ from student.models import UserProfile
 USERNAME_DB_FIELD_SIZE = 30
 FIRST_NAME_DB_FIELD_SIZE = 30
 LAST_NAME_DB_FIELD_SIZE = 30
-EMAIL_DB_FIELD_SIZE = 75
+EMAIL_DB_FIELD_SIZE = 254
 
 
 def authenticate_lti_user(request, lti_user_id, lti_consumer, lti_params=None):
@@ -59,6 +60,28 @@ def cut_to_max_len(text, max_len):
         return text[:max_len]
 
 
+def get_new_email_and_username(existing_email, existing_username):
+    i = 1
+    existing_username = existing_username[0:USERNAME_DB_FIELD_SIZE-3]
+    existing_email = existing_email[0:EMAIL_DB_FIELD_SIZE-3]
+    while True:
+        new_username = existing_username + str(i)
+        new_email = existing_email + str(i)
+        try:
+            _ = User.objects.get(Q(username=new_username)|Q(email=new_email))
+            i = i + 1
+        except User.DoesNotExist:
+            return new_username, new_email
+
+
+def _create_edx_user(email, username, password):
+    return User.objects.create_user(
+        username=username,
+        password=password,
+        email=email
+    )
+
+
 def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
     """
     Generate a new user on the edX platform with a random username and password,
@@ -68,61 +91,54 @@ def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
         lti_params = {}
     edx_password = str(uuid.uuid4())
     edx_user = None
+    new_user_created = False
 
-    created = False
-    while not created:
-        try:
-            with transaction.atomic():
-                if 'email' in lti_params:
-                    edx_email = cut_to_max_len(lti_params['email'], EMAIL_DB_FIELD_SIZE)
-                    edx_username = cut_to_max_len(lti_params['email'], USERNAME_DB_FIELD_SIZE)
-                    try:
-                        #if the user with such username or email already exists then use the random username
-                        edx_user = User.objects.get(Q(username=edx_username)|Q(email=edx_email))
-                        edx_username = generate_random_edx_username()
-                        edx_email = "{}@{}".format(edx_username, settings.LTI_USER_EMAIL_DOMAIN)
-                    except User.DoesNotExist:
-                        pass
-                else:
-                    edx_username = generate_random_edx_username()
-                    edx_email = "{}@{}".format(edx_username, settings.LTI_USER_EMAIL_DOMAIN)
-
+    with transaction.atomic():
+        if 'email' in lti_params:
+            edx_email = lti_params['email'][0:EMAIL_DB_FIELD_SIZE]
+            edx_username = lti_params['email'].split('@')[0][0:USERNAME_DB_FIELD_SIZE]
+            try:
+                edx_user = User.objects.get(Q(username=edx_username)|Q(email=edx_email))
                 try:
-                    _ = User.objects.get(email=edx_email)
-                    edx_email = "{}@{}".format(generate_random_edx_username(), settings.LTI_USER_EMAIL_DOMAIN)
-                except User.DoesNotExist:
+                    _ = LtiUser.objects.get(edx_user_id=edx_user.id)
+                    new_email, new_username = get_new_email_and_username(edx_user.email, edx_user.username)
+                    edx_user = _create_edx_user(new_email, new_username, edx_password)
+                    new_user_created = True
+                except LtiUser.DoesNotExist:
                     pass
+            except User.DoesNotExist:
+                edx_user = _create_edx_user(edx_email, edx_username, edx_password)
+                new_user_created = True
+        else:
+            while not new_user_created:
+                new_username = generate_random_edx_username()
+                new_email = "{}@{}".format(new_username, settings.LTI_USER_EMAIL_DOMAIN)
+                try:
+                    _ = User.objects.get(Q(username=new_username)|Q(email=new_email))
+                except User.DoesNotExist:
+                    edx_user = _create_edx_user(new_email, new_username, edx_password)
+                    new_user_created = True
 
-                edx_user = User.objects.create_user(
-                    username=edx_username,
-                    password=edx_password,
-                    email=edx_email,
-                )
+        if new_user_created and edx_user is not None:
+            if 'first_name' in lti_params:
+                edx_user.first_name = cut_to_max_len(lti_params['first_name'], FIRST_NAME_DB_FIELD_SIZE)
+            if 'last_name' in lti_params:
+                edx_user.last_name = cut_to_max_len(lti_params['last_name'], LAST_NAME_DB_FIELD_SIZE)
+                edx_user.save()
 
-                if edx_user is not None:
-                    if 'first_name' in lti_params:
-                        edx_user.first_name = cut_to_max_len(lti_params['first_name'], FIRST_NAME_DB_FIELD_SIZE)
-                    if 'last_name' in lti_params:
-                        edx_user.last_name = cut_to_max_len(lti_params['last_name'], LAST_NAME_DB_FIELD_SIZE)
-                        edx_user.save()
+            # A profile is required if PREVENT_CONCURRENT_LOGINS flag is set.
+            # TODO: We could populate user information from the LTI launch here,
+            # but it's not necessary for our current uses.
+            edx_user_profile = UserProfile(user=edx_user)
+            edx_user_profile.save()
 
-                # A profile is required if PREVENT_CONCURRENT_LOGINS flag is set.
-                # TODO: We could populate user information from the LTI launch here,
-                # but it's not necessary for our current uses.
-                edx_user_profile = UserProfile(user=edx_user)
-                edx_user_profile.save()
-            created = True
-        except IntegrityError:
-            # The random edx_user_id wasn't unique. Since 'created' is still
-            # False, we will retry with a different random ID.
-            pass
+        lti_user = LtiUser(
+            lti_consumer=lti_consumer,
+            lti_user_id=lti_user_id,
+            edx_user=edx_user
+        )
+        lti_user.save()
 
-    lti_user = LtiUser(
-        lti_consumer=lti_consumer,
-        lti_user_id=lti_user_id,
-        edx_user=edx_user
-    )
-    lti_user.save()
     return lti_user
 
 
@@ -197,14 +213,15 @@ class LtiBackend(object):
             return User.objects.get(id=user_id)
         except User.DoesNotExist:
             return None
-        
-        
+
+
 def update_lti_user_data(user, lti_email):
-    edx_email = cut_to_max_len(lti_email, EMAIL_DB_FIELD_SIZE)
-    edx_username = cut_to_max_len(lti_email, USERNAME_DB_FIELD_SIZE)
-    if user.email != edx_email or user.username != edx_username:
+    edx_email = lti_email[0:EMAIL_DB_FIELD_SIZE]
+
+    if user.email != edx_email:
+        edx_username = lti_email.split('@')[0][0:USERNAME_DB_FIELD_SIZE]
         try:
-            edx_user = User.objects.get(Q(username=edx_username)|Q(email=edx_email))
+            _ = User.objects.get(Q(username=edx_username)|Q(email=edx_email))
         except User.DoesNotExist:
             updated = False
             if user.email != edx_email:
