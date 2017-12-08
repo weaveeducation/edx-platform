@@ -220,9 +220,8 @@ def update_lti_user_data(user, lti_email):
 
     if user.email != edx_email:
         edx_username = lti_email.split('@')[0][0:USERNAME_DB_FIELD_SIZE]
-        try:
-            _ = User.objects.get(Q(username=edx_username)|Q(email=edx_email))
-        except User.DoesNotExist:
+        users = User.objects.filter(Q(username=edx_username)|Q(email=edx_email))
+        if not users:
             updated = False
             if user.email != edx_email:
                 updated = True
