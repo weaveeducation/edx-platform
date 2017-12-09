@@ -1258,6 +1258,9 @@ def _track_successful_certificate_generation(user_id, course_id):  # pylint: dis
 def render_xblock_course(request, course_id, usage_key_string):
     course_key = CourseKey.from_string(course_id)
     course = modulestore().get_course(course_key, depth=2)
+    
+    if not course:
+        raise Http404(u"No course at this location: {0}".format(course_id))
 
     if not request.GET.get('is_new_tab') and not request.META.get('HTTP_COOKIE'):
         template = Template(render_to_string('static_templates/embedded_new_tab.html', {'hash': ''}))
