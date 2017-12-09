@@ -37,6 +37,7 @@ from openedx.core.lib.time_zone_utils import TIME_ZONE_CHOICES
 from openedx.features.enterprise_support.api import enterprise_customer_for_request
 from student.helpers import destroy_oauth_tokens, get_next_url_for_login_page
 from opaque_keys.edx.keys import CourseKey
+from opaque_keys import InvalidKeyError
 from student.models import UserProfile
 from student.views import register_user as old_register_view
 from student.views import signin_user as old_login_view
@@ -77,7 +78,10 @@ def login_and_registration_form(request, initial_mode="login"):
     if redirect_to.startswith('/courses'):
         redirect_parts = [redirect_part for redirect_part in redirect_to.split('/') if redirect_part]
         if len(redirect_parts) > 1:
-            course_key = CourseKey.from_string(redirect_parts[1])
+            try:
+                course_key = CourseKey.from_string(redirect_parts[1])
+            except InvalidKeyError:
+                return HttpResponseBadRequest(_("Invalid course id."))
             course = get_course(course_key)
             if course.credo_authentication:
                 credo_auth = validate_credo_access(request)
