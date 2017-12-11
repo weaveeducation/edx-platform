@@ -18,7 +18,7 @@ def available_sections_bulk_action(field, is_set):
 class InstructorAvailableSectionsAdmin(ForeignKeyAutocompleteAdmin):
     bulk_fields_names = ['show_course_info', 'show_membership', 'show_cohort', 'show_student_admin',
                          'show_data_download', 'show_email', 'show_analytics', 'show_studio_link',
-                         'show_open_responses']
+                         'show_open_responses', 'show_lti_constructor']
 
     list_display = ['user'] + bulk_fields_names
 

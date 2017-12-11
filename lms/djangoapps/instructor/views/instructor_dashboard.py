@@ -211,6 +211,9 @@ def instructor_dashboard_2(request, course_id):
         if len(openassessment_blocks) > 0:
             sections.append(_section_open_response_assessment(request, course, openassessment_blocks, access))
 
+    if available_tabs.show_lti_constructor:
+        sections.append(_section_lti_constructor(request, course))
+
     disable_buttons = not _is_small_course(course_key)
 
     certificate_white_list = CertificateWhitelist.get_certificate_white_list(course_key)
@@ -776,6 +779,17 @@ def _section_open_response_assessment(request, course, openassessment_blocks, ac
         'course_id': unicode(course_key),
     }
     return section_data
+
+
+def _section_lti_constructor(request, course):
+    section_data = {
+        'section_key': 'lti_constructor',
+        'section_display_name': _('Link Constructor'),
+        'course_id': unicode(course.id),
+        'constructor_url': settings.CONSTRUCTOR_LINK
+    }
+    return section_data
+
 
 
 def is_ecommerce_course(course_key):
