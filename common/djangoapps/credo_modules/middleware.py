@@ -2,6 +2,7 @@ import json
 import datetime
 from credo.auth_helper import get_request_referer_from_other_domain, get_saved_referer, save_referer
 from credo_modules.models import CourseUsage
+from django.db import IntegrityError
 from django.db.models import F
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
@@ -41,18 +42,27 @@ class CourseUsageMiddleware(object):
                     course_key = CourseKey.from_string(course_id)
                     course_usage_cookie_dict[course_id] = 1
                     response.set_cookie(self.course_usage_cookie, json.dumps(course_usage_cookie_dict))
-                    obj, created = CourseUsage.objects.get_or_create(
-                        course_id=course_key,
-                        user_id=request.user.id,
-                        defaults={
-                            'usage_count': 1,
-                            'first_usage_time': datetime_now,
-                            'last_usage_time': datetime_now
-                        }
-                    )
-                    if not created:
-                        CourseUsage.objects.filter(course_id=course_key, user_id=request.user.id)\
+
+                    try:
+                        CourseUsage.objects.get(
+                            course_id=course_key,
+                            user_id=request.user.id,
+                        )
+                        CourseUsage.objects.filter(course_id=course_key, user_id=request.user.id) \
                             .update(last_usage_time=datetime_now, usage_count=F('usage_count') + 1)
+                    except CourseUsage.DoesNotExist:
+                        try:
+                            cu = CourseUsage(
+                                course_id=course_key,
+                                user_id=request.user.id,
+                                usage_count=1,
+                                first_usage_time=datetime_now,
+                                last_usage_time=datetime_now
+                            )
+                            cu.save()
+                        except IntegrityError:
+                            CourseUsage.objects.filter(course_id=course_key, user_id=request.user.id) \
+                                .update(last_usage_time=datetime_now, usage_count=F('usage_count') + 1)
                 except InvalidKeyError:
                     pass
 
