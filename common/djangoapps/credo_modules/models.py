@@ -193,3 +193,7 @@ class CourseUsage(models.Model):
     usage_count = models.IntegerField(null=True)
     first_usage_time = models.DateTimeField(verbose_name='First Usage Time', null=True, blank=True)
     last_usage_time = models.DateTimeField(verbose_name='Last Usage Time', null=True, blank=True)
+
+    class Meta:
+        unique_together = (('user', 'course_id'),)
+
