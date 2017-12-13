@@ -94,9 +94,10 @@ def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
     new_user_created = False
 
     with transaction.atomic():
-        if 'email' in lti_params:
-            edx_email = lti_params['email'][0:EMAIL_DB_FIELD_SIZE]
-            edx_username = lti_params['email'].split('@')[0][0:USERNAME_DB_FIELD_SIZE]
+        if 'email' in lti_params and lti_params['email'].strip():
+            lti_params_email = lti_params['email'].strip()
+            edx_email = lti_params_email[0:EMAIL_DB_FIELD_SIZE]
+            edx_username = lti_params_email.split('@')[0][0:USERNAME_DB_FIELD_SIZE].strip()
             try:
                 edx_user = User.objects.get(Q(username=edx_username)|Q(email=edx_email))
                 try:
@@ -121,9 +122,9 @@ def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
 
         if new_user_created and edx_user is not None:
             if 'first_name' in lti_params:
-                edx_user.first_name = cut_to_max_len(lti_params['first_name'], FIRST_NAME_DB_FIELD_SIZE)
+                edx_user.first_name = cut_to_max_len(lti_params['first_name'].strip(), FIRST_NAME_DB_FIELD_SIZE)
             if 'last_name' in lti_params:
-                edx_user.last_name = cut_to_max_len(lti_params['last_name'], LAST_NAME_DB_FIELD_SIZE)
+                edx_user.last_name = cut_to_max_len(lti_params['last_name'].strip(), LAST_NAME_DB_FIELD_SIZE)
                 edx_user.save()
 
             # A profile is required if PREVENT_CONCURRENT_LOGINS flag is set.
@@ -216,9 +217,10 @@ class LtiBackend(object):
 
 
 def update_lti_user_data(user, lti_email):
+    lti_email = lti_email.strip()
     edx_email = lti_email[0:EMAIL_DB_FIELD_SIZE]
 
-    if user.email != edx_email:
+    if edx_email and user.email != edx_email:
         edx_username = lti_email.split('@')[0][0:USERNAME_DB_FIELD_SIZE]
         users = User.objects.filter(Q(username=edx_username)|Q(email=edx_email))
         if not users:
