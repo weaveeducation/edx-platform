@@ -1,7 +1,7 @@
 """
 Instructor Dashboard Views
 """
-
+import hashlib
 import datetime
 import logging
 import uuid
@@ -786,10 +786,10 @@ def _section_lti_constructor(request, course):
         'section_key': 'lti_constructor',
         'section_display_name': _('Link Constructor'),
         'course_id': unicode(course.id),
-        'constructor_url': settings.CONSTRUCTOR_LINK
+        'constructor_url': settings.CONSTRUCTOR_LINK,
+        'course_id_hash': hashlib.md5(unicode(course.id) + u'_credo_lti_constructor').hexdigest()
     }
     return section_data
-
 
 
 def is_ecommerce_course(course_key):
