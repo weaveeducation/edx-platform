@@ -1440,8 +1440,15 @@ def render_xblock_course(request, course_id, usage_key_string):
     if not course:
         raise Http404("Course not found")
 
-    if not request.GET.get('is_new_tab') and not request.META.get('HTTP_COOKIE'):
-        template = Template(render_to_string('static_templates/embedded_new_tab.html', {'hash': ''}))
+    if not request.GET.get('process_request') and not request.META.get('HTTP_COOKIE'):
+        template = Template(render_to_string('static_templates/embedded_new_tab.html', {
+            'disable_accordion': True,
+            'allow_iframing': True,
+            'disable_header': True,
+            'disable_footer': True,
+            'disable_window_wrap': True,
+            'hash': ''
+        }))
         return HttpResponse(template.render())
 
     if not request.user.is_authenticated():
@@ -1460,6 +1467,12 @@ def render_xblock_course(request, course_id, usage_key_string):
         return show_student_profile_form(request, course, True)
 
     return render_xblock(request, usage_key_string)
+
+
+@require_http_methods(["GET"])
+def cookie_check(request):
+    cookie_sent = True if request.META.get('HTTP_COOKIE') else False
+    return HttpResponse(json.dumps({'cookie_sent': cookie_sent}), content_type='application/json')
 
 
 @require_http_methods(["GET", "POST"])
