@@ -102,7 +102,7 @@ def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
                 edx_user = User.objects.get(Q(username=edx_username)|Q(email=edx_email))
                 try:
                     _ = LtiUser.objects.get(edx_user_id=edx_user.id)
-                    new_email, new_username = get_new_email_and_username(edx_user.email, edx_user.username)
+                    new_username, new_email = get_new_email_and_username(edx_user.email, edx_user.username)
                     edx_user = _create_edx_user(new_email, new_username, edx_password)
                     new_user_created = True
                 except LtiUser.DoesNotExist:
