@@ -3,10 +3,20 @@ Course API Views
 """
 
 from django.core.exceptions import ValidationError
+from edx_rest_framework_extensions.authentication import JwtAuthentication
 from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from util.disable_rate_limit import can_disable_rate_limit
 
 from openedx.core.lib.api.paginators import NamespacedPageNumberPagination
 from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin, view_auth_classes
+from openedx.core.lib.api.authentication import OAuth2AuthenticationAllowInactiveUser
+from openedx.core.lib.api.permissions import ApiKeyHeaderPermissionIsAuthenticated
+from opaque_keys.edx.keys import CourseKey
+
+from oauth2_handler.handlers import CourseAccessHandler
+from credo_modules.models import Organization
 
 from .api import course_detail, list_courses
 from .forms import CourseDetailGetForm, CourseListGetForm
@@ -207,3 +217,30 @@ class CourseListView(DeveloperErrorViewMixin, ListAPIView):
             org=form.cleaned_data['org'],
             filter_=form.cleaned_data['filter_'],
         )
+
+
+@can_disable_rate_limit
+class CustomerInfoView(APIView):
+    authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
+    permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
+
+    def get(self, request):
+        data = []
+        user_info_type = ['courseware', 'skill', 'modules']
+        handler = CourseAccessHandler()
+        courses = handler.claim_staff_courses({
+            'user': request.user,
+            'values': None
+        })
+        if courses:
+            org_list = [CourseKey.from_string(course).org for course in courses]
+            data = Organization.objects.filter(org__in=org_list)
+            if data and len(org_list) == len(data):
+                user_info_type = []
+                if any([v.is_courseware_customer for v in data]):
+                    user_info_type.append('courseware')
+                if any([v.is_skill_customer for v in data]):
+                    user_info_type.append('skill')
+                if any([v.is_modules_customer for v in data]):
+                    user_info_type.append('modules')
+        return Response({'user_info_type': user_info_type, 'details': [v.to_dict() for v in data]})
