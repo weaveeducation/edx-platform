@@ -196,3 +196,18 @@ class CourseUsage(models.Model):
 
     class Meta:
         unique_together = (('user', 'course_id'),)
+
+
+class Organization(models.Model):
+    org = models.CharField(max_length=255, verbose_name='Org', unique=True)
+    is_courseware_customer = models.BooleanField(default=False, verbose_name='Courseware customer')
+    is_skill_customer = models.BooleanField(default=False, verbose_name='SKILL customer')
+    is_modules_customer = models.BooleanField(default=False, verbose_name='Modules customer')
+
+    def to_dict(self):
+        return {
+            'org': self.org,
+            'is_courseware_customer': self.is_courseware_customer,
+            'is_skill_customer': self.is_skill_customer,
+            'is_modules_customer': self.is_modules_customer,
+        }
