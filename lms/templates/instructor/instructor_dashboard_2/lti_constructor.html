@@ -1,7 +1,7 @@
 <%page args="section_data" expression_filter="h"/>
 <br/>
 <section class="lti-constructor">
-<iframe src="${section_data['constructor_url']}/embedded/courses/${section_data['course_id_hash']}/${section_data['course_id']}/sequentials/?hide_header=1"
+<iframe src="${section_data['constructor_url']}/embedded/courses/${section_data['course_id_hash']}/${section_data['course_id']}/sequentials/?hide_header=1&customer_info=${section_data['customer_info']}"
         width="100%"
         height="500px"
         frameBorder="0"

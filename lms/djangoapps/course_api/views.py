@@ -219,28 +219,32 @@ class CourseListView(DeveloperErrorViewMixin, ListAPIView):
         )
 
 
+def get_customer_info(user):
+    data = []
+    user_info_type = ['courseware', 'skill', 'modules']
+    handler = CourseAccessHandler()
+    courses = handler.claim_staff_courses({
+        'user': user,
+        'values': None
+    })
+    if courses:
+        org_list = [CourseKey.from_string(course).org for course in courses]
+        data = Organization.objects.filter(org__in=org_list)
+        if data and len(org_list) == len(data):
+            user_info_type = []
+            if any([v.is_courseware_customer for v in data]):
+                user_info_type.append('courseware')
+            if any([v.is_skill_customer for v in data]):
+                user_info_type.append('skill')
+            if any([v.is_modules_customer for v in data]):
+                user_info_type.append('modules')
+    return {'user_info_type': user_info_type, 'details': [v.to_dict() for v in data]}
+
+
 @can_disable_rate_limit
 class CustomerInfoView(APIView):
     authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
     permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
 
     def get(self, request):
-        data = []
-        user_info_type = ['courseware', 'skill', 'modules']
-        handler = CourseAccessHandler()
-        courses = handler.claim_staff_courses({
-            'user': request.user,
-            'values': None
-        })
-        if courses:
-            org_list = [CourseKey.from_string(course).org for course in courses]
-            data = Organization.objects.filter(org__in=org_list)
-            if data and len(org_list) == len(data):
-                user_info_type = []
-                if any([v.is_courseware_customer for v in data]):
-                    user_info_type.append('courseware')
-                if any([v.is_skill_customer for v in data]):
-                    user_info_type.append('skill')
-                if any([v.is_modules_customer for v in data]):
-                    user_info_type.append('modules')
-        return Response({'user_info_type': user_info_type, 'details': [v.to_dict() for v in data]})
+        return Response(get_customer_info(request.user))
