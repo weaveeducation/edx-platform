@@ -5,6 +5,8 @@ import hashlib
 import datetime
 import logging
 import uuid
+import json
+import urllib
 
 import pytz
 from django.conf import settings
@@ -56,6 +58,7 @@ from util.json_request import JsonResponse
 from xmodule.html_module import HtmlDescriptor
 from xmodule.modulestore.django import modulestore
 from xmodule.tabs import CourseTab
+from course_api.views import get_customer_info
 
 from .tools import get_units_with_due_date, title_or_url
 
@@ -782,12 +785,14 @@ def _section_open_response_assessment(request, course, openassessment_blocks, ac
 
 
 def _section_lti_constructor(request, course):
+    customer_info = get_customer_info(request.user)
     section_data = {
         'section_key': 'lti_constructor',
         'section_display_name': _('Link Constructor'),
         'course_id': unicode(course.id),
         'constructor_url': settings.CONSTRUCTOR_LINK,
-        'course_id_hash': hashlib.md5(unicode(course.id) + u'_credo_lti_constructor').hexdigest()
+        'course_id_hash': hashlib.md5(unicode(course.id) + u'_credo_lti_constructor').hexdigest(),
+        'customer_info': urllib.quote_plus(json.dumps(customer_info['user_info_type']))
     }
     return section_data
 
