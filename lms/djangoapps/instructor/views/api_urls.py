@@ -41,6 +41,10 @@ urlpatterns = patterns(
         'lms.djangoapps.instructor.views.api.get_student_progress_url', name="get_student_progress_url"),
     url(r'^reset_student_attempts$',
         'lms.djangoapps.instructor.views.api.reset_student_attempts', name="reset_student_attempts"),
+    url(r'^reset_progress_student$',
+        'lms.djangoapps.instructor.views.api.reset_progress_student', name="reset_progress_student"),
+    url(r'^list_reset_progress_tasks$',
+        'lms.djangoapps.instructor.views.api.list_reset_progress_tasks', name="list_reset_progress_tasks"),
     url(
         r'^rescore_problem$',
         'lms.djangoapps.instructor.views.api.rescore_problem',
