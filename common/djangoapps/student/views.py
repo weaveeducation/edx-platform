@@ -2959,14 +2959,13 @@ def validate_credo_access(request):
         res = ip_helper.authenticate_by_ip_address(request)
         log.info(u'Authenticate by ip address: %s', str(res))
 
-        if not res or ('institutions' in res and not res['institutions']):
+        if not res or ('data' in res and not res['data']):
             res = ip_helper.authenticate_by_referrer(request)
             log.info(u'Authenticate by referrer: %s', str(res))
 
-        if res and ('institutions' in res) and len(res['institutions']) > 0:
-            res = res['institutions'][0]
-
-        return True if res else False
+        if res and 'data' in res and res['data']:
+            return True
     except ApiRequestError, e:
         log.info(u'Validate Credo Access: ApiRequestError raised (HTTP code: %s, Message: %s)', e.http_code, e.http_msg)
-        return False
+
+    return False
