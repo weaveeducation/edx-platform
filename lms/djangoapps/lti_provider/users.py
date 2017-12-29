@@ -13,6 +13,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.db import transaction
+from django.db.utils import IntegrityError
 
 from lti_provider.models import LtiUser
 from student.models import UserProfile
@@ -108,7 +109,10 @@ def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
                 except LtiUser.DoesNotExist:
                     pass
             except User.DoesNotExist:
-                edx_user = _create_edx_user(edx_email, edx_username, edx_password)
+                try:
+                    edx_user = _create_edx_user(edx_email, edx_username, edx_password)
+                except IntegrityError:
+                    edx_user = User.objects.get(Q(username=edx_username) | Q(email=edx_email))
                 new_user_created = True
         else:
             while not new_user_created:
@@ -133,12 +137,18 @@ def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
             edx_user_profile = UserProfile(user=edx_user)
             edx_user_profile.save()
 
-        lti_user = LtiUser(
-            lti_consumer=lti_consumer,
-            lti_user_id=lti_user_id,
-            edx_user=edx_user
-        )
-        lti_user.save()
+        try:
+            lti_user = LtiUser(
+                lti_consumer=lti_consumer,
+                lti_user_id=lti_user_id,
+                edx_user=edx_user
+            )
+            lti_user.save()
+        except IntegrityError:
+            lti_user = LtiUser.objects.get(
+                lti_user_id=lti_user_id,
+                lti_consumer=lti_consumer
+            )
 
     return lti_user
 
