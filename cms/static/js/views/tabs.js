@@ -137,7 +137,7 @@
                         model: new ModuleModel()
                     });
                     $('.new-component-item').before(editor.$el);
-                    editor.$el.addClass('course-tab is-movable');
+                    editor.$el.addClass('course-nav-item course-tab is-movable');
                     editor.$el.addClass('new');
                     setTimeout(function() {
                         return editor.$el.removeClass('new');
