@@ -40,14 +40,14 @@ from lms.djangoapps.instructor_task.tasks_helper.misc import (
     cohort_students_and_upload,
     upload_course_survey_report,
     upload_ora2_data,
-    upload_proctored_exam_results_report,
-    reset_progress_student
+    upload_proctored_exam_results_report
 )
 from lms.djangoapps.instructor_task.tasks_helper.module_state import (
     delete_problem_module_state,
     perform_module_state_update,
     rescore_problem_module_state,
-    reset_attempts_module_state
+    reset_attempts_module_state,
+    reset_progress_student
 )
 from lms.djangoapps.instructor_task.tasks_helper.runner import run_main_task
 
