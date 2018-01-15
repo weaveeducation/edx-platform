@@ -1,11 +1,13 @@
 import datetime
 import json
 import re
+from urlparse import urlparse
 from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.db import models
 from openedx.core.djangoapps.xmodule_django.models import CourseKeyField
 from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 
 from credo_modules.utils import additional_profile_fields_hash
 from student.models import CourseEnrollment, ENROLL_STATUS_CHANGE, EnrollStatusChange
@@ -200,6 +202,11 @@ class CourseUsage(models.Model):
 
 class Organization(models.Model):
     org = models.CharField(max_length=255, verbose_name='Org', unique=True)
+    default_frame_domain = models.CharField(max_length=255, verbose_name='Domain for LTI/Iframe/etc',
+                                            help_text="Default value is https://frame.credocourseware.com "
+                                                      "in case of empty field",
+                                            null=True, blank=True,
+                                            validators=[URLValidator()])
     is_courseware_customer = models.BooleanField(default=False, verbose_name='Courseware customer')
     is_skill_customer = models.BooleanField(default=False, verbose_name='SKILL customer')
     is_modules_customer = models.BooleanField(default=False, verbose_name='Modules customer')
@@ -207,7 +214,14 @@ class Organization(models.Model):
     def to_dict(self):
         return {
             'org': self.org,
+            'default_frame_domain': self.default_frame_domain,
             'is_courseware_customer': self.is_courseware_customer,
             'is_skill_customer': self.is_skill_customer,
             'is_modules_customer': self.is_modules_customer,
         }
+
+    def save(self, *args, **kwargs):
+        if self.default_frame_domain:
+            o = urlparse(self.default_frame_domain)
+            self.default_frame_domain = o.scheme + '://' + o.netloc
+        super(Organization, self).save(*args, **kwargs)
