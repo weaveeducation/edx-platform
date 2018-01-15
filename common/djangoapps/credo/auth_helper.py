@@ -51,8 +51,8 @@ class CredoIpHelper(object):
 
         if referer_url:
             api_client = self._get_api_client()
-            parsed_referer_uri = urlparse(referer_url)
-            referer = 'http://%s' % parsed_referer_uri.netloc
+            o = urlparse(referer_url)
+            referer = o.scheme + '://' + o.netloc + o.path
 
             result = api_client.authenticate_referrer(referer)
             log.info(u'authenticate_referrer API answered %s for referer %s taken from %s'
