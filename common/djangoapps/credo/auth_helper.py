@@ -14,11 +14,9 @@ class CredoIpHelper(object):
 
     def __init__(self):
         domain = settings.CREDO_API_CONFIG.get('domain', None)
-        client_key = settings.CREDO_API_CONFIG.get('client_key', None)
-        client_secret = settings.CREDO_API_CONFIG.get('client_secret', None)
         secure = settings.CREDO_API_CONFIG.get('secure', False)
-        self._client = ApiClient(domain=domain, secure=secure,
-                                 client_key=client_key, client_secret=client_secret)
+        token = settings.CREDO_API_CONFIG.get('token', None)
+        self._client = ApiClient(domain=domain, secure=secure, token=token)
 
     def _get_api_client(self):
         return self._client
@@ -36,7 +34,7 @@ class CredoIpHelper(object):
         if ip:
             ip_list = [i.strip() for i in ip.split(',')]
             ip_param = ','.join(ip_list)
-            result = api_client.authenticate_ip(ip_param, {})
+            result = api_client.authenticate_ip(ip_param)
             log.info(u'authenticate_ip API answered %s for IP %s (from %s header)'
                      % (str(result), ip_param, header_name))
             return result
@@ -53,8 +51,8 @@ class CredoIpHelper(object):
 
         if referer_url:
             api_client = self._get_api_client()
-            parsed_referer_uri = urlparse(referer_url)
-            referer = 'http://%s' % parsed_referer_uri.netloc
+            o = urlparse(referer_url)
+            referer = o.scheme + '://' + o.netloc + o.path
 
             result = api_client.authenticate_referrer(referer)
             log.info(u'authenticate_referrer API answered %s for referer %s taken from %s'
@@ -63,10 +61,6 @@ class CredoIpHelper(object):
 
         log.info(u'Referer is not defined')
         return False
-
-    def get_institution_by_id(self, ident):
-        api_client = self._get_api_client()
-        return api_client.get_institution_by_id(ident, {})
 
 
 def get_request_referer_from_other_domain(request):
