@@ -149,9 +149,14 @@ def send_composite_outcome(self, user_id, course_id, assignment_id, version):
     except Exception as exc:
         request_body = getattr(exc, 'request_body', None)
         response_body = getattr(exc, 'response_body', None)
+        request_error = getattr(exc, 'request_error', None)
         lis_outcome_service_url = getattr(exc, 'lis_outcome_service_url', None)
-        log_lti('send_composite_outcome_task_error', user_id, getattr(exc, 'message', repr(exc)), course_id, True,
-                assignment, None, task_id, response_body, request_body, lis_outcome_service_url, version=version)
+        message = getattr(exc, 'message', repr(exc))
+        if request_error:
+            message = message + ', request error: ' + request_error
+        log_lti('send_composite_outcome_task_error', user_id, message, course_id, True,
+                assignment, None, task_id, response_body, request_body, lis_outcome_service_url, version=version,
+                request_error=request_error)
         countdown = (int(2.71 ** self.request.retries) + 5) * 60
         raise self.retry(exc=exc, countdown=countdown)
 
@@ -191,10 +196,14 @@ def send_leaf_outcome(self, assignment_id, points_earned, points_possible):
     except Exception as exc:
         request_body = getattr(exc, 'request_body', None)
         response_body = getattr(exc, 'response_body', None)
+        request_error = getattr(exc, 'request_error', None)
         lis_outcome_service_url = getattr(exc, 'lis_outcome_service_url', None)
-        log_lti('send_leaf_outcome_task_error', assignment.user.id, getattr(exc, 'message', repr(exc)),
+        message = getattr(exc, 'message', repr(exc))
+        if request_error:
+            message = message + ', request error: ' + request_error
+        log_lti('send_leaf_outcome_task_error', assignment.user.id, message,
                 str(assignment.course_key), True, assignment, None, task_id, response_body,
                 request_body, lis_outcome_service_url,
-                points_earned=points_earned, points_possible=points_possible)
+                points_earned=points_earned, points_possible=points_possible, request_error=request_error)
         countdown = (int(2.71 ** self.request.retries) + 5) * 60
         raise self.retry(exc=exc, countdown=countdown)

@@ -18,11 +18,12 @@ log = logging.getLogger("edx.lti_provider")
 
 
 class OutcomeServiceSendScoreError(Exception):
-    def __init__(self, message, response_body, request_body, lis_outcome_service_url):
+    def __init__(self, message, response_body, request_body, lis_outcome_service_url, request_error=None):
         super(OutcomeServiceSendScoreError, self).__init__(message)
         self.response_body = response_body
         self.request_body = request_body
         self.lis_outcome_service_url = lis_outcome_service_url
+        self.request_error = request_error
 
 
 def store_outcome_parameters(request_params, user, lti_consumer):
@@ -135,12 +136,14 @@ def send_score_update(assignment, score):
     xml = generate_replace_result_xml(
         assignment.lis_result_sourcedid, score
     )
+    request_error = None
     try:
         response = sign_and_send_replace_result(assignment, xml)
-    except RequestException:
+    except RequestException as exc:
         # failed to send result. 'response' is None, so more detail will be
         # logged at the end of the method.
         response = None
+        request_error = str(exc)
         log.exception("Outcome Service: Error when sending result.")
 
     # If something went wrong, make sure that we have a complete log record.
@@ -158,7 +161,7 @@ def send_score_update(assignment, score):
                      response)
         log.error(error_msg, exc_info=True)
         raise OutcomeServiceSendScoreError(error_msg, response_body, xml,
-                                           assignment.outcome_service.lis_outcome_service_url)
+                                           assignment.outcome_service.lis_outcome_service_url, request_error)
 
     return {
         'request_body': xml,
