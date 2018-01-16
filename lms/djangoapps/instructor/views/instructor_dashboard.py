@@ -214,7 +214,9 @@ def instructor_dashboard_2(request, course_id):
         if len(openassessment_blocks) > 0:
             sections.append(_section_open_response_assessment(request, course, openassessment_blocks, access))
 
-    if available_tabs.show_lti_constructor:
+    # temporarily solution
+#    if available_tabs.show_lti_constructor:
+    if request.user.is_superuser:
         sections.append(_section_lti_constructor(request, course))
 
     disable_buttons = not _is_small_course(course_key)
