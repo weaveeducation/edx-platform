@@ -113,6 +113,7 @@ urlpatterns = (
 
     url(r'^dashboard/', include('learner_dashboard.urls')),
     url(r'^api/experiments/', include('experiments.urls', namespace='api_experiments')),
+
 )
 
 # TODO: This needs to move to a separate urls.py once the student_account and
@@ -248,6 +249,12 @@ urlpatterns += (
         ),
         'courseware.module_render.xblock_view',
         name='xblock_view',
+    ),
+
+    url(
+        r'^cookie/check$',
+        'courseware.views.views.cookie_check',
+        name='cookie_check',
     ),
 
     # xblock Rendering View URL
