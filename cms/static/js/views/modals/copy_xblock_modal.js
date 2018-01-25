@@ -1,5 +1,5 @@
 /**
- * The MoveXblockModal to move XBlocks in course.
+ * The CopyXblockModal to copy XBlocks in course.
  */
 define([
     'jquery',
@@ -70,6 +70,7 @@ function($, Backbone, _, gettext, BaseView, XBlockViewUtils, CopyXBlockUtils, Ht
 
                 self.fetchCourseOutline().done(function(courseOutlineInfo, ancestorInfo) {
                     self.$('.copy-to-course').change(function() {
+                        self.$('.copy-to-course').attr('disabled', 'disabled');
                         self.outlineURL = self.courses[$(this).val()].url + '?format=concise';
 
                         if (self.moveXBlockListView) {
@@ -84,6 +85,7 @@ function($, Backbone, _, gettext, BaseView, XBlockViewUtils, CopyXBlockUtils, Ht
                             .append("<div class='xblock-list-container'></div>");
 
                         self.fetchCourseOutline().done(function(courseOutlineInfo2, ancestorInfo2) {
+                            self.$('.copy-to-course').removeAttr('disabled');
                             self.renderViewsAndUI(courseOutlineInfo2, ancestorInfo2);
                         });
                     });
