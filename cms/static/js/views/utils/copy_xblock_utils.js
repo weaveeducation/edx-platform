@@ -1,5 +1,5 @@
 /**
- * Provides utilities for move xblock.
+ * Provides utilities for copy xblock.
  */
 define([
     'jquery',
