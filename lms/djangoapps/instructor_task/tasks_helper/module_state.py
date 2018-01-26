@@ -33,6 +33,9 @@ TASK_LOG = logging.getLogger('edx.celery.task')
 # define value to be used in grading events
 GRADES_RESCORE_EVENT_TYPE = 'edx.grades.problem.rescored'
 
+USERNAME_DB_FIELD_SIZE = 30
+EMAIL_DB_FIELD_SIZE = 254
+
 
 def perform_module_state_update(update_fcn, filter_fcn, _entry_id, course_id, task_input, action_name):
     """
@@ -278,8 +281,16 @@ def reset_progress_student(_xmodule_instance_args, _entry_id, course_id, _task_i
 
     user = User.objects.get(email=_task_input['student'])
 
-    new_user = User.objects.create(email="{}.{}".format(user.email, start_time),
-                                   username="{}.{}".format(user.username, start_time))
+    backup_username = "{}.{}".format(user.email, start_time)
+    if len(backup_username) > USERNAME_DB_FIELD_SIZE:
+        backup_username = backup_username[-USERNAME_DB_FIELD_SIZE:]
+
+    backup_email = "{}.{}".format(user.email, start_time)
+    if len(backup_username) > EMAIL_DB_FIELD_SIZE:
+        backup_username = backup_username[-EMAIL_DB_FIELD_SIZE:]
+
+    new_user = User.objects.create(email=backup_email,
+                                   username=backup_username)
     new_profile = user.profile
     new_profile.pk, new_profile.user = None, new_user
     new_profile.save()
