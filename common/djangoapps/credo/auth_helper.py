@@ -37,9 +37,9 @@ class CredoIpHelper(object):
             result = api_client.authenticate_ip(ip_param)
             log.info(u'authenticate_ip API answered %s for IP %s (from %s header)'
                      % (str(result), ip_param, header_name))
-            return result
+            return result, ip_param
 
-        return False
+        return False, ip
 
     def authenticate_by_referrer(self, request):
         taken_from = 'request'
@@ -57,10 +57,10 @@ class CredoIpHelper(object):
             result = api_client.authenticate_referrer(referer)
             log.info(u'authenticate_referrer API answered %s for referer %s taken from %s'
                      % (str(result), referer, taken_from))
-            return result
+            return result, referer, taken_from
 
         log.info(u'Referer is not defined')
-        return False
+        return False, None, None
 
 
 def get_request_referer_from_other_domain(request):
