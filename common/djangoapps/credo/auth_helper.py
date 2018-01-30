@@ -34,7 +34,7 @@ class CredoIpHelper(object):
         if ip:
             ip_list = [i.strip() for i in ip.split(',')]
             ip_param = ','.join(ip_list)
-            result = api_client.authenticate_ip(ip_param)
+            result = api_client.authenticate_ip(ip_list)
             log.info(u'authenticate_ip API answered %s for IP %s (from %s header)'
                      % (str(result), ip_param, header_name))
             return result, ip_param
