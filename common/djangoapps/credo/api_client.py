@@ -55,13 +55,13 @@ class ApiClient(object):
         url = self._get_url(path)
 
         for k, v in params.iteritems():
-            if not isinstance(v, basestring):
+            if not isinstance(v, (basestring, list)):
                 params[k] = json.dumps(v)
 
         return self._make_request(url, params)
 
-    def authenticate_ip(self, ip):
-        return self.request('/clients', {'filter[ip]': ip})
+    def authenticate_ip(self, ip_list):
+        return self.request('/clients', {'filter[ip]': ip_list})
 
     def authenticate_referrer(self, url):
         return self.request('/clients', {'filter[referrer]': url})
