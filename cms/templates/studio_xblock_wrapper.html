@@ -106,6 +106,14 @@ messages = xblock.validate().to_json()
                                         <span class="sr">${_("Move")}</span>
                                     </button>
                                 </li>
+                                <li class="action-item action-copy">
+                                    <button data-tooltip="${_("Copy")}" class="btn-default copy-button action-button">
+                                        <span class="stack-move-icon fa-stack fa-lg ">
+                                            <span class="fa fa-share-square-o fa-stack-2x fa-fw" aria-hidden="true"></span>
+                                        </span>
+                                        <span class="sr">${_("Copy")}</span>
+                                    </button>
+                                </li>
                             % endif
                         % endif
                         % if can_add:

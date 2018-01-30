@@ -234,6 +234,15 @@ def xblock_handler(request, usage_key_string):
             ):
                 raise PermissionDenied()
             return _move_item(move_source_usage_key, target_parent_usage_key, request.user, target_index)
+        if 'copy_source_locator' in request.json:
+            copy_source_usage_key = usage_key_with_run(request.json.get('copy_source_locator'))
+            target_parent_usage_key = usage_key_with_run(request.json.get('parent_locator'))
+            if (
+                        not has_studio_write_access(request.user, target_parent_usage_key.course_key) or
+                        not has_studio_read_access(request.user, target_parent_usage_key.course_key)
+            ):
+                raise PermissionDenied()
+            return _copy_item(copy_source_usage_key, target_parent_usage_key, request.user)
 
         return JsonResponse({'error': 'Patch request did not recognise any parameters to handle.'}, status=400)
     else:
@@ -819,6 +828,70 @@ def _move_item(source_usage_key, target_parent_usage_key, user, target_index=Non
         return JsonResponse(context)
 
 
+def _copy_item(source_usage_key, target_parent_usage_key, user):
+    parent_component_types = list(
+        set(name for name, class_ in XBlock.load_classes() if getattr(class_, 'has_children', False)) -
+        set(DIRECT_ONLY_CATEGORIES)
+    )
+
+    store = modulestore()
+    with store.bulk_operations(source_usage_key.course_key):
+        source_item = store.get_item(source_usage_key)
+        source_parent = source_item.get_parent()
+        target_parent = store.get_item(target_parent_usage_key)
+        source_type = source_item.category
+        target_parent_type = target_parent.category
+        error = None
+
+        # Store actual/initial index of the source item. This would be sent back with response,
+        # so that with Undo operation, it would easier to move back item to it's original/old index.
+        source_index = _get_source_index(source_usage_key, source_parent)
+
+        valid_move_type = {
+            'sequential': 'vertical',
+            'chapter': 'sequential',
+        }
+
+        if (valid_move_type.get(target_parent_type, '') != source_type and
+                target_parent_type not in parent_component_types):
+            error = _('You can not move {source_type} into {target_parent_type}.').format(
+                source_type=source_type,
+                target_parent_type=target_parent_type,
+            )
+        elif source_parent.location == target_parent.location or source_item.location in target_parent.children:
+            error = _('Item is already present in target location.')
+        elif source_item.location == target_parent.location:
+            error = _('You can not move an item into itself.')
+        elif is_source_item_in_target_parents(source_item, target_parent):
+            error = _('You can not move an item into it\'s child.')
+        elif target_parent_type == 'split_test':
+            error = _('You can not move an item directly into content experiment.')
+        elif source_index is None:
+            error = _('{source_usage_key} not found in {parent_usage_key}.').format(
+                source_usage_key=unicode(source_usage_key),
+                parent_usage_key=unicode(source_parent.location)
+            )
+
+        if error:
+            return JsonResponse({'error': error}, status=400)
+
+        _duplicate_item(target_parent_usage_key, source_usage_key, user=user, is_child=True,
+                        course_key=target_parent_usage_key.course_key)
+
+        log.info(
+            'COPY: %s copied from %s to %s',
+            unicode(source_usage_key),
+            unicode(source_parent.location),
+            unicode(target_parent_usage_key))
+
+        context = {
+            'copy_source_locator': unicode(source_usage_key),
+            'parent_locator': unicode(target_parent_usage_key),
+            'source_index': 0
+        }
+        return JsonResponse(context)
+
+
 def _get_breadcrumbs(item):
     names_list = []
     first = True
@@ -926,7 +999,7 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
 
         # Children are not automatically copied over (and not all xblocks have a 'children' attribute).
         # Because DAGs are not fully supported, we need to actually duplicate each child as well.
-        if source_item.has_children and not children_handled:
+        if source_item.has_children and not children_handled and source_item.category != 'library_content':
             dest_module.children = dest_module.children or []
             for child in source_item.children:
                 dupe = _duplicate_item(dest_module.location, child, user=user, is_child=True, course_key=course_key,
