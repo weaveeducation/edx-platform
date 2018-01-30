@@ -48,7 +48,7 @@ class BlockSerializer(serializers.Serializer):  # pylint: disable=abstract-metho
                 kwargs={'usage_key_string': unicode(block_key)},
                 request=self.context['request'],
             ),
-            'asides': self.context['asides'][unicode(block_key)] if unicode(block_key) in self.context['asides'] else []
+            'asides': self.context['asides'][unicode(block_key)] if unicode(block_key) in self.context['asides'] else {}
         }
 
         if settings.FEATURES.get("ENABLE_LTI_PROVIDER") and 'lti_url' in self.context['requested_fields']:
