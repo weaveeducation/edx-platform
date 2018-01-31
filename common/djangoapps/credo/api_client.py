@@ -60,8 +60,8 @@ class ApiClient(object):
 
         return self._make_request(url, params)
 
-    def authenticate_ip(self, ip_list):
-        return self.request('/clients', {'filter[ip]': ip_list})
+    def authenticate_ip(self, ip_param):
+        return self.request('/clients', {'filter[ip]': ip_param})
 
     def authenticate_referrer(self, url):
         return self.request('/clients', {'filter[referrer]': url})
