@@ -2984,7 +2984,7 @@ def validate_credo_access(request):
         if res:
             api_ip_response = res.copy()
 
-        if not res or ('data' in res and not res['data']):
+        if not res or ('data' not in res) or ('data' in res and not res['data']):
             res, referrer_param_passed_to_api, referrer_taken_from = ip_helper.authenticate_by_referrer(request)
             log.info(u'Authenticate by referrer: %s', str(res))
             if res:
