@@ -28,20 +28,41 @@ class CourseUsageMiddleware(object):
         path_data = path.split('/')
 
         if hasattr(request, 'user') and request.user.is_authenticated() and len(path_data) > 2:
-            course_id = path_data[2]
+            if path_data[1] == 'lti_provider':
+                course_id = path_data[3]
+            else:
+                course_id = path_data[2]
 
+            user_id = int(request.user.id)
+
+            user_id_from_cookie = None
+            course_usage_cookie_dict = {}
             course_usage_cookie = request.COOKIES.get(self.course_usage_cookie, '{}')
+
             try:
-                course_usage_cookie_dict = json.loads(course_usage_cookie)
+                course_usage_cookie_arr = course_usage_cookie.split('|')
+                if len(course_usage_cookie_arr) > 1:
+                    try:
+                        user_id_from_cookie = int(course_usage_cookie_arr[1])
+                    except ValueError:
+                        pass
+
+                    if user_id_from_cookie and user_id != user_id_from_cookie:
+                        course_usage_cookie_dict = {}
+                    else:
+                        course_usage_cookie_dict = json.loads(course_usage_cookie_arr[0])
+                else:
+                    course_usage_cookie_dict = json.loads(course_usage_cookie)
             except ValueError:
-                course_usage_cookie_dict = {}
+                pass
 
             datetime_now = datetime.datetime.now()
             if course_id and course_id not in course_usage_cookie_dict:
                 try:
                     course_key = CourseKey.from_string(course_id)
                     course_usage_cookie_dict[course_id] = 1
-                    response.set_cookie(self.course_usage_cookie, json.dumps(course_usage_cookie_dict))
+                    response.set_cookie(self.course_usage_cookie,
+                                        json.dumps(course_usage_cookie_dict) + '|' + str(user_id))
 
                     try:
                         CourseUsage.objects.get(
