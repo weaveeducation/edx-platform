@@ -122,7 +122,8 @@ def lti_launch(request, course_id, usage_id):
             'disable_header': True,
             'disable_footer': True,
             'disable_window_wrap': True,
-            'hash': params_hash
+            'hash': params_hash,
+            'additional_url_params': ''
         }))
         return HttpResponse(template.render())
 
