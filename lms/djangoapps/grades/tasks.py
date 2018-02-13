@@ -63,7 +63,11 @@ def compute_all_grades_for_course(**kwargs):
         kwargs=kwargs
     ):
         task_options = {'course_key': course_key, 'offset': offset, 'batch_size': batch_size}
-        compute_grades_for_course_v2.apply_async(kwargs=kwargs, **task_options)
+        #compute_grades_for_course_v2.apply_async(kwargs=kwargs, **task_options)
+        task_kwargs = {}
+        task_kwargs.update(kwargs)
+        task_kwargs.update(task_options)
+        compute_grades_for_course_v2.apply_async(kwargs=task_kwargs, **task_options)
 
 
 @task(base=_BaseTask, bind=True, default_retry_delay=30, max_retries=1)
