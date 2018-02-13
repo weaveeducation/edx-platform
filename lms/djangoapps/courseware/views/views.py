@@ -1441,13 +1441,19 @@ def render_xblock_course(request, course_id, usage_key_string):
         raise Http404("Course not found")
 
     if not request.GET.get('process_request') and not request.META.get('HTTP_COOKIE'):
+        additional_url_params = ''
+        jwt_token = request.GET.get('jwt_token', None)
+        if jwt_token:
+            additional_url_params = '&jwt_token=' + jwt_token
+
         template = Template(render_to_string('static_templates/embedded_new_tab.html', {
             'disable_accordion': True,
             'allow_iframing': True,
             'disable_header': True,
             'disable_footer': True,
             'disable_window_wrap': True,
-            'hash': ''
+            'hash': '',
+            'additional_url_params': additional_url_params
         }))
         return HttpResponse(template.render())
 

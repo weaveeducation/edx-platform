@@ -48,9 +48,9 @@
     <div class="embedded-browser-msg">
         <h3>${_("Your browser prohibits this from showing in the frame. It must be loaded in a new tab.")} </h3>
         <div class="embedded-link-block">
-        <a target="_blank" href="?hash=${hash}&process_request=1">Click here to load in a new tab</a>
+            <a target="_blank" href="?hash=${hash}&process_request=1${additional_url_params}">Click here to load in a new tab</a>
         </div>
     </div>
-    <input type="hidden" id="embedded-link" value="?hash=${hash}&process_request=1">
+    <input type="hidden" id="embedded-link" value="?hash=${hash}&process_request=1${additional_url_params}">
 </main>
 

@@ -9,6 +9,7 @@ import uuid
 import warnings
 import time
 import platform
+import jwt
 from collections import defaultdict, namedtuple
 from urlparse import parse_qs, urlsplit, urlunsplit
 
@@ -2957,6 +2958,12 @@ def register_login_and_enroll_anonymous_user(request, course_key, redirect_to=No
 
 
 def validate_credo_access(request):
+    jwt_auth_success = False
+    jwt_auth_error = ''
+    jwt_data = None
+    jwt_secret = settings.CREDO_API_CONFIG.get('jwt_secret', None)
+    jwt_token = request.GET.get('jwt_token', None)
+
     course_id = None
     path = request.path
     path_data = path.split('/')
@@ -2976,38 +2983,55 @@ def validate_credo_access(request):
     referrer_param_passed_to_api = None
     referrer_taken_from = None
 
-    ip_helper = CredoIpHelper()
+    if jwt_token:
+        try:
+            jwt_data = jwt.decode(jwt_token, jwt_secret)
+            if isinstance(jwt_data, dict) and 'client_id' in jwt_data and jwt_data['client_id']:
+                log.info(u'Successfully authentication with jwt token (%s): %s', str(jwt_token), str(jwt_data))
+                jwt_auth_success = True
+                auth_success = True
+            else:
+                jwt_auth_error = u'Unsuccessfully authentication with jwt token (%s): %s' % (jwt_token, str(jwt_data))
+                log.info(jwt_auth_error)
+        except jwt.DecodeError:
+            jwt_auth_error = u'Unsuccessfully authentication with jwt token (%s): decode error' % jwt_token
+            log.info(jwt_auth_error)
 
-    try:
-        res, ip_param_passed_to_api = ip_helper.authenticate_by_ip_address(request)
-        log.info(u'Authenticate by ip address: %s', str(res))
-        if res:
-            api_ip_response = res.copy()
+    if not jwt_auth_success:
+        ip_helper = CredoIpHelper()
 
-        if not res or ('data' not in res) or ('data' in res and not res['data']):
-            res, referrer_param_passed_to_api, referrer_taken_from = ip_helper.authenticate_by_referrer(request)
-            log.info(u'Authenticate by referrer: %s', str(res))
+        try:
+            res, ip_param_passed_to_api = ip_helper.authenticate_by_ip_address(request)
+            log.info(u'Authenticate by ip address: %s', str(res))
             if res:
-                api_referrer_response = res.copy()
+                api_ip_response = res.copy()
 
-        if res and 'data' in res and res['data']:
-            auth_success = True
-    except ApiRequestError, e:
-        msg = u'Validate Credo Access: ApiRequestError raised (HTTP code: %s, Message: %s)' % (e.http_code, e.http_msg)
-        if not api_ip_response:
-            api_ip_response = msg
-        else:
-            api_referrer_response = msg
-        log.info(msg)
+            if not res or ('data' not in res) or ('data' in res and not res['data']):
+                res, referrer_param_passed_to_api, referrer_taken_from = ip_helper.authenticate_by_referrer(request)
+                log.info(u'Authenticate by referrer: %s', str(res))
+                if res:
+                    api_referrer_response = res.copy()
+
+            if res and 'data' in res and res['data']:
+                auth_success = True
+        except ApiRequestError, e:
+            msg = u'Validate Credo Access: ApiRequestError raised (HTTP code: %s, Message: %s)' % (e.http_code, e.http_msg)
+            if not api_ip_response:
+                api_ip_response = msg
+            else:
+                api_referrer_response = msg
+            log.info(msg)
 
     log_credo_access(course_id, user_ip, headers, ip_param_passed_to_api, referrer_param_passed_to_api,
-                     referrer_taken_from, api_ip_response, api_referrer_response, auth_success)
+                     referrer_taken_from, api_ip_response, api_referrer_response, auth_success,
+                     jwt_auth_success, jwt_auth_error, jwt_token, jwt_data)
 
     return auth_success
 
 
 def log_credo_access(course_id, user_ip, headers, ip_param_passed_to_api, referrer_param_passed_to_api,
-                     referrer_taken_from, api_ip_response, api_referrer_response, auth_success, **kwargs):
+                     referrer_taken_from, api_ip_response, api_referrer_response, auth_success,
+                     jwt_auth_success, jwt_auth_error, jwt_token, jwt_data, **kwargs):
     hostname = platform.node().split(".")[0]
     data = {
         'type': 'modules_auth',
@@ -3019,9 +3043,13 @@ def log_credo_access(course_id, user_ip, headers, ip_param_passed_to_api, referr
         'ip_param_passed_to_api': ip_param_passed_to_api,
         'referrer_param_passed_to_api': referrer_param_passed_to_api,
         'referrer_taken_from': referrer_taken_from,
-        'api_ip_response': str(api_ip_response),
-        'api_referrer_response': str(api_referrer_response),
-        'auth_success': auth_success
+        'api_ip_response': str(api_ip_response) if api_ip_response else None,
+        'api_referrer_response': str(api_referrer_response) if api_referrer_response else None,
+        'auth_success': auth_success,
+        'jwt_auth_success': jwt_auth_success,
+        'jwt_auth_error': jwt_auth_error,
+        'jwt_token': jwt_token,
+        'jwt_data': str(jwt_data) if jwt_data else None
     }
     for k, v in headers.iteritems():
         data['header_' + k.lower()] = v
