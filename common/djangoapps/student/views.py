@@ -11,7 +11,7 @@ import time
 import platform
 import jwt
 from collections import defaultdict, namedtuple
-from urlparse import parse_qs, urlsplit, urlunsplit
+from urlparse import parse_qs, urlsplit, urlunsplit, urlparse
 
 import analytics
 import edx_oauth2_provider
@@ -2957,12 +2957,20 @@ def register_login_and_enroll_anonymous_user(request, course_key, redirect_to=No
         return redirect(redirect_to)
 
 
-def validate_credo_access(request):
+def validate_credo_access(request, redirect_to=None):
     jwt_auth_success = False
     jwt_auth_error = ''
     jwt_data = None
     jwt_secret = settings.CREDO_API_CONFIG.get('jwt_secret', None)
     jwt_token = request.GET.get('jwt_token', None)
+
+    try:
+        if not jwt_token and redirect_to and '?' in redirect_to:
+            next_args = parse_qs(urlparse(redirect_to).query)
+            if 'jwt_token' in next_args:
+                jwt_token = next_args['jwt_token'][0]
+    except (KeyError, ValueError, IndexError):
+        pass
 
     course_id = None
     path = request.path
