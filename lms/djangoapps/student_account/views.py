@@ -84,7 +84,7 @@ def login_and_registration_form(request, initial_mode="login"):
                 return HttpResponseBadRequest(_("Invalid course id."))
             course = get_course(course_key)
             if course.credo_authentication:
-                credo_auth = validate_credo_access(request)
+                credo_auth = validate_credo_access(request, redirect_to)
                 if not credo_auth:
                     return HttpResponseForbidden(render_to_string('static_templates/invalid_credo_auth.html', {}))
             if course.allow_anonymous_access:
