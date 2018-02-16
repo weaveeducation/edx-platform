@@ -279,7 +279,7 @@ def reset_progress_student(_xmodule_instance_args, _entry_id, course_id, _task_i
         curr_step,
     )
 
-    user = User.objects.get(email=_task_input['student'])
+    user = User.objects.get(id=_task_input['student'])
 
     backup_username = "{}.{}".format(user.email, start_time)
     if len(backup_username) > USERNAME_DB_FIELD_SIZE:
