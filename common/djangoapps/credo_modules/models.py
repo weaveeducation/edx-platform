@@ -225,3 +225,12 @@ class Organization(models.Model):
             o = urlparse(self.default_frame_domain)
             self.default_frame_domain = o.scheme + '://' + o.netloc
         super(Organization, self).save(*args, **kwargs)
+
+
+class CourseExcludeInsights(models.Model):
+    course_id = CourseKeyField(max_length=255, db_index=True, null=True, blank=True)
+
+    class Meta(object):
+        db_table = "credo_course_exclude_insights"
+        verbose_name = "course"
+        verbose_name_plural = "exclude insights"
