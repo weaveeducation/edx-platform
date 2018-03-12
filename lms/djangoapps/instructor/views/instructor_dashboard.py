@@ -790,13 +790,19 @@ def _section_open_response_assessment(request, course, openassessment_blocks, ac
 
 def _section_lti_constructor(request, course):
     customer_info = get_customer_info(request.user)
+    org_details = {}
+    for v in customer_info['details']:
+        if course.org == v['org']:
+            org_details = v
+
     section_data = {
         'section_key': 'lti_constructor',
         'section_display_name': _('Link Constructor'),
         'course_id': unicode(course.id),
         'constructor_url': settings.CONSTRUCTOR_LINK,
         'course_id_hash': hashlib.md5(unicode(course.id) + u'_credo_lti_constructor').hexdigest(),
-        'customer_info': urllib.quote_plus(json.dumps(customer_info['user_info_type']))
+        'customer_info': urllib.quote_plus(json.dumps(customer_info['user_info_type'])),
+        'org_details': urllib.quote_plus(json.dumps(org_details)),
     }
     return section_data
 
