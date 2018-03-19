@@ -21,8 +21,10 @@ class StudentPropertiesAside(XBlockAside):
                            'openassessmentblock.peer_assess']
 
         user = None
+        is_ora = False
 
         if event_type in event_types_lst and 'submission_uuid' in event:
+            is_ora = True
             try:
                 submission = sub_api.get_submission_and_student(event['submission_uuid'])
                 student_id = submission['student_item']['student_id']
@@ -59,5 +61,8 @@ class StudentPropertiesAside(XBlockAside):
                 item = get_custom_term(self.runtime.course_id.org)
                 if item:
                     result['enrollment']['term'] = item.term
-            return {'student_properties': result}
+            if is_ora:
+                return {'student_properties': result, 'student_id': user.id}
+            else:
+                return {'student_properties': result}
         return None
