@@ -154,8 +154,10 @@ def lti_launch(request, course_id, usage_id):
 
 def test_launch(request):
     headers = OrderedDict()
-    headers['Content-Length'] = str(request.META['CONTENT_LENGTH'])
-    headers['Content-Type'] = str(request.META['CONTENT_TYPE'])
+    if 'CONTENT_LENGTH' in request.META:
+        headers['Content-Length'] = str(request.META['CONTENT_LENGTH'])
+    if 'CONTENT_TYPE' in request.META:
+        headers['Content-Type'] = str(request.META['CONTENT_TYPE'])
     for header, value in request.META.items():
         if not header.startswith('HTTP'):
             continue
