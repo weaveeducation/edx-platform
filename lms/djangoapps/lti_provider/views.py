@@ -5,6 +5,7 @@ import json
 import logging
 import hashlib
 
+from collections import OrderedDict
 from django.conf import settings
 from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -149,6 +150,78 @@ def lti_launch(request, course_id, usage_id):
     store_outcome_parameters(params, request.user, lti_consumer)
 
     return render_courseware(request, params['usage_key'])
+
+
+def test_launch(request):
+    headers = OrderedDict()
+    headers['Content-Length'] = str(request.META['CONTENT_LENGTH'])
+    headers['Content-Type'] = str(request.META['CONTENT_TYPE'])
+    for header, value in request.META.items():
+        if not header.startswith('HTTP'):
+            continue
+        header = '-'.join([h.capitalize() for h in header[5:].lower().split('_')])
+        headers[header] = str(value)
+
+    params = get_required_parameters(request.POST)
+    if params:
+        params.update(get_optional_parameters(request.POST))
+    else:
+        params = {}
+
+    lti_consumer = None
+    try:
+        lti_consumer = LtiConsumer.get_or_supplement(
+            params.get('tool_consumer_instance_guid', None),
+            params.get('oauth_consumer_key', None)
+        )
+        lti_consumer_info = [
+            'id: ' + str(lti_consumer.id),
+            'consumer_name: ' + str(lti_consumer.consumer_name),
+            'consumer_key: ' + str(lti_consumer.consumer_key),
+            'lti_strict_mode: ' + str(lti_consumer.lti_strict_mode),
+            'allow_to_add_instructors_via_lti: ' + str(lti_consumer.allow_to_add_instructors_via_lti)
+        ]
+    except LtiConsumer.DoesNotExist:
+        lti_consumer_info = ['Not Found']
+    except:
+        lti_consumer_info = ['Invalid params']
+
+    if lti_consumer and lti_consumer.lti_strict_mode:
+        params_strict = get_required_strict_parameters(request.POST)
+        if not params_strict or params_strict['lti_version'] != 'LTI-1p0' \
+                or params_strict['lti_message_type'] != 'basic-lti-launch-request':
+            lti_consumer_info += '. LTI strict params validation failed'
+        params.update(params_strict)
+
+    # Check the OAuth signature on the message
+    signature_validation = '-'
+    try:
+        if lti_consumer:
+            if SignatureValidator(lti_consumer).verify(request):
+                signature_validation = 'Success'
+            else:
+                signature_validation = 'Failed'
+    except:
+        signature_validation = 'Error'
+
+    post = OrderedDict()
+    for post_key, post_value in request.POST.items():
+        post[str(post_key)] = str(post_value)
+
+    template = Template(render_to_string('static_templates/debug.html', {
+        'disable_accordion': True,
+        'allow_iframing': True,
+        'disable_header': True,
+        'disable_footer': True,
+        'disable_window_wrap': True,
+        'request_path': request.path,
+        'request_method': request.method,
+        'lti_consumer_info': lti_consumer_info,
+        'signature_validation': signature_validation,
+        'headers_data': headers,
+        'post_data': post
+    }))
+    return HttpResponse(template.render())
 
 
 def enroll_user_to_course(edx_user, course_key, roles=None):
