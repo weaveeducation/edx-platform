@@ -30,7 +30,7 @@ class CourseUsageMiddleware(object):
         if hasattr(request, 'user') and request.user.is_authenticated() and len(path_data) > 2:
             course_id = None
             if path_data[1] == 'lti_provider':
-                if len(path_data) > 2:
+                if len(path_data) > 3:
                     course_id = path_data[3]
             else:
                 course_id = path_data[2]
