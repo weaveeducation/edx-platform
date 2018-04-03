@@ -745,3 +745,56 @@ class CourseModeExpirationConfig(ConfigurationModel):
     def __unicode__(self):
         """ Returns the unicode date of the verification window. """
         return unicode(self.verification_window)
+
+
+def get_cosmetic_verified_display_price(course):
+    """
+    Returns the minimum verified cert course price as a string preceded by correct currency, or 'Free'.
+    """
+    return get_course_prices(course, verified_only=True)[1]
+
+
+def get_course_prices(course, verified_only=False):
+    """
+    Return registration_price and cosmetic_display_prices.
+    registration_price is the minimum price for the course across all course modes.
+    cosmetic_display_prices is the course price as a string preceded by correct currency, or 'Free'.
+    """
+    # Find the
+    if verified_only:
+        registration_price = CourseMode.min_course_price_for_verified_for_currency(
+            course.id,
+            settings.PAID_COURSE_REGISTRATION_CURRENCY[0]
+        )
+    else:
+        registration_price = CourseMode.min_course_price_for_currency(
+            course.id,
+            settings.PAID_COURSE_REGISTRATION_CURRENCY[0]
+        )
+
+    if registration_price > 0:
+        price = registration_price
+    # Handle course overview objects which have no cosmetic_display_price
+    elif hasattr(course, 'cosmetic_display_price'):
+        price = course.cosmetic_display_price
+    else:
+        price = None
+
+    return registration_price, format_course_price(price)
+
+
+def format_course_price(price):
+    """
+    Return a formatted price for a course (a string preceded by correct currency, or 'Free').
+    """
+    currency_symbol = settings.PAID_COURSE_REGISTRATION_CURRENCY[1]
+
+    if price:
+        # Translators: This will look like '$50', where {currency_symbol} is a symbol such as '$' and {price} is a
+        # numerical amount in that currency. Adjust this display as needed for your language.
+        cosmetic_display_price = _("{currency_symbol}{price}").format(currency_symbol=currency_symbol, price=price)
+    else:
+        # Translators: This refers to the cost of the course. In this case, the course costs nothing so it is free.
+        cosmetic_display_price = _('Free')
+
+    return cosmetic_display_price

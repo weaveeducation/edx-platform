@@ -18,6 +18,8 @@ var wpconfig = {
     context: __dirname,
 
     entry: {
+        CourseGoals: './openedx/features/course_experience/static/course_experience/js/CourseGoals.js',
+        CourseHome: './openedx/features/course_experience/static/course_experience/js/CourseHome.js',
         CourseOutline: './openedx/features/course_experience/static/course_experience/js/CourseOutline.js',
         CourseSock: './openedx/features/course_experience/static/course_experience/js/CourseSock.js',
         WelcomeMessage: './openedx/features/course_experience/static/course_experience/js/WelcomeMessage.js',

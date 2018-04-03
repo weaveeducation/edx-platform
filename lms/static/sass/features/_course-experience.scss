@@ -34,10 +34,6 @@
     list-style-type: none;
 
     .section {
-      @include media-breakpoint-up(md) {
-        margin: 0;
-      }
-
       margin: 0 (-1 * $baseline) 0 ($baseline);
       width: calc(100% + (2));
       padding: 0;

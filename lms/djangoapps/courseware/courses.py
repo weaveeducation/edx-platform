@@ -523,3 +523,16 @@ def get_current_child(xmodule, min_depth=None, requested_child=None):
                 child = _get_default_child_module(children)
 
     return child
+
+
+def can_self_enroll_in_course(course_key):
+    """
+    Returns True if the user can enroll themselves in a course.
+
+    Note: an example of a course that a user cannot enroll in directly
+    is a CCX course. For such courses, a user can only be enrolled by
+    a CCX coach.
+    """
+    if hasattr(course_key, 'ccx'):
+        return False
+    return True
