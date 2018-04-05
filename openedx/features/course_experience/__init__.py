@@ -2,6 +2,7 @@
 Unified course experience settings and helper methods.
 """
 from django.utils.translation import ugettext as _
+from openedx.core.djangoapps.util.user_messages import UserMessageCollection
 
 from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag, WaffleFlag, WaffleFlagNamespace
 
@@ -20,6 +21,24 @@ DISPLAY_COURSE_SOCK_FLAG = CourseWaffleFlag(WAFFLE_FLAG_NAMESPACE, 'display_cour
 
 # Waffle flag to enable a review page link from the unified home page
 SHOW_REVIEWS_TOOL_FLAG = CourseWaffleFlag(WAFFLE_FLAG_NAMESPACE, 'show_reviews_tool')
+
+# Waffle flag to control the display of the hero
+SHOW_UPGRADE_MSG_ON_COURSE_HOME = CourseWaffleFlag(WAFFLE_FLAG_NAMESPACE, 'show_upgrade_msg_on_course_home')
+
+# Waffle flag to enable the setting of course goals.
+ENABLE_COURSE_GOALS = CourseWaffleFlag(WAFFLE_FLAG_NAMESPACE, 'enable_course_goals')
+
+# Waffle flag to control the display of the upgrade deadline message
+UPGRADE_DEADLINE_MESSAGE = CourseWaffleFlag(WAFFLE_FLAG_NAMESPACE, 'upgrade_deadline_message')
+
+# Waffle flag to switch between the 'welcome message' and 'latest update' on the course home page.
+# Important Admin Note: This is meant to be configured using waffle_utils course
+#   override only.  Either do not create the actual waffle flag, or be sure to unset the
+#   flag even for Superusers.
+LATEST_UPDATE_FLAG = CourseWaffleFlag(WAFFLE_FLAG_NAMESPACE, 'latest_update')
+
+# Waffle flag to enable the use of Bootstrap for course experience pages
+USE_BOOTSTRAP_FLAG = CourseWaffleFlag(WAFFLE_FLAG_NAMESPACE, 'use_bootstrap', flag_undefined_default=True)
 
 
 def course_home_page_title(course):  # pylint: disable=unused-argument
@@ -55,3 +74,17 @@ def course_home_url_name(course_key):
         return 'openedx.course_experience.course_home'
     else:
         return 'info'
+
+
+class CourseHomeMessages(UserMessageCollection):
+    """
+    This set of messages appear above the outline on the course home page.
+    """
+    NAMESPACE = 'course_home_level_messages'
+
+    @classmethod
+    def get_namespace(cls):
+        """
+        Returns the namespace of the message collection.
+        """
+        return cls.NAMESPACE

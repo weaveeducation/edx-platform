@@ -1081,6 +1081,19 @@ class CourseEnrollment(models.Model):
         Returns:
             Course enrollment object or None
         """
+        assert user
+
+        if isinstance(user, int):
+            try:
+                return cls.objects.get(
+                    user_id=user,
+                    course_id=course_key
+                )
+            except cls.DoesNotExist:
+                return None
+
+        if user.is_anonymous():
+            return None
         try:
             return cls.objects.get(
                 user=user,
