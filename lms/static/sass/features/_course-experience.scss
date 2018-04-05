@@ -74,7 +74,7 @@
             .details {
               font-size: $body-font-size;
               color: theme-color("secondary");
-              margin-left: 35px;
+              margin-left: 34px;
             }
             .prerequisite {
               color: theme-color("secondary");
@@ -83,11 +83,9 @@
           }
 
           .vertical {
-            @include margin-left(10px);
+            @include margin-left(16px);
 
             list-style-type: none;
-            border: 1px solid transparent;
-            border-radius: 2px;
 
             a.outline-item {
               display: flex;
@@ -96,6 +94,22 @@
               padding: ($baseline / 2) 0 ($baseline / 2) 0;
               margin: 0 0 0 ($baseline);
               border-top: 1px solid $border-color;
+            }
+
+            a.outline-item:hover {
+              text-decoration: none;
+
+              .vertical-details {
+                text-decoration: underline;
+              }
+
+              .complete-checkmark {
+                text-decoration: none;
+              }
+            }
+
+            .vertical-details {
+              float:left;
             }
 
             &:hover,
@@ -119,12 +133,13 @@
 }
 
 // Course outline accordion
-button.accordion-trigger {
-  margin: 2px;
-  padding: 10px 0 10px 0;
+button.accordion-trigger, button.prerequisite-button {
+  padding: 10px 0 10px 2px;
   border: none;
   width: 100%;
   text-align: left;
+  margin: 0px;
+  background: none;
 
   .fa {
     color: $blue;
@@ -133,6 +148,15 @@ button.accordion-trigger {
 
 .accordion-panel.is-hidden {
   display: none;
+}
+
+.fa-check.fa.complete-checkmark {
+  border: 1px solid $green;
+  margin-right: $baseline / 2;
+  border-radius: 100px;
+  color: white;
+  background-color: $green;
+  float: right;
 }
 
 // Course outline

@@ -3,19 +3,27 @@ This module provides date summary blocks for the Course Info
 page. Each block gives information about a particular
 course-run-specific date which will be displayed to the user.
 """
+import crum
 from datetime import datetime
 
 from babel.dates import format_timedelta
+from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils.translation import ugettext as _
 from django.utils.translation import get_language, to_locale, ugettext_lazy
+from django.utils.formats import date_format
 from lazy import lazy
 from pytz import timezone, utc
 
-from course_modes.models import CourseMode
+from course_modes.models import CourseMode, get_cosmetic_verified_display_price
 from lms.djangoapps.commerce.utils import EcommerceService
 from lms.djangoapps.verify_student.models import SoftwareSecurePhotoVerification, VerificationDeadline
 from student.models import CourseEnrollment
+from openedx.core.djangoapps.certificates.api import can_show_certificate_available_date_field
+from openedx.core.djangolib.markup import HTML, Text
+from openedx.features.course_experience import CourseHomeMessages, UPGRADE_DEADLINE_MESSAGE
+
+from .context_processor import user_timezone_locale_prefs
 
 
 class DateSummary(object):
@@ -30,7 +38,7 @@ class DateSummary(object):
         Returns a consistent current time.
         """
         if self._current_time is None:
-            self._current_time = datetime.datetime.now(utc)
+            self._current_time = datetime.now(utc)
         return self._current_time
 
     @property
@@ -433,7 +441,7 @@ def verified_upgrade_link_is_valid(enrollment=None):
     if upgrade_deadline is None:
         return False
 
-    if datetime.datetime.now(utc).date() > upgrade_deadline.date():
+    if datetime.now(utc).date() > upgrade_deadline.date():
         return False
 
     # Show the summary if user enrollment is in which allow user to upsell

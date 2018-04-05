@@ -9,7 +9,7 @@ from openedx.core.lib.cache_utils import memoized
 from xmodule.modulestore.django import modulestore
 #from lms.djangoapps.completion.models import BlockCompletion
 #from lms.djangoapps.completion.waffle import visual_progress_enabled
-from opaque_keys.edx.keys import CourseKey, UsageKey
+from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import BlockUsageLocator
 from openedx.core.djangoapps.request_cache.middleware import request_cached
 
@@ -131,26 +131,18 @@ def get_course_outline_block_tree(request, course_id):
     course_key = CourseKey.from_string(course_id)
     course_usage_key = modulestore().make_course_usage_key(course_key)
 
-    if visual_progress_enabled(course_key=course_key):
-        # Deeper query for course tree traversing/marking complete
-        # and last completed block
-        block_types_filter = [
-            'course',
-            'chapter',
-            'sequential',
-            'vertical',
-            'html',
-            'problem',
-            'video',
-            'discussion'
-        ]
-    else:
-        # Shallower query is sufficient for last accessed block
-        block_types_filter = [
-            'course',
-            'chapter',
-            'sequential'
-        ]
+    # Deeper query for course tree traversing/marking complete
+    # and last completed block
+    block_types_filter = [
+        'course',
+        'chapter',
+        'sequential',
+        'vertical',
+        'html',
+        'problem',
+        'video',
+        'discussion'
+    ]
     all_blocks = get_blocks(
         request,
         course_usage_key,
@@ -183,3 +175,20 @@ def get_course_outline_block_tree(request, course_id):
         else:
             mark_last_accessed(request.user, course_key, course_outline_root_block)
     return course_outline_root_block
+
+
+def get_resume_block(block):
+    """
+    Gets the deepest block marked as 'resume_block'.
+
+    """
+    if not block['resume_block']:
+        return None
+    if not block.get('children'):
+        return block
+
+    for child in block['children']:
+        resume_block = get_resume_block(child)
+        if resume_block:
+            return resume_block
+    return block

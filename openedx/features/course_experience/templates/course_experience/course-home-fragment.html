@@ -64,7 +64,9 @@ from openedx.features.course_experience.course_tools import CourseToolsPluginMan
                     </div>
                 % endif
 
-                ${HTML(outline_fragment.body_html())}
+                % if outline_fragment:
+                    ${HTML(outline_fragment.body_html())}
+                % endif
             </main>
             <aside class="course-sidebar layout-col layout-col-a">
                 <%
@@ -99,6 +101,8 @@ from openedx.features.course_experience.course_tools import CourseToolsPluginMan
             </aside>
         </div>
     </div>
-    ${HTML(course_sock_fragment.body_html())}
+    % if course_sock_fragment:
+        ${HTML(course_sock_fragment.body_html())}
+    % endif
 </div>
 </%block>
