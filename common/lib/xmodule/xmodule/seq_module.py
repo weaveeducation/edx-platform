@@ -20,6 +20,7 @@ from .fields import Date
 from .mako_module import MakoModuleDescriptor
 from .progress import Progress
 from .x_module import XModule, STUDENT_VIEW
+from xmodule.x_module import XBlockCompletionMode
 from .xml_module import XmlDescriptor
 
 log = logging.getLogger(__name__)
@@ -40,6 +41,7 @@ _ = lambda text: text
 
 class SequenceFields(object):
     has_children = True
+    completion_mode = XBlockCompletionMode.AGGREGATOR
 
     # NOTE: Position is 1-indexed.  This is silly, but there are now student
     # positions saved on prod, so it's not easy to fix.

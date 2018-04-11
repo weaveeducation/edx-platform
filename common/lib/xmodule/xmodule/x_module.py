@@ -1984,3 +1984,12 @@ class DoNothingCache(object):
 
     def set(self, key, value, timeout=None):
         pass
+
+
+class XBlockCompletionMode(object):
+    """
+    Enumeration for completion modes.
+    """
+    COMPLETABLE = "completable"
+    AGGREGATOR = "aggregator"
+    EXCLUDED = "excluded"
