@@ -31,6 +31,7 @@ from .signals import (
     SCORE_PUBLISHED,
     SUBSECTION_SCORE_CHANGED
 )
+from completion.handlers import scorable_block_completion
 
 log = getLogger(__name__)
 
@@ -229,6 +230,7 @@ def enqueue_subsection_update(sender, **kwargs):  # pylint: disable=unused-argum
         ),
         countdown=RECALCULATE_GRADE_DELAY,
     )
+    scorable_block_completion(sender, **kwargs)
     log.info(
         u'Grades: Request async calculation of subsection grades with args: {}. Task [{}]'.format(
             ', '.join('{}:{}'.format(arg, kwargs[arg]) for arg in sorted(kwargs)),

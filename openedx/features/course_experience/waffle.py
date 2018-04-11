@@ -4,8 +4,6 @@ waffle switches for the course experience app.
 """
 from __future__ import unicode_literals
 
-from openedx.core.djangoapps.site_configuration.models import SiteConfiguration
-from openedx.core.djangoapps.theming.helpers import get_current_site
 from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag, WaffleFlagNamespace, WaffleSwitchNamespace
 
 # Namespace

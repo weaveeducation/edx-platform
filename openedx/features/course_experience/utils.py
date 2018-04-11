@@ -5,20 +5,13 @@ from opaque_keys.edx.keys import CourseKey
 
 from lms.djangoapps.course_api.blocks.api import get_blocks
 from lms.djangoapps.course_blocks.utils import get_student_module_as_dict
-from openedx.core.lib.cache_utils import memoized
 from xmodule.modulestore.django import modulestore
-#from lms.djangoapps.completion.models import BlockCompletion
-#from lms.djangoapps.completion.waffle import visual_progress_enabled
+from completion.models import BlockCompletion
+from completion.waffle import visual_progress_enabled
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import BlockUsageLocator
 from openedx.core.djangoapps.request_cache.middleware import request_cached
-
-
-def visual_progress_enabled(*args, **kwargs):
-    """
-    Temporary solution 
-    """
-    return False
+from openedx.core.lib.cache_utils import memoized
 
 
 @request_cached
@@ -61,16 +54,15 @@ def get_course_outline_block_tree(request, course_id):
         Mark 'most recent completed block as 'resume_block'
 
         """
-        pass
-#        last_completed_child_position = BlockCompletion.get_latest_block_completed(user, course_key)
-#
-#        if last_completed_child_position:
-#            # Mutex w/ NOT 'course_block_completions'
-#            recurse_mark_complete(
-#                course_block_completions=BlockCompletion.get_course_completions(user, course_key),
-#                latest_completion=last_completed_child_position,
-#                block=block
-#            )
+        last_completed_child_position = BlockCompletion.get_latest_block_completed(user, course_key)
+
+        if last_completed_child_position:
+            # Mutex w/ NOT 'course_block_completions'
+            recurse_mark_complete(
+                course_block_completions=BlockCompletion.get_course_completions(user, course_key),
+                latest_completion=last_completed_child_position,
+                block=block
+            )
 
     def recurse_mark_complete(course_block_completions, latest_completion, block):
         """

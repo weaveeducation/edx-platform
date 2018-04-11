@@ -3,6 +3,7 @@ VerticalBlock - an XBlock which renders its children in a column.
 """
 import logging
 from copy import copy
+import six
 
 from lxml import etree
 from xblock.core import XBlock
@@ -13,7 +14,10 @@ from xmodule.progress import Progress
 from xmodule.seq_module import SequenceFields
 from xmodule.studio_editable import StudioEditableBlock
 from xmodule.x_module import STUDENT_VIEW, XModuleFields
+from xmodule.x_module import XBlockCompletionMode
 from xmodule.xml_module import XmlParserMixin
+from xblock.exceptions import JsonHandlerError
+from opaque_keys.edx.keys import UsageKey
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +26,22 @@ log = logging.getLogger(__name__)
 CLASS_PRIORITY = ['video', 'problem']
 
 
+def is_completable_by_viewing(block):
+    """
+    Returns True if the block can by completed by viewing it.
+
+    This is true of any non-customized, non-scorable, completable block.
+    """
+    return (
+        getattr(block, 'completion_mode', XBlockCompletionMode.COMPLETABLE) == XBlockCompletionMode.COMPLETABLE
+        and not getattr(block, 'has_custom_completion', False)
+        and not block.has_score
+    )
+
+
+
 @XBlock.needs('user', 'bookmarks')
+@XBlock.wants('completion')
 class VerticalBlock(SequenceFields, XModuleFields, StudioEditableBlock, XmlParserMixin, MakoTemplateBlockBase, XBlock):
     """
     Layout XBlock for rendering subblocks vertically.
@@ -36,6 +55,27 @@ class VerticalBlock(SequenceFields, XModuleFields, StudioEditableBlock, XmlParse
     has_children = True
 
     show_in_read_only_mode = True
+
+    def get_completable_by_viewing(self):
+        """
+        Return a set of descendent blocks that this vertical still needs to
+        mark complete upon viewing.
+
+        Completed blocks are excluded to reduce network traffic from clients.
+        """
+        completion_service = self.runtime.service(self, 'completion')
+
+        if completion_service is None:
+            return set()
+        if not completion_service.completion_tracking_enabled():
+            return set()
+        # pylint: disable=no-member
+        blocks = {block.location for block in self.get_display_items() if is_completable_by_viewing(block)}
+        # pylint: enable=no-member
+
+        # Exclude completed blocks to reduce traffic from client.
+        completions = completion_service.get_completions(blocks)
+        return {six.text_type(block_key) for block_key in blocks if completions[block_key] < 1.0}
 
     def student_view(self, context):
         """
@@ -76,7 +116,8 @@ class VerticalBlock(SequenceFields, XModuleFields, StudioEditableBlock, XmlParse
             'unit_title': self.display_name_with_default if not is_child_of_vertical else None,
             'show_bookmark_button': child_context.get('show_bookmark_button', not is_child_of_vertical),
             'bookmarked': child_context['bookmarked'],
-            'bookmark_id': u"{},{}".format(child_context['username'], unicode(self.location))
+            'bookmark_id': u"{},{}".format(child_context['username'], unicode(self.location)),
+            'watched_completable_blocks': self.get_completable_by_viewing(),
         }))
 
         fragment.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/vertical_student_view.js'))
@@ -177,3 +218,29 @@ class VerticalBlock(SequenceFields, XModuleFields, StudioEditableBlock, XmlParse
         xblock_body["content_type"] = "Sequence"
 
         return xblock_body
+
+    def find_descendent(self, block_key):
+        """
+        Return the descendent block with the given block key if it exists.
+
+        Otherwise return None.
+        """
+        for block in self.get_display_items():  # pylint: disable=no-member
+            if block.location == block_key:
+                return block
+
+    @XBlock.json_handler
+    def publish_completion(self, data, suffix=''):  # pylint: disable=unused-argument
+        """
+        Publish data from the front end.
+        """
+        block_key = UsageKey.from_string(data.pop('block_key')).map_into_course(self.course_id)
+        block = self.find_descendent(block_key)
+        if block is None:
+            message = "Invalid block: {} not found in {}"
+            raise JsonHandlerError(400, message.format(block_key, self.location))  # pylint: disable=no-member
+        elif not is_completable_by_viewing(block):
+            message = "Invalid block type: {} in block {} not configured for completion by viewing"
+            raise JsonHandlerError(400, message.format(type(block), block_key))
+        self.runtime.publish(block, "completion", data)
+        return {'result': 'ok'}

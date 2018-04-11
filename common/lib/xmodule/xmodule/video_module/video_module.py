@@ -39,6 +39,7 @@ from xmodule.raw_module import EmptyDataRawDescriptor
 from xmodule.validation import StudioValidation, StudioValidationMessage
 from xmodule.video_module import manage_video_subtitles_save
 from xmodule.x_module import XModule, module_attr, AUTHOR_VIEW
+from xmodule.x_module import XBlockCompletionMode
 from xmodule.xml_module import deserialize_field, is_pointer_tag, name_to_pathname
 
 from .bumper_utils import bumperize
@@ -103,6 +104,7 @@ class VideoModule(VideoFields, VideoTranscriptsMixin, VideoStudentViewHandlers, 
             <source src=".../mit-3091x/M-3091X-FA12-L21-3_100.ogv"/>
         </video>
     """
+    completion_mode = XBlockCompletionMode.COMPLETABLE
     video_time = 0
     icon_class = 'video'
 

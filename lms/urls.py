@@ -113,6 +113,7 @@ urlpatterns = (
 
     url(r'^dashboard/', include('learner_dashboard.urls')),
     url(r'^api/experiments/', include('experiments.urls', namespace='api_experiments')),
+    url(r'^api/completion/', include('completion.api.urls', namespace='completion_api')),
 
 )
 

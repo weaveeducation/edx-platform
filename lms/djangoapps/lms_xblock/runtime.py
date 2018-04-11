@@ -4,6 +4,7 @@ Module implementing `xblock.runtime.Runtime` functionality for the LMS
 import xblock.reference.plugins
 from django.conf import settings
 from django.core.urlresolvers import reverse
+from completion.services import CompletionService
 
 from badges.service import BadgingService
 from badges.utils import badges_enabled
@@ -134,6 +135,7 @@ class LmsModuleSystem(ModuleSystem):  # pylint: disable=abstract-method
     def __init__(self, **kwargs):
         request_cache_dict = RequestCache.get_request_cache().data
         services = kwargs.setdefault('services', {})
+        services['completion'] = CompletionService(user=kwargs.get('user'), course_key=kwargs.get('course_id'))
         services['fs'] = xblock.reference.plugins.FSService()
         services['i18n'] = ModuleI18nService
         services['library_tools'] = LibraryToolsService(modulestore())

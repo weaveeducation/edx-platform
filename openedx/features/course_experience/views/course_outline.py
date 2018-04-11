@@ -11,6 +11,7 @@ from django.template.loader import render_to_string
 from opaque_keys.edx.keys import CourseKey
 from web_fragments.fragment import Fragment
 
+from completion.waffle import visual_progress_enabled
 from courseware.courses import get_course_overview_with_access
 from openedx.core.djangoapps.plugin_api.views import EdxFragmentView
 from openedx.features.course_experience import waffle as course_experience_waffle
@@ -18,13 +19,6 @@ from student.models import CourseEnrollment
 
 from ..utils import get_course_outline_block_tree, get_resume_block
 from util.milestones_helpers import get_course_content_milestones
-
-
-def visual_progress_enabled(*args, **kwargs):
-    """
-    Temporary solution 
-    """
-    return False
 
 
 class CourseOutlineFragmentView(EdxFragmentView):
