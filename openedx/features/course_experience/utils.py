@@ -14,7 +14,7 @@ from openedx.core.djangoapps.request_cache.middleware import request_cached
 from openedx.core.lib.cache_utils import memoized
 
 
-@request_cached
+@memoized
 def get_course_outline_block_tree(request, course_id):
     """
     Returns the root block of the course outline, with children as blocks.
