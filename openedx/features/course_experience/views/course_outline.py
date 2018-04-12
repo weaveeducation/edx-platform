@@ -39,7 +39,8 @@ class CourseOutlineFragmentView(EdxFragmentView):
 
         # TODO: EDUCATOR-2283 Remove 'show_visual_progress' from context
         # and remove the check for it in the HTML file
-        show_visual_progress = visual_progress_enabled(course_key)
+        show_visual_progress = (visual_progress_enabled(course_key) and
+                                self.user_enrolled_after_completion_collection(request.user, course_key))
 
         context = {
             'csrf': csrf(request)['csrf_token'],
