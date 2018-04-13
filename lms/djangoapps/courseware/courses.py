@@ -32,6 +32,7 @@ from openedx.core.djangoapps.content.course_overviews.models import CourseOvervi
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from static_replace import replace_static_urls
 from student.models import CourseEnrollment
+from credo_modules.models import CourseUsage
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.x_module import STUDENT_VIEW
@@ -523,3 +524,34 @@ def get_current_child(xmodule, min_depth=None, requested_child=None):
                 child = _get_default_child_module(children)
 
     return child
+
+
+def update_lms_course_usage(request, usage_key, course_key):
+    item = None
+    block_type = ''
+    max_attempts = 10
+    num_attempt = 0
+
+    while block_type != 'course' and num_attempt < max_attempts:
+        if item is None:
+            item = modulestore().get_item(usage_key)
+        CourseUsage.update_block_usage(request, course_key, usage_key)
+        item = item.get_parent()
+        block_type = item.category
+        num_attempt = num_attempt + 1
+
+#    # usage of vertical blocks
+#    if hasattr(item, 'position'):
+#        course = get_course_by_id(course_key, depth=1)
+#        field_data_cache = FieldDataCache.cache_for_descriptor_descendents(
+#            course.id, request.user, item, depth=2
+#        )
+#        course_module = get_module_for_descriptor(
+#            request.user, request, item, field_data_cache, course.id, course=course
+#        )
+#        real_position = (course_module.position - 1) if course_module.position else 0
+#        try:
+#            child = course_module.get_children()[real_position]
+#            CourseUsage.update_block_usage(request, course_key, child.location)
+#        except IndexError:
+#            pass

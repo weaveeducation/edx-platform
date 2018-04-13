@@ -55,7 +55,8 @@ from courseware.courses import (
     get_permission_for_course_about,
     get_studio_url,
     sort_by_announcement,
-    sort_by_start_date
+    sort_by_start_date,
+    update_lms_course_usage
 )
 from courseware.date_summary import VerifiedUpgradeDeadlineDate
 from courseware.masquerade import setup_masquerade
@@ -1508,6 +1509,8 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True):
         block, _ = get_module_by_usage_id(
             request, unicode(course_key), unicode(usage_key), disable_staff_debug_info=True, course=course
         )
+
+        update_lms_course_usage(request, usage_key, course_key)
 
         student_view_context = request.GET.dict()
         student_view_context['show_bookmark_button'] = False

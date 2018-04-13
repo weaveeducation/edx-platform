@@ -1,11 +1,15 @@
 import datetime
 import json
 import re
+import uuid
 from urlparse import urlparse
 from django.dispatch import receiver
 from django.contrib.auth.models import User
-from django.db import models
+from django.db import models, IntegrityError
+from django.db.models import F, Value
+from django.db.models.functions import Concat
 from openedx.core.djangoapps.xmodule_django.models import CourseKeyField
+from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 
@@ -190,14 +194,72 @@ def add_custom_term_student_property_on_enrollment(sender, event=None, user=None
 
 
 class CourseUsage(models.Model):
+    MODULE_TYPES = (('problem', 'problem'),
+                    ('video', 'video'),
+                    ('html', 'html'),
+                    ('course', 'course'),
+                    ('chapter', 'Section'),
+                    ('sequential', 'Subsection'),
+                    ('vertical', 'Vertical'),
+                    ('library_content', 'Library Content'))
+
     user = models.ForeignKey(User)
     course_id = CourseKeyField(max_length=255, db_index=True, null=True, blank=True)
+    block_id = models.CharField(max_length=255, db_index=True, null=True)
+    block_type = models.CharField(max_length=32, choices=MODULE_TYPES, null=True)
     usage_count = models.IntegerField(null=True)
     first_usage_time = models.DateTimeField(verbose_name='First Usage Time', null=True, blank=True)
     last_usage_time = models.DateTimeField(verbose_name='Last Usage Time', null=True, blank=True)
+    session_ids = models.TextField(null=True, blank=True)
 
     class Meta:
-        unique_together = (('user', 'course_id'),)
+        unique_together = (('user', 'course_id', 'block_id'),)
+
+    @classmethod
+    def _add_block_usage(cls, course_key, user_id, block_type, block_id, unique_user_id):
+        course_usage = CourseUsage.objects.get(
+            course_id=course_key,
+            user_id=user_id,
+            block_type=block_type,
+            block_id=block_id
+        )
+        if unique_user_id not in course_usage.session_ids:
+            CourseUsage.objects.filter(course_id=course_key, user_id=user_id,
+                                       block_id=block_id, block_type=block_type) \
+                .update(last_usage_time=datetime.datetime.now(), usage_count=F('usage_count') + 1,
+                        session_ids=Concat('session_ids', Value('|'), Value(unique_user_id)))
+
+    @classmethod
+    def update_block_usage(cls, request, course_key, block_id):
+        unique_user_id = get_unique_user_id(request)
+        if unique_user_id and hasattr(request, 'user') and request.user.is_authenticated():
+            if not isinstance(course_key, CourseKey):
+                course_key = CourseKey.from_string(course_key)
+            if not isinstance(block_id, UsageKey):
+                block_id = UsageKey.from_string(block_id)
+            block_type = block_id.block_type
+            block_id = str(block_id)
+
+            try:
+                cls._add_block_usage(course_key, request.user.id,
+                                     block_type, block_id, unique_user_id)
+            except CourseUsage.DoesNotExist:
+                datetime_now = datetime.datetime.now()
+                try:
+                    cu = CourseUsage(
+                        course_id=course_key,
+                        user_id=request.user.id,
+                        usage_count=1,
+                        block_type=block_type,
+                        block_id=block_id,
+                        first_usage_time=datetime_now,
+                        last_usage_time=datetime_now,
+                        session_ids=unique_user_id
+                    )
+                    cu.save()
+                except IntegrityError:
+                    cls._add_block_usage(course_key, request.user.id,
+                                         block_type, block_id, unique_user_id)
 
 
 class Organization(models.Model):
@@ -234,3 +296,14 @@ class CourseExcludeInsights(models.Model):
         db_table = "credo_course_exclude_insights"
         verbose_name = "course"
         verbose_name_plural = "exclude insights"
+
+
+UNIQUE_USER_ID_COOKIE = 'credo-course-usage-id'
+
+
+def get_unique_user_id(request):
+    return request.COOKIES.get(UNIQUE_USER_ID_COOKIE, None)
+
+
+def set_unique_user_id(request):
+    request.COOKIES[UNIQUE_USER_ID_COOKIE] = uuid.uuid4()
