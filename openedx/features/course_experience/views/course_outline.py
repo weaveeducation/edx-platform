@@ -144,11 +144,14 @@ class CourseOutlineFragmentView(EdxFragmentView):
         """
         begin_collection_date = datetime.datetime(2018, 01, 24, tzinfo=pytz.utc)
         user = User.objects.get(username=user)
-        user_enrollment = CourseEnrollment.objects.get(
-            user=user,
-            course_id=course_key,
-            is_active=True
-        )
+        try:
+            user_enrollment = CourseEnrollment.objects.get(
+                user=user,
+                course_id=course_key,
+                is_active=True
+            )
+        except CourseEnrollment.DoesNotExist:
+            return False
 
         if user_enrollment and user_enrollment.created > begin_collection_date:
             return True
