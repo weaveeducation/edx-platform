@@ -6,6 +6,7 @@ from opaque_keys.edx.keys import CourseKey
 from lms.djangoapps.course_api.blocks.api import get_blocks
 from lms.djangoapps.course_blocks.utils import get_student_module_as_dict
 from xmodule.modulestore.django import modulestore
+from xmodule.vertical_block import CUSTOM_BLOCK_TYPES_COMPLETABLE_BY_VIEWING
 from completion.models import BlockCompletion
 from completion.waffle import visual_progress_enabled
 from opaque_keys.edx.keys import CourseKey
@@ -135,6 +136,7 @@ def get_course_outline_block_tree(request, course_id):
         'video',
         'discussion'
     ]
+    block_types_filter.extend(CUSTOM_BLOCK_TYPES_COMPLETABLE_BY_VIEWING)
     all_blocks = get_blocks(
         request,
         course_usage_key,
