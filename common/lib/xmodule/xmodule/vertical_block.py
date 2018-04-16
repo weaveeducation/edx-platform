@@ -24,6 +24,12 @@ log = logging.getLogger(__name__)
 # HACK: This shouldn't be hard-coded to two types
 # OBSOLETE: This obsoletes 'type'
 CLASS_PRIORITY = ['video', 'problem']
+CUSTOM_BLOCK_TYPES_COMPLETABLE_BY_VIEWING = [
+    'openassessment',
+    'drag-and-drop-v2',
+    'poll',
+    'survey'
+]
 
 
 def is_completable_by_viewing(block):
@@ -32,11 +38,14 @@ def is_completable_by_viewing(block):
 
     This is true of any non-customized, non-scorable, completable block.
     """
-    return (
-        getattr(block, 'completion_mode', XBlockCompletionMode.COMPLETABLE) == XBlockCompletionMode.COMPLETABLE
-        and not getattr(block, 'has_custom_completion', False)
-        and not block.has_score
-    )
+    if block.category in CUSTOM_BLOCK_TYPES_COMPLETABLE_BY_VIEWING:
+        return True
+    else:
+        return (
+            getattr(block, 'completion_mode', XBlockCompletionMode.COMPLETABLE) == XBlockCompletionMode.COMPLETABLE
+            and not getattr(block, 'has_custom_completion', False)
+            and not block.has_score
+        )
 
 
 
