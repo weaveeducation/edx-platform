@@ -1083,7 +1083,7 @@ class CourseEnrollment(models.Model):
         """
         assert user
 
-        if isinstance(user, int):
+        if isinstance(user, (int, long)):
             try:
                 return cls.objects.get(
                     user_id=user,
