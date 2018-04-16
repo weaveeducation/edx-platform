@@ -644,9 +644,10 @@ class VerificationDeadlineDate(DateSummary):
     def is_enabled(self):
         if self.date is None:
             return False
-        (mode, is_active) = CourseEnrollment.enrollment_mode_for_user(self.user, self.course_id)
-        if is_active and mode == 'verified':
-            return self.verification_status in ('expired', 'none', 'must_reverify')
+        if not self.user.is_anonymous():
+            (mode, is_active) = CourseEnrollment.enrollment_mode_for_user(self.user, self.course_id)
+            if is_active and mode == 'verified':
+                return self.verification_status in ('expired', 'none', 'must_reverify')
         return False
 
     @lazy
