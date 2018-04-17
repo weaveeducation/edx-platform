@@ -535,7 +535,7 @@ def update_lms_course_usage(request, usage_key, course_key):
     while block_type != 'course' and num_attempt < max_attempts:
         if item is None:
             item = modulestore().get_item(usage_key)
-        CourseUsage.update_block_usage(request, course_key, usage_key)
+        CourseUsage.update_block_usage(request, course_key, item.location)
         item = item.get_parent()
         block_type = item.category
         num_attempt = num_attempt + 1
