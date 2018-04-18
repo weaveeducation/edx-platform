@@ -982,15 +982,26 @@ class RegistrationView(APIView):
 
                     # Hide the password field
                     for name in ["password", "password_copy"]:
-                        form_desc.override_field_properties(
-                            "password",
-                            default="",
-                            field_type="hidden",
-                            required=False,
-                            label="",
-                            instructions="",
-                            restrictions={}
-                        )
+                        if name == 'password':
+                            form_desc.override_field_properties(
+                                "password",
+                                default="",
+                                field_type="hidden",
+                                required=False,
+                                label="",
+                                instructions="",
+                                restrictions={}
+                            )
+                        if name == 'password_copy':
+                            form_desc.override_field_properties(
+                                "password_copy",
+                                default="",
+                                field_type="hidden",
+                                required=False,
+                                label="",
+                                instructions="",
+                                restrictions={}
+                            )
                     # used to identify that request is running third party social auth
                     form_desc.add_field(
                         "social_auth_provider",
