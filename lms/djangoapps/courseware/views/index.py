@@ -40,6 +40,7 @@ from util.views import ensure_valid_course_key
 from xmodule.modulestore.django import modulestore
 from xmodule.x_module import STUDENT_VIEW
 from credo_modules.decorators import credo_additional_profile
+from courseware.courses import update_lms_course_usage
 
 from ..access import has_access
 from ..access_utils import in_preview_mode, is_course_open_for_learner
@@ -148,6 +149,8 @@ class CoursewareIndex(View):
             self._reset_section_to_exam_if_required()
             self.chapter = self._find_chapter()
             self.section = self._find_section()
+
+            update_lms_course_usage(request, self.section.location, self.course_key)
 
             if self.chapter and self.section:
                 self._redirect_if_not_requested_section()
