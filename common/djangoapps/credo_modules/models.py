@@ -302,8 +302,11 @@ UNIQUE_USER_ID_COOKIE = 'credo-course-usage-id'
 
 
 def get_unique_user_id(request):
-    return request.COOKIES.get(UNIQUE_USER_ID_COOKIE, None)
+    uid = request.COOKIES.get(UNIQUE_USER_ID_COOKIE, None)
+    if uid:
+        return unicode(uid)
+    return uid
 
 
 def set_unique_user_id(request):
-    request.COOKIES[UNIQUE_USER_ID_COOKIE] = uuid.uuid4()
+    request.COOKIES[UNIQUE_USER_ID_COOKIE] = unicode(uuid.uuid4())
