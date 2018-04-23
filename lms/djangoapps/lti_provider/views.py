@@ -148,6 +148,7 @@ def lti_launch(request, course_id, usage_id):
     # scores back later. We know that the consumer exists, since the record was
     # used earlier to verify the oauth signature.
     store_outcome_parameters(params, request.user, lti_consumer)
+    update_lms_course_usage(request, usage_key, course_key)
 
     return render_courseware(request, params['usage_key'])
 

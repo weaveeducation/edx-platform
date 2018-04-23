@@ -1473,6 +1473,7 @@ def render_xblock_course(request, course_id, usage_key_string):
     if user_must_fill_additional_profile_fields(course, request.user, block):
         return show_student_profile_form(request, course, True)
 
+    update_lms_course_usage(request, UsageKey.from_string(usage_key_string), course_key)
     return render_xblock(request, usage_key_string)
 
 
@@ -1509,8 +1510,6 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True):
         block, _ = get_module_by_usage_id(
             request, unicode(course_key), unicode(usage_key), disable_staff_debug_info=True, course=course
         )
-
-        update_lms_course_usage(request, usage_key, course_key)
 
         student_view_context = request.GET.dict()
         student_view_context['show_bookmark_button'] = False
