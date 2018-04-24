@@ -2,7 +2,7 @@ import json
 import datetime
 from credo.auth_helper import get_request_referer_from_other_domain, get_saved_referer, save_referer
 from credo_modules.models import CourseUsage, get_unique_user_id, set_unique_user_id, UNIQUE_USER_ID_COOKIE
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import F
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
@@ -110,16 +110,17 @@ class CourseUsageMiddleware(object):
                             .update(last_usage_time=datetime_now, usage_count=F('usage_count') + 1)
                     except CourseUsage.DoesNotExist:
                         try:
-                            cu = CourseUsage(
-                                course_id=course_key,
-                                user_id=request.user.id,
-                                usage_count=1,
-                                block_type='course',
-                                block_id='course',
-                                first_usage_time=datetime_now,
-                                last_usage_time=datetime_now
-                            )
-                            cu.save()
+                            with transaction.atomic():
+                                cu = CourseUsage(
+                                    course_id=course_key,
+                                    user_id=request.user.id,
+                                    usage_count=1,
+                                    block_type='course',
+                                    block_id='course',
+                                    first_usage_time=datetime_now,
+                                    last_usage_time=datetime_now
+                                )
+                                cu.save()
                         except IntegrityError:
                             CourseUsage.objects.filter(course_id=course_key, user_id=request.user.id,
                                                        block_type='course', block_id='course') \

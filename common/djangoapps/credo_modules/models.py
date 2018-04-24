@@ -5,7 +5,7 @@ import uuid
 from urlparse import urlparse
 from django.dispatch import receiver
 from django.contrib.auth.models import User
-from django.db import models, IntegrityError
+from django.db import models, IntegrityError, transaction
 from django.db.models import F, Value
 from django.db.models.functions import Concat
 from openedx.core.djangoapps.xmodule_django.models import CourseKeyField
@@ -246,17 +246,18 @@ class CourseUsage(models.Model):
             except CourseUsage.DoesNotExist:
                 datetime_now = datetime.datetime.now()
                 try:
-                    cu = CourseUsage(
-                        course_id=course_key,
-                        user_id=request.user.id,
-                        usage_count=1,
-                        block_type=block_type,
-                        block_id=block_id,
-                        first_usage_time=datetime_now,
-                        last_usage_time=datetime_now,
-                        session_ids=unique_user_id
-                    )
-                    cu.save()
+                    with transaction.atomic():
+                        cu = CourseUsage(
+                            course_id=course_key,
+                            user_id=request.user.id,
+                            usage_count=1,
+                            block_type=block_type,
+                            block_id=block_id,
+                            first_usage_time=datetime_now,
+                            last_usage_time=datetime_now,
+                            session_ids=unique_user_id
+                        )
+                        cu.save()
                 except IntegrityError:
                     cls._add_block_usage(course_key, request.user.id,
                                          block_type, block_id, unique_user_id)
