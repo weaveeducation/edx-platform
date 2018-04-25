@@ -58,8 +58,12 @@ def compute_all_grades_for_course(**kwargs):
     Kicks off a series of compute_grades_for_course_v2 tasks
     to cover all of the students in the course.
     """
+    course_key_param = kwargs.pop('course_key')
+    if isinstance(course_key_param, basestring):
+        course_key_param = CourseKey.from_string(course_key_param)
+
     for course_key, offset, batch_size in _course_task_args(
-        course_key=kwargs.pop('course_key'),
+        course_key=course_key_param,
         kwargs=kwargs
     ):
         task_options = {'course_key': course_key, 'offset': offset, 'batch_size': batch_size}
