@@ -104,7 +104,7 @@ def handle_grading_policy_changed(sender, **kwargs):
     course_key = kwargs.get('course_id')
     kwargs={
         'course_key': unicode(course_key),
-        'event_transaction_id': get_event_transaction_id(),
+        'event_transaction_id': unicode(get_event_transaction_id()),
         'event_transaction_type': get_event_transaction_type()
     }
     result = compute_all_grades_for_course.apply_async(kwargs=kwargs)
