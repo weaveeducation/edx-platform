@@ -59,6 +59,7 @@ from xmodule.html_module import HtmlDescriptor
 from xmodule.modulestore.django import modulestore
 from xmodule.tabs import CourseTab
 from course_api.views import get_customer_info
+from credo_modules.models import Organization
 
 from .tools import get_units_with_due_date, title_or_url
 
@@ -218,6 +219,16 @@ def instructor_dashboard_2(request, course_id):
 #    if available_tabs.show_lti_constructor:
     if request.user.is_superuser:
         sections.append(_section_lti_constructor(request, course))
+
+    is_skill_customer = False
+    try:
+        org = Organization.objects.get(org=course_key.org)
+        is_skill_customer = org.is_skill_customer
+    except Organization.DoesNotExist:
+        pass
+
+    if not is_skill_customer and available_tabs.show_insights_link:
+        sections.append(_section_credo_insights(request, course))
 
     disable_buttons = not _is_small_course(course_key)
 
@@ -803,6 +814,16 @@ def _section_lti_constructor(request, course):
         'course_id_hash': hashlib.md5(unicode(course.id) + u'_credo_lti_constructor').hexdigest(),
         'customer_info': urllib.quote_plus(json.dumps(customer_info['user_info_type'])),
         'org_details': urllib.quote_plus(json.dumps(org_details)),
+    }
+    return section_data
+
+
+def _section_credo_insights(request, course):
+    section_data = {
+        'section_key': 'credo_insights',
+        'section_display_name': _('Credo Insights'),
+        'course_id': unicode(course.id),
+        'credo_insights_url': settings.CREDO_INSIGHTS_LINK,
     }
     return section_data
 
