@@ -227,7 +227,10 @@ def instructor_dashboard_2(request, course_id):
     except Organization.DoesNotExist:
         pass
 
-    if not is_skill_customer and available_tabs.show_insights_link:
+    dt_release = datetime.datetime(year=2018, month=5, day=25)
+    dt_now = datetime.datetime.now()
+
+    if not is_skill_customer and available_tabs.show_insights_link and dt_now > dt_release:
         sections.append(_section_credo_insights(request, course))
 
     disable_buttons = not _is_small_course(course_key)
