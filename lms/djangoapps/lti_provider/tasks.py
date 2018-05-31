@@ -14,7 +14,7 @@ import lti_provider.outcomes as outcomes
 from lms import CELERY_APP
 from lms.djangoapps.grades.new.course_grade_factory import CourseGradeFactory
 from lms.djangoapps.grades.signals.signals import PROBLEM_WEIGHTED_SCORE_CHANGED
-from lti_provider.models import GradedAssignment, log_lti
+from lti_provider.models import GradedAssignment, SendScoresLock, log_lti
 from lti_provider.views import parse_course_and_usage_keys
 from xmodule.modulestore.django import modulestore
 
@@ -139,10 +139,12 @@ def send_composite_outcome(self, user_id, course_id, assignment_id, version):
         if assignment.version_number == version:
             log_lti('send_composite_outcome_task_send_score', user_id, '', course_id, False, assignment, weighted_score,
                     task_id, version=version)
-            response_data = outcomes.send_score_update(assignment, weighted_score)
-            request_body = response_data['request_body']
-            response_body = response_data['response_body']
-            lis_outcome_service_url = response_data['lis_outcome_service_url']
+
+            with SendScoresLock(assignment_id):
+                response_data = outcomes.send_score_update(assignment, weighted_score)
+                request_body = response_data['request_body']
+                response_body = response_data['response_body']
+                lis_outcome_service_url = response_data['lis_outcome_service_url']
 
         log_lti('send_composite_outcome_task_finished', user_id, '', course_id, False, assignment, weighted_score,
                 task_id, response_body, request_body, lis_outcome_service_url, version=version)
@@ -185,10 +187,11 @@ def send_leaf_outcome(self, assignment_id, points_earned, points_possible):
         log_lti('send_leaf_outcome_task_send_score', assignment.user.id, '', str(assignment.course_key), False,
                 assignment, weighted_score, task_id, points_earned=points_earned, points_possible=points_possible)
 
-        response_data = outcomes.send_score_update(assignment, weighted_score)
-        request_body = response_data['request_body']
-        response_body = response_data['response_body']
-        lis_outcome_service_url = response_data['lis_outcome_service_url']
+        with SendScoresLock(assignment_id):
+            response_data = outcomes.send_score_update(assignment, weighted_score)
+            request_body = response_data['request_body']
+            response_body = response_data['response_body']
+            lis_outcome_service_url = response_data['lis_outcome_service_url']
 
         log_lti('send_leaf_outcome_task_finished', assignment.user.id, '', str(assignment.course_key), False,
                 assignment, weighted_score, task_id, response_body, request_body, lis_outcome_service_url,

@@ -15,7 +15,7 @@ import json
 import platform
 
 from django.contrib.auth.models import User
-from django.db import models
+from django.db import models, IntegrityError
 from provider.utils import short_token
 
 from openedx.core.djangoapps.xmodule_django.models import CourseKeyField, UsageKeyField
@@ -150,6 +150,50 @@ class LtiUser(models.Model):
 
     class Meta(object):
         unique_together = ('lti_consumer', 'lti_user_id')
+
+
+class GradedAssignmentLock(models.Model):
+    graded_assignment_id = models.IntegerField(null=False, unique=True)
+    created = models.DateTimeField()
+
+    @classmethod
+    def create(cls, graded_assignment_id):
+        try:
+            lock = GradedAssignmentLock(graded_assignment_id=graded_assignment_id, created=datetime.datetime.utcnow())
+            lock.save()
+            return lock
+        except IntegrityError:
+            try:
+                lock = GradedAssignmentLock.objects.get(graded_assignment_id=graded_assignment_id)
+                if lock:
+                    time_diff = datetime.datetime.utcnow() - lock.created
+                    if time_diff.seconds > 60:  # 1 min
+                        return lock
+            except GradedAssignmentLock.DoesNotExist:
+                pass
+            return False
+
+    @classmethod
+    def remove(cls, graded_assignment_id):
+        GradedAssignmentLock.objects.filter(graded_assignment_id=graded_assignment_id).delete()
+
+
+class SendScoresLock():
+
+    def __init__(self, graded_assignment_id):
+        self.graded_assignment_id = graded_assignment_id
+        self.lock = False
+
+    def __enter__(self):
+        while True:
+            self.lock = GradedAssignmentLock.create(self.graded_assignment_id)
+            if self.lock:
+                return self.lock
+            else:
+                time.sleep(2)  # 2 seconds
+
+    def __exit__(self, *args):
+        GradedAssignmentLock.remove(self.graded_assignment_id)
 
 
 def log_lti(action, user_id, message, course_id, is_error,
