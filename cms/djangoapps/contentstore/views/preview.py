@@ -121,7 +121,7 @@ class PreviewModuleSystem(ModuleSystem):  # pylint: disable=abstract-method
             if aside_type != 'acid_aside'
         ]
 
-        if block.scope_ids.block_type == 'problem' and 'tagging_ora_aside' in lst:
+        if block.scope_ids.block_type != 'openassessment' and 'tagging_ora_aside' in lst:
             lst.remove('tagging_ora_aside')
         if block.scope_ids.block_type == 'openassessment' and 'tagging_aside' in lst:
             lst.remove('tagging_aside')
