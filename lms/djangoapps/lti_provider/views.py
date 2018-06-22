@@ -197,7 +197,7 @@ def test_launch(request):
         params_strict = get_required_strict_parameters(request.POST)
         if not params_strict or params_strict['lti_version'] != 'LTI-1p0' \
                 or params_strict['lti_message_type'] != 'basic-lti-launch-request':
-            lti_consumer_info += '. LTI strict params validation failed'
+            lti_consumer_info.append('LTI strict params validation failed!')
         params.update(params_strict)
 
     # Check the OAuth signature on the message

@@ -68,7 +68,8 @@ class StructuredTagsAside(XBlockAside):
         """
         if isinstance(block, CapaModule) \
                 or isinstance(block, HtmlModule) \
-                or isinstance(block, VideoModule):
+                or isinstance(block, VideoModule)\
+                or block.category == 'drag-and-drop-v2':
             tags = []
             user = None
             has_access_any_tag = False
@@ -228,7 +229,7 @@ class StructuredTagsAside(XBlockAside):
         """
         This method return data that should be associated with the "check_problem" event
         """
-        if self.saved_tags and event_type == "problem_check":
+        if self.saved_tags and event_type in ("problem_check", "edx.drag_and_drop_v2.item.dropped"):
             return {'saved_tags': self.saved_tags}
         else:
             return None

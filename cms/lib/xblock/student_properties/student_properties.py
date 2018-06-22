@@ -32,7 +32,7 @@ class StudentPropertiesAside(XBlockAside):
                 user = anonymous_user.user
             except ObjectDoesNotExist:
                 pass
-        elif event_type == "problem_check":
+        elif event_type in ("problem_check", "edx.drag_and_drop_v2.item.dropped"):
             try:
                 user = User.objects.get(pk=self.runtime.user_id)
             except ObjectDoesNotExist:
