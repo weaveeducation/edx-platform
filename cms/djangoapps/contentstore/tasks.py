@@ -397,9 +397,9 @@ def import_olx(self, user_id, course_key_string, archive_path, archive_name, lan
     try:
         self.status.set_state(u'Unpacking')
 
-        if not archive_name.endswith(u'.tar.gz'):
+        if not archive_name.endswith(u'.tar.gz') and not archive_name.endswith(u'.zip'):
             with respect_language(language):
-                self.status.fail(_(u'We only support uploading a .tar.gz file.'))
+                self.status.fail(_(u'We only support uploading .tar.gz and .zip files.'))
                 return
 
         temp_filepath = course_dir / get_valid_filename(archive_name)
