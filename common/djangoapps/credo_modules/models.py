@@ -263,6 +263,52 @@ class CourseUsage(models.Model):
                                          block_type, block_id, unique_user_id)
 
 
+class OrganizationType(models.Model):
+    title = models.CharField(max_length=255, verbose_name='Title', unique=True)
+    constructor_lti_link = models.BooleanField(default=True, verbose_name='Display LTI link in Constructor')
+    constructor_embed_code = models.BooleanField(default=True, verbose_name='Display embed code field in Constructor')
+    constructor_direct_link = models.BooleanField(default=True, verbose_name='Display direct link in Constructor')
+    insights_learning_outcomes = models.BooleanField(default=True, verbose_name='Display LO report in Credo Insights')
+    insights_assessments = models.BooleanField(default=True, verbose_name='Display Assessment report in Credo Insights')
+    insights_enrollment = models.BooleanField(default=True, verbose_name='Display Enrollment report in Credo Insights')
+    insights_engagement = models.BooleanField(default=True, verbose_name='Display Engagement report in Credo Insights')
+    instructor_dashboard_credo_insights = models.BooleanField(default=True, verbose_name='Show Credo Insights link'
+                                                                                         ' in the Instructor Dashboard')
+
+    def __unicode__(self):
+        return self.title
+
+    @classmethod
+    def get_all_constructor_fields(cls):
+        return ['lti_link', 'embed_code', 'direct_link']
+
+    def get_constructor_fields(self):
+        data = []
+        if self.constructor_lti_link:
+            data.append('lti_link')
+        if self.constructor_embed_code:
+            data.append('embed_code')
+        if self.constructor_direct_link:
+            data.append('direct_link')
+        return data
+
+    @classmethod
+    def get_all_insights_reports(cls):
+        return ['learning_outcomes', 'assessments', 'enrollment', 'engagement']
+
+    def get_insights_reports(self):
+        data = []
+        if self.insights_learning_outcomes:
+            data.append('learning_outcomes')
+        if self.insights_assessments:
+            data.append('assessments')
+        if self.insights_enrollment:
+            data.append('enrollment')
+        if self.insights_engagement:
+            data.append('engagement')
+        return data
+
+
 class Organization(models.Model):
     org = models.CharField(max_length=255, verbose_name='Org', unique=True)
     default_frame_domain = models.CharField(max_length=255, verbose_name='Domain for LTI/Iframe/etc',
@@ -270,24 +316,45 @@ class Organization(models.Model):
                                                       "in case of empty field",
                                             null=True, blank=True,
                                             validators=[URLValidator()])
-    is_courseware_customer = models.BooleanField(default=False, verbose_name='Courseware customer')
-    is_skill_customer = models.BooleanField(default=False, verbose_name='SKILL customer')
-    is_modules_customer = models.BooleanField(default=False, verbose_name='Modules customer')
+    org_type = models.ForeignKey(OrganizationType, on_delete=models.SET_NULL,
+                                 related_name='org_type',
+                                 null=True, blank=True, verbose_name='Org Type')
 
-    def to_dict(self):
-        return {
-            'org': self.org,
-            'default_frame_domain': self.default_frame_domain,
-            'is_courseware_customer': self.is_courseware_customer,
-            'is_skill_customer': self.is_skill_customer,
-            'is_modules_customer': self.is_modules_customer,
-        }
+    # @TODO Remove fields below after deploy production
+    is_courseware_customer = models.BooleanField(default=False, verbose_name='Courseware customer')
+    is_skill_customer = models.BooleanField(default=False, verbose_name='K12 with assessment')
+    is_modules_customer = models.BooleanField(default=False, verbose_name='Modules customer')
 
     def save(self, *args, **kwargs):
         if self.default_frame_domain:
             o = urlparse(self.default_frame_domain)
             self.default_frame_domain = o.scheme + '://' + o.netloc
         super(Organization, self).save(*args, **kwargs)
+
+    def get_constructor_fields(self):
+        if self.org_type:
+            return self.org_type.get_constructor_fields()
+        else:
+            return OrganizationType.get_all_constructor_fields()
+
+    def get_insights_reports(self):
+        if self.org_type:
+            return self.org_type.get_insights_reports()
+        else:
+            return OrganizationType.get_all_insights_reports()
+
+    def to_dict(self):
+        return {
+            'org': self.org,
+            'default_frame_domain': self.default_frame_domain,
+            'constructor_fields': self.get_constructor_fields(),
+            'insights_reports': self.get_insights_reports(),
+
+            #@TODO remove this:
+            'is_courseware_customer': True if self.org_type is not None and self.org_type.title == 'Courseware' else False,
+            'is_skill_customer': True if self.org_type is not None and self.org_type.title == 'K12 with assessment' else False,
+            'is_modules_customer': True if self.org_type is not None and self.org_type.title == 'Modules' else False,
+        }
 
 
 class CourseExcludeInsights(models.Model):

@@ -1,6 +1,6 @@
 from django.contrib import admin
-from .models import RegistrationPropertiesPerMicrosite, EnrollmentPropertiesPerCourse, Organization,\
-    CourseExcludeInsights
+from .models import RegistrationPropertiesPerMicrosite, EnrollmentPropertiesPerCourse,\
+    Organization, OrganizationType, CourseExcludeInsights
 
 
 class RegistrationPropertiesPerMicrositeForm(admin.ModelAdmin):
@@ -12,7 +12,14 @@ class EnrollmentPropertiesPerCourseForm(admin.ModelAdmin):
 
 
 class OrganizationForm(admin.ModelAdmin):
-    list_display = ('id', 'org')
+    list_display = ('id', 'org', 'org_type')
+
+    # @TODO Remove fields below after deploy production
+    exclude = ('is_courseware_customer', 'is_skill_customer', 'is_modules_customer')
+
+
+class OrganizationTypeForm(admin.ModelAdmin):
+    list_display = ('id', 'title')
 
 
 class CourseExcludeInsightsForm(admin.ModelAdmin):
@@ -27,4 +34,6 @@ class CourseExcludeInsightsForm(admin.ModelAdmin):
 admin.site.register(RegistrationPropertiesPerMicrosite, RegistrationPropertiesPerMicrositeForm)
 admin.site.register(EnrollmentPropertiesPerCourse, EnrollmentPropertiesPerCourseForm)
 admin.site.register(Organization, OrganizationForm)
+#@TODO uncomment this
+#admin.site.register(OrganizationType, OrganizationTypeForm)
 admin.site.register(CourseExcludeInsights, CourseExcludeInsightsForm)
