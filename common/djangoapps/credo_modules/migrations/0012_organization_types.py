@@ -6,7 +6,7 @@ import django.db.models.deletion
 import django.core.validators
 
 
-def updare_types(apps, schema_editor):
+def update_types(apps, schema_editor):
     Organization = apps.get_model("credo_modules", "Organization")
     OrganizationType = apps.get_model("credo_modules", "OrganizationType")
     courseware_type = OrganizationType.objects.create(
@@ -31,17 +31,6 @@ def updare_types(apps, schema_editor):
         insights_engagement=True,
         instructor_dashboard_credo_insights=False
     )
-#    OrganizationType.objects.create(
-#        title="K12 without assessment",
-#        constructor_lti_link=False,
-#        constructor_embed_code=True,
-#        constructor_direct_link=True,
-#        insights_learning_outcomes=False,
-#        insights_assessments=False,
-#        insights_enrollment=False,
-#        insights_engagement=True,
-#        instructor_dashboard_credo_insights=False
-#    )
     modules_type = OrganizationType.objects.create(
         title="Modules",
         constructor_lti_link=True,
@@ -53,17 +42,6 @@ def updare_types(apps, schema_editor):
         insights_engagement=True,
         instructor_dashboard_credo_insights=True
     )
-#    OrganizationType.objects.create(
-#        title="Modules - video only",
-#        constructor_lti_link=False,
-#        constructor_embed_code=True,
-#        constructor_direct_link=True,
-#        insights_learning_outcomes=False,
-#        insights_assessments=False,
-#        insights_enrollment=False,
-#        insights_engagement=True,
-#        instructor_dashboard_credo_insights=True
-#    )
     for org in Organization.objects.all():
         if org.is_courseware_customer:
             org.org_type = courseware_type
@@ -112,6 +90,6 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='org_type', null=True, on_delete=django.db.models.deletion.SET_NULL, blank=True, to='credo_modules.OrganizationType', verbose_name=b'Org Type'),
         ),
         migrations.RunPython(
-            updare_types,
+            update_types,
         ),
     ]

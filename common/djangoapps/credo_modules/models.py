@@ -275,6 +275,9 @@ class OrganizationType(models.Model):
     instructor_dashboard_credo_insights = models.BooleanField(default=True, verbose_name='Show Credo Insights link'
                                                                                          ' in the Instructor Dashboard')
 
+    class Meta:
+        ordering = ['title']
+
     def __unicode__(self):
         return self.title
 
@@ -320,11 +323,6 @@ class Organization(models.Model):
                                  related_name='org_type',
                                  null=True, blank=True, verbose_name='Org Type')
 
-    # @TODO Remove fields below after deploy production
-    is_courseware_customer = models.BooleanField(default=False, verbose_name='Courseware customer')
-    is_skill_customer = models.BooleanField(default=False, verbose_name='K12 with assessment')
-    is_modules_customer = models.BooleanField(default=False, verbose_name='Modules customer')
-
     def save(self, *args, **kwargs):
         if self.default_frame_domain:
             o = urlparse(self.default_frame_domain)
@@ -349,11 +347,6 @@ class Organization(models.Model):
             'default_frame_domain': self.default_frame_domain,
             'constructor_fields': self.get_constructor_fields(),
             'insights_reports': self.get_insights_reports(),
-
-            #@TODO remove this:
-            'is_courseware_customer': True if self.org_type is not None and self.org_type.title == 'Courseware' else False,
-            'is_skill_customer': True if self.org_type is not None and self.org_type.title == 'K12 with assessment' else False,
-            'is_modules_customer': True if self.org_type is not None and self.org_type.title == 'Modules' else False,
         }
 
 

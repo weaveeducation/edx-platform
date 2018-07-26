@@ -221,7 +221,6 @@ class CourseListView(DeveloperErrorViewMixin, ListAPIView):
 
 def get_customer_info(user):
     data = []
-    user_info_type = ['courseware', 'skill', 'modules']     #@TODO remove this line
     insights_reports = OrganizationType.get_all_insights_reports()
     handler = CourseAccessHandler()
     courses = handler.claim_staff_courses({
@@ -233,19 +232,10 @@ def get_customer_info(user):
         data = Organization.objects.filter(org__in=org_list).prefetch_related('org_type')
         if data and len(org_list) == len(data):
             insights_reports = set()
-            user_info_type = []   #@TODO remove this line
             for v in data:
                 insights_reports.update(v.get_insights_reports())
-                #@TODO remove all below:
-                if v.org_type is not None and v.org_type.title == 'Courseware':
-                    user_info_type.append('courseware')
-                if v.org_type is not None and v.org_type.title == 'K12 with assessment':
-                    user_info_type.append('skill')
-                if v.org_type is not None and v.org_type.title == 'Modules':
-                    user_info_type.append('modules')
             insights_reports = list(insights_reports)
     return {
-        'user_info_type': user_info_type,  #@TODO remove this
         'insights_reports': insights_reports,
         'details': [v.to_dict() for v in data]
     }

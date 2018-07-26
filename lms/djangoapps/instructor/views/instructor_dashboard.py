@@ -813,7 +813,6 @@ def _section_lti_constructor(request, course):
         'course_id': unicode(course.id),
         'constructor_url': settings.CONSTRUCTOR_LINK,
         'course_id_hash': hashlib.md5(unicode(course.id) + u'_credo_lti_constructor').hexdigest(),
-        'customer_info': urllib.quote_plus(json.dumps(customer_info['user_info_type'])),
         'org_details': urllib.quote_plus(json.dumps(org_details)),
     }
     return section_data

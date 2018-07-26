@@ -12,10 +12,7 @@ class EnrollmentPropertiesPerCourseForm(admin.ModelAdmin):
 
 
 class OrganizationForm(admin.ModelAdmin):
-    list_display = ('id', 'org', 'org_type')
-
-    # @TODO Remove fields below after deploy production
-    exclude = ('is_courseware_customer', 'is_skill_customer', 'is_modules_customer')
+    list_display = ('id', 'org', 'org_type', 'default_frame_domain')
 
 
 class OrganizationTypeForm(admin.ModelAdmin):
@@ -34,6 +31,5 @@ class CourseExcludeInsightsForm(admin.ModelAdmin):
 admin.site.register(RegistrationPropertiesPerMicrosite, RegistrationPropertiesPerMicrositeForm)
 admin.site.register(EnrollmentPropertiesPerCourse, EnrollmentPropertiesPerCourseForm)
 admin.site.register(Organization, OrganizationForm)
-#@TODO uncomment this
-#admin.site.register(OrganizationType, OrganizationTypeForm)
+admin.site.register(OrganizationType, OrganizationTypeForm)
 admin.site.register(CourseExcludeInsights, CourseExcludeInsightsForm)
