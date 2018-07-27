@@ -16,7 +16,7 @@ from openedx.core.lib.api.permissions import ApiKeyHeaderPermissionIsAuthenticat
 from opaque_keys.edx.keys import CourseKey
 
 from oauth2_handler.handlers import CourseAccessHandler
-from credo_modules.models import Organization
+from credo_modules.models import Organization, OrganizationType
 
 from .api import course_detail, list_courses
 from .forms import CourseDetailGetForm, CourseListGetForm
@@ -221,7 +221,7 @@ class CourseListView(DeveloperErrorViewMixin, ListAPIView):
 
 def get_customer_info(user):
     data = []
-    user_info_type = ['courseware', 'skill', 'modules']
+    insights_reports = OrganizationType.get_all_insights_reports()
     handler = CourseAccessHandler()
     courses = handler.claim_staff_courses({
         'user': user,
@@ -229,16 +229,16 @@ def get_customer_info(user):
     })
     if courses:
         org_list = [CourseKey.from_string(course).org for course in courses]
-        data = Organization.objects.filter(org__in=org_list)
+        data = Organization.objects.filter(org__in=org_list).prefetch_related('org_type')
         if data and len(org_list) == len(data):
-            user_info_type = []
-            if any([v.is_courseware_customer for v in data]):
-                user_info_type.append('courseware')
-            if any([v.is_skill_customer for v in data]):
-                user_info_type.append('skill')
-            if any([v.is_modules_customer for v in data]):
-                user_info_type.append('modules')
-    return {'user_info_type': user_info_type, 'details': [v.to_dict() for v in data]}
+            insights_reports = set()
+            for v in data:
+                insights_reports.update(v.get_insights_reports())
+            insights_reports = list(insights_reports)
+    return {
+        'insights_reports': insights_reports,
+        'details': [v.to_dict() for v in data]
+    }
 
 
 @can_disable_rate_limit

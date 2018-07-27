@@ -220,17 +220,15 @@ def instructor_dashboard_2(request, course_id):
     if request.user.is_superuser:
         sections.append(_section_lti_constructor(request, course))
 
-    is_skill_customer = False
+    display_credo_insights_link = True
     try:
         org = Organization.objects.get(org=course_key.org)
-        is_skill_customer = org.is_skill_customer
+        if org.org_type is not None:
+            display_credo_insights_link = org.org_type.instructor_dashboard_credo_insights
     except Organization.DoesNotExist:
         pass
 
-    dt_release = datetime.datetime(year=2018, month=5, day=25)
-    dt_now = datetime.datetime.now()
-
-    if not is_skill_customer and available_tabs.show_insights_link and dt_now > dt_release:
+    if display_credo_insights_link and available_tabs.show_insights_link:
         sections.append(_section_credo_insights(request, course))
 
     disable_buttons = not _is_small_course(course_key)
@@ -815,7 +813,6 @@ def _section_lti_constructor(request, course):
         'course_id': unicode(course.id),
         'constructor_url': settings.CONSTRUCTOR_LINK,
         'course_id_hash': hashlib.md5(unicode(course.id) + u'_credo_lti_constructor').hexdigest(),
-        'customer_info': urllib.quote_plus(json.dumps(customer_info['user_info_type'])),
         'org_details': urllib.quote_plus(json.dumps(org_details)),
     }
     return section_data
