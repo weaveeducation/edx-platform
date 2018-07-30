@@ -75,12 +75,41 @@ def get_new_email_and_username(existing_email, existing_username):
             return new_username, new_email
 
 
-def _create_edx_user(email, username, password):
-    return User.objects.create_user(
-        username=username,
-        password=password,
-        email=email
-    )
+def _get_new_email_and_username(ex_user, new_email, new_username, num):
+    if ex_user.email == new_email:
+        if len(ex_user.email) > (EMAIL_DB_FIELD_SIZE - 3):
+            new_email = ex_user.email[0:EMAIL_DB_FIELD_SIZE - 3] + str(num)
+        else:
+            new_email = ex_user.email + str(num)
+    if ex_user.username == new_username:
+        if len(ex_user.username) > (USERNAME_DB_FIELD_SIZE - 3):
+            new_username = ex_user.username[0:USERNAME_DB_FIELD_SIZE - 3] + str(num)
+        else:
+            new_username = ex_user.username + str(num)
+
+    return new_email, new_username
+
+
+def _create_edx_user(email, username, password, user=None):
+    i = 1
+    new_email = email
+    new_username = username
+
+    if user is not None:
+        new_email, new_username = _get_new_email_and_username(user, new_email, new_username, i)
+        i = i + 1
+
+    while True:
+        try:
+            return User.objects.create_user(
+                email=new_email,
+                username=new_username,
+                password=password
+            )
+        except IntegrityError:
+            ex_user = User.objects.get(Q(email=new_email) | Q(username=new_username))
+            new_email, new_username = _get_new_email_and_username(ex_user, new_email, new_username, i)
+            i = i + 1
 
 
 def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
@@ -91,7 +120,6 @@ def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
     if lti_params is None:
         lti_params = {}
     edx_password = str(uuid.uuid4())
-    edx_user = None
     new_user_created = False
 
     with transaction.atomic():
@@ -100,35 +128,31 @@ def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
             edx_email = lti_params_email[0:EMAIL_DB_FIELD_SIZE]
             edx_username = lti_params_email.split('@')[0][0:USERNAME_DB_FIELD_SIZE].strip()
             try:
-                edx_user = User.objects.get(Q(username=edx_username)|Q(email=edx_email))
+                edx_user = User.objects.get(email=edx_email)
                 try:
                     _ = LtiUser.objects.get(edx_user_id=edx_user.id)
-                    new_username, new_email = get_new_email_and_username(edx_user.email, edx_user.username)
-                    edx_user = _create_edx_user(new_email, new_username, edx_password)
+                    edx_user = _create_edx_user(edx_user.email, edx_user.username, edx_password, edx_user)
                     new_user_created = True
                 except LtiUser.DoesNotExist:
                     pass
             except User.DoesNotExist:
-                try:
-                    edx_user = _create_edx_user(edx_email, edx_username, edx_password)
-                except IntegrityError:
-                    edx_user = User.objects.get(Q(username=edx_username) | Q(email=edx_email))
+                edx_user = _create_edx_user(edx_email, edx_username, edx_password)
                 new_user_created = True
         else:
-            while not new_user_created:
-                new_username = generate_random_edx_username()
-                new_email = "{}@{}".format(new_username, settings.LTI_USER_EMAIL_DOMAIN)
-                try:
-                    _ = User.objects.get(Q(username=new_username)|Q(email=new_email))
-                except User.DoesNotExist:
-                    edx_user = _create_edx_user(new_email, new_username, edx_password)
-                    new_user_created = True
+            new_username = generate_random_edx_username()
+            new_email = "{}@{}".format(new_username, settings.LTI_USER_EMAIL_DOMAIN)
+            edx_user = _create_edx_user(new_email, new_username, edx_password)
+            new_user_created = True
 
         if new_user_created and edx_user is not None:
+            upd = False
             if 'first_name' in lti_params:
                 edx_user.first_name = cut_to_max_len(lti_params['first_name'].strip(), FIRST_NAME_DB_FIELD_SIZE)
+                upd = True
             if 'last_name' in lti_params:
                 edx_user.last_name = cut_to_max_len(lti_params['last_name'].strip(), LAST_NAME_DB_FIELD_SIZE)
+                upd = True
+            if upd:
                 edx_user.save()
 
             # A profile is required if PREVENT_CONCURRENT_LOGINS flag is set.
