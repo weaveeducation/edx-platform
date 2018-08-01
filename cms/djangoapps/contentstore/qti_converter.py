@@ -81,6 +81,15 @@ def parse_meta(element, subject):
             subject.metafields.update({metalabel: metavalue})
 
 
+def _re_url_replace(matchobj):
+    if matchobj.group(0).startswith('src="http') \
+      or matchobj.group(0).startswith('src=\'http') \
+      or matchobj.group(0).startswith('src=http'):
+        return matchobj.group(0)
+    else:
+        return 'src="/static/' + matchobj.group(1)
+
+
 def get_mattext(element):
     """
     Get text from material QTI xml element.
@@ -89,7 +98,7 @@ def get_mattext(element):
     if material is not None:
         temp_str = material.find('qti:mattext', NS).text
         # Update img tag to match new location of images
-        temp_str = re.sub(r'src="(?:[^"/]*/)*([^"]+)"', r'src="/static/\1"', temp_str)
+        temp_str = re.sub(r'src="(?:[^"/]*/)*([^"]+)"', _re_url_replace, temp_str)
         # Add closing tag for br and img elements
         temp_str = re.sub(r'(<img("[^"]*"|[^/">])*)>', r'\1/>', temp_str)
         temp_str = re.sub('<br.*?>', '<br/>', temp_str)
@@ -288,9 +297,6 @@ def write_chapter(chapter, html_dir, course_root, chapter_dir, seq_dir, vertical
     """
     Write one chapter to disk.
     """
-    if not chapter.items:
-        return
-
     html_id = uuid.uuid3(uuid.NAMESPACE_DNS, chapter.description).hex
     if chapter.description:
         html_f = open('{0}/{1}.html'.format(html_dir, html_id), 'w+')
