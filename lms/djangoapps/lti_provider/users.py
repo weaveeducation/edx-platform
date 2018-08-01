@@ -101,11 +101,12 @@ def _create_edx_user(email, username, password, user=None):
 
     while True:
         try:
-            return User.objects.create_user(
-                email=new_email,
-                username=new_username,
-                password=password
-            )
+            with transaction.atomic():
+                return User.objects.create_user(
+                    email=new_email,
+                    username=new_username,
+                    password=password
+                )
         except IntegrityError:
             ex_user = User.objects.get(Q(email=new_email) | Q(username=new_username))
             new_email, new_username = _get_new_email_and_username(ex_user, new_email, new_username, i)
@@ -162,12 +163,13 @@ def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
             edx_user_profile.save()
 
         try:
-            lti_user = LtiUser(
-                lti_consumer=lti_consumer,
-                lti_user_id=lti_user_id,
-                edx_user=edx_user
-            )
-            lti_user.save()
+            with transaction.atomic():
+                lti_user = LtiUser(
+                    lti_consumer=lti_consumer,
+                    lti_user_id=lti_user_id,
+                    edx_user=edx_user
+                )
+                lti_user.save()
         except IntegrityError:
             lti_user = LtiUser.objects.get(
                 lti_user_id=lti_user_id,
