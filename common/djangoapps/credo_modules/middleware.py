@@ -128,7 +128,7 @@ class CourseUsageMiddleware(object):
                 except InvalidKeyError:
                     pass
 
-#            # Update usage of vertical blocks
-#            self._process_goto_position_urls(request, course_id, path_data)
+            # Update usage of vertical blocks
+            self._process_goto_position_urls(request, course_id, path_data)
 
         return response
