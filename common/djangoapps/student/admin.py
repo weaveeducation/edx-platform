@@ -3,6 +3,7 @@ from config_models.admin import ConfigurationModelAdmin
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 from django.utils.translation import ugettext_lazy as _
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
@@ -164,16 +165,44 @@ class CourseEnrollmentAdmin(admin.ModelAdmin):
         model = CourseEnrollment
 
 
+class AlwaysChangedForm(forms.ModelForm):
+    def has_changed(self):
+        return True
+
+
 class UserProfileInline(admin.StackedInline):
     """ Inline admin interface for UserProfile model. """
     model = UserProfile
+    form = AlwaysChangedForm
     can_delete = False
     verbose_name_plural = _('User profile')
+
+
+class CustomUserCreationForm(UserCreationForm):
+    def __init__(self, *args, **kwargs):
+        super(CustomUserCreationForm, self).__init__(*args, **kwargs)
+        # make user email field required
+        self.fields['email'].required = True
+
+
+class CustomUserChangeForm(UserChangeForm):
+    def __init__(self, *args, **kwargs):
+        super(CustomUserChangeForm, self).__init__(*args, **kwargs)
+        # make user email field required
+        self.fields['email'].required = True
 
 
 class UserAdmin(BaseUserAdmin):
     """ Admin interface for the User model. """
     inlines = (UserProfileInline,)
+    add_form = CustomUserCreationForm
+    form = CustomUserChangeForm
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'password1', 'password2', 'email', 'first_name', 'last_name'),
+        }),
+    )
 
     def get_readonly_fields(self, *args, **kwargs):
         """
@@ -182,7 +211,7 @@ class UserAdmin(BaseUserAdmin):
         """
 
         django_readonly = super(UserAdmin, self).get_readonly_fields(*args, **kwargs)
-        return django_readonly + ('username',)
+        return django_readonly
 
 
 @admin.register(UserAttribute)
