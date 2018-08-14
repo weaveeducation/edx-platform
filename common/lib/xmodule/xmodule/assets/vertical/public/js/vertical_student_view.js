@@ -1,36 +1,5 @@
 /* JavaScript for Vertical Student View. */
 
-if (!Set) {
-    function Set(args) {
-        this._items = [];
-
-        if (args) {
-            for (var i = 0; i < arguments.length; i++) {
-                if (arguments[i] instanceof Array) {
-                    for (var j = 0; j < arguments[i].length; j++) {
-                        this.add(arguments[i][j]);
-                    }
-                } else {
-                    this.add(arguments[i]);
-                }
-            }
-        }
-    }
-
-    Set.prototype = {
-        add: function(value) {
-            if (!this.has(value)) {
-                this._items.push(value);
-                return true;
-            }
-            return false;
-        },
-        has: function(value) {
-            return this._items.indexOf(value) > -1;
-        }
-    };
-}
-
 var SEEN_COMPLETABLES = new Set();
 
 window.VerticalStudentView = function(runtime, element) {
