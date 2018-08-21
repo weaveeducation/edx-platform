@@ -563,8 +563,9 @@ def add_vertical_usage(item, request, course_key):
     activate_block_id = request.GET.get('activate_block_id')
     if activate_block_id:
         try:
-            item = modulestore().get_item(UsageKey.from_string(activate_block_id))
-            CourseUsage.update_block_usage(request, course_key, item.location)
+            vertical = modulestore().get_item(UsageKey.from_string(activate_block_id))
+            if vertical:
+                CourseUsage.update_block_usage(request, course_key, vertical.location)
             return
         except ItemNotFoundError:
             pass
