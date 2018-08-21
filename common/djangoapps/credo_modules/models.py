@@ -367,7 +367,3 @@ def get_unique_user_id(request):
     if uid:
         return unicode(uid)
     return uid
-
-
-def set_unique_user_id(request):
-    request.COOKIES[UNIQUE_USER_ID_COOKIE] = unicode(uuid.uuid4())

@@ -1,7 +1,8 @@
 import json
 import datetime
+import uuid
 from credo.auth_helper import get_request_referer_from_other_domain, get_saved_referer, save_referer
-from credo_modules.models import CourseUsage, get_unique_user_id, set_unique_user_id, UNIQUE_USER_ID_COOKIE
+from credo_modules.models import CourseUsage, get_unique_user_id, UNIQUE_USER_ID_COOKIE
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from opaque_keys import InvalidKeyError
@@ -44,11 +45,10 @@ class CourseUsageMiddleware(object):
                         pass
 
     def process_request(self, request):
-        if hasattr(request, 'user') and request.user.is_authenticated():
-            course_usage_cookie_id = get_unique_user_id(request)
-            if not course_usage_cookie_id:
-                set_unique_user_id(request)
-                request.COOKIES['course_usage_cookie_was_set'] = '1'
+        course_usage_cookie_id = get_unique_user_id(request)
+        if not course_usage_cookie_id:
+            request.COOKIES[UNIQUE_USER_ID_COOKIE] = unicode(uuid.uuid4())
+            request.COOKIES['course_usage_cookie_was_set'] = '1'
 
     def process_response(self, request, response):
         path = request.path
