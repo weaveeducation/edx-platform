@@ -134,6 +134,7 @@ from util.milestones_helpers import get_pre_requisite_courses_not_completed
 from util.password_policy_validators import validate_password_strength
 from xmodule.modulestore.django import modulestore
 
+from credo_modules.models import update_unique_user_id_cookie
 from credo.auth_helper import CredoIpHelper
 from credo.api_client import ApiRequestError
 
@@ -2955,6 +2956,8 @@ def register_login_and_enroll_anonymous_user(request, course_key, redirect_to=No
 
     if redirect_to:
         return redirect(redirect_to)
+    else:
+        update_unique_user_id_cookie(request)
 
 
 def validate_credo_access(request, redirect_to=None):

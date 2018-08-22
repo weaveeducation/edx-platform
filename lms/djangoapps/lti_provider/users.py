@@ -17,6 +17,7 @@ from django.db.utils import IntegrityError
 
 from lti_provider.models import LtiUser
 from student.models import UserProfile
+from credo_modules.models import update_unique_user_id_cookie
 
 
 USERNAME_DB_FIELD_SIZE = 30
@@ -194,6 +195,7 @@ def switch_user(request, lti_user, lti_consumer):
         # users by this point, but just in case we can return a 403.
         raise PermissionDenied()
     login(request, edx_user)
+    update_unique_user_id_cookie(request)
 
 
 def generate_random_edx_username():

@@ -366,4 +366,23 @@ def get_unique_user_id(request):
     uid = request.COOKIES.get(UNIQUE_USER_ID_COOKIE, None)
     if uid:
         return unicode(uid)
-    return uid
+    return None
+
+
+def generate_new_user_id_cookie(request, user_id):
+    request._update_unique_user_id = True
+    request.COOKIES[UNIQUE_USER_ID_COOKIE] = unicode(uuid.uuid4()) + '_' + user_id
+
+
+def update_unique_user_id_cookie(request):
+    user_id = 'anon'
+    if hasattr(request, 'user') and request.user.is_authenticated():
+        user_id = str(request.user.id)
+
+    course_usage_cookie_id = get_unique_user_id(request)
+    if not course_usage_cookie_id:
+        generate_new_user_id_cookie(request, user_id)
+    else:
+        cookie_arr = course_usage_cookie_id.split('_')
+        if len(cookie_arr) < 2 or cookie_arr[1] != user_id:
+            generate_new_user_id_cookie(request, user_id)
