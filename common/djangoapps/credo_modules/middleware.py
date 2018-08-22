@@ -1,8 +1,8 @@
 import json
 import datetime
-import uuid
 from credo.auth_helper import get_request_referer_from_other_domain, get_saved_referer, save_referer
-from credo_modules.models import CourseUsage, get_unique_user_id, UNIQUE_USER_ID_COOKIE
+from credo_modules.models import CourseUsage, get_unique_user_id, UNIQUE_USER_ID_COOKIE, update_unique_user_id_cookie
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from opaque_keys import InvalidKeyError
@@ -45,10 +45,7 @@ class CourseUsageMiddleware(object):
                         pass
 
     def process_request(self, request):
-        course_usage_cookie_id = get_unique_user_id(request)
-        if not course_usage_cookie_id:
-            request.COOKIES[UNIQUE_USER_ID_COOKIE] = unicode(uuid.uuid4())
-            request.COOKIES['course_usage_cookie_was_set'] = '1'
+        update_unique_user_id_cookie(request)
 
     def process_response(self, request, response):
         path = request.path
@@ -68,10 +65,11 @@ class CourseUsageMiddleware(object):
             course_usage_cookie_dict = {}
             course_usage_cookie = request.COOKIES.get(self.course_usage_cookie, '{}')
 
-            unique_user_id = get_unique_user_id(request)
+            cookie_domain = settings.SESSION_COOKIE_DOMAIN if settings.SESSION_COOKIE_DOMAIN else None
 
-            if request.COOKIES.get('course_usage_cookie_was_set', False) and unique_user_id:
-                response.set_cookie(UNIQUE_USER_ID_COOKIE, unique_user_id)
+            unique_user_id = get_unique_user_id(request)
+            if unique_user_id and getattr(request, '_update_unique_user_id', False):
+                response.set_cookie(UNIQUE_USER_ID_COOKIE, unique_user_id, path='/', domain=cookie_domain)
 
             try:
                 course_usage_cookie_arr = course_usage_cookie.split('|')
@@ -96,7 +94,8 @@ class CourseUsageMiddleware(object):
                     course_key = CourseKey.from_string(course_id)
                     course_usage_cookie_dict[course_id] = 1
                     response.set_cookie(self.course_usage_cookie,
-                                        json.dumps(course_usage_cookie_dict) + '|' + str(user_id))
+                                        json.dumps(course_usage_cookie_dict) + '|' + str(user_id),
+                                        path='/', domain=cookie_domain)
 
                     try:
                         CourseUsage.objects.get(

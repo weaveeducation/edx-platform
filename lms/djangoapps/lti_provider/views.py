@@ -24,9 +24,7 @@ from util.views import add_p3p_header
 from credo_modules.models import check_and_save_enrollment_attributes
 from edxmako.shortcuts import render_to_string
 from mako.template import Template
-from courseware.courses import (
-    update_lms_course_usage
-)
+from courseware.courses import update_lms_course_usage
 
 
 log = logging.getLogger("edx.lti_provider")
