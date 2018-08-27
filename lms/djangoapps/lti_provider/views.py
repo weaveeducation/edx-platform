@@ -113,22 +113,30 @@ def lti_launch(request, course_id, usage_id):
     params['course_key'] = course_key
     params['usage_key'] = usage_key
 
-    if not is_cached and not request.META.get('HTTP_COOKIE'):
+    cache = caches['default']
+    json_params = json.dumps(request.POST)
+    params_hash = hashlib.md5(json_params).hexdigest()
+    cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
+    cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
+    request.COOKIES['hash'] = params_hash
+
+    if not is_cached:
         cache = caches['default']
         json_params = json.dumps(request.POST)
         params_hash = hashlib.md5(json_params).hexdigest()
         cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
         cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
-        template = Template(render_to_string('static_templates/embedded_new_tab.html', {
-            'disable_accordion': True,
-            'allow_iframing': True,
-            'disable_header': True,
-            'disable_footer': True,
-            'disable_window_wrap': True,
-            'hash': params_hash,
-            'additional_url_params': ''
-        }))
-        return HttpResponse(template.render())
+        if not request.META.get('HTTP_COOKIE'):
+            template = Template(render_to_string('static_templates/embedded_new_tab.html', {
+                'disable_accordion': True,
+                'allow_iframing': True,
+                'disable_header': True,
+                'disable_footer': True,
+                'disable_window_wrap': True,
+                'hash': params_hash,
+                'additional_url_params': ''
+            }))
+            return HttpResponse(template.render())
 
     # Create an edX account if the user identifed by the LTI launch doesn't have
     # one already, and log the edX account into the platform.
@@ -341,11 +349,13 @@ def get_params(request):
     :param request: request
     :return: dictionary of params, flag: from cache or not
     """
-    if request.GET.get('hash'):
-        cache = caches['default']
-        cached = cache.get(':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, request.GET.get('hash')]))
-        if cached:
-            return json.loads(cached), True
+    if request.method == 'GET':
+        hash_key = request.GET.get('hash') or request.COOKIES.get('hash')
+        if hash_key:
+            cache = caches['default']
+            cached = cache.get(':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, hash_key]))
+            if cached:
+                return json.loads(cached), True
     return request.POST, False
 
 
