@@ -341,11 +341,13 @@ def get_params(request):
     :param request: request
     :return: dictionary of params, flag: from cache or not
     """
-    if request.GET.get('hash'):
-        cache = caches['default']
-        cached = cache.get(':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, request.GET.get('hash')]))
-        if cached:
-            return json.loads(cached), True
+    if request.method == 'GET':
+        hash_key = request.GET.get('hash') or request.COOKIES.get('hash')
+        if hash_key:
+            cache = caches['default']
+            cached = cache.get(':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, hash_key]))
+            if cached:
+                return json.loads(cached), True
     return request.POST, False
 
 
