@@ -116,17 +116,12 @@ def lti_launch(request, course_id, usage_id):
     cache = caches['default']
     json_params = json.dumps(request.POST)
     params_hash = hashlib.md5(json_params).hexdigest()
-    cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
-    cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
     request.COOKIES['hash'] = params_hash
 
     if not is_cached:
-        cache = caches['default']
-        json_params = json.dumps(request.POST)
-        params_hash = hashlib.md5(json_params).hexdigest()
-        cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
-        cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
         if not request.META.get('HTTP_COOKIE'):
+            cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
+            cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
             template = Template(render_to_string('static_templates/embedded_new_tab.html', {
                 'disable_accordion': True,
                 'allow_iframing': True,
