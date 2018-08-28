@@ -113,7 +113,7 @@ def lti_launch(request, course_id, usage_id):
     params['course_key'] = course_key
     params['usage_key'] = usage_key
 
-    if not is_cached and not request.META.get('HTTP_COOKIE'):
+    if not is_cached:
         cache = caches['default']
         json_params = json.dumps(request.POST)
         params_hash = hashlib.md5(json_params).hexdigest()
