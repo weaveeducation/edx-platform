@@ -113,25 +113,22 @@ def lti_launch(request, course_id, usage_id):
     params['course_key'] = course_key
     params['usage_key'] = usage_key
 
-    cache = caches['default']
-    json_params = json.dumps(request.POST)
-    params_hash = hashlib.md5(json_params).hexdigest()
-    request.COOKIES['hash'] = params_hash
-
     if not is_cached:
-        if not request.META.get('HTTP_COOKIE'):
-            cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
-            cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
-            template = Template(render_to_string('static_templates/embedded_new_tab.html', {
-                'disable_accordion': True,
-                'allow_iframing': True,
-                'disable_header': True,
-                'disable_footer': True,
-                'disable_window_wrap': True,
-                'hash': params_hash,
-                'additional_url_params': ''
-            }))
-            return HttpResponse(template.render())
+        cache = caches['default']
+        json_params = json.dumps(request.POST)
+        params_hash = hashlib.md5(json_params).hexdigest()
+        cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
+        cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
+        template = Template(render_to_string('static_templates/embedded_new_tab.html', {
+            'disable_accordion': True,
+            'allow_iframing': True,
+            'disable_header': True,
+            'disable_footer': True,
+            'disable_window_wrap': True,
+            'hash': params_hash,
+            'additional_url_params': ''
+        }))
+        return HttpResponse(template.render())
 
     # Create an edX account if the user identifed by the LTI launch doesn't have
     # one already, and log the edX account into the platform.
