@@ -13,7 +13,6 @@
             success: function(data) {
                 if (data.cookie_sent) {
                     window.location.href = window.location.href + $('#embedded-link').val();
-                    $.cookie('hash', '${hash}', {path: '/'});
                 } else {
                     $('.embedded-loading').hide();
                     $('.embedded-browser-msg').show();
