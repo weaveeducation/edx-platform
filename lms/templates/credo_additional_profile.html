@@ -81,6 +81,10 @@ from django.core.urlresolvers import reverse
         section[class='register container'] section {
             width: 100%;
         }
+
+        .credo-modules-information {
+            line-height: 1.5;
+        }
     </style>
 </%block>
 
@@ -97,21 +101,25 @@ from django.core.urlresolvers import reverse
                 <ol class="list-input">
                   % for field in fields:
                   <li class="field ${'required' if field.required else ''} text">
-                    <label for="${field.alias}">${field.title}</label>
-                    % if field.options:
-                        <select id="credo-modules-${field.alias}" name="${field.alias}" ${'required aria-required="true"' if field.required else ''}>
-                            <option value="" ${'' if field.default else 'selected=""'}>Not selected</option>
-                            % for option in field.options:
-                                <%
-                                    selected = ''
-                                    if option == field.default:
-                                        selected = 'selected=""'
-                                %>
-                                <option value="${option}" ${selected}>${option}</option>
-                            % endfor
-                        </select>
+                    % if field.info:
+                        <p class="credo-modules-information"> ${field.title} </p>
                     % else:
-                        <input class="" id="credo-modules-${field.alias}" type="text" name="${field.alias}" value="${field.default}" ${'required aria-required="true"' if field.required else ''} />
+                        <label for="${field.alias}">${field.title}</label>
+                        % if field.options:
+                            <select id="credo-modules-${field.alias}" name="${field.alias}" ${'required aria-required="true"' if field.required else ''}>
+                                <option value="" ${'' if field.default else 'selected=""'}>Not selected</option>
+                                % for option in field.options:
+                                    <%
+                                        selected = ''
+                                        if option == field.default:
+                                            selected = 'selected=""'
+                                    %>
+                                    <option value="${option}" ${selected}>${option}</option>
+                                % endfor
+                            </select>
+                        % else:
+                            <input class="" id="credo-modules-${field.alias}" type="text" name="${field.alias}" value="${field.default}" ${'required aria-required="true"' if field.required else ''} />
+                        % endif
                     % endif
                   </li>
                   % endfor
