@@ -4,6 +4,7 @@ LTI Provider view functions
 import json
 import logging
 import hashlib
+import time
 
 from collections import OrderedDict
 from django.conf import settings
@@ -50,7 +51,6 @@ OPTIONAL_PARAMETERS = [
     'tool_consumer_instance_guid'
 ]
 
-
 @csrf_exempt
 @add_p3p_header
 def lti_launch(request, course_id, usage_id):
@@ -70,9 +70,13 @@ def lti_launch(request, course_id, usage_id):
 
     # Check the LTI parameters, and return 400 if any required parameters are
     # missing
+    start = time.time()
     request_params, is_cached = get_params(request)
     params = get_required_parameters(request_params)
     return_url = request_params.get('launch_presentation_return_url', None)
+
+    end = time.time() - start
+    log.info("Check the LTI parameters. during %s,  %s or usage key %s from request %s" % (end, course_id, usage_id, request))
 
     if not params:
         return render_bad_request(return_url)
@@ -80,6 +84,7 @@ def lti_launch(request, course_id, usage_id):
 
     # Get the consumer information from either the instance GUID or the consumer
     # key
+    start = time.time()
     try:
         lti_consumer = LtiConsumer.get_or_supplement(
             params.get('tool_consumer_instance_guid', None),
@@ -95,10 +100,17 @@ def lti_launch(request, course_id, usage_id):
             return render_bad_request(return_url)
         params.update(params_strict)
 
+        end = time.time() - start
+    log.info("Get the consumer information. during %s,  %s or usage key %s from request %s" % (end,
+          course_id,
+          usage_id,
+          request))
+
     # Check the OAuth signature on the message
     if not is_cached and not SignatureValidator(lti_consumer).verify(request):
         return render_response_forbidden(return_url)
 
+    start = time.time()
     # Add the course and usage keys to the parameters array
     try:
         course_key, usage_key = parse_course_and_usage_keys(course_id, usage_id)
@@ -113,7 +125,14 @@ def lti_launch(request, course_id, usage_id):
     params['course_key'] = course_key
     params['usage_key'] = usage_key
 
+    end = time.time() - start
+    log.info("Add the course and usage keys. during %s,  %s or usage key %s from request %s" % (end,
+          course_id,
+          usage_id,
+          request))
+
     if not is_cached:
+        start = time.time()
         cache = caches['default']
         json_params = json.dumps(request.POST)
         params_hash = hashlib.md5(json_params).hexdigest()
@@ -128,10 +147,16 @@ def lti_launch(request, course_id, usage_id):
             'hash': params_hash,
             'additional_url_params': ''
         }))
+        end = time.time() - start
+        log.info("Render Embedded new tab. during %s,  %s or usage key %s from request %s" % (end,
+              course_id,
+              usage_id,
+              request))
         return HttpResponse(template.render())
 
     # Create an edX account if the user identifed by the LTI launch doesn't have
     # one already, and log the edX account into the platform.
+    start = time.time()
     lti_params = {}
     lti_keys = {LTI_PARAM_EMAIL: 'email', LTI_PARAM_FIRST_NAME: 'first_name', LTI_PARAM_LAST_NAME: 'last_name'}
     for key in lti_keys:
@@ -146,13 +171,34 @@ def lti_launch(request, course_id, usage_id):
         if lti_params and 'email' in lti_params:
             update_lti_user_data(request.user, lti_params['email'])
 
+    end = time.time() - start
+    log.info("Create an edX account. during %s,  %s or usage key %s from request %s" % (end,
+          course_id,
+          usage_id,
+          request))
+
     # Store any parameters required by the outcome service in order to report
     # scores back later. We know that the consumer exists, since the record was
     # used earlier to verify the oauth signature.
+    start = time.time()
     store_outcome_parameters(params, request.user, lti_consumer)
     update_lms_course_usage(request, usage_key, course_key)
 
-    return render_courseware(request, params['usage_key'])
+    end = time.time() - start
+    log.info("update_lms_course_usage. during %s,  %s or usage key %s from request %s" % (end,
+          course_id,
+          usage_id,
+          request))
+
+    start = time.time()
+    result = render_courseware(request, params['usage_key'])
+    end = time.time() - start
+    log.info("render_courseware. during %s,  %s or usage key %s from request %s" % (end,
+          course_id,
+          usage_id,
+          request))
+
+    return result
 
 
 def test_launch(request):
