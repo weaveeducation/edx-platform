@@ -6,6 +6,7 @@ that an individual has in the campus LMS platform and on edX.
 import random
 import string
 import uuid
+import logging
 
 from django.conf import settings
 from django.contrib.auth import authenticate, login
@@ -25,6 +26,7 @@ FIRST_NAME_DB_FIELD_SIZE = 30
 LAST_NAME_DB_FIELD_SIZE = 30
 EMAIL_DB_FIELD_SIZE = 254
 
+log = logging.getLogger("edx.lti_provider")
 
 def authenticate_lti_user(request, lti_user_id, lti_consumer, lti_params=None):
     """
@@ -40,6 +42,7 @@ def authenticate_lti_user(request, lti_user_id, lti_consumer, lti_params=None):
             lti_user_id=lti_user_id,
             lti_consumer=lti_consumer
         )
+        log.info("Existed LTI user %s" % lti_user.id)
     except LtiUser.DoesNotExist:
         # This is the first time that the user has been here. Create an account.
         lti_user = create_lti_user(lti_user_id, lti_consumer, lti_params)
@@ -95,6 +98,8 @@ def _create_edx_user(email, username, password, user=None):
     i = 1
     new_email = email
     new_username = username
+    log.info("user=%s" % user )
+    log.info("create edx_user, new_email=%s, new_username=%s" % (new_email, new_username))
 
     if user is not None:
         new_email, new_username = _get_new_email_and_username(user, new_email, new_username, i)
@@ -108,9 +113,12 @@ def _create_edx_user(email, username, password, user=None):
                     username=new_username,
                     password=password
                 )
-        except IntegrityError:
+        except IntegrityError as ex:
+            log.info("IntegrityError: %s" % ex)
             ex_user = User.objects.get(Q(email=new_email) | Q(username=new_username))
             new_email, new_username = _get_new_email_and_username(ex_user, new_email, new_username, i)
+            log.info("existed user: %s" % ex_user)
+            log.info("create edx_user, new_email=%s, new_username=%s" % (new_email, new_username))
             i = i + 1
 
 
@@ -119,6 +127,7 @@ def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
     Generate a new user on the edX platform with a random username and password,
     and associates that account with the LTI identity.
     """
+    log.info("creating new lti user")
     if lti_params is None:
         lti_params = {}
     edx_password = str(uuid.uuid4())
