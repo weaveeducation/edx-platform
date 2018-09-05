@@ -85,11 +85,11 @@ def _get_new_email_and_username(ex_user, new_email, new_username, num):
             new_email = ex_user.email[0:EMAIL_DB_FIELD_SIZE - 3] + str(num)
         else:
             new_email = ex_user.email + str(num)
-    if ex_user.username == new_username:
+    if ex_user.username.lower() == new_username.lower():
         if len(ex_user.username) > (USERNAME_DB_FIELD_SIZE - 3):
-            new_username = ex_user.username[0:USERNAME_DB_FIELD_SIZE - 3] + str(num)
+            new_username = new_username[0:USERNAME_DB_FIELD_SIZE - 3] + str(num)
         else:
-            new_username = ex_user.username + str(num)
+            new_username = new_username + str(num)
 
     return new_email, new_username
 
