@@ -163,11 +163,27 @@ def lti_launch(request, course_id, usage_id):
         if key in params:
             lti_params[lti_keys[key]] = params[key]
     authenticate_lti_user(request, params['user_id'], lti_consumer, lti_params)
+    end = time.time() - start
+    user = request.user.email if hasattr(request.user, 'email') else request.user.username
+    log.info("Create and authenticate lti_user = %s. during %s,  %s or usage key %s from request %s" % (user,
+                                                                                                end,
+                                                                                                course_id,
+                                                                                                usage_id,
+                                                                                                request))
+
     if request.user.is_authenticated():
+        start = time.time()
         roles = params.get('roles', None) if lti_consumer.allow_to_add_instructors_via_lti else None
         enroll_result = enroll_user_to_course(request.user, course_key, roles)
         if enroll_result:
             check_and_save_enrollment_attributes(request_params, request.user, course_key)
+        end = time.time() - start
+        user = request.user.email if hasattr(request.user, 'email') else request.user.username
+        log.info("Enroll user to course: %s. during %s,  %s or usage key %s from request %s" % (user,
+                                                                                                end,
+                                                                                                course_id,
+                                                                                                usage_id,
+                                                                                                request))
         if lti_params and 'email' in lti_params:
             update_lti_user_data(request.user, lti_params['email'])
 
@@ -391,6 +407,7 @@ def get_params(request):
         cache = caches['default']
         cached = cache.get(':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, request.GET.get('hash')]))
         if cached:
+            log.info("Cached params: %s, request: %s" % (cached, request))
             return json.loads(cached), True
     return request.POST, False
 
