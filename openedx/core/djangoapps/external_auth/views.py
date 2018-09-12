@@ -313,7 +313,7 @@ def _signup(request, eamap, retfun=None):
         'extauth_email': eamap.external_email,
         'extauth_username': username,
         'extauth_name': eamap.external_name,
-        'ask_for_tos': True,
+        'ask_for_tos': False,
     }
 
     # Some openEdX instances can't have terms of service for shib users, like
