@@ -240,3 +240,4 @@ xblock-review==1.1.5
 xblock==1.2.1
 zendesk==1.1.1
 raven==6.9.0
+django-extensions==2.1.2

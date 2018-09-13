@@ -16,6 +16,19 @@ from .api import course_detail, list_courses
 from .forms import CourseDetailGetForm, CourseListGetForm
 from .serializers import CourseDetailSerializer, CourseSerializer
 
+from oauth2_handler.handlers import CourseAccessHandler
+from credo_modules.models import Organization, OrganizationType
+from opaque_keys.edx.keys import CourseKey
+
+from django.core.exceptions import ValidationError
+from edx_rest_framework_extensions.authentication import JwtAuthentication
+from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from util.disable_rate_limit import can_disable_rate_limit
+from openedx.core.lib.api.authentication import OAuth2AuthenticationAllowInactiveUser
+from openedx.core.lib.api.permissions import ApiKeyHeaderPermissionIsAuthenticated
+
 
 @view_auth_classes(is_authenticated=False)
 class CourseDetailView(DeveloperErrorViewMixin, RetrieveAPIView):
@@ -270,3 +283,35 @@ class CourseListView(DeveloperErrorViewMixin, ListAPIView):
             course for course in db_courses
             if unicode(course.id) in search_courses_ids
         ]
+
+
+def get_customer_info(user):
+    data = []
+    insights_reports = OrganizationType.get_all_insights_reports()
+    handler = CourseAccessHandler()
+    courses = handler.claim_staff_courses({
+        'user': user,
+        'values': None
+    })
+    if courses:
+        org_list = [CourseKey.from_string(course).org for course in courses]
+        data = Organization.objects.filter(org__in=org_list).prefetch_related('org_type')
+        if data and len(org_list) == len(data):
+            insights_reports = set()
+            for v in data:
+                insights_reports.update(v.get_insights_reports())
+            insights_reports = list(insights_reports)
+    return {
+        'insights_reports': insights_reports,
+        'details': [v.to_dict() for v in data]
+    }
+
+
+@can_disable_rate_limit
+class CustomerInfoView(APIView):
+    authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
+    permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
+
+    def get(self, request):
+        return Response(get_customer_info(request.user))
+

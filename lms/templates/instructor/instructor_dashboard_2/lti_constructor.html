@@ -1,0 +1,9 @@
+<%page args="section_data" expression_filter="h"/>
+<br/>
+<section class="lti-constructor">
+<iframe src="${section_data['constructor_url']}/embedded/courses/${section_data['course_id_hash']}/${section_data['course_id']}/sequentials/?hide_header=1&org_details=${section_data['org_details']}"
+        width="100%"
+        height="500px"
+        frameBorder="0"
+        style="border:none;"></iframe>
+</section>

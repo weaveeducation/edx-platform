@@ -1086,6 +1086,12 @@ MAINTENANCE_BANNER_TEXT = ENV_TOKENS.get('MAINTENANCE_BANNER_TEXT', None)
 ############## Sentry ############################
 RAVEN_CONFIG = ENV_TOKENS.get('RAVEN_CONFIG', {})
 
+############## LTI Constructor ############################
+CONSTRUCTOR_LINK = ENV_TOKENS.get('CONSTRUCTOR_LINK', 'http://127.0.0.1:9015')
+
+############## Credo Insights ############################
+CREDO_INSIGHTS_LINK = ENV_TOKENS.get('CREDO_INSIGHTS_LINK', 'https://insights.credoeducation.com')
+
 ############### Settings for Retirement #####################
 RETIRED_USERNAME_PREFIX = ENV_TOKENS.get('RETIRED_USERNAME_PREFIX', RETIRED_USERNAME_PREFIX)
 RETIRED_EMAIL_PREFIX = ENV_TOKENS.get('RETIRED_EMAIL_PREFIX', RETIRED_EMAIL_PREFIX)

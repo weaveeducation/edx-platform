@@ -2313,6 +2313,8 @@ INSTALLED_APPS = [
 
     'experiments',
 
+    'django_extensions',
+
     'raven.contrib.django.raven_compat',
 
     # DRF filters

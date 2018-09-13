@@ -5,6 +5,9 @@ Instructor Dashboard Views
 import datetime
 import logging
 import uuid
+import hashlib
+import urllib
+import json
 
 import pytz
 from django.conf import settings
@@ -41,6 +44,7 @@ from django_comment_client.utils import available_division_schemes, has_forum_ac
 from django_comment_common.models import FORUM_ROLE_ADMINISTRATOR, CourseDiscussionSettings
 from edxmako.shortcuts import render_to_response
 from lms.djangoapps.courseware.module_render import get_module_by_usage_id
+from lms.djangoapps.instructor.models import InstructorAvailableSections
 from openedx.core.djangoapps.course_groups.cohorts import DEFAULT_COHORT_NAME, get_course_cohorts, is_course_cohorted
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.verified_track_content.models import VerifiedTrackCohortedCourse
@@ -54,6 +58,8 @@ from util.json_request import JsonResponse
 from xmodule.html_module import HtmlDescriptor
 from xmodule.modulestore.django import modulestore
 from xmodule.tabs import CourseTab
+from course_api.views import get_customer_info
+from credo_modules.models import Organization
 
 from .tools import get_units_with_due_date, title_or_url
 
@@ -120,17 +126,25 @@ def instructor_dashboard_2(request, course_id):
 
     reports_enabled = configuration_helpers.get_value('SHOW_ECOMMERCE_REPORTS', False)
 
-    sections = [
-        _section_course_info(course, access),
-        _section_membership(course, access),
-        _section_cohort_management(course, access),
-        _section_discussions_management(course, access),
-        _section_student_admin(course, access),
-        _section_data_download(course, access),
-    ]
+    sections = []
+    available_tabs = request.user.instructor_dashboard_tabs if hasattr(request.user, 'instructor_dashboard_tabs') \
+        else InstructorAvailableSections()
+
+    if available_tabs.show_course_info:
+        sections.append(_section_course_info(course, access))
+    if available_tabs.show_membership:
+        sections.append(_section_membership(course, access))
+    if available_tabs.show_cohort:
+        sections.append(_section_cohort_management(course, access))
+    if available_tabs.show_discussions_management:
+        sections.append(_section_discussions_management(course, access))
+    if available_tabs.show_student_admin:
+        sections.append(_section_student_admin(course, access))
+    if available_tabs.show_data_download:
+        sections.append(_section_data_download(course, access))
 
     analytics_dashboard_message = None
-    if show_analytics_dashboard_message(course_key):
+    if available_tabs.show_analytics and show_analytics_dashboard_message(course_key):
         # Construct a URL to the external analytics dashboard
         analytics_dashboard_url = '{0}/courses/{1}'.format(settings.ANALYTICS_DASHBOARD_URL, unicode(course_key))
         link_start = HTML("<a href=\"{}\" target=\"_blank\">").format(analytics_dashboard_url)
@@ -160,7 +174,7 @@ def instructor_dashboard_2(request, course_id):
         sections.insert(3, _section_extensions(course))
 
     # Gate access to course email by feature flag & by course-specific authorization
-    if BulkEmailFlag.feature_enabled(course_key):
+    if available_tabs.show_email and BulkEmailFlag.feature_enabled(course_key):
         sections.append(_section_send_email(course, access))
 
     # Gate access to Metrics tab by featue flag and staff authorization
@@ -191,18 +205,31 @@ def instructor_dashboard_2(request, course_id):
     # and enable self-generated certificates for a course.
     # Note: This is hidden for all CCXs
     certs_enabled = CertificateGenerationConfiguration.current().enabled and not hasattr(course_key, 'ccx')
-    if certs_enabled and access['admin']:
+    if available_tabs.show_certificates and certs_enabled and access['admin']:
         sections.append(_section_certificates(course))
 
-    openassessment_blocks = modulestore().get_items(
-        course_key, qualifiers={'category': 'openassessment'}
-    )
-    # filter out orphaned openassessment blocks
-    openassessment_blocks = [
-        block for block in openassessment_blocks if block.parent is not None
-    ]
-    if len(openassessment_blocks) > 0:
-        sections.append(_section_open_response_assessment(request, course, openassessment_blocks, access))
+    if available_tabs.show_open_responses:
+        openassessment_blocks = modulestore().get_items(course_key, qualifiers={'category': 'openassessment'})
+        # filter out orphaned openassessment blocks
+        openassessment_blocks = [block for block in openassessment_blocks if block.parent is not None]
+        if len(openassessment_blocks) > 0:
+            sections.append(_section_open_response_assessment(request, course, openassessment_blocks, access))
+
+    # temporarily solution
+#    if available_tabs.show_lti_constructor:
+    if request.user.is_superuser:
+        sections.append(_section_lti_constructor(request, course))
+
+    display_credo_insights_link = True
+    try:
+        org = Organization.objects.get(org=course_key.org)
+        if org.org_type is not None:
+            display_credo_insights_link = org.org_type.instructor_dashboard_credo_insights
+    except Organization.DoesNotExist:
+        pass
+
+    if display_credo_insights_link and available_tabs.show_insights_link:
+        sections.append(_section_credo_insights(request, course))
 
     disable_buttons = not _is_small_course(course_key)
 
@@ -229,10 +256,11 @@ def instructor_dashboard_2(request, course_id):
 
     context = {
         'course': course,
-        'studio_url': get_studio_url(course, 'course'),
+        'studio_url': get_studio_url(course, 'course') if available_tabs.show_studio_link else None,
         'sections': sections,
         'disable_buttons': disable_buttons,
         'analytics_dashboard_message': analytics_dashboard_message,
+        'show_certificates': available_tabs.show_certificates,
         'certificate_white_list': certificate_white_list,
         'certificate_invalidations': certificate_invalidations,
         'generate_certificate_exceptions_url': generate_certificate_exceptions_url,
@@ -772,6 +800,34 @@ def _section_open_response_assessment(request, course, openassessment_blocks, ac
         'section_display_name': _('Open Responses'),
         'access': access,
         'course_id': unicode(course_key),
+    }
+    return section_data
+
+
+def _section_lti_constructor(request, course):
+    customer_info = get_customer_info(request.user)
+    org_details = {}
+    for v in customer_info['details']:
+        if course.org == v['org']:
+            org_details = v
+
+    section_data = {
+        'section_key': 'lti_constructor',
+        'section_display_name': _('Link Constructor'),
+        'course_id': unicode(course.id),
+        'constructor_url': settings.CONSTRUCTOR_LINK,
+        'course_id_hash': hashlib.md5(unicode(course.id) + u'_credo_lti_constructor').hexdigest(),
+        'org_details': urllib.quote_plus(json.dumps(org_details)),
+    }
+    return section_data
+
+
+def _section_credo_insights(request, course):
+    section_data = {
+        'section_key': 'credo_insights',
+        'section_display_name': _('Credo Insights'),
+        'course_id': unicode(course.id),
+        'credo_insights_url': settings.CREDO_INSIGHTS_LINK,
     }
     return section_data
 
