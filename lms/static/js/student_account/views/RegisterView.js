@@ -60,6 +60,7 @@
                     this.platformName = data.platformName;
                     this.autoSubmit = data.thirdPartyAuth.autoSubmitRegForm;
                     this.hideAuthWarnings = data.hideAuthWarnings;
+                    this.disableSigninButton = data.disableSigninButton || false;
                     this.autoRegisterWelcomeMessage = data.thirdPartyAuth.autoRegisterWelcomeMessage || '';
                     this.registerFormSubmitButtonText =
                         data.thirdPartyAuth.registerFormSubmitButtonText || _('Create Account');
@@ -147,7 +148,8 @@
                             hasSecondaryProviders: this.hasSecondaryProviders,
                             platformName: this.platformName,
                             autoRegisterWelcomeMessage: this.autoRegisterWelcomeMessage,
-                            registerFormSubmitButtonText: this.registerFormSubmitButtonText
+                            registerFormSubmitButtonText: this.registerFormSubmitButtonText,
+                            disableSigninButton: this.disableSigninButton
                         }
                     }));
 

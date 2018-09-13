@@ -45,6 +45,7 @@
                 this.errorMessage = data.thirdPartyAuth.errorMessage || '';
                 this.platformName = data.platformName;
                 this.resetModel = data.resetModel;
+                this.disableRegistrationButton = data.disableRegistrationButton || false;
                 this.supportURL = data.supportURL;
                 this.passwordResetSupportUrl = data.passwordResetSupportUrl;
                 this.createAccountOption = data.createAccountOption;
@@ -70,6 +71,7 @@
                         providers: this.providers,
                         hasSecondaryProviders: this.hasSecondaryProviders,
                         platformName: this.platformName,
+                        disableRegistrationButton: this.disableRegistrationButton,
                         createAccountOption: this.createAccountOption,
                         pipelineUserDetails: this.pipelineUserDetails,
                         enterpriseName: this.enterpriseName

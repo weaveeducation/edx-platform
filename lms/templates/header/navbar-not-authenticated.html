@@ -9,6 +9,7 @@
 from django.urls import reverse
 from django.utils.translation import ugettext as _
 from six import text_type
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 %>
 
 <%
@@ -46,21 +47,29 @@ from six import text_type
     <div>
       % if allows_login:
         % if restrict_enroll_for_course:
+          % if not configuration_helpers.get_value('DISABLE_REGISTER_BUTTON', settings.FEATURES['DISABLE_REGISTER_BUTTON']):
           <div class="mobile-nav-item hidden-mobile nav-item">
             <a class="register-btn btn" href="${reverse('course-specific-register', args=[text_type(course.id)])}">${_("Register")}</a>
           </div>
+          % endif
+          % if not configuration_helpers.get_value('DISABLE_LOGIN_BUTTON', settings.FEATURES['DISABLE_LOGIN_BUTTON']):
           <div class="mobile-nav-item hidden-mobile nav-item">
             <a class="sign-in-btn btn" href="${reverse('course-specific-login', args=[text_type(course.id)])}${login_query()}">${_("Sign in")}</a>
           </div>
+          % endif
         % else:
           % if allow_public_account_creation:
+            % if not configuration_helpers.get_value('DISABLE_REGISTER_BUTTON', settings.FEATURES['DISABLE_REGISTER_BUTTON']):
             <div class="mobile-nav-item hidden-mobile nav-item">
               <a class="register-btn btn" href="/register${login_query()}">${_("Register")}</a>
             </div>
+            % endif
           % endif
+          % if not configuration_helpers.get_value('DISABLE_LOGIN_BUTTON', settings.FEATURES['DISABLE_LOGIN_BUTTON']):
           <div class="mobile-nav-item hidden-mobile nav-item">
             <a class="sign-in-btn btn" href="/login${login_query()}">${_("Sign in")}</a>
           </div>
+          % endif
         % endif
       % endif
     </div>
