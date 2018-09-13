@@ -2,8 +2,8 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
-import openedx.core.djangoapps.xmodule_django.models
 import credo_modules.models
+from opaque_keys.edx.django.models import CourseKeyField
 
 
 class Migration(migrations.Migration):
@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
             name='EnrollmentPropertiesPerCourse',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('course_id', openedx.core.djangoapps.xmodule_django.models.CourseKeyField(max_length=255, db_index=True)),
+                ('course_id', CourseKeyField(max_length=255, db_index=True)),
                 ('data', models.TextField(help_text=b'Config in JSON format', verbose_name=b'Enrollment Properties', validators=[credo_modules.models.validate_json_props])),
             ],
             options={

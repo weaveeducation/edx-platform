@@ -1156,6 +1156,8 @@ INSTALLED_APPS = [
 
     # API Documentation
     'rest_framework_swagger',
+
+    'credo_modules',
 ]
 
 

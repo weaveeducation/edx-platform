@@ -172,6 +172,7 @@ class RegistrationFormFactory(object):
     DEFAULT_FIELDS = ["email", "name", "username", "password"]
 
     EXTRA_FIELDS = [
+        "password_copy",
         "confirm_email",
         "first_name",
         "last_name",
@@ -258,6 +259,15 @@ class RegistrationFormFactory(object):
             for field_name in self.DEFAULT_FIELDS:
                 self.field_handlers[field_name](form_desc, required=True)
 
+            # Extra fields configured in Django settings
+            # may be required, optional, or hidden
+            for field_name in self.EXTRA_FIELDS:
+                if self._is_field_visible(field_name):
+                    self.field_handlers[field_name](
+                        form_desc,
+                        required=self._is_field_required(field_name)
+                    )
+
             for field_name, field in custom_form.fields.items():
                 restrictions = {}
                 if getattr(field, 'max_length', None):
@@ -276,23 +286,19 @@ class RegistrationFormFactory(object):
                         )
                     )
                 form_desc.add_field(
-                    field_name, label=field.label,
-                    default=field_options.get('default'),
+                    field_name,
+                    label=field.label,
+                    default=field.initial,
                     field_type=field_options.get('field_type', FormDescription.FIELD_TYPE_MAP.get(field.__class__)),
-                    placeholder=field.initial, instructions=field.help_text, required=field.required,
+                    # placeholder=field.initial,
+                    instructions=field.help_text,
+                    required=field.required,
                     restrictions=restrictions,
-                    options=getattr(field, 'choices', None), error_messages=field.error_messages,
-                    include_default_option=field_options.get('include_default_option'),
+                    options=getattr(field, 'choices', None),
+                    error_messages=field.error_messages,
+                    include_default_option=True,
                 )
 
-            # Extra fields configured in Django settings
-            # may be required, optional, or hidden
-            for field_name in self.EXTRA_FIELDS:
-                if self._is_field_visible(field_name):
-                    self.field_handlers[field_name](
-                        form_desc,
-                        required=self._is_field_required(field_name)
-                    )
         else:
             # Go through the fields in the fields order and add them if they are required or visible
             for field_name in self.field_order:
@@ -354,6 +360,36 @@ class RegistrationFormFactory(object):
                 "required": error_msg
             }
         )
+
+    def _add_password_copy_field(self, form_desc, required=True):
+         """Add a password copy field to a form description.
+
+         Arguments:
+             form_desc: A form description
+
+         Keyword Arguments:
+             required (bool): Whether this field is required; defaults to True
+
+         """
+         # Translators: This label appears above a field on the registration form
+         # meant to hold the user's retyped password.
+         password_copy_label = _(u"Confirm password")
+
+         error_msg = _(u"Please confirm password.")
+
+         form_desc.add_field(
+             "password_copy",
+             label=password_copy_label,
+             field_type="password",
+             restrictions={
+                 "min_length": password_min_length(),
+                 "max_length": password_max_length(),
+             },
+             error_messages={
+                 "required": error_msg
+             },
+             required=required
+         )
 
     def _add_name_field(self, form_desc, required=True):
         """Add a name field to a form description.
@@ -954,15 +990,28 @@ class RegistrationFormFactory(object):
                                 )
 
                     # Hide the password field
-                    form_desc.override_field_properties(
-                        "password",
-                        default="",
-                        field_type="hidden",
-                        required=False,
-                        label="",
-                        instructions="",
-                        restrictions={}
-                    )
+                    for name in ["password", "password_copy"]:
+                        if name == 'password':
+                            form_desc.override_field_properties(
+                                "password",
+                                default="",
+                                field_type="hidden",
+                                required=False,
+                                label="",
+                                instructions="",
+                                restrictions={}
+                            )
+                        if name == 'password_copy':
+                            form_desc.override_field_properties(
+                                "password_copy",
+                                default="",
+                                field_type="hidden",
+                                required=False,
+                                label="",
+                                instructions="",
+                                restrictions={}
+                            )
+
                     # used to identify that request is running third party social auth
                     form_desc.add_field(
                         "social_auth_provider",

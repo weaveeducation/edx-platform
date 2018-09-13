@@ -614,6 +614,7 @@ def create_account_with_params(request, params):
 
     if is_third_party_auth_enabled and (pipeline.running(request) or third_party_auth_credentials_in_api):
         params["password"] = generate_password()
+        params["password_copy"] = params["password"]
 
     # in case user is registering via third party (Google, Facebook) and pipeline has expired, show appropriate
     # error message
@@ -640,6 +641,7 @@ def create_account_with_params(request, params):
         if len(eamap.external_name.strip()) >= accounts_settings.NAME_MIN_LENGTH:
             params["name"] = eamap.external_name
         params["password"] = eamap.internal_password
+        params["password_copy"] = params["password"]
         log.debug(u'In create_account with external_auth: user = %s, email=%s', params["name"], params["email"])
 
     extended_profile_fields = configuration_helpers.get_value('extended_profile_fields', [])

@@ -2,8 +2,8 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
-import openedx.core.djangoapps.xmodule_django.models
 from django.conf import settings
+from opaque_keys.edx.django.models import CourseKeyField
 
 
 class Migration(migrations.Migration):
@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
             name='CourseUsage',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('course_id', openedx.core.djangoapps.xmodule_django.models.CourseKeyField(db_index=True, max_length=255, null=True, blank=True)),
+                ('course_id', CourseKeyField(db_index=True, max_length=255, null=True, blank=True)),
                 ('usage_count', models.IntegerField(null=True)),
                 ('first_usage_time', models.DateTimeField(null=True, verbose_name=b'First Usage Time', blank=True)),
                 ('last_usage_time', models.DateTimeField(null=True, verbose_name=b'Last Usage Time', blank=True)),
