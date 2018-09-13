@@ -7,6 +7,7 @@ from xblock.reference.user_service import UserService, XBlockUser
 
 from openedx.core.djangoapps.user_api.preferences.api import get_user_preferences
 from student.models import anonymous_id_for_user, get_user_by_username_or_email
+from student.roles import CourseStaffRole, CourseInstructorRole
 
 ATTR_KEY_IS_AUTHENTICATED = 'edx-platform.is_authenticated'
 ATTR_KEY_USER_ID = 'edx-platform.user_id'
@@ -54,6 +55,21 @@ class DjangoXBlockUserService(UserService):
 
         course_id = CourseKey.from_string(course_id)
         return anonymous_id_for_user(user=user, course_id=course_id, save=False)
+
+    def is_staff_user(self, course_id):
+        if self._django_user:
+            return CourseStaffRole(course_id).has_user(self._django_user)
+        else:
+            return False
+
+    def is_instructor_user(self, course_id):
+        if self._django_user:
+            return CourseInstructorRole(course_id).has_user(self._django_user)
+        else:
+            return False
+
+    def is_superadmin_user(self):
+        return self._django_user.is_superuser
 
     def _convert_django_user_to_xblock_user(self, django_user):
         """
