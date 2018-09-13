@@ -2874,3 +2874,6 @@ class LogoutViewConfiguration(ConfigurationModel):
     def __unicode__(self):
         """Unicode representation of the instance. """
         return u'Logout view configuration: {enabled}'.format(enabled=self.enabled)
+
+
+User._meta.get_field('email')._unique = True
