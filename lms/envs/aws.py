@@ -1083,6 +1083,9 @@ FERNET_KEYS = AUTH_TOKENS.get('FERNET_KEYS', FERNET_KEYS)
 ################# Settings for the maintenance banner #################
 MAINTENANCE_BANNER_TEXT = ENV_TOKENS.get('MAINTENANCE_BANNER_TEXT', None)
 
+############## Sentry ############################
+RAVEN_CONFIG = ENV_TOKENS.get('RAVEN_CONFIG', {})
+
 ############### Settings for Retirement #####################
 RETIRED_USERNAME_PREFIX = ENV_TOKENS.get('RETIRED_USERNAME_PREFIX', RETIRED_USERNAME_PREFIX)
 RETIRED_EMAIL_PREFIX = ENV_TOKENS.get('RETIRED_EMAIL_PREFIX', RETIRED_EMAIL_PREFIX)
