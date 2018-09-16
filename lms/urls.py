@@ -128,6 +128,7 @@ urlpatterns = [
     # Multiple course modes and identity verification
     url(r'^course_modes/', include('course_modes.urls')),
     url(r'^verify_student/', include('verify_student.urls')),
+    url(r'^credo_modules/', include('credo_modules.urls')),
 
     # URLs for managing dark launches of languages
     url(r'^update_lang/', include('openedx.core.djangoapps.dark_lang.urls', namespace='dark_lang')),
@@ -271,6 +272,12 @@ urlpatterns += [
         name='xblock_view',
     ),
 
+    url(
+        r'^cookie/check$',
+        'courseware.views.views.cookie_check',
+        name='cookie_check',
+    ),
+
     # xblock Rendering View URL
     # URL to provide an HTML view of an xBlock. The view type (e.g., student_view) is
     # passed as a 'view' parameter to the URL.
@@ -279,6 +286,15 @@ urlpatterns += [
         r'^xblock/{usage_key_string}$'.format(usage_key_string=settings.USAGE_KEY_PATTERN),
         courseware_views.render_xblock,
         name='render_xblock',
+    ),
+
+    url(
+        r'^courses/{course_key}/xblock/{usage_key_string}/?$'.format(
+            course_key=settings.COURSE_ID_PATTERN,
+            usage_key_string=settings.USAGE_KEY_PATTERN
+        ),
+        'courseware.views.views.render_xblock_course',
+        name='render_xblock_course',
     ),
 
     # xblock Resource URL

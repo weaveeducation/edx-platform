@@ -1306,6 +1306,8 @@ MIDDLEWARE_CLASSES = [
 
     'edx_rest_framework_extensions.middleware.EnsureJWTAuthSettingsMiddleware',
 
+    'credo_modules.middleware.RefererSaveMiddleware',
+
     # This must be last
     'openedx.core.djangoapps.site_configuration.middleware.SessionCookieDomainOverrideMiddleware',
 ]

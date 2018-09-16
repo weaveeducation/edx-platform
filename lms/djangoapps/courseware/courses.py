@@ -19,7 +19,7 @@ from courseware.date_summary import (
     CertificateAvailableDate
 )
 from courseware.model_data import FieldDataCache
-from courseware.module_render import get_module
+from courseware.module_render import get_module, get_module_for_descriptor
 from django.conf import settings
 from django.urls import reverse
 from django.http import Http404, QueryDict
@@ -40,6 +40,7 @@ from util.date_utils import strftime_localized
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.x_module import STUDENT_VIEW
+from credo_modules.models import CourseUsage
 
 log = logging.getLogger(__name__)
 
@@ -612,3 +613,50 @@ def get_course_chapter_ids(course_key):
         log.exception('Failed to retrieve course from modulestore.')
         return []
     return [unicode(chapter_key) for chapter_key in chapter_keys if chapter_key.block_type == 'chapter']
+
+
+def update_lms_course_usage(request, usage_key, course_key):
+    if request.method == 'HEAD':
+        return
+
+    item = None
+    block_type = ''
+    max_attempts = 10
+    num_attempt = 0
+
+    while block_type != 'course' and num_attempt < max_attempts:
+        if item is None:
+            item = modulestore().get_item(usage_key)
+            if item.category == 'sequential':
+                add_vertical_usage(item, request, course_key)
+        CourseUsage.update_block_usage(request, course_key, item.location)
+        item = item.get_parent()
+        block_type = item.category
+        num_attempt = num_attempt + 1
+
+
+def add_vertical_usage(item, request, course_key):
+    activate_block_id = request.GET.get('activate_block_id')
+    if activate_block_id:
+        try:
+            item_vertical = modulestore().get_item(UsageKey.from_string(activate_block_id))
+            if item_vertical.category == 'vertical':
+                CourseUsage.update_block_usage(request, course_key, item_vertical.location)
+                return
+        except ItemNotFoundError:
+            pass
+
+    course = get_course_by_id(course_key, depth=1)
+    field_data_cache = FieldDataCache.cache_for_descriptor_descendents(
+        course.id, request.user, item, depth=2
+    )
+    course_module = get_module_for_descriptor(
+        request.user, request, item, field_data_cache, course.id, course=course
+    )
+    if course_module is not None:
+        real_position = (course_module.position - 1) if course_module.position else 0
+        try:
+            child = course_module.get_children()[real_position]
+            CourseUsage.update_block_usage(request, course_key, child.location)
+        except IndexError:
+            pass

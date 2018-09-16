@@ -54,7 +54,8 @@ from courseware.courses import (
     get_permission_for_course_about,
     get_studio_url,
     sort_by_announcement,
-    sort_by_start_date
+    sort_by_start_date,
+    update_lms_course_usage
 )
 from courseware.masquerade import setup_masquerade
 from courseware.model_data import FieldDataCache
@@ -106,6 +107,12 @@ from xmodule.x_module import STUDENT_VIEW
 
 from ..entrance_exams import user_can_skip_entrance_exam
 from ..module_render import get_module, get_module_by_usage_id, get_module_for_descriptor
+
+from util.views import add_p3p_header
+from student.views import register_login_and_enroll_anonymous_user, validate_credo_access
+from credo_modules.models import user_must_fill_additional_profile_fields
+from credo_modules.views import show_student_profile_form
+from mako.template import Template
 
 log = logging.getLogger("edx.courseware")
 
@@ -291,6 +298,7 @@ def jump_to(_request, course_id, location):
 @ensure_csrf_cookie
 @ensure_valid_course_key
 @data_sharing_consent_required
+@login_required
 def course_info(request, course_id):
     """
     Display the course's info.html, or 404 if there is no such course.
@@ -561,11 +569,11 @@ class CourseTabView(EdxFragmentView):
         Handle exceptions raised when rendering a view.
         """
         if isinstance(exception, Redirect) or isinstance(exception, Http404):
-            raise
+            raise exception
         if isinstance(exception, UnicodeEncodeError):
             raise Http404("URL contains Unicode characters")
         if settings.DEBUG:
-            raise
+            raise exception
         user = request.user
         log.exception(
             u"Error in %s: user=%s, effective_user=%s, course=%s",
@@ -1729,3 +1737,54 @@ def get_financial_aid_courses(user):
             )
 
     return financial_aid_courses
+
+
+@ensure_valid_course_key
+@add_p3p_header
+def render_xblock_course(request, course_id, usage_key_string):
+    course_key = CourseKey.from_string(course_id)
+    course = modulestore().get_course(course_key, depth=2)
+
+    if not course:
+        raise Http404("Course not found")
+
+    if not request.GET.get('process_request') and not request.META.get('HTTP_COOKIE'):
+        additional_url_params = ''
+        jwt_token = request.GET.get('jwt_token', None)
+        if jwt_token:
+            additional_url_params = '&jwt_token=' + jwt_token
+
+        template = Template(render_to_string('static_templates/embedded_new_tab.html', {
+            'disable_accordion': True,
+            'allow_iframing': True,
+            'disable_header': True,
+            'disable_footer': True,
+            'disable_window_wrap': True,
+            'hash': '',
+            'additional_url_params': additional_url_params
+        }))
+        return HttpResponse(template.render())
+
+    if not request.user.is_authenticated():
+        if course.credo_authentication:
+            credo_auth = validate_credo_access(request)
+            if not credo_auth:
+                return HttpResponseForbidden('Invalid Credo authentication. '
+                                             'You have no permissions to access the content')
+        if course.allow_anonymous_access:
+            register_login_and_enroll_anonymous_user(request, course_key)
+        else:
+            return HttpResponseForbidden('Unauthorized')
+
+    block = modulestore().get_item(UsageKey.from_string(usage_key_string))
+    if user_must_fill_additional_profile_fields(course, request.user, block):
+        return show_student_profile_form(request, course, True)
+
+    update_lms_course_usage(request, UsageKey.from_string(usage_key_string), course_key)
+    return render_xblock(request, usage_key_string)
+
+
+@require_http_methods(["GET"])
+def cookie_check(request):
+    cookie_sent = True if request.META.get('HTTP_COOKIE') else False
+    return HttpResponse(json.dumps({'cookie_sent': cookie_sent}), content_type='application/json')

@@ -27,13 +27,14 @@ class StudentProfileField(object):
     options = []
     order = None
 
-    def __init__(self, alias="", required=False, title="", default="", options=None, order=None):
+    def __init__(self, alias="", required=False, title="", default="", options=None, order=None, info=False):
         self.alias = alias
         self.required = required
         self.title = title
         self.default = default
         self.options = options
         self.order = order
+        self.info = info
 
     @classmethod
     def init_from_course(cls, course, default_fields=None):
@@ -49,9 +50,10 @@ class StudentProfileField(object):
                 'alias': k,
                 'required': v['required'] if 'required' in v and v['required'] else False,
                 'title': v['title'] if 'title' in v and v['title'] else k,
-                'default': default_fields[k] if default_fields and (k in default_fields) else v['default'],
+                'default': default_fields[k] if default_fields and (k in default_fields) else v.get('default'),
                 'options': v['options'] if 'options' in v and v['options'] else None,
-                'order': order
+                'order': order,
+                'info': bool(v.get('info'))
             }
             res_unsorted[k] = StudentProfileField(**kwargs)
         return OrderedDict(sorted(res_unsorted.items(), key=lambda t: t[1].order if t[1].order is not None else t[0]))

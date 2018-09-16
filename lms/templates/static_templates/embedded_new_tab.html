@@ -1,0 +1,56 @@
+<%! from django.utils.translation import ugettext as _ %>
+<%inherit file="../main.html" />
+
+<%block name="js_extra">
+  <script type="text/javascript">
+    $(document).ready(function() {
+        $.cookie('test_cookie', '1', {path: '/'});
+        $.ajax({
+            url: '/cookie/check',
+            type: 'GET',
+            dataType: 'json',
+            contentType: 'application/json; charset=utf-8',
+            success: function(data) {
+                if (data.cookie_sent) {
+                    window.location.href = window.location.href + $('#embedded-link').val();
+                } else {
+                    $('.embedded-loading').hide();
+                    $('.embedded-browser-msg').show();
+                }
+            }
+        });
+    });
+  </script>
+</%block>
+
+<%block name="headextra">
+    <style>
+        .embedded-loading, .embedded-loading h3, .embedded-browser-msg, .embedded-browser-msg h3 {
+            font-family: "Open Sans",Verdana,Geneva,sans-serif,sans-serif !important;
+        }
+        .embedded-loading {
+            margin: 20px;
+        }
+        .embedded-browser-msg {
+            margin: 20px;
+            display: none;
+        }
+        .embedded-link-block {
+            margin-top: 15px;
+        }
+    </style>
+</%block>
+
+<main id="main" aria-label="Content" tabindex="-1">
+    <div class="embedded-loading">
+        <h3>Loading...</h3>
+    </div>
+    <div class="embedded-browser-msg">
+        <h3>${_("Your browser prohibits this from showing in the frame. It must be loaded in a new tab.")} </h3>
+        <div class="embedded-link-block">
+            <a target="_blank" href="?hash=${hash}&process_request=1${additional_url_params}">Click here to load in a new tab</a>
+        </div>
+    </div>
+    <input type="hidden" id="embedded-link" value="?hash=${hash}&process_request=1${additional_url_params}">
+</main>
+

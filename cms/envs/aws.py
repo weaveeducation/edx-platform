@@ -549,6 +549,9 @@ COURSEGRAPH_JOB_QUEUE = ENV_TOKENS.get('COURSEGRAPH_JOB_QUEUE', LOW_PRIORITY_QUE
 ############## Sentry ############################
 RAVEN_CONFIG = ENV_TOKENS.get('RAVEN_CONFIG', {})
 
+############## Credo API config ############################
+CREDO_API_CONFIG = ENV_TOKENS.get('CREDO_API_CONFIG', {})
+
 ########################## Parental controls config  #######################
 
 # The age at which a learner no longer requires parental consent, or None
