@@ -13,6 +13,7 @@ import time
 import datetime
 import json
 import platform
+import pytz
 
 from django.contrib.auth.models import User
 from django.db import models, IntegrityError
@@ -166,7 +167,7 @@ class GradedAssignmentLock(models.Model):
             try:
                 lock = GradedAssignmentLock.objects.get(graded_assignment_id=graded_assignment_id)
                 if lock:
-                    time_diff = datetime.datetime.utcnow() - lock.created
+                    time_diff = datetime.datetime.utcnow().replace(tzinfo=pytz.utc) - lock.created
                     if time_diff.seconds > 60:  # 1 min
                         return lock
             except GradedAssignmentLock.DoesNotExist:
