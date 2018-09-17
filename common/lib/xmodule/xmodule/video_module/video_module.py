@@ -55,6 +55,7 @@ from .transcripts_utils import (
 from .video_handlers import VideoStudentViewHandlers, VideoStudioViewHandlers
 from .video_utils import create_youtube_string, format_xml_exception_message, get_poster, rewrite_video_url
 from .video_xfields import VideoFields
+from web_fragments.fragment import Fragment
 
 # The following import/except block for edxval is temporary measure until
 # edxval is a proper XBlock Runtime Service.
@@ -137,6 +138,18 @@ class VideoModule(VideoFields, VideoTranscriptsMixin, VideoStudentViewHandlers, 
         resource_string(module, 'css/video/accessible_menu.scss'),
     ]}
     js_module_name = "Video"
+    has_author_view = True
+
+    def author_view(self, context):
+        """
+        Return a fragment with the html from this XModule
+
+        Doesn't yet add any of the javascript to the fragment, nor the css.
+        Also doesn't expect any javascript binding, yet.
+
+        Makes no use of the context parameter
+        """
+        return Fragment(self.get_html())
 
     def validate(self):
         """
@@ -411,6 +424,11 @@ class VideoDescriptor(VideoFields, VideoTranscriptsMixin, VideoStudioViewHandler
             'template': "tabs/metadata-edit-tab.html"
         }
     ]
+
+    has_author_view = True
+
+    def author_view(self, context):
+        return Fragment(self.get_html())
 
     def __init__(self, *args, **kwargs):
         """

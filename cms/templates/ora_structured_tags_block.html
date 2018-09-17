@@ -1,0 +1,55 @@
+<div class="studio-xblock-wrapper" style="margin: 10px">
+    % for rubric in rubrics:
+        <h3>Criterion: ${rubric}</h3>
+        <%
+            idx = loop.index
+        %>
+        <div class="wrapper">
+            % for tag in tags:
+                % if tag['editable'] or len(tag['values']) > 0:
+                <div>
+                    <div><label for="tags_${tag['key']}_${block_location}">${tag['title']}</label>:</div>
+                    % if tag['has_access']:
+                        % if len(tag['values']) > 0:
+                        <div class="left" style="width: 700px;">
+                        <input id="tags_${tag['key']}_${block_location}_${idx}" name="${tag['key']}" type="text"
+                               data-values="${tag['values_json'] | h}" data-current-values="${tag['rubrics_current_values'][rubric]['current_values_json'] | h}"
+                               data-rubric="${rubric | h}" />
+                        </div>
+                        % else:
+                            <div class="left">There are no available tag values</div>
+                        % endif
+                    % else:
+                        % if tag['rubrics_current_values'][rubric]['current_values']:
+                            <div class="left" style="width: 700px;">
+                            <input id="tags_${tag['key']}_${block_location}_${idx}" name="${tag['key']}" type="text"
+                                   data-current-values="${tag['rubrics_current_values'][rubric]['current_values_json'] | h}"
+                                   data-rubric="${rubric | h}" readonly="readonly" />
+                            </div>
+                        % else:
+                            <div class="left">Not Selected</div>
+                        % endif
+                    % endif
+                    <div>
+                    % if tag['editable'] and tag['has_access']:
+                    &nbsp;<a href="javascript: void(0);" class="edit_tags" tag_category="${tag['key']}">[ Edit values ]</a>
+                    % endif
+                    </div>
+                    <div style="clear:both;"></div>
+                </div>
+                % endif
+            % endfor
+        </div>
+        <br />
+    % endfor
+    % if tags_count > 0 and show_save_btn:
+        <div class="outline-content">
+            <div class="add-item">
+                <a href="javascript: void(0);" class="button button-new save_tags" title="Save tags">
+                <span class="action-button-text">Save tags</span>
+                </a>
+            </div>
+        </div>
+    % endif
+</div>
+
