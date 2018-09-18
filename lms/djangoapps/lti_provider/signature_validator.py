@@ -20,6 +20,10 @@ class SignatureValidator(RequestValidator):
         self.endpoint = SignatureOnlyEndpoint(self)
         self.lti_consumer = lti_consumer
 
+    @property
+    def timestamp_lifetime(self):
+        return 43200  # 12 hours
+
     # The OAuth signature uses the endpoint URL as part of the request to be
     # hashed. By default, the oauthlib library rejects any URLs that do not
     # use HTTPS. We turn this behavior off in order to allow edX to run without

@@ -14,4 +14,5 @@ urlpatterns = [
             usage_id=settings.USAGE_ID_PATTERN
         ),
         views.lti_launch, name="lti_provider_launch"),
+    url(r'^test/?$', views.test_launch, name="lti_provider_test_launch"),
 ]

@@ -22,7 +22,6 @@ def get_logger_config(log_dir,
     about resetting the logging state if this is called multiple times when
     settings are extended.
     """
-
     # Revert to INFO if an invalid string is passed in
     if local_loglevel not in LOG_LEVELS:
         local_loglevel = 'INFO'
@@ -79,13 +78,18 @@ def get_logger_config(log_dir,
             },
         },
         'loggers': {
+            'credo_json': {
+                'handlers': ['console', 'local', 'credo_json'],
+                'level': 'DEBUG',
+                'propagate': False,
+            },
             'tracking': {
                 'handlers': ['tracking'],
                 'level': 'DEBUG',
                 'propagate': False,
             },
             '': {
-                'handlers': ['console', 'local'],
+                'handlers': ['console', 'local', 'sentry'],
                 'level': 'INFO',
                 'propagate': False
             },
@@ -101,6 +105,32 @@ def get_logger_config(log_dir,
             }
         }
     }
+
+    if logging_env in ['sandbox', 'dev']:
+        logger_config['handlers'].update({
+            'credo_json': {
+                'level': 'DEBUG',
+                'class': 'logging.NullHandler',
+            },
+            'sentry': {
+                'level': 'ERROR',
+                'class': 'logging.NullHandler',
+            },
+        })
+    else:
+        logger_config['handlers'].update({
+            'credo_json': {
+                'level': 'DEBUG',
+                'class': 'logging.handlers.SysLogHandler',
+                'address': '/dev/log',
+                'facility': SysLogHandler.LOG_LOCAL2,
+                'formatter': 'raw',
+            },
+            'sentry': {
+                'level': 'ERROR',
+                'class': 'raven.contrib.django.raven_compat.handlers.SentryHandler'
+            },
+        })
 
     return logger_config
 
