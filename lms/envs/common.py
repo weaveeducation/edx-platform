@@ -3421,9 +3421,13 @@ COURSES_API_CACHE_TIMEOUT = 3600  # Value is in seconds
 ############## Settings for CourseGraph ############################
 COURSEGRAPH_JOB_QUEUE = LOW_PRIORITY_QUEUE
 
-
 # Initialize to 'unknown', but read from JSON in aws.py
 EDX_PLATFORM_REVISION = 'unknown'
+
+############## LTI additional settings ############################
+
+EMBEDDED_CODE_CACHE_TIMEOUT = 60 * 60
+EMBEDDED_CODE_CACHE_PREFIX = "embedded_code"
 
 ############## Settings for Completion API #########################
 

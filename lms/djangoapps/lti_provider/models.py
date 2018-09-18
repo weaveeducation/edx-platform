@@ -9,15 +9,21 @@ changes. To do that,
 2. ./manage.py lms schemamigration lti_provider --auto "description" --settings=devstack
 """
 import logging
+import time
+import datetime
+import json
+import platform
+import pytz
 
 from django.contrib.auth.models import User
-from django.db import models
-from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
+from django.db import models, IntegrityError
 from provider.utils import short_token
 
+from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
 from openedx.core.djangolib.fields import CharNullField
 
 log = logging.getLogger("edx.lti_provider")
+log_json = logging.getLogger("credo_json")
 
 
 class LtiConsumer(models.Model):
@@ -30,6 +36,17 @@ class LtiConsumer(models.Model):
     consumer_key = models.CharField(max_length=32, unique=True, db_index=True, default=short_token)
     consumer_secret = models.CharField(max_length=32, unique=True, default=short_token)
     instance_guid = CharNullField(max_length=255, blank=True, null=True, unique=True)
+    lti_strict_mode = models.NullBooleanField(blank=True, help_text="More strict validation rules "
+                                                                    "for requests from the consumer LMS "
+                                                                    "(according to the LTI standard) ."
+                                                                    "Choose 'Yes' to enable strict mode.")
+    allow_to_add_instructors_via_lti = models.NullBooleanField(blank=True, help_text="Automatically adds "
+                                                                                     "instructor role to the user "
+                                                                                     "who came through the LTI if "
+                                                                                     "some of these parameters: "
+                                                                                     "'Administrator', 'Instructor', "
+                                                                                     "'Staff' was passed. Choose 'Yes' "
+                                                                                     "to enable this feature. ")
 
     @staticmethod
     def get_or_supplement(instance_guid, consumer_key):
@@ -93,7 +110,7 @@ class OutcomeService(models.Model):
     properties
     """
     lis_outcome_service_url = models.CharField(max_length=255, unique=True)
-    lti_consumer = models.ForeignKey(LtiConsumer, on_delete=models.CASCADE)
+    lti_consumer = models.ForeignKey(LtiConsumer)
 
 
 class GradedAssignment(models.Model):
@@ -110,10 +127,10 @@ class GradedAssignment(models.Model):
     Learning Information Services standard from which LTI inherits some
     properties
     """
-    user = models.ForeignKey(User, db_index=True, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, db_index=True)
     course_key = CourseKeyField(max_length=255, db_index=True)
     usage_key = UsageKeyField(max_length=255, db_index=True)
-    outcome_service = models.ForeignKey(OutcomeService, on_delete=models.CASCADE)
+    outcome_service = models.ForeignKey(OutcomeService)
     lis_result_sourcedid = models.CharField(max_length=255, db_index=True)
     version_number = models.IntegerField(default=0)
 
@@ -128,9 +145,80 @@ class LtiUser(models.Model):
     to the LTI spec), so we guarantee a unique mapping from LTI to edX account
     by using the lti_consumer/lti_user_id tuple.
     """
-    lti_consumer = models.ForeignKey(LtiConsumer, on_delete=models.CASCADE)
+    lti_consumer = models.ForeignKey(LtiConsumer)
     lti_user_id = models.CharField(max_length=255)
-    edx_user = models.OneToOneField(User, on_delete=models.CASCADE)
+    edx_user = models.OneToOneField(User)
 
     class Meta(object):
         unique_together = ('lti_consumer', 'lti_user_id')
+
+
+class GradedAssignmentLock(models.Model):
+    graded_assignment_id = models.IntegerField(null=False, unique=True)
+    created = models.DateTimeField()
+
+    @classmethod
+    def create(cls, graded_assignment_id):
+        try:
+            lock = GradedAssignmentLock(graded_assignment_id=graded_assignment_id, created=datetime.datetime.utcnow())
+            lock.save()
+            return lock
+        except IntegrityError:
+            try:
+                lock = GradedAssignmentLock.objects.get(graded_assignment_id=graded_assignment_id)
+                if lock:
+                    time_diff = datetime.datetime.utcnow().replace(tzinfo=pytz.utc) - lock.created
+                    if time_diff.seconds > 60:  # 1 min
+                        return lock
+            except GradedAssignmentLock.DoesNotExist:
+                pass
+            return False
+
+    @classmethod
+    def remove(cls, graded_assignment_id):
+        GradedAssignmentLock.objects.filter(graded_assignment_id=graded_assignment_id).delete()
+
+
+class SendScoresLock():
+
+    def __init__(self, graded_assignment_id):
+        self.graded_assignment_id = graded_assignment_id
+        self.lock = False
+
+    def __enter__(self):
+        while True:
+            self.lock = GradedAssignmentLock.create(self.graded_assignment_id)
+            if self.lock:
+                return self.lock
+            else:
+                time.sleep(2)  # 2 seconds
+
+    def __exit__(self, *args):
+        GradedAssignmentLock.remove(self.graded_assignment_id)
+
+
+def log_lti(action, user_id, message, course_id, is_error,
+            assignment=None, grade=None, task_id=None, response_body=None, request_body=None,
+            lis_outcome_service_url=None, **kwargs):
+    hostname = platform.node().split(".")[0]
+    data = {
+        'type': 'lti_task',
+        'task_id': task_id,
+        'hostname': hostname,
+        'datetime': str(datetime.datetime.now()),
+        'timestamp': time.time(),
+        'is_error': is_error,
+        'action': action,
+        'user_id': int(user_id),
+        'message': message,
+        'course_id': str(course_id),
+        'assignment_id': int(assignment.id) if assignment else None,
+        'assignment_version_number': int(assignment.version_number) if assignment else None,
+        'assignment_usage_key': str(assignment.usage_key) if assignment else None,
+        'grade': grade,
+        'request_body': request_body,
+        'response_body': response_body,
+        'lis_outcome_service_url': lis_outcome_service_url
+    }
+    data.update(kwargs)
+    log_json.info(json.dumps(data))
