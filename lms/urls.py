@@ -17,7 +17,7 @@ from courseware.module_render import handle_xblock_callback, handle_xblock_callb
 from courseware.views import views as courseware_views
 from courseware.views.index import CoursewareIndex
 from courseware.views.views import CourseTabView, EnrollStaffView, StaticCourseTabView,\
-    cookie_check, render_xblock_course
+    cookie_check, launch_new_tab, render_xblock_course
 from debug import views as debug_views
 from django_comment_common.models import ForumsConfig
 from django_openid_auth import views as django_openid_auth_views
@@ -256,6 +256,21 @@ urlpatterns += [
         ),
         xblock_view,
         name='xblock_view',
+    ),
+
+    url(
+        r'^cookie/check$',
+        cookie_check,
+        name='cookie_check',
+    ),
+
+    url(
+        r'^courses/{course_id}/{usage_id}/new_tab/?$'.format(
+            course_id=settings.COURSE_ID_PATTERN,
+            usage_id=settings.USAGE_ID_PATTERN
+        ),
+        launch_new_tab,
+        name='launch_new_tab',
     ),
 
     # xblock Rendering View URL

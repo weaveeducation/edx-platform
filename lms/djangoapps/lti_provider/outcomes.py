@@ -128,7 +128,7 @@ def get_assignments_for_problem(problem_descriptor, user_id, course_key):
     return assignments
 
 
-def send_score_update(assignment, score):
+def send_score_update(assignment, score, attempt_num=0, countdown=0):
     """
     Create and send the XML message to the campus LMS system to update the grade
     for a single graded assignment.
@@ -155,11 +155,16 @@ def send_score_update(assignment, score):
         log.debug('Request body: %s', xml)
         log.debug('Response body: %s', response_body)
         error_msg = "Outcome Service: Failed to update score on LTI consumer. " \
-                    "User: %s, course: %s, usage: %s, score: %s, url: %s, status: %s" %\
+                    "User: %s, course: %s, usage: %s, score: %s, url: %s, status: %s, attempt num: %s" %\
                     (assignment.user, assignment.course_key, assignment.usage_key, score,
-                     assignment.outcome_service.lis_outcome_service_url,
-                     response)
-        log.error(error_msg, exc_info=True)
+                     assignment.outcome_service.lis_outcome_service_url, response, str(attempt_num))
+
+        if attempt_num in [4, 10]:
+            if attempt_num == 4:
+                error_msg = error_msg + '. Will be retried in ' + str(countdown) + 's'
+            else:
+                error_msg = error_msg + '. Final attempt'
+            log.error(error_msg, exc_info=True)
         raise OutcomeServiceSendScoreError(error_msg, response_body, xml,
                                            assignment.outcome_service.lis_outcome_service_url, request_error)
 

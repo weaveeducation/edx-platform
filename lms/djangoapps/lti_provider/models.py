@@ -13,10 +13,10 @@ import time
 import datetime
 import json
 import platform
-import pytz
 
 from django.contrib.auth.models import User
-from django.db import models, IntegrityError
+from django.db import models, IntegrityError, transaction
+from django.utils import timezone
 from provider.utils import short_token
 
 from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
@@ -160,15 +160,16 @@ class GradedAssignmentLock(models.Model):
     @classmethod
     def create(cls, graded_assignment_id):
         try:
-            lock = GradedAssignmentLock(graded_assignment_id=graded_assignment_id, created=datetime.datetime.utcnow())
-            lock.save()
-            return lock
+            with transaction.atomic():
+                lock = GradedAssignmentLock(graded_assignment_id=graded_assignment_id, created=timezone.now())
+                lock.save()
+                return lock
         except IntegrityError:
             try:
                 lock = GradedAssignmentLock.objects.get(graded_assignment_id=graded_assignment_id)
                 if lock:
-                    time_diff = datetime.datetime.utcnow().replace(tzinfo=pytz.utc) - lock.created
-                    if time_diff.seconds > 60:  # 1 min
+                    time_diff = timezone.now() - lock.created
+                    if time_diff.total_seconds() > 60:  # 1 min
                         return lock
             except GradedAssignmentLock.DoesNotExist:
                 pass
@@ -210,7 +211,7 @@ def log_lti(action, user_id, message, course_id, is_error,
         'is_error': is_error,
         'action': action,
         'user_id': int(user_id),
-        'message': message,
+        'message': str(message),
         'course_id': str(course_id),
         'assignment_id': int(assignment.id) if assignment else None,
         'assignment_version_number': int(assignment.version_number) if assignment else None,
