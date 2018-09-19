@@ -16,7 +16,8 @@ from django.core.exceptions import PermissionDenied
 from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.db.models import Q
-from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, QueryDict
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, QueryDict, \
+                        HttpResponseRedirect
 from django.shortcuts import redirect
 from django.utils.decorators import method_decorator
 from django.utils.text import slugify
@@ -90,6 +91,7 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
 from openedx.features.course_experience import UNIFIED_COURSE_TAB_FLAG, course_home_url_name
 from openedx.features.course_experience.views.course_dates import CourseDatesFragmentView
 from openedx.features.enterprise_support.api import data_sharing_consent_required
+from openedx.core.lib.url_utils import unquote_slashes
 from shoppingcart.utils import is_shopping_cart_enabled
 from student.models import CourseEnrollment, UserTestGroup
 from survey.utils import must_answer_survey
@@ -1437,17 +1439,22 @@ def _track_successful_certificate_generation(user_id, course_id):  # pylint: dis
 def render_xblock_course(request, course_id, usage_key_string):
     course_key = CourseKey.from_string(course_id)
     course = modulestore().get_course(course_key, depth=2)
+    iframe = request.GET.get('iframe', '0').lower() == '1'
 
     if not course:
         raise Http404("Course not found")
 
-    if not request.GET.get('process_request') and not request.META.get('HTTP_COOKIE'):
+    block = modulestore().get_item(UsageKey.from_string(usage_key_string))
+    is_time_exam = getattr(block, 'is_proctored_exam', False) or getattr(block, 'is_time_limited', False)
+
+    if not request.GET.get('process_request'):
         additional_url_params = ''
         jwt_token = request.GET.get('jwt_token', None)
         if jwt_token:
             additional_url_params = '&jwt_token=' + jwt_token
 
         template = Template(render_to_string('static_templates/embedded_new_tab.html', {
+            'time_exam': 1 if is_time_exam else 0,
             'disable_accordion': True,
             'allow_iframing': True,
             'disable_header': True,
@@ -1469,9 +1476,11 @@ def render_xblock_course(request, course_id, usage_key_string):
         else:
             return HttpResponseForbidden('Unauthorized')
 
-    block = modulestore().get_item(UsageKey.from_string(usage_key_string))
     if user_must_fill_additional_profile_fields(course, request.user, block):
         return show_student_profile_form(request, course, True)
+
+    if not iframe:
+        return HttpResponseRedirect('/courses/{}/{}/new_tab'.format(course_id, usage_key_string))
 
     update_lms_course_usage(request, UsageKey.from_string(usage_key_string), course_key)
     return render_xblock(request, usage_key_string)
@@ -1481,6 +1490,26 @@ def render_xblock_course(request, course_id, usage_key_string):
 def cookie_check(request):
     cookie_sent = True if request.META.get('HTTP_COOKIE') else False
     return HttpResponse(json.dumps({'cookie_sent': cookie_sent}), content_type='application/json')
+
+
+@require_http_methods(["GET"])
+def launch_new_tab(request, course_id, usage_id):
+    if not request.user.is_authenticated():
+        return HttpResponseForbidden('Unauthorized')
+    try:
+        course_key = CourseKey.from_string(course_id)
+        usage_id = unquote_slashes(usage_id)
+        usage_key = UsageKey.from_string(usage_id).map_into_course(course_key)
+    except InvalidKeyError:
+        log.error(
+            'Invalid course key %s or usage key %s from request %s',
+            course_id,
+            usage_id,
+            request
+        )
+        raise Http404()
+    update_lms_course_usage(request, usage_key, course_key)
+    return render_xblock(request, unicode(usage_key), check_if_enrolled=False)
 
 
 @require_http_methods(["GET", "POST"])

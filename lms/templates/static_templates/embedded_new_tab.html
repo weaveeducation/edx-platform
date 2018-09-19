@@ -11,15 +11,45 @@
             dataType: 'json',
             contentType: 'application/json; charset=utf-8',
             success: function(data) {
+                var isTimeExam = $('#time-exam').val();
                 if (data.cookie_sent) {
-                    window.location.href = window.location.href + $('#embedded-link').val();
+                    var isInIframe = inIframe() ? 1 : 0;
+                    if (isTimeExam === '1') {
+                        if (isInIframe === 1){
+                            showNewTabMsg(true);
+                        }
+                        else {
+                            window.location.href = window.location.href + $('#embedded-link').val() + '&iframe=0';
+                        }
+                    } else {
+                        window.location.href = window.location.href + $('#embedded-link').val() + '&iframe=' + isInIframe;
+                    }
                 } else {
-                    $('.embedded-loading').hide();
-                    $('.embedded-browser-msg').show();
+                    showNewTabMsg(false);
                 }
             }
         });
     });
+
+    function showNewTabMsg (timeExam) {
+        $('.embedded-loading').hide();
+        $('.embedded-browser-msg').show();
+        if (timeExam) {
+            $('#timeExamMsg').show();
+            $('#cookieMsg').hide();
+        } else {
+            $('#timeExamMsg').hide();
+            $('#cookieMsg').show();
+        }
+    }
+
+    function inIframe () {
+        try {
+            return window.self !== window.top;
+        } catch (e) {
+            return true;
+        }
+    }
   </script>
 </%block>
 
@@ -46,11 +76,13 @@
         <h3>Loading...</h3>
     </div>
     <div class="embedded-browser-msg">
-        <h3>${_("Your browser prohibits this from showing in the frame. It must be loaded in a new tab.")} </h3>
+        <h3 id="cookieMsg">${_("Your browser prohibits this from showing in the frame. It must be loaded in a new tab.")} </h3>
+        <h3 id="timeExamMsg">${_("Timed exam should be loaded in a new tab.")} </h3>
         <div class="embedded-link-block">
-            <a target="_blank" href="?hash=${hash}&process_request=1${additional_url_params}">Click here to load in a new tab</a>
+            <a target="_blank" href="?hash=${hash}&process_request=1${additional_url_params}&frame=false">Click here to load in a new tab</a>
         </div>
     </div>
-    <input type="hidden" id="embedded-link" value="?hash=${hash}&process_request=1${additional_url_params}">
+    <input type="hidden" id="embedded-link" value="?hash=${hash}&process_request=1${additional_url_params}'">
+    <input type="hidden" id="time-exam" value="${time_exam}">
 </main>
 

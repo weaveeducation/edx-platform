@@ -258,6 +258,14 @@ urlpatterns += (
         name='cookie_check',
     ),
 
+    url(
+        r'^courses/{course_id}/{usage_id}/new_tab/?$'.format(
+            course_id=settings.COURSE_ID_PATTERN,
+            usage_id=settings.USAGE_ID_PATTERN
+        ),
+        'courseware.views.views.launch_new_tab', name="launch_new_tab"
+    ),
+
     # xblock Rendering View URL
     # URL to provide an HTML view of an xBlock. The view type (e.g., student_view) is
     # passed as a "view" parameter to the URL.
