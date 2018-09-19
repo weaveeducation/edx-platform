@@ -1308,6 +1308,8 @@ MIDDLEWARE_CLASSES = [
 
     'credo_modules.middleware.RefererSaveMiddleware',
 
+    'third_party_auth.middleware.SSOAuthMiddleware',
+
     # This must be last
     'openedx.core.djangoapps.site_configuration.middleware.SessionCookieDomainOverrideMiddleware',
 ]
