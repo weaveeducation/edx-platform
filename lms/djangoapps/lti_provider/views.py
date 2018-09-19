@@ -114,12 +114,7 @@ def lti_launch(request, course_id, usage_id):
     params['usage_key'] = usage_key
 
     # get all sequences, since they can be marked as timed/proctored exams
-    is_time_exam = False
-    for i in modulestore().get_items(course_key, qualifiers={'category': 'sequential'},
-                                     settings={'is_time_limited': True}):
-        if i.location == usage_key:
-            is_time_exam = True
-            break
+    is_time_exam = modulestore().get_item(usage_key).is_time_limited
 
     if not is_cached:
         cache = caches['default']
@@ -161,31 +156,11 @@ def lti_launch(request, course_id, usage_id):
     # used earlier to verify the oauth signature.
     store_outcome_parameters(params, request.user, lti_consumer)
 
-    if not request_params['iframe']:
-        return HttpResponseRedirect('/lti_provider/courses/{}/{}/new_tab'.format(course_id, usage_id))
+    if not request_params.get('iframe'):
+        return HttpResponseRedirect('/courses/{}/{}/new_tab'.format(course_id, usage_id))
 
     update_lms_course_usage(request, usage_key, course_key)
     result = render_courseware(request, params['usage_key'])
-    return result
-
-@csrf_exempt
-@add_p3p_header
-def lti_launch_new_tab(request, course_id, usage_id):
-    if not request.user.is_authenticated():
-        return render_response_forbidden(None)
-
-    try:
-        course_key, usage_key = parse_course_and_usage_keys(course_id, usage_id)
-    except InvalidKeyError:
-        log.error(
-            'Invalid course key %s or usage key %s from request %s',
-            course_id,
-            usage_id,
-            request
-        )
-        raise Http404()
-    update_lms_course_usage(request, usage_key, course_key)
-    result = render_courseware(request, usage_key)
     return result
 
 
@@ -383,7 +358,7 @@ def get_params(request):
             cache.delete(lti_hash)
             log.info("Cached params: %s, request: %s" % (cached, request))
             request_params = json.loads(cached)
-            request_params['iframe'] = request.GET.get('iframe', 'false').lower() == 'true'
+            request_params['iframe'] = request.GET.get('iframe', '0').lower() == '1'
             return request_params, True
     return request.POST, False
 
