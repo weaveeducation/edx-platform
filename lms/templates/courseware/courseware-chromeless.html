@@ -3,6 +3,7 @@
 <%namespace name='static' file='/static_content.html'/>
 <%!
 from django.utils.translation import ugettext as _
+from django.conf import settings
 from edxnotes.helpers import is_feature_enabled as is_edxnotes_enabled
 
 from openedx.core.djangolib.markup import HTML
@@ -32,6 +33,11 @@ ${static.get_page_title_breadcrumbs(course_name())}
 %>
 </%block>
 
+<%
+if course is not None:
+    include_special_exams = settings.FEATURES.get('ENABLE_SPECIAL_EXAMS', False) and (course.enable_proctored_exams or course.enable_timed_exams)
+%>
+
 <%block name="headextra">
 <%static:css group='style-course-vendor'/>
 <%static:css group='style-course'/>
@@ -59,6 +65,7 @@ ${static.get_page_title_breadcrumbs(course_name())}
   % endif
 
   <script type="text/javascript">
+    window.chromlessView = true;
     var $$course_id = "${course.id | n, js_escaped_string}";
   </script>
 
@@ -66,7 +73,16 @@ ${HTML(fragment.foot_html())}
 
 </%block>
 
+<div class="proctored_exam_status"></div>
 <div class="course-wrapper chromeless">
+    % if include_special_exams is not UNDEFINED and include_special_exams:
+        <%static:js group='proctoring'/>
+        % for template_name in ["proctored-exam-status"]:
+            <script type="text/template" id="${template_name}-tpl">
+                <%static:include path="courseware/${template_name}.underscore" />
+            </script>
+        % endfor
+    % endif
   <section class="course-content" id="course-content"\
     % if enable_completion_on_view_service:
       data-enable-completion-on-view-service="true" \
