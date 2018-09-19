@@ -478,10 +478,10 @@ def render_cert_by_uuid(request, certificate_uuid):
         raise Http404
 
 
-@handle_500(
-    template_path="certificates/server-error.html",
-    test_func=lambda request: request.GET.get('preview', None)
-)
+#@handle_500(
+#    template_path="certificates/server-error.html",
+#    test_func=lambda request: request.GET.get('preview', None)
+#)
 def render_html_view(request, user_id, course_id):
     """
     This public view generates an HTML representation of the specified user and course
