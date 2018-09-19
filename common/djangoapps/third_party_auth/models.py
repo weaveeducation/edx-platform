@@ -421,6 +421,7 @@ class SAMLConfiguration(ConfigurationModel):
         ),
         blank=True,
     )
+    separate_settings_per_microsite = models.BooleanField(default=False, verbose_name='Separate Settings per Microsite')
     entity_id = models.CharField(max_length=255, default="http://saml.example.com", verbose_name="Entity ID")
     org_info_str = models.TextField(
         verbose_name="Organization Info",
@@ -858,3 +859,50 @@ class ProviderApiPermissions(models.Model):
         app_label = "third_party_auth"
         verbose_name = "Provider API Permission"
         verbose_name_plural = verbose_name + 's'
+
+
+class SAMLConfigurationPerMicrosite(models.Model):
+    """
+    Additional SAML configuration per microsite
+    """
+    domain = models.CharField(max_length=255, verbose_name='Microsite Domain Name', unique=True)
+    entity_id = models.CharField(max_length=255, default="http://saml.example.com", verbose_name="Entity ID")
+    org_info_str = models.TextField(
+        verbose_name="Organization Info",
+        default='{"en-US": {"url": "http://www.example.com", "displayname": "Example Inc.", "name": "example"}}',
+        help_text="JSON dictionary of 'url', 'displayname', and 'name' for each language",
+    )
+    other_config_str = models.TextField(
+        default='{\n"SECURITY_CONFIG": {"metadataCacheDuration": 604800, "signMetadata": false}\n}',
+        help_text=(
+            "JSON object defining advanced settings that are passed on to python-saml. "
+            "Valid keys that can be set here include: SECURITY_CONFIG and SP_EXTRA"
+        ),
+    )
+
+    class Meta(object):
+        app_label = "third_party_auth"
+        verbose_name = "SAML Configuration per Microsite"
+        verbose_name_plural = verbose_name
+
+    def clean(self):
+        """ Standardize and validate fields """
+        super(SAMLConfigurationPerMicrosite, self).clean()
+        self.org_info_str = clean_json(self.org_info_str, dict)
+        self.other_config_str = clean_json(self.other_config_str, dict)
+
+    def get_setting(self, name):
+        """ Get the value of a setting, or raise KeyError """
+        if name == "ORG_INFO":
+            return json.loads(self.org_info_str) if self.org_info_str else None
+        if name == "SP_ENTITY_ID":
+            return self.entity_id
+        other_config = json.loads(self.other_config_str) if self.other_config_str else {}
+        if other_config and name in ("TECHNICAL_CONTACT", "SUPPORT_CONTACT"):
+            contact = {
+                "givenName": "{} Support".format(settings.PLATFORM_NAME),
+                "emailAddress": settings.TECH_SUPPORT_EMAIL
+            }
+            contact.update(other_config.get(name, {}))
+            return contact
+        return other_config.get(name, None)  # SECURITY_CONFIG, SP_EXTRA, or similar extra settings
