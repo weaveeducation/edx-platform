@@ -29,7 +29,7 @@ class ScoreBase(object):
     __metaclass__ = abc.ABCMeta
 
     @contract(graded="bool", first_attempted="datetime|None")
-    def __init__(self, graded, first_attempted):
+    def __init__(self, graded, first_attempted, last_answer_timestamp=None):
         """
         Fields common to all scores include:
 
@@ -41,6 +41,7 @@ class ScoreBase(object):
         """
         self.graded = graded
         self.first_attempted = first_attempted
+        self.last_answer_timestamp = last_answer_timestamp
 
     def __eq__(self, other):
         if type(other) is type(self):
@@ -132,15 +133,24 @@ def aggregate_scores(scores):
         score.first_attempted for score in scores if score.first_attempted
     )
 
+    modified_lst = [score.last_answer_timestamp for score in scores if score.last_answer_timestamp]
+    all_total_max_timestamp = max(modified_lst) if modified_lst else None
+
     # regardless of whether it is graded
-    all_total = AggregatedScore(total_correct, total_possible, False, first_attempted=first_attempted)
+    all_total = AggregatedScore(total_correct, total_possible, False, first_attempted=first_attempted,
+                                last_answer_timestamp=all_total_max_timestamp)
+
+    modified_graded_lst = [score.last_answer_timestamp for score in scores if score.graded
+                            and score.last_answer_timestamp]
+    graded_total_max_timestamp = max(modified_graded_lst) if modified_graded_lst else None
 
     # selecting only graded things
     graded_total = AggregatedScore(
         total_correct_graded,
         total_possible_graded,
         True,
-        first_attempted=first_attempted_graded
+        first_attempted=first_attempted_graded,
+        last_answer_timestamp=graded_total_max_timestamp
     )
 
     return all_total, graded_total
@@ -378,11 +388,20 @@ class AssignmentFormatGrader(CourseGrader):
 
         return aggregate_score, dropped_indices
 
+    def max_last_answer_timestamp(self, breakdown):
+        last_answer_timestamp_lst = [x['last_answer_timestamp'] for x in breakdown if x.get('last_answer_timestamp')]
+        if last_answer_timestamp_lst:
+            return max(last_answer_timestamp_lst)
+        else:
+            return None
+
     def grade(self, grade_sheet, generate_random_scores=False):
         scores = grade_sheet.get(self.type, {}).values()
         breakdown = []
         labeler = get_short_labeler(self.short_label)
+        last_answer_timestamp = None
         for i in range(max(self.min_count, len(scores))):
+            last_answer_timestamp = None
             if i < len(scores) or generate_random_scores:
                 if generate_random_scores:  	# for debugging!
                     earned = random.randint(2, 15)
@@ -393,6 +412,7 @@ class AssignmentFormatGrader(CourseGrader):
                     earned = scores[i].graded_total.earned
                     possible = scores[i].graded_total.possible
                     section_name = scores[i].display_name
+                    last_answer_timestamp = scores[i].graded_total.last_answer_timestamp
 
                 percentage = scores[i].percent_graded
                 summary_format = u"{section_type} {index} - {name} - {percent:.0%} ({earned:.3n}/{possible:.3n})"
@@ -414,7 +434,8 @@ class AssignmentFormatGrader(CourseGrader):
             short_label = labeler(i + self.starting_index)
 
             breakdown.append({'percent': percentage, 'label': short_label,
-                              'detail': summary, 'category': self.category})
+                              'detail': summary, 'category': self.category,
+                              'last_answer_timestamp': last_answer_timestamp})
 
         total_percent, dropped_indices = self.total_with_drops(breakdown)
 
@@ -450,7 +471,8 @@ class AssignmentFormatGrader(CourseGrader):
 
             if not self.hide_average:
                 breakdown.append({'percent': total_percent, 'label': total_label,
-                                  'detail': total_detail, 'category': self.category, 'prominent': True})
+                                  'detail': total_detail, 'category': self.category, 'prominent': True,
+                                  'last_answer_timestamp': last_answer_timestamp})
 
         return {
             'percent': total_percent,

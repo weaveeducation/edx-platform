@@ -70,6 +70,10 @@ class SubsectionGradeBase(object):
         """
         raise NotImplementedError
 
+    @property
+    def last_answer_timestamp(self):
+        raise NotImplementedError
+
 
 class ZeroSubsectionGrade(SubsectionGradeBase):
     """
@@ -87,6 +91,10 @@ class ZeroSubsectionGrade(SubsectionGradeBase):
     @property
     def percent_graded(self):
         return 0.0
+
+    @property
+    def last_answer_timestamp(self):
+        return None
 
     @property
     def all_total(self):
@@ -157,6 +165,10 @@ class NonZeroSubsectionGrade(SubsectionGradeBase):
     @property
     def percent_graded(self):
         return compute_percent(self.graded_total.earned, self.graded_total.possible)
+
+    @property
+    def last_answer_timestamp(self):
+        return self.graded_total.last_answer_timestamp
 
     @staticmethod
     def _compute_block_score(
