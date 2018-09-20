@@ -26,6 +26,8 @@ class InstructorAvailableSections(models.Model):
     class Meta:
         verbose_name = 'Instructor dashboard available sections'
         verbose_name_plural = 'Instructor dashboard available sections'
+        app_label = "instructor"
+
 
     def __unicode__(self):
         return '<InstructorAvailableSections user_id=%s>' % self.user.id
