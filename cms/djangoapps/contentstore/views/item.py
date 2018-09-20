@@ -16,7 +16,7 @@ from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.utils.translation import ugettext as _
 from django.views.decorators.http import require_http_methods
 from opaque_keys.edx.keys import CourseKey
-from opaque_keys.edx.locator import LibraryUsageLocator
+from opaque_keys.edx.locator import LibraryUsageLocator, BlockUsageLocator
 from pytz import UTC
 from six import text_type
 from web_fragments.fragment import Fragment
@@ -193,21 +193,25 @@ def xblock_handler(request, usage_key_string):
             _delete_item(usage_key, request.user)
             return JsonResponse()
         else:  # Since we have a usage_key, we are updating an existing xblock.
-            return _save_xblock(
-                request.user,
-                _get_xblock(usage_key, request.user),
-                data=request.json.get('data'),
-                children_strings=request.json.get('children'),
-                metadata=request.json.get('metadata'),
-                nullout=request.json.get('nullout'),
-                grader_type=request.json.get('graderType'),
-                is_prereq=request.json.get('isPrereq'),
-                prereq_usage_key=request.json.get('prereqUsageKey'),
-                prereq_min_score=request.json.get('prereqMinScore'),
-                prereq_min_completion=request.json.get('prereqMinCompletion'),
-                publish=request.json.get('publish'),
-                fields=request.json.get('fields'),
-            )
+            copy_to_course = request.json.get('copy_to_course', None)
+            if copy_to_course:
+                return _copy_to_other_course(request.user, _get_xblock(usage_key, request.user), copy_to_course)
+            else:
+                return _save_xblock(
+                    request.user,
+                    _get_xblock(usage_key, request.user),
+                    data=request.json.get('data'),
+                    children_strings=request.json.get('children'),
+                    metadata=request.json.get('metadata'),
+                    nullout=request.json.get('nullout'),
+                    grader_type=request.json.get('graderType'),
+                    is_prereq=request.json.get('isPrereq'),
+                    prereq_usage_key=request.json.get('prereqUsageKey'),
+                    prereq_min_score=request.json.get('prereqMinScore'),
+                    prereq_min_completion=request.json.get('prereqMinCompletion'),
+                    publish=request.json.get('publish'),
+                    fields=request.json.get('fields'),
+                )
     elif request.method in ('PUT', 'POST'):
         if 'duplicate_source_locator' in request.json:
             parent_usage_key = usage_key_with_run(request.json['parent_locator'])
@@ -482,6 +486,16 @@ def _update_with_callback(xblock, user, old_metadata=None, old_content=None):
 
     # Update after the callback so any changes made in the callback will get persisted.
     return modulestore().update_item(xblock, user.id)
+
+
+def _copy_to_other_course(user, xblock, course_dst_id):
+    broken_blocks = {}
+    course_key = CourseKey.from_string(course_dst_id)
+    course = modulestore().get_course(course_key)
+    duplicate_source_usage_key = usage_key_with_run(str(course.location))
+    _duplicate_item(duplicate_source_usage_key, xblock.location, user, xblock.display_name, course_key=course_key,
+                    broken_blocks=broken_blocks)
+    return JsonResponse({'id': unicode(xblock.location), 'broken_blocks': broken_blocks}, encoder=EdxJSONEncoder)
 
 
 def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, nullout=None,
@@ -820,16 +834,42 @@ def _move_item(source_usage_key, target_parent_usage_key, user, target_index=Non
         return JsonResponse(context)
 
 
+def _get_breadcrumbs(item):
+    names_list = []
+    first = True
+    parent = None
+    while first or parent:
+        if first:
+            first = False
+            names_list.append(item.display_name)
+            parent = item.get_parent()
+        else:
+            names_list.append(parent.display_name)
+            parent = parent.get_parent()
+        if parent.category == 'course':
+            parent = None
+    return u' / ' .join(names_list[::-1])
+
+
 def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_name=None, is_child=False,
                     course_key=None, broken_blocks=None):
     """
     Duplicate an existing xblock as a child of the supplied parent_usage_key.
     """
+    if broken_blocks is None:
+        broken_blocks = {}
+
     store = modulestore()
-    with store.bulk_operations(duplicate_source_usage_key.course_key):
+    with store.bulk_operations(course_key if course_key else duplicate_source_usage_key.course_key):
         source_item = store.get_item(duplicate_source_usage_key)
         # Change the blockID to be unique.
         dest_usage_key = source_item.location.replace(name=uuid4().hex)
+        if course_key and (str(course_key) != str(dest_usage_key.course_key)):
+            dest_usage_key = BlockUsageLocator(
+                course_key.version_agnostic(),
+                block_type=dest_usage_key.block_type,
+                block_id=dest_usage_key.block_id,
+            )
         category = dest_usage_key.block_type
 
         # Update the display name to indicate this is a duplicate (unless display name provided).
@@ -865,7 +905,7 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
 
         dest_module = store.create_item(
             user.id,
-            dest_usage_key.course_key,
+            course_key if course_key else dest_usage_key.course_key,
             dest_usage_key.block_type,
             block_id=dest_usage_key.block_id,
             definition_data=source_item.get_explicitly_set_fields_by_scope(Scope.content),
@@ -893,14 +933,19 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
             # These blocks may handle their own children or parenting if needed. Let them return booleans to
             # let us know if we need to handle these or not.
             dest_module.xmodule_runtime = StudioEditModuleRuntime(user)
-            children_handled = dest_module.studio_post_duplicate(store, source_item)
+
+            try:
+                children_handled = dest_module.studio_post_duplicate(store, source_item)
+            except ItemNotFoundError:
+                broken_blocks[str(source_item.location)] = _get_breadcrumbs(source_item)
 
         # Children are not automatically copied over (and not all xblocks have a 'children' attribute).
         # Because DAGs are not fully supported, we need to actually duplicate each child as well.
-        if source_item.has_children and not children_handled:
+        if source_item.has_children and not children_handled and source_item.category != 'library_content':
             dest_module.children = dest_module.children or []
             for child in source_item.children:
-                dupe = _duplicate_item(dest_module.location, child, user=user, is_child=True)
+                dupe = _duplicate_item(dest_module.location, child, user=user, is_child=True, course_key=course_key,
+                                       broken_blocks=broken_blocks)
                 if dupe not in dest_module.children:  # _duplicate_item may add the child for us.
                     dest_module.children.append(dupe)
             store.update_item(dest_module, user.id)
