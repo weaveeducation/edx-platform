@@ -35,11 +35,9 @@
         $('.embedded-loading').hide();
         $('.embedded-browser-msg').show();
         if (timeExam) {
-            $('#timeExamMsg').show();
-            $('#cookieMsg').hide();
+            $('#cookieMsg').html(gettext("Timed exam should be loaded in a new tab. "));
         } else {
-            $('#timeExamMsg').hide();
-            $('#cookieMsg').show();
+            $('#cookieMsg').html(gettext("Your browser prohibits this from showing in the frame. It must be loaded in a new tab. "));
         }
     }
 
@@ -50,6 +48,14 @@
             return true;
         }
     }
+
+    $('a[id="go-new-tab"]').on('click', function(e) {
+      e.preventDefault();
+      $(this).hide();
+      window.open($('#embedded-link').val() + "&frame=false", '_blank');
+      $('#cookieMsg').html(gettext("This tool was successfully loaded in a new browser window. Reload the page to access the tool again."));
+    });
+
   </script>
 </%block>
 
@@ -68,6 +74,9 @@
         .embedded-link-block {
             margin-top: 15px;
         }
+        #go-new-tab {
+            cursor: pointer;
+        }
     </style>
 </%block>
 
@@ -76,10 +85,9 @@
         <h3>Loading...</h3>
     </div>
     <div class="embedded-browser-msg">
-        <h3 id="cookieMsg">${_("Your browser prohibits this from showing in the frame. It must be loaded in a new tab.")} </h3>
-        <h3 id="timeExamMsg">${_("Timed exam should be loaded in a new tab.")} </h3>
+        <h3 id="cookieMsg"></h3>
         <div class="embedded-link-block">
-            <a target="_blank" href="?hash=${hash}&process_request=1${additional_url_params}&frame=false">Click here to load in a new tab</a>
+            <a id="go-new-tab">Click here to load in a new tab</a>
         </div>
     </div>
     <input type="hidden" id="embedded-link" value="?hash=${hash}&process_request=1${additional_url_params}'">
