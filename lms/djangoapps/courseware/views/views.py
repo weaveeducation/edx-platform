@@ -1480,7 +1480,10 @@ def render_xblock_course(request, course_id, usage_key_string):
         return show_student_profile_form(request, course, True)
 
     if not iframe:
-        return HttpResponseRedirect('/courses/{}/{}/new_tab'.format(course_id, usage_key_string))
+        return HttpResponseRedirect(reverse('launch_new_tab', kwargs={
+            'course_id': course_id,
+            'usage_id': usage_key_string
+        }))
 
     update_lms_course_usage(request, UsageKey.from_string(usage_key_string), course_key)
     return render_xblock(request, usage_key_string)

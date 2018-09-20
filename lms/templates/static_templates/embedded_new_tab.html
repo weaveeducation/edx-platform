@@ -35,11 +35,9 @@
         $('.embedded-loading').hide();
         $('.embedded-browser-msg').show();
         if (timeExam) {
-            $('#timeExamMsg').show();
-            $('#cookieMsg').hide();
+            $('#cookieMsg').html(gettext("Timed exam should be loaded in a new tab."));
         } else {
-            $('#timeExamMsg').hide();
-            $('#cookieMsg').show();
+            $('#cookieMsg').html(gettext("Your browser prohibits this from showing in the frame. It must be loaded in a new tab."));
         }
     }
 
@@ -76,8 +74,7 @@
         <h3>Loading...</h3>
     </div>
     <div class="embedded-browser-msg">
-        <h3 id="cookieMsg">${_("Your browser prohibits this from showing in the frame. It must be loaded in a new tab.")} </h3>
-        <h3 id="timeExamMsg">${_("Timed exam should be loaded in a new tab.")} </h3>
+        <h3 id="cookieMsg"></h3>
         <div class="embedded-link-block">
             <a target="_blank" href="?hash=${hash}&process_request=1${additional_url_params}&frame=false">Click here to load in a new tab</a>
         </div>

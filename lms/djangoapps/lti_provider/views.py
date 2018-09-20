@@ -9,6 +9,7 @@ from collections import OrderedDict
 from django.conf import settings
 from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
+from django.core.urlresolvers import reverse
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.cache import caches
@@ -114,7 +115,8 @@ def lti_launch(request, course_id, usage_id):
     params['usage_key'] = usage_key
 
     # get all sequences, since they can be marked as timed/proctored exams
-    is_time_exam = modulestore().get_item(usage_key).is_time_limited
+    block = modulestore().get_item(usage_key)
+    is_time_exam = getattr(block, 'is_proctored_exam', False) or getattr(block, 'is_time_limited', False)
 
     if not is_cached:
         cache = caches['default']
@@ -123,7 +125,7 @@ def lti_launch(request, course_id, usage_id):
         cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
         cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
         template = Template(render_to_string('static_templates/embedded_new_tab.html', {
-            'time_exam': 1 if is_time_exam else 0,
+            'time_exam': int(is_time_exam),
             'disable_accordion': True,
             'allow_iframing': True,
             'disable_header': True,
@@ -157,7 +159,10 @@ def lti_launch(request, course_id, usage_id):
     store_outcome_parameters(params, request.user, lti_consumer)
 
     if not request_params.get('iframe'):
-        return HttpResponseRedirect('/courses/{}/{}/new_tab'.format(course_id, usage_id))
+        return HttpResponseRedirect(reverse('launch_new_tab', kwargs={
+            'course_id': course_id,
+            'usage_id': usage_id
+        }))
 
     update_lms_course_usage(request, usage_key, course_key)
     result = render_courseware(request, params['usage_key'])
