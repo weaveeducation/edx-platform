@@ -317,7 +317,8 @@
   // ELEM: course listings
   .courses-tab,
   .archived-courses-tab,
-  .libraries-tab {
+  .libraries-tab,
+  .settings-tab {
     display: none;
 
     &.active {

@@ -87,6 +87,10 @@ urlpatterns = [
         ),
     url(r'^course_listing/?$', contentstore.views.course_listing_short, name='course_listing_short'),
     url(r'^home/?$', contentstore.views.course_listing, name='home'),
+    url(r'^manage_terms/?$', contentstore.views.manage_terms, name='manage_terms'),
+    url(r'^get_org_terms/(?P<org>.+)?$', contentstore.views.get_org_terms, name='get_org_terms'),
+    url(r'^save_org_term/(?P<org>.+)?$', contentstore.views.save_org_term, name='save_org_term'),
+    url(r'^remove_org_term/(?P<org>.+)?$', contentstore.views.remove_org_term, name='remove_org_term'),
     url(r'^course/{}/search_reindex?$'.format(settings.COURSE_KEY_PATTERN),
         contentstore.views.course_search_index_handler,
         name='course_search_index_handler'
