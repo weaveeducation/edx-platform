@@ -5,10 +5,11 @@
 define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page',
     'common/js/components/utils/view_utils', 'js/views/container', 'js/views/xblock',
     'js/views/components/add_xblock', 'js/views/modals/edit_xblock', 'js/views/modals/move_xblock_modal',
+    'js/views/modals/copy_xblock_modal',
     'js/models/xblock_info', 'js/views/xblock_string_field_editor', 'js/views/xblock_access_editor',
     'js/views/pages/container_subviews', 'js/views/unit_outline', 'js/views/utils/xblock_utils'],
     function($, _, Backbone, gettext, BasePage, ViewUtils, ContainerView, XBlockView, AddXBlockComponent,
-          EditXBlockModal, MoveXBlockModal, XBlockInfo, XBlockStringFieldEditor, XBlockAccessEditor,
+          EditXBlockModal, MoveXBlockModal, CopyXBlockModal, XBlockInfo, XBlockStringFieldEditor, XBlockAccessEditor,
           ContainerSubviews, UnitOutlineView, XBlockUtils) {
         'use strict';
         var XBlockContainerPage = BasePage.extend({
@@ -19,6 +20,7 @@ define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page
                 'click .access-button': 'editVisibilitySettings',
                 'click .duplicate-button': 'duplicateXBlock',
                 'click .move-button': 'showMoveXBlockModal',
+                'click .copy-button': 'showCopyXBlockModal',
                 'click .delete-button': 'deleteXBlock',
                 'click .new-component-button': 'scrollToNewComponentButtons'
             },
@@ -212,6 +214,20 @@ define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page
                 var xblockElement = this.findXBlockElement(event.target),
                     parentXBlockElement = xblockElement.parents('.studio-xblock-wrapper'),
                     modal = new MoveXBlockModal({
+                        sourceXBlockInfo: XBlockUtils.findXBlockInfo(xblockElement, this.model),
+                        sourceParentXBlockInfo: XBlockUtils.findXBlockInfo(parentXBlockElement, this.model),
+                        XBlockURLRoot: this.getURLRoot(),
+                        outlineURL: this.options.outlineURL
+                    });
+
+                event.preventDefault();
+                modal.show();
+            },
+
+            showCopyXBlockModal: function(event) {
+                var xblockElement = this.findXBlockElement(event.target),
+                    parentXBlockElement = xblockElement.parents('.studio-xblock-wrapper'),
+                    modal = new CopyXBlockModal({
                         sourceXBlockInfo: XBlockUtils.findXBlockInfo(xblockElement, this.model),
                         sourceParentXBlockInfo: XBlockUtils.findXBlockInfo(parentXBlockElement, this.model),
                         XBlockURLRoot: this.getURLRoot(),
