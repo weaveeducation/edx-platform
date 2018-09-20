@@ -7,11 +7,13 @@ import hashlib
 
 from collections import OrderedDict
 from django.conf import settings
-from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse
+from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
+from django.core.urlresolvers import reverse
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.cache import caches
+from xmodule.modulestore.django import modulestore
 
 from lti_provider.models import LtiConsumer
 from lti_provider.outcomes import store_outcome_parameters
@@ -112,6 +114,10 @@ def lti_launch(request, course_id, usage_id):
     params['course_key'] = course_key
     params['usage_key'] = usage_key
 
+    # get all sequences, since they can be marked as timed/proctored exams
+    block = modulestore().get_item(usage_key)
+    is_time_exam = getattr(block, 'is_proctored_exam', False) or getattr(block, 'is_time_limited', False)
+
     if not is_cached:
         cache = caches['default']
         json_params = json.dumps(request.POST)
@@ -119,6 +125,7 @@ def lti_launch(request, course_id, usage_id):
         cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
         cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
         template = Template(render_to_string('static_templates/embedded_new_tab.html', {
+            'time_exam': int(is_time_exam),
             'disable_accordion': True,
             'allow_iframing': True,
             'disable_header': True,
@@ -150,8 +157,14 @@ def lti_launch(request, course_id, usage_id):
     # scores back later. We know that the consumer exists, since the record was
     # used earlier to verify the oauth signature.
     store_outcome_parameters(params, request.user, lti_consumer)
-    update_lms_course_usage(request, usage_key, course_key)
 
+    if not request_params.get('iframe'):
+        return HttpResponseRedirect(reverse('launch_new_tab', kwargs={
+            'course_id': course_id,
+            'usage_id': usage_id
+        }))
+
+    update_lms_course_usage(request, usage_key, course_key)
     result = render_courseware(request, params['usage_key'])
     return result
 
@@ -344,10 +357,14 @@ def get_params(request):
     """
     if request.GET.get('hash'):
         cache = caches['default']
-        cached = cache.get(':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, request.GET.get('hash')]))
+        lti_hash = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, request.GET.get('hash')])
+        cached = cache.get(lti_hash)
         if cached:
+            cache.delete(lti_hash)
             log.info("Cached params: %s, request: %s" % (cached, request))
-            return json.loads(cached), True
+            request_params = json.loads(cached)
+            request_params['iframe'] = request.GET.get('iframe', '0').lower() == '1'
+            return request_params, True
     return request.POST, False
 
 
