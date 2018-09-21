@@ -123,7 +123,7 @@ class CourseImportView(CourseImportExportViewMixin, GenericAPIView):
                 )
 
             filename = request.FILES['course_data'].name
-            if not filename.endswith('.tar.gz'):
+            if not filename.endswith('.tar.gz') and not filename.endswith('.zip'):
                 raise self.api_error(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     developer_message='Parameter in the wrong format',
