@@ -553,6 +553,9 @@ VIDEO_TRANSCRIPT_MIGRATIONS_JOB_QUEUE = ENV_TOKENS.get('VIDEO_TRANSCRIPT_MIGRATI
 ########## Settings youtube thumbnails scraper tasks ############
 SCRAPE_YOUTUBE_THUMBNAILS_JOB_QUEUE = ENV_TOKENS.get('SCRAPE_YOUTUBE_THUMBNAILS_JOB_QUEUE', DEFAULT_PRIORITY_QUEUE)
 
+############## Base format for LTI links ############################
+BASE_LTI_LINK = ENV_TOKENS.get('BASE_LTI_LINK', 'http://127.0.0.1/lti_provider/courses/{}/{}')
+
 ########################## Parental controls config  #######################
 
 # The age at which a learner no longer requires parental consent, or None

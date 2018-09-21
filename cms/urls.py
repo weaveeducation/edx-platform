@@ -131,6 +131,8 @@ urlpatterns = [
         ),
     url(r'^export/{}$'.format(COURSELIKE_KEY_PATTERN), contentstore.views.export_handler,
         name='export_handler'),
+    url(r'^export_cc/{}$'.format(COURSELIKE_KEY_PATTERN), contentstore.views.export_handler_cc,
+        name='export_cc_handler'),
     url(r'^export_output/{}$'.format(COURSELIKE_KEY_PATTERN), contentstore.views.export_output_handler,
         name='export_output_handler'),
     url(r'^export_status/{}$'.format(COURSELIKE_KEY_PATTERN), contentstore.views.export_status_handler,
