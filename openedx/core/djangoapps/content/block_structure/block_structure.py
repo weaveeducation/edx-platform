@@ -786,6 +786,8 @@ class BlockStructureModulestoreData(BlockStructureBlockData):
         # set(string)
         self._requested_xblock_fields = set()
 
+        self._asides = {}
+
     def request_xblock_fields(self, *field_names):
         """
         Records request for collecting data for the given xBlock fields.
@@ -858,3 +860,15 @@ class BlockStructureModulestoreData(BlockStructureBlockData):
         """
         if hasattr(xblock, field_name):
             setattr(block_data, field_name, getattr(xblock, field_name))
+
+    def get_asides(self):
+        if not self._asides:
+            for xblock_usage_key, xblock in self._xblock_map.iteritems():
+                usage_key = unicode(xblock_usage_key)
+                for aside in xblock.runtime.get_asides(xblock):
+                    if usage_key not in self._asides:
+                        self._asides[usage_key] = {}
+                    if aside.scope_ids.block_type == 'tagging_aside' \
+                             or aside.scope_ids.block_type == 'tagging_ora_aside':
+                        self._asides[usage_key][aside.scope_ids.block_type] = aside.saved_tags
+        return self._asides
