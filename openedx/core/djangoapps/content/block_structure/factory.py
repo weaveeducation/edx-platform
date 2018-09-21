@@ -86,12 +86,15 @@ class BlockStructureFactory(object):
         return block_structure_store.get(root_block_usage_key)
 
     @classmethod
-    def create_new(cls, root_block_usage_key, block_relations, transformer_data, block_data_map):
+    def create_new(cls, root_block_usage_key, block_relations, transformer_data, block_data_map, asides=None):
         """
         Returns a new block structure for given the arguments.
         """
+        if asides is None:
+            asides = {}
         block_structure = BlockStructureBlockData(root_block_usage_key)
         block_structure._block_relations = block_relations  # pylint: disable=protected-access
         block_structure.transformer_data = transformer_data
         block_structure._block_data_map = block_data_map  # pylint: disable=protected-access
+        block_structure._asides = asides
         return block_structure

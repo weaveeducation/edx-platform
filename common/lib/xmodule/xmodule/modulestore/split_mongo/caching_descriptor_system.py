@@ -393,6 +393,17 @@ class CachingDescriptorSystem(MakoDescriptorSystem, EditInfoRuntimeMixin):
                     pass
                 else:
                     setattr(new_aside, key, value)
+            elif not isinstance(key, KeyValueStore.Key):
+                try:
+                    if block._field_data.has(new_aside, key):
+                        try:
+                            value = block._field_data.get(new_aside, key)  # pylint: disable=protected-access
+                        except KeyError:
+                            pass
+                        else:
+                            setattr(new_aside, key, value)
+                except:
+                    pass
 
         block.add_aside(new_aside)
         return new_aside

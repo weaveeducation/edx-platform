@@ -196,10 +196,14 @@ class BlockStructureStore(object):
         """
         Serializes the data for the given block_structure.
         """
+        asides = {}
+        if hasattr(block_structure, 'get_asides'):
+            asides = block_structure.get_asides()
         data_to_cache = (
             block_structure._block_relations,
             block_structure.transformer_data,
             block_structure._block_data_map,
+            asides
         )
         return zpickle(data_to_cache)
 
@@ -207,12 +211,17 @@ class BlockStructureStore(object):
         """
         Deserializes the given data and returns the parsed block_structure.
         """
-        block_relations, transformer_data, block_data_map = zunpickle(serialized_data)
+        asides = None
+        try:
+            block_relations, transformer_data, block_data_map, asides = zunpickle(serialized_data)
+        except ValueError:
+            block_relations, transformer_data, block_data_map = zunpickle(serialized_data)
         return BlockStructureFactory.create_new(
             root_block_usage_key,
             block_relations,
             transformer_data,
             block_data_map,
+            asides
         )
 
     @staticmethod
