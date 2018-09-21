@@ -13,6 +13,7 @@ from contentstore.proctoring import register_special_exams
 from lms.djangoapps.grades.tasks import compute_all_grades_for_course
 from openedx.core.djangoapps.credit.signals import on_course_publish
 from openedx.core.lib.gating import api as gating_api
+from openedx.core.djangoapps.content.block_structure.api import clear_course_from_cache
 from track.event_transaction_utils import get_event_transaction_id, get_event_transaction_type
 from util.module_utils import yield_dynamic_descriptor_descendants
 from .signals import GRADING_POLICY_CHANGED
@@ -63,6 +64,8 @@ def listen_for_course_publish(sender, course_key, **kwargs):  # pylint: disable=
         from contentstore.tasks import update_search_index
 
         update_search_index.delay(unicode(course_key), datetime.now(UTC).isoformat())
+
+    clear_course_from_cache(course_key)
 
 
 @receiver(SignalHandler.library_updated)
