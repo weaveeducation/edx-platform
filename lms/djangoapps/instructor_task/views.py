@@ -175,7 +175,13 @@ def get_task_completion_info(instructor_task):
             succeeded = True
             # Translators: {action} is a past-tense verb that is localized separately.
             # {student} is a student identifier.
-            msg_format = _("Entrance exam successfully {action} for student '{student}'")
+            msg_format = _("Entrance exam successfully")
+    elif student is not None:
+        if num_succeeded == 0:
+            msg_format = _("Unable to reset progress for student '{student}'")
+        else:
+            succeeded = True
+            msg_format = _("Reset progress successfully for student '{student}'")
     elif student is None and problem_url is not None:
         # this reports on actions on problems for all students:
         if num_attempted == 0:
