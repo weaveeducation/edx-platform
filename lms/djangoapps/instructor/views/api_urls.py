@@ -25,6 +25,8 @@ urlpatterns = [
     url(r'^get_student_enrollment_status$', api.get_student_enrollment_status, name="get_student_enrollment_status"),
     url(r'^get_student_progress_url$', api.get_student_progress_url, name='get_student_progress_url'),
     url(r'^reset_student_attempts$', api.reset_student_attempts, name='reset_student_attempts'),
+    url(r'^reset_progress_student$', api.reset_progress_student, name="reset_progress_student"),
+    url(r'^list_reset_progress_tasks$', api.list_reset_progress_tasks, name="list_reset_progress_tasks"),
     url(r'^rescore_problem$', api.rescore_problem, name='rescore_problem'),
     url(r'^override_problem_score$', api.override_problem_score, name='override_problem_score'),
     url(r'^reset_student_attempts_for_entrance_exam$', api.reset_student_attempts_for_entrance_exam,

@@ -22,11 +22,15 @@ from util.db import outer_atomic
 from xblock.runtime import KvsFieldData
 from xblock.scorable import Score
 from xmodule.modulestore.django import modulestore
+from student.models import CourseEnrollment
 from ..exceptions import UpdateProblemModuleStateError
 from .runner import TaskProgress
 from .utils import UNKNOWN_TASK_ID, UPDATE_STATUS_FAILED, UPDATE_STATUS_SKIPPED, UPDATE_STATUS_SUCCEEDED
 
 TASK_LOG = logging.getLogger('edx.celery.task')
+
+USERNAME_DB_FIELD_SIZE = 30
+EMAIL_DB_FIELD_SIZE = 254
 
 
 def perform_module_state_update(update_fcn, filter_fcn, _entry_id, course_id, task_input, action_name):
@@ -428,3 +432,66 @@ def _get_modules_to_update(course_id, usage_keys, student_identifier, filter_fcn
             for key in usage_keys
         ]
     return student_modules
+
+
+@outer_atomic
+def reset_progress_student(_xmodule_instance_args, _entry_id, course_id, _task_input, action_name):
+    start_time = time()
+
+    num_attempted = 1
+    num_total = 1
+
+    fmt = u'Task: {task_id}, InstructorTask ID: {entry_id}, Course: {course_id}, Input: {task_input}'
+    task_info_string = fmt.format(
+        task_id=_xmodule_instance_args.get('task_id') if _xmodule_instance_args is not None else None,
+        entry_id=_entry_id,
+        course_id=course_id,
+        task_input=_task_input
+    )
+    TASK_LOG.info(u'%s, Task type: %s, Starting task execution', task_info_string, action_name)
+
+    task_progress = TaskProgress(action_name, num_total, start_time)
+    task_progress.attempted = num_attempted
+
+    curr_step = {'step': "Creating user"}
+
+    TASK_LOG.info(
+        u'%s, Task type: %s, Current step: %s for all submissions',
+        task_info_string,
+        action_name,
+        curr_step,
+    )
+
+    user = User.objects.get(id=_task_input['student'])
+
+    backup_username = "{}.{}".format(user.email, start_time)
+    if len(backup_username) > USERNAME_DB_FIELD_SIZE:
+        backup_username = backup_username[-USERNAME_DB_FIELD_SIZE:]
+
+    backup_email = "{}.{}".format(user.email, start_time)
+    if len(backup_username) > EMAIL_DB_FIELD_SIZE:
+        backup_username = backup_username[-EMAIL_DB_FIELD_SIZE:]
+
+    new_user = User.objects.create(email=backup_email,
+                                   username=backup_username)
+    new_profile = user.profile
+    new_profile.pk, new_profile.user = None, new_user
+    new_profile.save()
+
+    task_progress.succeeded = 1
+
+    curr_step = {'step': "Reseting progress"}
+    TASK_LOG.info(
+        u'%s, Task type: %s, Current step: %s',
+        task_info_string,
+        action_name,
+        curr_step,
+    )
+    task_progress.update_task_state(extra_meta=curr_step)
+
+    CourseEnrollment.enroll(new_user, course_id)
+    StudentModule.objects.filter(course_id=course_id, student=user).update(student=new_user)
+
+    curr_step = {'step': 'Finalizing reseting report'}
+    return task_progress.update_task_state(extra_meta=curr_step)
+

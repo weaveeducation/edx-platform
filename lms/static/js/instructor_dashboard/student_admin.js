@@ -34,10 +34,13 @@
             this.$section.data('wrapper', this);
             this.$field_student_select_enrollment_status = findAndAssert(this.$section, "input[name='student-select-enrollment-status']");
             this.$field_student_select_progress = findAndAssert(this.$section, "input[name='student-select-progress']");
+            this.$field_student_reset_progress = findAndAssert(this.$section, "input[name='student-reset-progress']");
+            this.$request_err_reset_progress = findAndAssert(this.$section, '.student-reset-progress-container .request-response-error');  // eslint-disable-line max-len
             this.$field_student_select_grade = findAndAssert(this.$section, "input[name='student-select-grade']");
             this.$progress_link = findAndAssert(this.$section, 'a.progress-link');
             this.$field_problem_select_single = findAndAssert(this.$section, "input[name='problem-select-single']");
             this.$btn_reset_attempts_single = findAndAssert(this.$section, "input[name='reset-attempts-single']");
+            this.$btn_reset_progress_student = findAndAssert(this.$section, "input[name='reset-progress']");
             this.$btn_delete_state_single = this.$section.find("input[name='delete-state-single']");
             this.$btn_rescore_problem_single = this.$section.find("input[name='rescore-problem-single']");
             this.$btn_rescore_problem_if_higher_single = this.$section.find(
@@ -48,7 +51,9 @@
             );
             this.$field_select_score_single = findAndAssert(this.$section, "input[name='score-select-single']");
             this.$btn_task_history_single = this.$section.find("input[name='task-history-single']");
+            this.$btn_reset_progress_history_single = this.$section.find("input[name='reset-progress-history-single']");
             this.$table_task_history_single = this.$section.find('.task-history-single-table');
+            this.$reset_progress_table = this.$section.find('.reset-progress-table');
             this.$field_exam_grade = this.$section.find("input[name='entrance-exam-student-select-grade']");
             this.$btn_reset_entrance_exam_attempts = this.$section.find("input[name='reset-entrance-exam-attempts']");
             this.$btn_delete_entrance_exam_state = this.$section.find("input[name='delete-entrance-exam-state']");
@@ -169,6 +174,66 @@
                     data: sendData,
                     success: studentadmin.clear_errors_then(function() {
                         return alert(fullSuccessMessage);  // eslint-disable-line no-alert
+                    }),
+                    error: statusAjaxError(function() {
+                        return studentadmin.$request_err_grade.text(fullErrorMessage);
+                    })
+                });
+            });
+            this.$btn_reset_progress_student.click(function() {
+                var errorMessage, fullErrorMessage, student_id, successMessage, fullSuccessMessage;
+                student_id = studentadmin.$field_student_reset_progress.val();
+                if (!student_id) {
+                    return studentadmin.$request_err_reset_progress.text(
+                        gettext('Please enter a student email address or username.')
+                    );
+                }
+                errorMessage = gettext("Error getting student progress url for '<%- student_id %>'. Make sure that the student identifier is spelled correctly.");  // eslint-disable-line max-len
+                fullErrorMessage = _.template(errorMessage)({
+                    student_id: student_id
+                });
+                successMessage = gettext("Successfully started task to reset progress for user '<%- student_id %>'. Click the 'Show Task Status' button to see the status of the task.");  // eslint-disable-line max-len
+                fullSuccessMessage = _.template(successMessage)({
+                    student_id: student_id
+                });
+
+                return $.ajax({
+                    type: 'POST',
+                    dataType: 'json',
+                    url: studentadmin.$btn_reset_progress_student.data('endpoint'),
+                    data: {
+                        student_id: student_id
+                    },
+                    success: studentadmin.clear_errors_then(function(){
+                        return alert(fullSuccessMessage);  // eslint-disable-line no-alert
+                    }),
+                    error: statusAjaxError(function() {
+                        return studentadmin.$request_err_reset_progress.text(fullErrorMessage);
+                    })
+                });
+            });
+            this.$btn_reset_progress_history_single.click(function() {
+                var errorMessage, fullErrorMessage, problemToReset, sendData, student_id;
+                student_id = studentadmin.$field_student_reset_progress.val();
+                if (!student_id) {
+                    return studentadmin.$request_err_reset_progress.text(
+                        gettext('Please enter a student email address or username.')
+                    );
+                }
+                sendData = {
+                    student_id: student_id
+                };
+                errorMessage = gettext("Error getting student progress url for '<%- student_id %>'. Make sure that the student identifier is spelled correctly.");  // eslint-disable-line max-len
+                fullErrorMessage = _.template(errorMessage)({
+                    student_id: student_id,
+                });
+                return $.ajax({
+                    type: 'POST',
+                    dataType: 'json',
+                    url: studentadmin.$btn_reset_progress_history_single.data('endpoint'),
+                    data: sendData,
+                    success: studentadmin.clear_errors_then(function(data) {
+                        return createTaskListTable(studentadmin.$reset_progress_table, data.tasks);
                     }),
                     error: statusAjaxError(function() {
                         return studentadmin.$request_err_grade.text(fullErrorMessage);

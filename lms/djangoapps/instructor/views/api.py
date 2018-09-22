@@ -2094,6 +2094,41 @@ def reset_student_attempts(request, course_id):
     return JsonResponse(response_payload)
 
 
+@require_POST
+@transaction.non_atomic_requests
+@ensure_csrf_cookie
+@cache_control(no_cache=True, no_store=True, must_revalidate=True)
+@require_level('staff')
+@require_post_params(
+    student_id="email or username of student for whom to get progress url"
+)
+def reset_progress_student(request, course_id):
+    course_id = CourseKey.from_string(course_id)
+    user = get_student_from_identifier(request.POST.get('student_id'))
+    lms.djangoapps.instructor_task.api.submit_reset_progress_for_student(request, course_id, user.id)
+    response_payload = {
+        'student_id': user.id,
+        'task': 'created'
+    }
+    return JsonResponse(response_payload)
+
+
+@require_POST
+@ensure_csrf_cookie
+@cache_control(no_cache=True, no_store=True, must_revalidate=True)
+@require_level('staff')
+def list_reset_progress_tasks(request, course_id):
+    course_id = CourseKey.from_string(course_id)
+    student_id = request.POST.get('student_id', None)
+    if student_id is not None:
+        tasks = lms.djangoapps.instructor_task.api.get_running_instructor_tasks(course_id)
+
+    response_payload = {
+        'tasks': map(extract_task_features, tasks),
+    }
+    return JsonResponse(response_payload)
+
+
 @transaction.non_atomic_requests
 @require_POST
 @ensure_csrf_cookie
