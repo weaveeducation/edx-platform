@@ -11,15 +11,49 @@
             dataType: 'json',
             contentType: 'application/json; charset=utf-8',
             success: function(data) {
+                var isTimeExam = parseInt($('#time-exam').val());
                 if (data.cookie_sent) {
-                    window.location.href = window.location.href + $('#embedded-link').val();
+                    var isInIframe = inIframe() ? 1 : 0;
+                    if (isTimeExam === 1) {
+                        if (isInIframe === 1) {
+                            showNewTabMsg(true);
+                        } else {
+                            window.location.href = window.location.href + $('#embedded-link').val() + '&iframe=0';
+                        }
+                    } else {
+                        window.location.href = window.location.href + $('#embedded-link').val() + '&iframe=' + isInIframe;
+                    }
                 } else {
-                    $('.embedded-loading').hide();
-                    $('.embedded-browser-msg').show();
+                    showNewTabMsg(false);
                 }
             }
         });
     });
+
+    function showNewTabMsg (timeExam) {
+        $('.embedded-loading').hide();
+        $('.embedded-browser-msg').show();
+        if (timeExam) {
+            $('#cookieMsg').html(gettext("Timed exam should be loaded in a new tab. "));
+        } else {
+            $('#cookieMsg').html(gettext("Your browser prohibits this from showing in the frame. It must be loaded in a new tab. "));
+        }
+    }
+
+    function inIframe() {
+        try {
+            return window.self !== window.top;
+        } catch (e) {
+            return true;
+        }
+    }
+
+    $('a[id="go-new-tab"]').on('click', function(e) {
+        $(this).hide();
+        window.open($('#embedded-link').val() + "&frame=0", '_blank');
+        $('#cookieMsg').html(gettext("This tool was successfully loaded in a new browser window. Reload the page to access the tool again."));
+    });
+
   </script>
 </%block>
 
@@ -38,6 +72,9 @@
         .embedded-link-block {
             margin-top: 15px;
         }
+        #go-new-tab {
+            cursor: pointer;
+        }
     </style>
 </%block>
 
@@ -46,11 +83,13 @@
         <h3>Loading...</h3>
     </div>
     <div class="embedded-browser-msg">
-        <h3>${_("Your browser prohibits this from showing in the frame. It must be loaded in a new tab.")} </h3>
+        <h3 id="cookieMsg"></h3>
         <div class="embedded-link-block">
-            <a target="_blank" href="?hash=${hash}&process_request=1${additional_url_params}">Click here to load in a new tab</a>
+            <a id="go-new-tab" href="javascript:void(0);">Click here to load in a new tab</a>
         </div>
     </div>
     <input type="hidden" id="embedded-link" value="?hash=${hash}&process_request=1${additional_url_params}">
+    <input type="hidden" id="time-exam" value="${time_exam}">
+    <input type="hidden" id="block-hash" value="${hash}">
 </main>
 

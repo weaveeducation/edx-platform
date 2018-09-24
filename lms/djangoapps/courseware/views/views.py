@@ -88,6 +88,7 @@ from openedx.core.djangoapps.self_paced.models import SelfPacedConfiguration
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.util.user_messages import PageLevelMessages
 from openedx.core.djangolib.markup import HTML, Text
+from openedx.core.lib.url_utils import unquote_slashes
 from openedx.features.course_experience import UNIFIED_COURSE_TAB_FLAG, course_home_url_name
 from openedx.features.course_experience.course_tools import CourseToolsPluginManager
 from openedx.features.course_experience.views.course_dates import CourseDatesFragmentView
@@ -1748,7 +1749,13 @@ def render_xblock_course(request, course_id, usage_key_string):
     if not course:
         raise Http404("Course not found")
 
-    if not request.GET.get('process_request') and not request.META.get('HTTP_COOKIE'):
+    try:
+        block = modulestore().get_item(UsageKey.from_string(usage_key_string))
+    except ItemNotFoundError:
+        raise Http404("Block not found")
+    is_time_exam = getattr(block, 'is_proctored_exam', False) or getattr(block, 'is_time_limited', False)
+
+    if not request.GET.get('process_request'):
         additional_url_params = ''
         jwt_token = request.GET.get('jwt_token', None)
         if jwt_token:
@@ -1761,7 +1768,8 @@ def render_xblock_course(request, course_id, usage_key_string):
             'disable_footer': True,
             'disable_window_wrap': True,
             'hash': '',
-            'additional_url_params': additional_url_params
+            'additional_url_params': additional_url_params,
+            'time_exam': 1 if is_time_exam else 0,
         }))
         return HttpResponse(template.render())
 
@@ -1776,7 +1784,6 @@ def render_xblock_course(request, course_id, usage_key_string):
         else:
             return HttpResponseForbidden('Unauthorized')
 
-    block = modulestore().get_item(UsageKey.from_string(usage_key_string))
     if user_must_fill_additional_profile_fields(course, request.user, block):
         return show_student_profile_form(request, course, True)
 
@@ -1788,3 +1795,23 @@ def render_xblock_course(request, course_id, usage_key_string):
 def cookie_check(request):
     cookie_sent = True if request.META.get('HTTP_COOKIE') else False
     return HttpResponse(json.dumps({'cookie_sent': cookie_sent}), content_type='application/json')
+
+
+@require_http_methods(["GET"])
+def launch_new_tab(request, course_id, usage_id):
+    if not request.user.is_authenticated():
+        return HttpResponseForbidden('Unauthorized')
+    try:
+        course_key = CourseKey.from_string(course_id)
+        usage_id = unquote_slashes(usage_id)
+        usage_key = UsageKey.from_string(usage_id).map_into_course(course_key)
+    except InvalidKeyError:
+        log.error(
+            'Invalid course key %s or usage key %s from request %s',
+            course_id,
+            usage_id,
+            request
+        )
+        raise Http404()
+    update_lms_course_usage(request, usage_key, course_key)
+    return render_xblock(request, unicode(usage_key), check_if_enrolled=False)
