@@ -1,3 +1,5 @@
+import logging
+import time
 import datetime
 import json
 import re
@@ -5,7 +7,7 @@ import uuid
 from urlparse import urlparse
 from django.dispatch import receiver
 from django.contrib.auth.models import User
-from django.db import models, IntegrityError, transaction
+from django.db import models, IntegrityError, OperationalError, transaction
 from django.db.models import F, Value
 from django.db.models.functions import Concat
 from opaque_keys.edx.django.models import CourseKeyField
@@ -15,6 +17,9 @@ from django.core.validators import URLValidator
 
 from credo_modules.utils import additional_profile_fields_hash
 from student.models import CourseEnrollment, ENROLL_STATUS_CHANGE, EnrollStatusChange
+
+
+log = logging.getLogger("course_usage")
 
 
 class CredoModulesUserProfile(models.Model):
@@ -193,6 +198,24 @@ def add_custom_term_student_property_on_enrollment(sender, event=None, user=None
             save_custom_term_student_property(item.term, user, course_id)
 
 
+def deadlock_db_retry(func):
+    def func_wrapper(*args, **kwargs):
+        max_attempts = 2
+        current_attempt = 0
+        while True:
+            try:
+                return func(*args, **kwargs)
+            except OperationalError, e:
+                if current_attempt < max_attempts:
+                    current_attempt += 1
+                    time.sleep(3)
+                else:
+                    log.error('Failed to save course usage: ' + str(e))
+                    return
+
+    return func_wrapper
+
+
 class CourseUsage(models.Model):
     MODULE_TYPES = (('problem', 'problem'),
                     ('video', 'video'),
@@ -216,7 +239,8 @@ class CourseUsage(models.Model):
         unique_together = (('user', 'course_id', 'block_id'),)
 
     @classmethod
-    def _add_block_usage(cls, course_key, user_id, block_type, block_id, unique_user_id):
+    @deadlock_db_retry
+    def _update_block_usage(cls, course_key, user_id, block_type, block_id, unique_user_id):
         course_usage = CourseUsage.objects.get(
             course_id=course_key,
             user_id=user_id,
@@ -230,6 +254,24 @@ class CourseUsage(models.Model):
                         session_ids=Concat('session_ids', Value('|'), Value(unique_user_id)))
 
     @classmethod
+    @deadlock_db_retry
+    def _add_block_usage(cls, course_key, user_id, block_type, block_id, unique_user_id):
+        datetime_now = datetime.datetime.now()
+        with transaction.atomic():
+            cu = CourseUsage(
+                course_id=course_key,
+                user_id=user_id,
+                usage_count=1,
+                block_type=block_type,
+                block_id=block_id,
+                first_usage_time=datetime_now,
+                last_usage_time=datetime_now,
+                session_ids=unique_user_id
+            )
+            cu.save()
+            return
+
+    @classmethod
     def update_block_usage(cls, request, course_key, block_id):
         unique_user_id = get_unique_user_id(request)
         if unique_user_id and hasattr(request, 'user') and request.user.is_authenticated():
@@ -241,26 +283,16 @@ class CourseUsage(models.Model):
             block_id = str(block_id)
 
             try:
-                cls._add_block_usage(course_key, request.user.id,
-                                     block_type, block_id, unique_user_id)
+                cls._update_block_usage(course_key, request.user.id,
+                                        block_type, block_id, unique_user_id)
             except CourseUsage.DoesNotExist:
-                datetime_now = datetime.datetime.now()
                 try:
-                    with transaction.atomic():
-                        cu = CourseUsage(
-                            course_id=course_key,
-                            user_id=request.user.id,
-                            usage_count=1,
-                            block_type=block_type,
-                            block_id=block_id,
-                            first_usage_time=datetime_now,
-                            last_usage_time=datetime_now,
-                            session_ids=unique_user_id
-                        )
-                        cu.save()
+                    cls._add_block_usage(course_key, request.user.id, block_type, block_id, unique_user_id)
+                    return
                 except IntegrityError:
-                    cls._add_block_usage(course_key, request.user.id,
-                                         block_type, block_id, unique_user_id)
+                    cls._update_block_usage(course_key, request.user.id,
+                                            block_type, block_id, unique_user_id)
+                    return
 
 
 class OrganizationType(models.Model):
