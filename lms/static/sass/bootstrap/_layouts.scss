@@ -12,7 +12,6 @@
   .course-tabs {
     padding: 0;
     font-size: $font-size-sm;
-    overflow-x: scroll;
     overflow-y: hidden;
     white-space: nowrap;
 
@@ -136,4 +135,47 @@
   @include media-breakpoint-down(sm) {
     padding: $baseline;
   }
+}
+
+.wrapper-footer {
+	footer#footer-openedx {
+		margin: 0 auto;
+
+		.colophon {
+			width: 75%;
+
+			.copyright {
+				margin: -2px 0 8px 0;
+				font-size: 0.6875em;
+				color: #767676;
+				text-align: left;
+			}
+
+			ol {
+				list-style: none;
+				padding: 0;
+			}
+
+			li {
+				display: inline;
+				margin-right: 15px;
+			}
+
+			.nav-colophon {
+				margin: 5px 0 30px 0;
+			}
+
+			.nav-colophon li a {
+				color: #333;
+
+				&:hover, &:focus, &:active {
+					color: $link-color;
+				}
+			}
+		}
+
+		.wrapper-logo {
+			clear: both;
+		}
+	}
 }
