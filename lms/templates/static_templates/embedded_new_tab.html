@@ -52,7 +52,7 @@
     $('a[id="go-new-tab"]').on('click', function(e) {
       e.preventDefault();
       $(this).hide();
-      window.open($('#embedded-link').val() + "&frame=false", '_blank');
+      window.open($('#embedded-link').val() + "&frame=0", '_blank');
       $('#cookieMsg').html(gettext("This tool was successfully loaded in a new browser window. Reload the page to access the tool again."));
     });
 
