@@ -60,8 +60,9 @@ def get_visible_courses(org=None, filter_=None):
         return [course for course in courses if course.id in filtered_visible_ids]
     else:
         # Filter out any courses based on current org, to avoid leaking these.
-        orgs = configuration_helpers.get_all_orgs()
-        return [course for course in courses if course.location.org not in orgs]
+#        orgs = configuration_helpers.get_all_orgs()
+#        return [course for course in courses if course.location.org not in orgs]
+        return courses
 
 
 def get_university_for_request():
