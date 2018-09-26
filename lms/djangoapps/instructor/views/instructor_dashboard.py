@@ -215,9 +215,9 @@ def instructor_dashboard_2(request, course_id):
         if len(openassessment_blocks) > 0:
             sections.append(_section_open_response_assessment(request, course, openassessment_blocks, access))
 
-    # temporarily solution
-#    if available_tabs.show_lti_constructor:
-    if request.user.is_superuser:
+    dt_release = datetime.datetime(year=2018, month=9, day=28)
+    dt_now = datetime.datetime.now()
+    if available_tabs.show_lti_constructor and dt_now > dt_release:
         sections.append(_section_lti_constructor(request, course))
 
     display_credo_insights_link = True
