@@ -12,9 +12,9 @@ def credo_additional_profile(func):
 
         block = None
         if chapter and section:
-            chapter_descriptor = course.get_child_by(lambda m: m.location.name == chapter)
+            chapter_descriptor = course.get_child_by(lambda m: m.location.block_id == chapter)
             if chapter_descriptor:
-                block = chapter_descriptor.get_child_by(lambda m: m.location.name == section)
+                block = chapter_descriptor.get_child_by(lambda m: m.location.block_id == section)
 
         if user_must_fill_additional_profile_fields(course, request.user, block):
             next_page = urlquote(request.get_full_path())
