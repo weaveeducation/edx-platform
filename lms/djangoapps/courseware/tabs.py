@@ -332,6 +332,11 @@ def get_course_tab_list(request, course):
 
     # Add in any dynamic tabs, i.e. those that are not persisted
     course_tab_list += _get_dynamic_tabs(course, user)
+
+    for tab_item in course_tab_list:
+        if tab_item.type in course.course_tab_names:
+            tab_item.name = course.course_tab_names[tab_item.type]
+
     return course_tab_list
 
 

@@ -909,6 +909,14 @@ class CourseFields(object):
         ),
         scope=Scope.settings
     )
+    course_tab_names = Dict(
+        display_name=_("Rename default tab titles"),
+        help=_(
+            'Possible values: courseware, discussion, wiki, progress, instructor. '
+            'Example: {"courseware": "Start Here", "wiki": "Articles"}'
+        ),
+        scope=Scope.settings
+    )
 
 
 class CourseModule(CourseFields, SequenceModule):  # pylint: disable=abstract-method
