@@ -26,6 +26,15 @@
             this.goto = function(event) {
                 return Sequence.prototype.goto.apply(self, [event]);
             };
+            this.carouselButtonPreviousClick = function(event) {
+                return Sequence.prototype.carouselButtonPreviousClick.apply(self, [event]);
+            };
+            this.carouselButtonNextClick = function(event) {
+                return Sequence.prototype.carouselButtonNextClick.apply(self, [event]);
+            };
+            this.resizeHandler = function(event) {
+                return Sequence.prototype.resizeHandler.apply(self, [event]);
+            };
             this.toggleArrows = function() {
                 return Sequence.prototype.toggleArrows.apply(self);
             };
@@ -59,8 +68,40 @@
             this.prevUrl = this.el.data('prev-url');
             this.keydownHandler($(element).find('#sequence-list .tab'));
             this.base_page_title = ($('title').data('base-title') || '').trim();
+            this.carouselView = false;
+            if (this.$('.sequence-nav').hasClass("sequence-nav-carousel")) {
+                this.carouselView = true;
+            }
+            this.caroselProgress = false;
+            this.resizeId = null;
+
+            this.sequenceList = $(element).find('#sequence-list');
+            this.widthElem = 170;
+            this.carouselAllItemsLength = this.num_contents * this.widthElem;
             this.bind();
-            this.render(parseInt(this.el.data('position'), 10));
+
+            var position = 0;
+            var foundBlockId = false;
+            var foundBlock = null;
+            var search = window.location.search;
+            var tmpArr = [];
+
+            if (search) {
+                var searchArr = search.substring(1).split('&');
+                for (var i = 0; i < searchArr.length; i++) {
+                    if (searchArr[i] && (searchArr[i].indexOf('activate_block_id') !== -1)) {
+                        tmpArr = searchArr[i].split('=');
+                        foundBlockId = decodeURIComponent(tmpArr[1]);
+                        foundBlock = this.link_for_by_id(foundBlockId);
+                        position = foundBlock.data('element');
+                    }
+                }
+            }
+            if (!foundBlockId) {
+                position = this.el.data('position');
+            }
+
+            this.render(parseInt(position, 10));
         }
 
         Sequence.prototype.$ = function(selector) {
@@ -68,12 +109,201 @@
         };
 
         Sequence.prototype.bind = function() {
-            this.$('#sequence-list .nav-item').click(this.goto);
+            if (this.carouselView) {
+                this.$('#sequence-list .seq-item').click(this.goto);
+                $(window).resize(this.resizeHandler);
+            } else {
+                this.$('#sequence-list .nav-item').click(this.goto);
+            }
+            this.$('.button-previous-carousel').click(this.carouselButtonPreviousClick);
+            this.$('.button-next-carousel').click(this.carouselButtonNextClick);
             this.$('#sequence-list .nav-item').keypress(this.keyDownHandler);
             this.el.on('bookmark:add', this.addBookmarkIconToActiveNavItem);
             this.el.on('bookmark:remove', this.removeBookmarkIconFromActiveNavItem);
             this.$('#sequence-list .nav-item').on('focus mouseenter', this.displayTabTooltip);
             this.$('#sequence-list .nav-item').on('blur mouseleave', this.hideTabTooltip);
+        };
+
+        Sequence.prototype.changeUrl = function(blockName, blockId) {
+            blockName = blockName + ' | ' + this.base_page_title;
+            blockId = encodeURIComponent(blockId);
+
+            var pathname = window.location.pathname;
+            var search = window.location.search;
+            var newSearchArr = [];
+            newSearchArr.push('activate_block_id=' + blockId);
+            if (search) {
+                var searchArr = search.substring(1).split('&');
+                for (var i = 0; i < searchArr.length; i++) {
+                    if (searchArr[i] && (searchArr[i].indexOf('activate_block_id') === -1)) {
+                        newSearchArr.push(searchArr[i]);
+                    }
+                }
+            }
+            window.history.pushState({activate_block_id: blockId}, blockName, pathname + '?' + newSearchArr.join('&'));
+        };
+
+        Sequence.prototype.resizeHandler = function() {
+            clearTimeout(this.resizeId);
+            var self = this;
+            this.resizeId = setTimeout(function() {
+                self.highlightNewCarouselElem({
+                    position: self.position,
+                    animate: false});
+            }, 500);
+        };
+
+        Sequence.prototype.canPushCarouselButtons = function() {
+            return !this.caroselProgress;
+        };
+
+        Sequence.prototype.lockNavCarouselButtons = function(enable) {
+            this.caroselProgress = !enable;
+        };
+
+        Sequence.prototype._isDisabled = function(el) {
+            var disabled = $(el).attr('disabled');
+            if (typeof disabled !== typeof undefined && disabled !== false) {
+                return true;
+            }
+            return false;
+        };
+
+        Sequence.prototype.checkAndDisableNavCarouselButtons = function() {
+            var currentMarginLeft = $(this.sequenceList).css('marginLeft').slice(0, -2);
+            currentMarginLeft = (-1) * parseInt(currentMarginLeft, 10);
+            var carouselWidth = this.$('.sequence-list-wrapper').width();
+            var len = currentMarginLeft + carouselWidth;
+
+            if (currentMarginLeft <= 0) {
+                this.disableNavCarouselButtons({button: 'previous', enable: false});
+            } else {
+                this.disableNavCarouselButtons({button: 'previous', enable: true});
+            }
+
+            if (len >= this.carouselAllItemsLength) {
+                this.disableNavCarouselButtons({button: 'next', enable: false});
+            } else {
+                this.disableNavCarouselButtons({button: 'next', enable: true});
+            }
+        };
+
+        Sequence.prototype.disableNavCarouselButtons = function(options) {
+            var btn = options.button;
+            var enable = options.enable;
+            var btnEl = null;
+
+            if (btn === 'previous') {
+                btnEl = this.$('.button-previous-carousel');
+            } else if (btn === 'next') {
+                btnEl = this.$('.button-next-carousel');
+            }
+
+            if (enable && this._isDisabled(btnEl)) {
+                $(btnEl).removeAttr("disabled");
+            } else if (!enable && !this._isDisabled(btnEl)) {
+                $(btnEl).attr("disabled", "disabled");
+            }
+        };
+
+        Sequence.prototype.highlightNewCarouselElem = function(options) {
+            if (!this.carouselView) {
+                return;
+            }
+            var position = options.position;
+            var animate = options.animate;
+            var x = position * this.widthElem;
+            var carouselWidth = this.$('.sequence-list-wrapper').width();
+            var currentMarginLeft = 0;
+
+            if (animate) {
+                currentMarginLeft = $(this.sequenceList).css('marginLeft').slice(0, -2);
+                currentMarginLeft = (-1) * parseInt(currentMarginLeft, 10);
+            }
+
+            var len = currentMarginLeft + carouselWidth;
+            var offset = 0;
+            var self = this;
+            if (x < (currentMarginLeft + this.widthElem)) {
+                offset = currentMarginLeft - x + this.widthElem;
+                if (animate) {
+                    this.lockNavCarouselButtons(false);
+                    $(this.sequenceList).animate({marginLeft: '+=' + offset}, {
+                        complete: function() {
+                            self.lockNavCarouselButtons(true);
+                            self.checkAndDisableNavCarouselButtons();
+                        }
+                    });
+                } else {
+                    $(this.sequenceList).css({marginLeft: (-1) * offset});
+                    this.checkAndDisableNavCarouselButtons();
+                }
+            } else if (x > len) {
+                offset = x - len;
+                if (animate) {
+                    this.lockNavCarouselButtons(false);
+                    $(this.sequenceList).animate({marginLeft: '-=' + offset}, {
+                        complete: function () {
+                            self.lockNavCarouselButtons(true);
+                            self.checkAndDisableNavCarouselButtons();
+                        }
+                    });
+                } else {
+                    $(this.sequenceList).css({marginLeft: (-1) * offset});
+                    this.checkAndDisableNavCarouselButtons();
+                }
+            } else {
+                if (!animate) {
+                    $(this.sequenceList).css({marginLeft: 0});
+                }
+                this.checkAndDisableNavCarouselButtons();
+            }
+        };
+
+        Sequence.prototype.carouselButtonPreviousClick = function() {
+            if (!this.canPushCarouselButtons()) {
+                return;
+            }
+            var currentMarginLeft = $(this.sequenceList).css('marginLeft').slice(0, -2);
+            currentMarginLeft = (-1) * parseInt(currentMarginLeft, 10);
+            if (currentMarginLeft > 0) {
+                var offset = this.widthElem;
+                if (currentMarginLeft < offset) {
+                    offset = currentMarginLeft;
+                }
+                var self = this;
+                this.lockNavCarouselButtons(false);
+                $(this.sequenceList).animate({marginLeft: '+=' + offset}, {
+                    complete: function() {
+                        self.lockNavCarouselButtons(true);
+                        self.checkAndDisableNavCarouselButtons();
+                    }
+                });
+            }
+        };
+
+        Sequence.prototype.carouselButtonNextClick = function() {
+            if (!this.canPushCarouselButtons()) {
+                return;
+            }
+            var carouselWidth = this.$('.sequence-list-wrapper').width();
+            var currentMarginLeft = $(this.sequenceList).css('marginLeft').slice(0, -2);
+            currentMarginLeft = (-1) * parseInt(currentMarginLeft, 10);
+            var len = currentMarginLeft + carouselWidth;
+            if (len < this.carouselAllItemsLength) {
+                var offset = this.widthElem;
+                var self = this;
+                if ((offset + len) > this.carouselAllItemsLength) {
+                    offset = this.carouselAllItemsLength - len;
+                }
+                this.lockNavCarouselButtons(false);
+                $(this.sequenceList).animate({marginLeft: '-=' + offset}, {
+                    complete: function() {
+                        self.lockNavCarouselButtons(true);
+                        self.checkAndDisableNavCarouselButtons();
+                    }
+                });
+            }
         };
 
         Sequence.prototype.previousNav = function(focused, index) {
@@ -227,6 +457,10 @@
         Sequence.prototype.render = function(newPosition) {
             var bookmarked, currentTab, modxFullUrl, sequenceLinks,
                 self = this;
+            this.highlightNewCarouselElem({
+                position: newPosition,
+                animate: true
+            });
             if (this.position !== newPosition) {
                 if (this.position) {
                     this.mark_visited(this.position);
@@ -317,7 +551,13 @@
                     window.clearTimeout(window.queuePollerID);
                     delete window.queuePollerID;
                 }
+
                 this.render(newPosition);
+
+                if (!window.chromlessView) {
+                    var positionLink = this.link_for(newPosition);
+                    this.changeUrl(positionLink.data('page-title'), positionLink.data('id'));
+                }
             } else {
                 alertTemplate = gettext('Sequence error! Cannot navigate to %(tab_name)s in the current SequenceModule. Please contact the course staff.');  // eslint-disable-line max-len
                 alertText = interpolate(alertTemplate, {
@@ -390,7 +630,19 @@
         };
 
         Sequence.prototype.link_for = function(position) {
-            return this.$('#sequence-list .nav-item[data-element=' + position + ']');
+            if (this.carouselView) {
+                return this.$('#sequence-list .seq-item[data-element=' + position + ']');
+            } else {
+                return this.$('#sequence-list .nav-item[data-element=' + position + ']');
+            }
+        };
+
+        Sequence.prototype.link_for_by_id = function(blockId) {
+            if (this.carouselView) {
+                return this.$('#sequence-list .seq-item[data-id="' + blockId + '"]');
+            } else {
+                return this.$('#sequence-list .nav-item[data-id="' + blockId + '"]');
+            }
         };
 
         Sequence.prototype.mark_visited = function(position) {
@@ -408,12 +660,23 @@
             var completionUrl = this.ajaxUrl + '/get_completion';
             var usageKey = element[0].attributes['data-id'].value;
             var completionIndicators = element.find('.check-circle');
-            if (completionIndicators.length) {
+            var supportCompletion = element.data('support-completion');
+            if (this.carouselView) {
+                supportCompletion = parseInt(supportCompletion, 10);
+            }
+            var self = this;
+            if (completionIndicators.length || (supportCompletion === 1)) {
                 $.postWithPrefix(completionUrl, {
                     usage_key: usageKey
                 }, function(data) {
                     if (data.complete === true) {
-                        completionIndicators.removeClass('is-hidden');
+                        if (self.carouselView) {
+                            if (!$(element).hasClass('completed')) {
+                                $(element).addClass('completed');
+                            }
+                        } else {
+                            completionIndicators.removeClass('is-hidden');
+                        }
                     }
                 });
             }

@@ -306,6 +306,8 @@ class OrganizationType(models.Model):
     insights_engagement = models.BooleanField(default=True, verbose_name='Display Engagement report in Credo Insights')
     instructor_dashboard_credo_insights = models.BooleanField(default=True, verbose_name='Show Credo Insights link'
                                                                                          ' in the Instructor Dashboard')
+    enable_new_carousel_view = models.BooleanField(default=False, verbose_name='Enable new carousel view'
+                                                                               ' (horizontal nav bar)')
 
     class Meta:
         ordering = ['title']

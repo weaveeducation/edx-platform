@@ -331,7 +331,8 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
             'prev_url': context.get('prev_url'),
             'banner_text': banner_text,
             'disable_navigation': not self.is_user_authenticated(context),
-            'gated_content': self._get_gated_content_info(prereq_met, prereq_meta_info)
+            'gated_content': self._get_gated_content_info(prereq_met, prereq_meta_info),
+            'enable_new_carousel_view': context.get('enable_new_carousel_view')
         }
         fragment.add_content(self.system.render_template("seq_module.html", params))
 
@@ -457,7 +458,7 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
                 show_bookmark_button = True
                 is_bookmarked = bookmarks_service.is_bookmarked(usage_key=usage_id)
 
-            context['show_bookmark_button'] = show_bookmark_button
+            context['show_bookmark_button'] = context.get('show_bookmark_button', show_bookmark_button)
             context['bookmarked'] = is_bookmarked
 
             rendered_item = item.render(STUDENT_VIEW, context)

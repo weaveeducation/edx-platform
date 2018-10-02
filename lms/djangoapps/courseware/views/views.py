@@ -111,7 +111,7 @@ from ..module_render import get_module, get_module_by_usage_id, get_module_for_d
 
 from util.views import add_p3p_header
 from student.views import register_login_and_enroll_anonymous_user, validate_credo_access
-from credo_modules.models import user_must_fill_additional_profile_fields
+from credo_modules.models import user_must_fill_additional_profile_fields, Organization
 from credo_modules.views import show_student_profile_form
 from mako.template import Template
 
@@ -1480,6 +1480,14 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True):
 
         student_view_context = request.GET.dict()
         student_view_context['show_bookmark_button'] = False
+        student_view_context['enable_new_carousel_view'] = False
+
+        try:
+            org = Organization.objects.get(org=course.org)
+            if org.org_type is not None:
+                student_view_context['enable_new_carousel_view'] = org.org_type.enable_new_carousel_view
+        except Organization.DoesNotExist:
+            pass
 
         enable_completion_on_view_service = False
         completion_service = block.runtime.service(block, 'completion')
@@ -1502,6 +1510,7 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True):
             'staff_access': bool(has_access(request.user, 'staff', course)),
             'xqa_server': settings.FEATURES.get('XQA_SERVER', 'http://your_xqa_server.com'),
         }
+
         return render_to_response('courseware/courseware-chromeless.html', context)
 
 

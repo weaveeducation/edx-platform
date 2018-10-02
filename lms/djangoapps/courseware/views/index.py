@@ -56,6 +56,7 @@ from ..masquerade import setup_masquerade
 from ..model_data import FieldDataCache
 from ..module_render import get_module_for_descriptor, toc_for_course
 from credo_modules.decorators import credo_additional_profile
+from credo_modules.models import Organization
 from courseware.courses import update_lms_course_usage
 
 log = logging.getLogger("edx.courseware.views.index")
@@ -440,6 +441,15 @@ class CoursewareIndex(View):
                 table_of_contents['previous_of_active_section'],
                 table_of_contents['next_of_active_section'],
             )
+
+            section_context['enable_new_carousel_view'] = False
+            try:
+                org = Organization.objects.get(org=self.course.org)
+                if org.org_type is not None:
+                    section_context['enable_new_carousel_view'] = org.org_type.enable_new_carousel_view
+            except Organization.DoesNotExist:
+                pass
+
             courseware_context['fragment'] = self.section.render(STUDENT_VIEW, section_context)
             if self.section.position and self.section.has_children:
                 self._add_sequence_title_to_context(courseware_context)
