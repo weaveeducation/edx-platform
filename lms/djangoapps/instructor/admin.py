@@ -1,6 +1,10 @@
 from django.contrib import admin
 from lms.djangoapps.instructor.models import InstructorAvailableSections
-from django_extensions.admin import ForeignKeyAutocompleteAdmin
+try:
+    from django_extensions.admin import ForeignKeyAutocompleteAdmin
+except ImportError:
+    class ForeignKeyAutocompleteAdmin(admin.ModelAdmin):
+        pass
 
 
 def available_sections_bulk_action(field, is_set):
