@@ -23,7 +23,6 @@
             padding-bottom: 32px;
             color: #FFFFFF;
             font-size: 16px;
-            height: 88px;
           }
 
           a.active, a:hover, a:focus, a:visited {
@@ -46,19 +45,23 @@
       margin-right: 0px !important;
     }
 
+    .navbar-nav {
+      height: 88px;
+    }
+
     .nav-item {
       &.active, &:hover {
         .nav-link {
-          color: #FFFFFF;
-          border-bottom: 4px solid #85C9C3;
+          color: #FFFFFF !important;
+          border-bottom: 4px solid #85C9C3 !important;
         }
       }
 
       .nav-link {
-        padding-top: 30px;
-        padding-bottom: 30px;
+        padding-top: 30px !important;
+        padding-bottom: 30px !important;
         color: #FFFFFF;
-        font-size: 16px;
+        font-size: 16px !important;
       }
     }
   }
@@ -185,18 +188,22 @@
         }
       }
     }
+  }
 
-    /* breadcrumbs */
+  /* breadcrumbs */
 
-    .breadcrumbs {
-      text-align: center;
-      .nav-item a, .nav-item a:visited {
-        color: #64607B;
-      }
-      .nav-item-sequence {
-        font-weight: bold;
-        color: #85C9C3;
-      }
+  .breadcrumbs {
+    text-align: center;
+    .nav-item a, .nav-item a:visited {
+      color: #64607B;
+    }
+    .nav-item a:hover {
+      text-decoration: underline !important;
+      color: #64607B !important;
+    }
+    .nav-item-sequence {
+      font-weight: bold;
+      color: #85C9C3;
     }
   }
 }
