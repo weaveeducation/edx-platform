@@ -188,6 +188,20 @@
         }
       }
     }
+
+    /* bugfix default edx sequence-nav */
+
+    .sequence-nav {
+      .sequence-list-wrapper {
+        overflow: hidden !important;
+
+        ol {
+          li {
+            min-width: 20px !important;
+          }
+        }
+      }
+    }
   }
 
   /* breadcrumbs */
