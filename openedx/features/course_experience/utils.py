@@ -40,6 +40,8 @@ def get_course_outline_block_tree(request, course_id):
         """
         block['resume_block'] = False
         block['complete'] = False
+        block['complete_percent'] = 0
+        block['complete_status'] = 'not_started'
         for child in block.get('children', []):
             set_last_accessed_default(child)
 
@@ -75,6 +77,8 @@ def get_course_outline_block_tree(request, course_id):
             block: course_outline_root_block block object or child block
         """
         block_key = block.serializer.instance
+        total_num = 0
+        completed_num = 0
 
         if course_block_completions.get(block_key):
             block['complete'] = True
@@ -83,11 +87,13 @@ def get_course_outline_block_tree(request, course_id):
 
         if block.get('children'):
             for idx in range(len(block['children'])):
-                recurse_mark_complete(
+                current_total_num, current_completed_num = recurse_mark_complete(
                     course_block_completions,
                     latest_completion,
                     block=block['children'][idx]
                 )
+                total_num += current_total_num
+                completed_num += current_completed_num
                 if block['children'][idx]['resume_block'] is True:
                     block['resume_block'] = True
 
@@ -96,6 +102,26 @@ def get_course_outline_block_tree(request, course_id):
             if len([child['complete'] for child in block['children']
                     if child['complete']]) == len(completable_blocks):
                 block['complete'] = True
+
+            update_completion_percentage(block, total_num, completed_num)
+            return total_num, completed_num
+        else:
+            if block.get('type') != 'discussion':
+                total_num, completed_num = 1, 1 if block.get('complete', False) else 0
+            else:
+                total_num, completed_num = 0, 0
+            update_completion_percentage(block, total_num, completed_num)
+            return total_num, completed_num
+
+    def update_completion_percentage(block, total_num, completed_num):
+        block['complete_percent'] = round(float(completed_num) / total_num, 2) if total_num > 0 else 0
+        block['complete_percent'] = int(block['complete_percent'] * 100)
+        if block['complete_percent'] == 100:
+            block['complete_status'] = 'finished'
+        elif block['complete_percent'] == 0:
+            block['complete_status'] = 'not_started'
+        else:
+            block['complete_status'] = 'in_progress'
 
     def mark_last_accessed(user, course_key, block):
         """

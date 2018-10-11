@@ -29,9 +29,12 @@ class Microsite(models.Model):
         - The values field must be validated on save to prevent the platform from crashing
         badly in the case the string is not able to be loaded as json.
     """
-    site = models.OneToOneField(Site, related_name='microsite', on_delete=models.CASCADE)
-    key = models.CharField(max_length=63, db_index=True, unique=True)
+    site = models.ForeignKey(Site, related_name='microsite', on_delete=models.CASCADE)
+    key = models.CharField(max_length=255, db_index=True, unique=True)
     values = JSONField(null=False, blank=True, load_kwargs={'object_pairs_hook': collections.OrderedDict})
+
+    class Meta:
+        ordering = ('key',)
 
     def __unicode__(self):
         return self.key
@@ -62,7 +65,7 @@ class MicrositeHistory(TimeStampedModel):
     key field is no longer unique
     """
     site = models.ForeignKey(Site, related_name='microsite_history', on_delete=models.CASCADE)
-    key = models.CharField(max_length=63, db_index=True)
+    key = models.CharField(max_length=255, db_index=True)
     values = JSONField(null=False, blank=True, load_kwargs={'object_pairs_hook': collections.OrderedDict})
 
     def __unicode__(self):
@@ -111,8 +114,12 @@ class MicrositeOrganizationMapping(models.Model):
     Mapping of Organization to which Microsite it belongs
     """
 
-    organization = models.CharField(max_length=63, db_index=True, unique=True)
+    organization = models.CharField(max_length=255, db_index=True)
     microsite = models.ForeignKey(Microsite, db_index=True, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = (('organization', 'microsite'),)
+        ordering = ('organization', 'microsite')
 
     def __unicode__(self):
         """String conversion"""

@@ -74,6 +74,42 @@ class SequenceFields(object):
         scope=Scope.settings,
     )
 
+    top_of_course_outline = Boolean(
+        display_name=_("Attach at the top of the course outline"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Attach at the top of the course outline"),
+    )
+
+    course_outline_description = String(
+        display_name=_("Course outline: description"),
+        default="",
+        scope=Scope.settings,
+        help=_("Course outline: description"),
+    )
+
+    course_outline_button_title = String(
+        display_name=_("Course outline: button title"),
+        default="",
+        scope=Scope.settings,
+        help=_("Course outline: button title"),
+    )
+
+    after_finish_return_to_course_outline = Boolean(
+        display_name=_("When the section is completed return the user to the course outline"),
+        default=False,
+        scope=Scope.settings,
+        help=_("When the section is completed return the user to the course outline"),
+
+    )
+
+    do_not_display_in_course_outline = Boolean(
+        display_name=_("Do not display in course outline"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Do not display in course outline")
+    )
+
 
 class ProctoringFields(object):
     """
@@ -332,7 +368,9 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
             'banner_text': banner_text,
             'disable_navigation': not self.is_user_authenticated(context),
             'gated_content': self._get_gated_content_info(prereq_met, prereq_meta_info),
-            'enable_new_carousel_view': context.get('enable_new_carousel_view')
+            'enable_new_carousel_view': context.get('enable_new_carousel_view'),
+            'after_finish_return_to_course_outline': 1 if self.after_finish_return_to_course_outline else 0,
+            'course_id': str(self.course_id)
         }
         fragment.add_content(self.system.render_template("seq_module.html", params))
 
