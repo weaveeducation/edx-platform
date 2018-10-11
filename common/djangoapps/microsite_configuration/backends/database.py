@@ -58,7 +58,14 @@ class DatabaseMicrositeBackend(BaseMicrositeBackend):
         # look up based on the HTTP request domain name
         # this will need to be a full domain name match,
         # not a 'startswith' match
-        microsite = Microsite.get_microsite_for_domain(domain)
+        domain_parts = domain.split('.')
+        microsite = None
+
+        if len(domain_parts) > 2:
+            try:
+                microsite = Microsite.objects.get(key=domain_parts[0])
+            except Microsite.DoesNotExist:
+                pass
 
         if not microsite:
             # if no match, then try to find a 'default' key in Microsites
@@ -118,22 +125,21 @@ class DatabaseMicrositeBackend(BaseMicrositeBackend):
         config['subdomain'] = strip_port_from_host(subdomain)
         config['site_domain'] = strip_port_from_host(domain)
         config['microsite_config_key'] = microsite_object.key
+        if 'template_dir' not in config:
+            config['template_dir'] = '/'.join([settings.MICROSITE_ROOT_DIR, 'default', 'templates'])
+            config['template_dir_relative'] = '/default/templates'
+        else:
+            config['template_dir_relative'] = '/' + microsite_object.key + '/templates'
 
         # we take the list of ORGs associated with this microsite from the database mapping
         # tables. NOTE, for now, we assume one ORG per microsite
         organizations = microsite_object.get_organizations()
 
         # we must have at least one ORG defined
-        if not organizations:
-            raise Exception(
-                'Configuration error. Microsite {key} does not have any ORGs mapped to it!'.format(
-                    key=microsite_object.key
-                )
-            )
-
-        # just take the first one for now, we'll have to change the upstream logic to allow
-        # for more than one ORG binding
-        config['course_org_filter'] = organizations[0]
+        if organizations:
+            # just take the first one for now, we'll have to change the upstream logic to allow
+            # for more than one ORG binding
+            config['course_org_filter'] = organizations[0]
         self.current_request_configuration.data = config
 
 
