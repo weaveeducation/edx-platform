@@ -18,7 +18,7 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
         ReleaseDateEditor, DueDateEditor, GradingEditor, PublishEditor, AbstractVisibilityEditor,
         StaffLockEditor, UnitAccessEditor, ContentVisibilityEditor, TimedExaminationPreferenceEditor,
         AccessEditor, ShowCorrectnessEditor, HighlightsEditor, HighlightsEnableXBlockModal, HighlightsEnableEditor,
-        CopyToOtherCourseXBlockModal;
+        CopyToOtherCourseXBlockModal, CourseOutlinePreferenceEditor;
 
     CourseOutlineXBlockModal = BaseModal.extend({
         events: _.extend({}, BaseModal.prototype.events, {
@@ -621,6 +621,57 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
         }
     });
 
+    CourseOutlinePreferenceEditor = AbstractEditor.extend({
+        templateName: 'course-outline-preference-editor',
+        className: 'edit-settings-timed-examination',
+        events: {
+            'change input.attach_at_the_top': 'changeAttachAtTheTopSetting',
+        },
+        changeAttachAtTheTopSetting: function(event) {
+            event.preventDefault();
+            var attachAtTheTop = $(event.currentTarget).val();
+            this.switchAttachAtTheTopSetting(attachAtTheTop === 'yes');
+        },
+        switchAttachAtTheTopSetting: function(val) {
+            if (val) {
+                this.$('.attach_at_the_top_settings').show();
+                this.$('[name="course_outline_path_to_icon"]').val(this.model.get('course_outline_path_to_icon'));
+                this.$('[name="course_outline_description"]').val(this.model.get('course_outline_description'));
+                this.$('[name="course_outline_button_title"]').val(this.model.get('course_outline_button_title'));
+            } else {
+                this.$('.attach_at_the_top_settings').hide();
+            }
+        },
+        afterRender: function() {
+            AbstractEditor.prototype.afterRender.call(this);
+            var val = this.model.get('top_of_course_outline') ? "yes" : "no";
+            this.$('[name="attach_at_the_top"][value="' + val + '"]').prop('checked', true);
+            this.switchAttachAtTheTopSetting(this.model.get('top_of_course_outline'));
+        },
+        getRequestData: function() {
+            var attachAtTheTop = this.$('[name="attach_at_the_top"]:checked').val();
+            if (attachAtTheTop === 'yes') {
+                return {
+                    metadata: {
+                        top_of_course_outline: true,
+                        course_outline_path_to_icon: this.$('[name="course_outline_path_to_icon"]').val(),
+                        course_outline_description: this.$('[name="course_outline_description"]').val(),
+                        course_outline_button_title: this.$('[name="course_outline_button_title"]').val()
+                    }
+                };
+            } else {
+                return {
+                    metadata: {
+                        top_of_course_outline: false,
+                        course_outline_path_to_icon: '',
+                        course_outline_description: '',
+                        course_outline_button_title: ''
+                    }
+                };
+            }
+        }
+    });
+
     AccessEditor = AbstractEditor.extend({
         templateName: 'access-editor',
         className: 'edit-settings-access',
@@ -1133,6 +1184,8 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                 } else if (xblockInfo.isSequential()) {
                     tabs[0].editors = [ReleaseDateEditor, GradingEditor, DueDateEditor];
                     tabs[1].editors = [ContentVisibilityEditor, ShowCorrectnessEditor];
+
+                    advancedTab.editors.push(CourseOutlinePreferenceEditor);
 
                     if (options.enable_proctored_exams || options.enable_timed_exams) {
                         advancedTab.editors.push(TimedExaminationPreferenceEditor);
