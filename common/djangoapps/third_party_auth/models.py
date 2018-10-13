@@ -8,6 +8,7 @@ from __future__ import absolute_import
 import json
 import logging
 import re
+import os
 
 from config_models.models import ConfigurationModel, cache
 from django.conf import settings
@@ -48,10 +49,17 @@ def _load_backend_classes(base_class=BaseAuth):
         auth_class = module_member(class_path)
         if issubclass(auth_class, base_class):
             yield auth_class
-_PSA_BACKENDS = {backend_class.name: backend_class for backend_class in _load_backend_classes()}
-_PSA_OAUTH2_BACKENDS = [backend_class.name for backend_class in _load_backend_classes(OAuthAuth)]
-_PSA_SAML_BACKENDS = [backend_class.name for backend_class in _load_backend_classes(SAMLAuth)]
-_LTI_BACKENDS = [backend_class.name for backend_class in _load_backend_classes(LTIAuthBackend)]
+
+if os.environ.get('PYCHARM_DEBUG') == '1':
+    _PSA_BACKENDS = {}
+    _PSA_OAUTH2_BACKENDS = []
+    _PSA_SAML_BACKENDS = []
+    _LTI_BACKENDS = []
+else:
+    _PSA_BACKENDS = {backend_class.name: backend_class for backend_class in _load_backend_classes()}
+    _PSA_OAUTH2_BACKENDS = [backend_class.name for backend_class in _load_backend_classes(OAuthAuth)]
+    _PSA_SAML_BACKENDS = [backend_class.name for backend_class in _load_backend_classes(SAMLAuth)]
+    _LTI_BACKENDS = [backend_class.name for backend_class in _load_backend_classes(LTIAuthBackend)]
 
 
 def clean_json(value, of_type):
