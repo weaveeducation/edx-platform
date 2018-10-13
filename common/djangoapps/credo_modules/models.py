@@ -165,8 +165,8 @@ class EnrollmentPropertiesPerCourse(models.Model):
 def user_must_fill_additional_profile_fields(course, user, block=None):
     graded = block.graded if block else False
     course_key = course.id
-    if graded and course.credo_additional_profile_fields and user.email.endswith('@credomodules.com') \
-            and CourseEnrollment.is_enrolled(user, course_key):
+    if graded and course.credo_additional_profile_fields and user.is_authenticated and\
+            user.email.endswith('@credomodules.com') and CourseEnrollment.is_enrolled(user, course_key):
         fields_version = additional_profile_fields_hash(course.credo_additional_profile_fields)
         profiles = CredoModulesUserProfile.objects.filter(user=user, course_id=course_key)
         if len(profiles) == 0 or profiles[0].fields_version != fields_version:
