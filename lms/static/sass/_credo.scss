@@ -228,3 +228,106 @@
     width: 100% !important;
   }
 }
+
+.tile_body {
+    height: 325px;
+    width: 400px;
+    background-color: #FAFBFB;
+    box-shadow: 1px 0 5px 1px rgba(0,0,0,0.1);
+    padding-left: 24px;
+}
+.icon_lable {
+    width: 100%;
+    height: 80px;
+    margin-bottom: 20px;
+    margin-top: 30px;
+}
+.tile_title {
+    height: 43px;
+    width: 257px;
+    color: #64607B;
+    font-family: "Open Sans";
+    font-size: 20px;
+    font-weight: bold;
+    line-height: 26px;
+    margin-bottom: 18px;
+}
+.take-the-pre-program-survey-to {
+    height: 39px;
+    width: 336px;
+    color: #64607B;
+    font-family: "Open Sans";
+    font-size: 16px;
+    font-weight: 300 !important;
+    line-height: 22px;
+    margin-bottom: 19px;
+
+}
+.get-started {
+    height: 35px;
+    width: 171px;
+    background-color: #85C9C3;
+    border-radius: 25px;
+    cursor: pointer;
+}
+.get-started-label {
+    height: 14px;
+    width: 100%;
+    color: #FFFFFF;
+    font-family: "Open Sans";
+    font-size: 16px;
+    font-weight: 200 !important;
+    line-height: 15px;
+    text-align: center;
+    padding: 9px 25px 12px 25px
+}
+.icon_place {
+    height: 80px;
+    width: 80px;
+    border: 2px solid #6A6680;
+    background-color: #D2D3DC;
+    border-radius: 40px;
+    background-size: cover;
+}
+.status-lable {
+    height: 30px;
+    min-width: 110px;
+    margin-left: 10px;
+}
+
+.complete-label{
+    background-color: #D2D3DC;
+}
+
+.inprogress-label{
+    background-color: #FBE295;
+}
+
+.begin-label{
+    background-color: #85C9C3;
+}
+
+.status-title {
+    height: 17px;
+    width: 110px;
+    color: #FFFFFF;
+    text-align: center;
+    font-family: "Open Sans";
+    font-size: 16px;
+    line-height: 20px;
+    padding: 5px 10px 5px 9px;
+}
+.gray-footer-line {
+    height: 10px;
+    width: 400px;
+    background-color: #D2D3DC;
+    margin-left: -24px;
+    margin-top: 32px;
+}
+.label-shadow {
+    height: 12px;
+    width: 17px;
+    margin-left: 105px;
+    background-color: #013A6B;
+    background-image: -webkit-linear-gradient(135deg, #ffffff 50%, #000000 50%);
+}
