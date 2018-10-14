@@ -1,0 +1,38 @@
+<div class="container" style="
+width: 100%;
+margin-top: 30px;
+">
+    <div class="row" style="width: 900px;">
+    {% for block in highlighted_blocks %}
+        <div class="tile_body">
+            <div class="icon_lable">
+                <div class="row justify-content-between">
+                    <div class="col-4">
+                        <div class="icon_place" style="background-image: url({{ block.icon }})"></div>
+                    </div>
+                    <div class="col-4">
+                        <div class="status-lable {{ block.status }}-label">
+                            <div class="status-title">{{ block.status_title }}</div>
+                        </div>
+                        <div class="label-shadow"> </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tile_title">{{ block.display_name }}</div>
+            <div class="take-the-pre-program-survey-to">
+                {{ block.desc }}
+            </div>
+            <div class="get-started" onclick="location.href='{{ block.jump_to }}'">
+                <div class="get-started-label">{{ block.btn_title }} </div>
+            </div>
+            <div class="gray-footer-line"></div>
+        </div>
+        <div style="width:43px;"> </div>
+        {% if block.new_row  %}
+        </div>
+        <div class="row" style="height: 43px"> </div>
+        <div class="row" style="width: 900px;">
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
