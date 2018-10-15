@@ -93,7 +93,11 @@
                         tmpArr = searchArr[i].split('=');
                         foundBlockId = decodeURIComponent(tmpArr[1]);
                         foundBlock = this.link_for_by_id(foundBlockId);
-                        position = foundBlock.data('element');
+                        if (foundBlock.length > 0) {
+                            position = foundBlock.data('element');
+                        } else {
+                            foundBlockId = false;
+                        }
                     }
                 }
             }
