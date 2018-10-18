@@ -35,6 +35,15 @@ class CourseOutlineFragmentView(EdxFragmentView):
     Course outline fragment to be shown in the unified course view.
     """
 
+    def _convert_complete_status(self, status):
+        if status == 'not_started':
+            return 'begin', 'Begin'
+        elif status == 'in_progress':
+            return 'inprogress', 'In progress'
+        elif status == 'finished':
+            return 'complete', 'Completed'
+        return None, None
+
     def render_to_fragment(self, request, course_id=None, page_context=None, **kwargs):
         """
         Renders the course outline as a fragment.
@@ -58,18 +67,23 @@ class CourseOutlineFragmentView(EdxFragmentView):
 
         highlighted_blocks = []
         if enable_new_carousel_view:
+            status_map = {}
+            for sub in course_block_tree['children']:
+                for i in sub['children']:
+                    status_map[i['id']] = i['complete_status']
             top_sequential_blocks = modulestore().get_items(course_key,
                                                             settings={'top_of_course_outline': True},
                                                             qualifiers={'category': 'sequential'})
             for i, item in enumerate(top_sequential_blocks, start=1):
+                progress_status, progress_status_tilte = self._convert_complete_status(status_map.get(unicode(item.location)))
                 jump_item = item
                 highlighted_blocks.append({
                     'index': i,
                     'icon': item.course_outline_path_to_icon,
                     'desc': item.course_outline_description,
                     'btn_title': item.course_outline_button_title,
-                    'status': 'begin',
-                    'status_title': 'Begin',
+                    'status': progress_status,
+                    'status_title': progress_status_tilte,
                     'display_name': item.display_name,
                     'jump_to': reverse(
                         'jump_to',
@@ -78,6 +92,8 @@ class CourseOutlineFragmentView(EdxFragmentView):
                     'new_row': False if i % 2 else True,
                 })
             template = 'course_experience/course-outline-highlighted-fragment.html'
+
+        format('course_block_tree = {}'.format(dir(course_block_tree)))
 
         context = {
             'csrf': csrf(request)['csrf_token'],
