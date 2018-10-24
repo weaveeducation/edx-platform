@@ -1,38 +1,120 @@
-<div class="container" style="
-width: 100%;
-margin-top: 30px;
-">
-    <div class="row" style="width: 900px;">
-    {% for block in highlighted_blocks %}
-        <div class="tile_body">
-            <div class="icon_lable">
-                <div class="row justify-content-between">
-                    <div class="col-4">
-                        <div class="icon_place" style="background-image: url({{ block.icon }})"></div>
-                    </div>
-                    <div class="col-4">
-                        <div class="status-lable {{ block.status }}-label">
-                            <div class="status-title">{{ block.status_title }}</div>
+<div class="course-outline-container">
+    <div>
+        {% for block in highlighted_blocks %}
+            <div class="tile-container">
+                <div class="tile-body">
+                    <div class="icon-lable">
+                        <div class="row justify-content-between">
+                            <div class="col-4">
+                                <div class="icon-place" style="background-image: url({{ block.icon }})"></div>
+                            </div>
+                            <div class="col-4">
+                                <div class="status-lable {{ block.status }}-label">
+                                    <div class="status-title">{{ block.status_title }}</div>
+                                </div>
+                                <div class="label-shadow"> </div>
+                            </div>
                         </div>
-                        <div class="label-shadow"> </div>
                     </div>
+                    <div class="tile-title">{{ block.display_name }}</div>
+                    <div class="take-the-pre-program-survey-to">
+                        {{ block.desc }}
+                    </div>
+                    <div class="get-started" onclick="location.href='{{ block.jump_to }}'">
+                        <div class="get-started-label">{{ block.btn_title }} </div>
+                    </div>
+                    <div class="gray-footer-line"></div>
                 </div>
             </div>
-            <div class="tile_title">{{ block.display_name }}</div>
-            <div class="take-the-pre-program-survey-to">
-                {{ block.desc }}
-            </div>
-            <div class="get-started" onclick="location.href='{{ block.jump_to }}'">
-                <div class="get-started-label">{{ block.btn_title }} </div>
-            </div>
-            <div class="gray-footer-line"></div>
-        </div>
-        <div style="width:43px;"> </div>
-        {% if block.new_row  %}
-        </div>
-        <div class="row" style="height: 43px"> </div>
-        <div class="row" style="width: 900px;">
-        {% endif %}
         {% endfor %}
     </div>
+
+    <div class="outline-content">
+        <div>
+        {% if blocks.children %}
+            {% for block in blocks.children  %}
+                <div class="accordion outline-item">
+                    <div class="outline-item-head">
+                        {% if block.complete_percent == 100 %}
+                            <div class="complete-status"><span class="icon fa fa-check outline-check-status" aria-hidden="true"></span></div>
+                        {% else %}
+                            <div class="complete-status">{{ block.complete_percent }}%</div>
+                        {% endif %}
+                        <div class="outline-item-title">
+                            <div class="outline-item-display-name">{{ block.display_name }}</div>
+                            <div class="outline-num-chapters">{{ block.num_completed }} of {{ block.num_children }} chapters completed</div>
+                        </div>
+                        <div class="outline-item-expand">
+                            <button class="section-name accordion-trigger" id="{{ block.id }}" aria-expanded="true"
+                                    aria-controls="{{ block.id }}_contents">
+                                <span class="fa fa-chevron-down" aria-hidden="false"></span>
+                                <h3 class="section-title"></h3>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="children-list" id="{{ block.id }}_contents">
+                        <ul class="list-unstyled">
+                            {% for child in block.children %}
+                                <li><div class="child-item" onclick="location.href='{{ child.jump_to }}'">
+                                        <div class="child-item-flag child-item-flag {% if child.complete_status == 'finished' %} item-complete-flag {% endif %}"></div>
+                                        <div class="child-item-name">{{ child.display_name }}</div>
+                                        <div class="child-item-follow"><span class="fa fa-chevron-right" aria-hidden="false"></span></div>
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+        </div>
+
+    </div>
 </div>
+
+<script>
+$(document).ready(function(){
+
+   [].concat(_toConsumableArray(document.querySelectorAll('.accordion'))).forEach(function (accordion) {
+    var sections = Array.prototype.slice.call(accordion.querySelectorAll('.accordion-trigger'));
+
+    sections.forEach(function (section) {
+      return section.addEventListener('click', function (event) {
+        var sectionToggleButton = event.currentTarget;
+        if (sectionToggleButton.classList.contains('accordion-trigger')) {
+          var isExpanded = sectionToggleButton.getAttribute('aria-expanded') === 'true';
+          if (!isExpanded) {
+            expandSection(sectionToggleButton);
+          } else if (isExpanded) {
+            collapseSection(sectionToggleButton);
+          }
+          event.stopImmediatePropagation();
+        }
+      });
+    });
+  });
+});
+
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } };
+
+function expandSection(sectionToggleButton) {
+    var $toggleButtonChevron = $(sectionToggleButton).children('.fa-chevron-down');
+    var $contentPanel = $(document.getElementById(sectionToggleButton.getAttribute('aria-controls')));
+
+    $contentPanel.slideDown();
+    $contentPanel.removeClass('is-hidden');
+    $toggleButtonChevron.addClass('fa-rotate-180');
+    sectionToggleButton.setAttribute('aria-expanded', 'true');
+  };
+
+  function collapseSection(sectionToggleButton) {
+    var $toggleButtonChevron = $(sectionToggleButton).children('.fa-chevron-down');
+    var $contentPanel = $(document.getElementById(sectionToggleButton.getAttribute('aria-controls')));
+
+    $contentPanel.slideUp();
+    $contentPanel.addClass('is-hidden');
+    $toggleButtonChevron.removeClass('fa-rotate-180');
+    sectionToggleButton.setAttribute('aria-expanded', 'false');
+  };
+
+</script>

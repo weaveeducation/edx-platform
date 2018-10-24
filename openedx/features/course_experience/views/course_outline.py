@@ -39,9 +39,9 @@ class CourseOutlineFragmentView(EdxFragmentView):
         if status == 'not_started':
             return 'begin', 'Begin'
         elif status == 'in_progress':
-            return 'inprogress', 'In progress'
+            return 'in-progress', 'In progress'
         elif status == 'finished':
-            return 'complete', 'Completed'
+            return 'complete', 'Completed!'
         return None, None
 
     def render_to_fragment(self, request, course_id=None, page_context=None, **kwargs):
@@ -68,9 +68,23 @@ class CourseOutlineFragmentView(EdxFragmentView):
         highlighted_blocks = []
         if enable_new_carousel_view:
             status_map = {}
-            for sub in course_block_tree['children']:
+            for num_sub, sub in enumerate(course_block_tree['children'], 1):
+                num_completed = 0
+                sub['num_children'] = len(sub['children'])
+                sub['jump_to'] = reverse(
+                        'jump_to',
+                        kwargs={'course_id': unicode(course_key), 'location': sub['id']},
+                    )
                 for i in sub['children']:
                     status_map[i['id']] = i['complete_status']
+                    if i['complete_status'] == 'finished':
+                        num_completed += 1
+                    i['jump_to'] = reverse(
+                        'jump_to',
+                        kwargs={'course_id': unicode(course_key), 'location': i['id']},
+                    )
+                sub['num_completed'] = num_completed
+
             top_sequential_blocks = modulestore().get_items(course_key,
                                                             settings={'top_of_course_outline': True},
                                                             qualifiers={'category': 'sequential'})
@@ -89,7 +103,6 @@ class CourseOutlineFragmentView(EdxFragmentView):
                         'jump_to',
                         kwargs={'course_id': unicode(course_key), 'location': unicode(jump_item.location)},
                     ),
-                    'new_row': False if i % 2 else True,
                 })
             template = 'course_experience/course-outline-highlighted-fragment.html'
 
