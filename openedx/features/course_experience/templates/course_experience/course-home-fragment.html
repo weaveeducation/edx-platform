@@ -45,7 +45,12 @@ from openedx.features.portfolio_project import INCLUDE_PORTFOLIO_UPSELL_MODAL
     <header class="page-header has-secondary">
         <div class="page-header-main">
             <nav aria-label="${_('Course Outline')}" class="sr-is-focusable" tabindex="-1">
-                <h2 class="hd hd-3 page-title">${course.display_name_with_default}</h2>
+
+                <% title_class = "hd hd-3 page-title" %>
+                % if enable_new_carousel_view:
+                    <% title_class = "outline-main-title" %>
+                % endif
+                <h2 class="${ title_class }">${course.display_name_with_default}</h2>
             </nav>
         </div>
         <div class="page-header-secondary">
@@ -66,17 +71,19 @@ from openedx.features.portfolio_project import INCLUDE_PORTFOLIO_UPSELL_MODAL
                     </form>
                 </div>
             % endif
-            <div class="form-actions">
-                % if resume_course_url:
-                    <a class="btn btn-primary action-resume-course" href="${resume_course_url}">
-                        % if has_visited_course:
-                            <span data-action-type="resume">${_("Resume Course")}</span>
-                        % else:
-                            <span data-action-type="start">${_("Start Course")}</span>
-                        % endif
-                    </a>
-                % endif
-            </div>
+            % if not enable_new_carousel_view:
+                <div class="form-actions">
+                    % if resume_course_url:
+                        <a class="btn btn-primary action-resume-course" href="${resume_course_url}">
+                            % if has_visited_course:
+                                <span data-action-type="resume">${_("Resume Course")}</span>
+                            % else:
+                                <span data-action-type="start">${_("Start Course")}</span>
+                            % endif
+                        </a>
+                    % endif
+                </div>
+            % endif
         </div>
     </header>
     <div class="page-content">
@@ -123,7 +130,12 @@ from openedx.features.portfolio_project import INCLUDE_PORTFOLIO_UPSELL_MODAL
             % endif
             % if course_tools:
                 <div class="section section-tools">
-                    <h3 class="hd-6 section-title">${_("Course Tools")}</h3>
+                    % if enable_new_carousel_view:
+                        <h3 class="hd-6 section-title">${_("Your Program Tools")}</h3>
+                    % else:
+                        <h3 class="hd-6 section-title">${_("Course Tools")}</h3>
+                    % endif
+
                     <ul class="list-unstyled">
                         % for course_tool in course_tools:
                             <li class="course-tool">
@@ -133,6 +145,14 @@ from openedx.features.portfolio_project import INCLUDE_PORTFOLIO_UPSELL_MODAL
                                 </a>
                             </li>
                         % endfor
+                        % if enable_new_carousel_view:
+                            <li class="course-tool">
+                                <a class="course-tool-link" href="${resume_course_url}">
+                                    <span class="icon fa fa-undo" aria-hidden="true"></span>
+                                    ${_("Last Visited")}
+                                </a>
+                            </li>
+                        % endif
                     </ul>
                 </div>
             % endif
