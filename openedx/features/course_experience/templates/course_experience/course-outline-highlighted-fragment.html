@@ -1,3 +1,20 @@
+<style>
+
+   .page-content-main {
+      width: 965px !important;
+      display: contents !important;
+    }
+
+    a.course-tool-link {
+        height: 49px;
+        width: 16px;
+        color: #85C9C3;
+        font-size: 18px;
+        line-height: 32px;
+    }
+
+</style>
+
 <div class="course-outline-container">
     <div>
         {% for block in highlighted_blocks %}
@@ -6,7 +23,9 @@
                     <div class="icon-lable">
                         <div class="row justify-content-between">
                             <div class="col-4">
-                                <div class="icon-place" style="background-image: url({{ block.icon }})"></div>
+                                {% if block.icon %}
+                                    <div class="icon-place" style="background-image: url({{ block.icon }})"></div>
+                                {% endif %}
                             </div>
                             <div class="col-4">
                                 <div class="status-lable {{ block.status }}-label">
@@ -21,7 +40,13 @@
                         {{ block.desc }}
                     </div>
                     <div class="get-started" onclick="location.href='{{ block.jump_to }}'">
-                        <div class="get-started-label">{{ block.btn_title }} </div>
+                        <div class="get-started-label">
+                            {% if block.btn_title %}
+                                {{ block.btn_title }}
+                            {% else %}
+                                {{ _("Get started") }}
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="gray-footer-line"></div>
                 </div>
@@ -74,7 +99,6 @@
 
 <script>
 $(document).ready(function(){
-
    [].concat(_toConsumableArray(document.querySelectorAll('.accordion'))).forEach(function (accordion) {
     var sections = Array.prototype.slice.call(accordion.querySelectorAll('.accordion-trigger'));
 
