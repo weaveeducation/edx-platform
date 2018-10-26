@@ -270,6 +270,8 @@
           background-color: #D2D3DC;
           border-radius: 40px;
           background-size: cover;
+          background-repeat: no-repeat;
+          background-position: center;
         }
 
         .status-lable {
@@ -294,13 +296,12 @@
           width: 17px;
           margin-left: 105px;
           background-color: #013A6B;
-          background-image: -webkit-linear-gradient(135deg, #ffffff 50%, #000000 50%);
+          background-image: -webkit-linear-gradient(135deg, #ffffff 50%, #888888 50%);
         }
 
       }
 
       .tile-title {
-          height: 43px;
           width: 257px;
           color: #64607B;
           font-family: "Open Sans";
@@ -308,6 +309,7 @@
           font-weight: bold;
           line-height: 26px;
           margin-bottom: 18px;
+          margin-top: 10px;
         }
 
       .take-the-pre-program-survey-to {
@@ -316,7 +318,6 @@
           color: #64607B;
           font-family: "Open Sans";
           font-size: 16px;
-          font-weight: 300 !important;
           line-height: 22px;
           margin-bottom: 19px;
         }
@@ -334,7 +335,6 @@
           color: #FFFFFF;
           font-family: "Open Sans";
           font-size: 16px;
-          font-weight: 200 !important;
           line-height: 15px;
           text-align: center;
           padding: 9px 25px 12px 25px
@@ -437,7 +437,7 @@
       .children-list {
         width: 100%;
         max-height: 229px;
-        overflow-y: scroll;
+        overflow-y: auto;
 
         .child-item {
           display: inline-block;
@@ -478,3 +478,13 @@
   }
 
 }
+
+.outline-main-title {
+        height: 46px;
+        color: #64607B;
+        font-family: "Open Sans";
+        font-size: 46px;
+        font-weight: bold;
+        line-height: 52px;
+        text-align: center;
+    }
