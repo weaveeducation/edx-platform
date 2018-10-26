@@ -68,14 +68,14 @@ class CourseOutlineFragmentView(EdxFragmentView):
         highlighted_blocks = []
         if enable_new_carousel_view:
             status_map = {}
-            for num_sub, sub in enumerate(course_block_tree['children'], 1):
+            for num_sub, sub in enumerate(course_block_tree.get('children', []), 1):
                 num_completed = 0
-                sub['num_children'] = len(sub['children'])
+                sub['num_children'] = len(sub.get('children', []))
                 sub['jump_to'] = reverse(
                         'jump_to',
                         kwargs={'course_id': unicode(course_key), 'location': sub['id']},
                     )
-                for i in sub['children']:
+                for i in sub.get('children', []):
                     status_map[i['id']] = i['complete_status']
                     if i['complete_status'] == 'finished':
                         num_completed += 1
