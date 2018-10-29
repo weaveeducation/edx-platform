@@ -15,7 +15,9 @@
 
 </style>
 
-<div class="course-outline-container">
+<script type="text/javascript" src="/static/bundles/CourseOutline.js" ></script>
+
+<div class="course-outline-container new-course-outline">
     <div>
         {% for block in highlighted_blocks %}
             <div class="tile-container">
@@ -99,46 +101,7 @@
 
 <script>
 $(document).ready(function(){
-   [].concat(_toConsumableArray(document.querySelectorAll('.accordion'))).forEach(function (accordion) {
-    var sections = Array.prototype.slice.call(accordion.querySelectorAll('.accordion-trigger'));
-
-    sections.forEach(function (section) {
-      return section.addEventListener('click', function (event) {
-        var sectionToggleButton = event.currentTarget;
-        if (sectionToggleButton.classList.contains('accordion-trigger')) {
-          var isExpanded = sectionToggleButton.getAttribute('aria-expanded') === 'true';
-          if (!isExpanded) {
-            expandSection(sectionToggleButton);
-          } else if (isExpanded) {
-            collapseSection(sectionToggleButton);
-          }
-          event.stopImmediatePropagation();
-        }
-      });
-    });
-  });
+    new CourseOutline();
 });
-
-function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } };
-
-function expandSection(sectionToggleButton) {
-    var $toggleButtonChevron = $(sectionToggleButton).children('.fa-chevron-down');
-    var $contentPanel = $(document.getElementById(sectionToggleButton.getAttribute('aria-controls')));
-
-    $contentPanel.slideDown();
-    $contentPanel.removeClass('is-hidden');
-    $toggleButtonChevron.addClass('fa-rotate-180');
-    sectionToggleButton.setAttribute('aria-expanded', 'true');
-  };
-
-  function collapseSection(sectionToggleButton) {
-    var $toggleButtonChevron = $(sectionToggleButton).children('.fa-chevron-down');
-    var $contentPanel = $(document.getElementById(sectionToggleButton.getAttribute('aria-controls')));
-
-    $contentPanel.slideUp();
-    $contentPanel.addClass('is-hidden');
-    $toggleButtonChevron.removeClass('fa-rotate-180');
-    sectionToggleButton.setAttribute('aria-expanded', 'false');
-  };
 
 </script>
