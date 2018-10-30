@@ -66,6 +66,8 @@
             this.ajaxUrl = this.el.data('ajax-url');
             this.nextUrl = this.el.data('next-url');
             this.prevUrl = this.el.data('prev-url');
+            this.returnToCourseOutline = parseInt(this.el.data('return-to-course-outline')) == 1;
+            this.courseId = this.el.data('course-id');
             this.keydownHandler($(element).find('#sequence-list .tab'));
             this.base_page_title = ($('title').data('base-title') || '').trim();
             this.carouselView = false;
@@ -434,7 +436,7 @@
         };
 
         Sequence.prototype.updateButtonState = function(buttonClass, buttonAction, isAtBoundary, boundaryUrl) {
-            if (isAtBoundary && boundaryUrl === 'None') {
+            if (!this.returnToCourseOutline && isAtBoundary && boundaryUrl === 'None') {
                 this.disableButton(buttonClass);
             } else {
                 this.enableButton(buttonClass, buttonAction);
@@ -598,7 +600,11 @@
             }
 
             if ((direction === 'next') && (this.position >= this.contents.length)) {
-                targetUrl = this.nextUrl;
+                if (this.returnToCourseOutline) {
+                    targetUrl = '/courses/' + this.courseId + '/course/';
+                } else {
+                    targetUrl = this.nextUrl;
+                }
             } else if ((direction === 'previous') && (this.position === 1)) {
                 targetUrl = this.prevUrl;
             }

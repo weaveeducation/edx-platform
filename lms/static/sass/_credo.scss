@@ -388,11 +388,38 @@
           border-radius: 45px;
           padding-top: 5px;
           text-align: center;
-          border: 1px solid #9EB19C;
           color: #64607B;
           font-family: "Open Sans";
           font-size: 15px;
           line-height: 33px;
+
+          .percent-status {
+            position: absolute;
+            margin-top: 6px !important;
+            border-left-width: 7px;
+            margin-left: 0px;
+            margin-top: 5px;
+            width: 55px;
+            text-align: center;
+          }
+
+          .all-completed {
+            position: absolute;
+            border-left-width: 5px;
+            margin-left: 10px;
+            margin-top: 5px;
+            padding-top: 5px;
+          }
+
+          .progress-ring__circle {
+            transition: 0.5s stroke-dashoffset;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+          }
+
+          .progress-ring {
+            position: absolute;
+          }
         }
 
         .outline-item-title {

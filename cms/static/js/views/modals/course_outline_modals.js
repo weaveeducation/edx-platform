@@ -646,17 +646,21 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             AbstractEditor.prototype.afterRender.call(this);
             var val = this.model.get('top_of_course_outline') ? "yes" : "no";
             this.$('[name="attach_at_the_top"][value="' + val + '"]').prop('checked', true);
+            var returnToCourseOutline = this.model.get('after_finish_return_to_course_outline');
+            this.$('[name="after_finish_return_to_course_outline"]').prop('checked', returnToCourseOutline ? true : false);
             this.switchAttachAtTheTopSetting(this.model.get('top_of_course_outline'));
         },
         getRequestData: function() {
             var attachAtTheTop = this.$('[name="attach_at_the_top"]:checked').val();
+            var returnToCourseOutline = this.$('[name="after_finish_return_to_course_outline"]').is(':checked');
             if (attachAtTheTop === 'yes') {
                 return {
                     metadata: {
                         top_of_course_outline: true,
                         course_outline_path_to_icon: this.$('[name="course_outline_path_to_icon"]').val(),
                         course_outline_description: this.$('[name="course_outline_description"]').val(),
-                        course_outline_button_title: this.$('[name="course_outline_button_title"]').val()
+                        course_outline_button_title: this.$('[name="course_outline_button_title"]').val(),
+                        after_finish_return_to_course_outline: returnToCourseOutline
                     }
                 };
             } else {
@@ -665,7 +669,8 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                         top_of_course_outline: false,
                         course_outline_path_to_icon: '',
                         course_outline_description: '',
-                        course_outline_button_title: ''
+                        course_outline_button_title: '',
+                        after_finish_return_to_course_outline: returnToCourseOutline
                     }
                 };
             }

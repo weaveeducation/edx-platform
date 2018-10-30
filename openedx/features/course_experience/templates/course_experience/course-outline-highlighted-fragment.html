@@ -1,3 +1,12 @@
+## mako
+
+<%page expression_filter="h"/>
+<%namespace name='static' file='../static_content.html'/>
+
+<%!
+from django.utils.translation import ugettext as _
+%>
+
 <style>
 
    .page-content-main {
@@ -6,139 +15,118 @@
     }
 
     a.course-tool-link {
-        height: 49px;
-        width: 16px;
-        color: #85C9C3;
-        font-size: 18px;
-        line-height: 32px;
+      height: 49px;
+      width: 16px;
+      color: #85C9C3;
+      font-size: 18px;
+      line-height: 32px;
     }
 
 </style>
 
-<div class="course-outline-container">
+<script type="text/javascript" src="/static/bundles/CourseOutline.js" ></script>
+
+<div class="course-outline-container new-course-outline">
     <div>
-        {% for block in highlighted_blocks %}
+        % for block in highlighted_blocks:
             <div class="tile-container">
                 <div class="tile-body">
                     <div class="icon-lable">
                         <div class="row justify-content-between">
                             <div class="col-4">
-                                {% if block.icon %}
-                                    <div class="icon-place" style="background-image: url({{ block.icon }})"></div>
-                                {% endif %}
+                                % if block['icon']:
+                                    <div class="icon-place" style="background-image: url(${ block['icon'] })"></div>
+                                % endif
                             </div>
                             <div class="col-4">
-                                <div class="status-lable {{ block.status }}-label">
-                                    <div class="status-title">{{ block.status_title }}</div>
+                                <div class="status-lable ${ block['status'] }-label">
+                                    <div class="status-title">${ block['status_title'] }</div>
                                 </div>
                                 <div class="label-shadow"> </div>
                             </div>
                         </div>
                     </div>
-                    <div class="tile-title">{{ block.display_name }}</div>
+                    <div class="tile-title">${ block['display_name'] }</div>
                     <div class="take-the-pre-program-survey-to">
-                        {{ block.desc }}
+                        ${ block['desc'] }
                     </div>
-                    <div class="get-started" onclick="location.href='{{ block.jump_to }}'">
+                    <div class="get-started" onclick="location.href='${ block['jump_to'] }'">
                         <div class="get-started-label">
-                            {% if block.btn_title %}
-                                {{ block.btn_title }}
-                            {% else %}
-                                {{ _("Get started") }}
-                            {% endif %}
+                            % if block.get('btn_title'):
+                                ${ block['btn_title'] }
+                            % else:
+                                ${ _("Get started") }
+                            % endif
                         </div>
                     </div>
                     <div class="gray-footer-line"></div>
                 </div>
             </div>
-        {% endfor %}
+        % endfor
     </div>
-
     <div class="outline-content">
         <div>
-        {% if blocks.children %}
-            {% for block in blocks.children  %}
+        % if blocks['children']:
+            % for block in blocks['children']:
                 <div class="accordion outline-item">
                     <div class="outline-item-head">
-                        {% if block.complete_percent == 100 %}
-                            <div class="complete-status"><span class="icon fa fa-check outline-check-status" aria-hidden="true"></span></div>
-                        {% else %}
-                            <div class="complete-status">{{ block.complete_percent }}%</div>
-                        {% endif %}
+                        <div class="complete-status" complete-status="${ block['complete_percent']}" style="position: relative;display: flex;">
+                            % if block['complete_percent'] == 100:
+                                <div class="all-completed"><span class="icon fa fa-check outline-check-status" aria-hidden="true"></span></div>
+                            % else:
+                                <div class="percent-status">${ block['complete_percent'] }%</div>
+                            % endif
+                                <svg class="progress-ring" width="50" height="50">
+                                    <circle
+                                        class="progress-ring-base"
+                                        stroke="#9EB19C"
+                                        stroke-width="2"
+                                        fill="transparent"
+                                        r="22"
+                                        cx="25"
+                                        cy="25"/>
+
+                                    <circle
+                                        class="progress-ring__circle"
+                                        stroke="#FBE295"
+                                        stroke-width="3"
+                                        fill="transparent"
+                                        r="22"
+                                        cx="25"
+                                        cy="25"/>
+                                </svg>
+                            </div>
                         <div class="outline-item-title">
-                            <div class="outline-item-display-name">{{ block.display_name }}</div>
-                            <div class="outline-num-chapters">{{ block.num_completed }} of {{ block.num_children }} chapters completed</div>
+                            <div class="outline-item-display-name">${ block['display_name'] }</div>
+                            <div class="outline-num-chapters">${ block['num_completed'] } of ${ block['num_children'] } chapters completed</div>
                         </div>
                         <div class="outline-item-expand">
-                            <button class="section-name accordion-trigger" id="{{ block.id }}" aria-expanded="true"
-                                    aria-controls="{{ block.id }}_contents">
+                            <button class="section-name accordion-trigger" id="${ block['id'] }" aria-expanded="true"
+                                    aria-controls="${ block['id'] }_contents">
                                 <span class="fa fa-chevron-down" aria-hidden="false"></span>
                                 <h3 class="section-title"></h3>
                             </button>
                         </div>
                     </div>
-                    <div class="children-list" id="{{ block.id }}_contents">
+                    <div class="children-list" id="${ block['id'] }_contents">
                         <ul class="list-unstyled">
-                            {% for child in block.children %}
-                                <li><div class="child-item" onclick="location.href='{{ child.jump_to }}'">
+                            % for child in block.get('children', []):
+                                <li><div class="child-item" onclick="location.href='${ child['jump_to'] }'">
                                         <div class="child-item-flag child-item-flag {% if child.complete_status == 'finished' %} item-complete-flag {% endif %}"></div>
-                                        <div class="child-item-name">{{ child.display_name }}</div>
+                                        <div class="child-item-name">${ child['display_name'] }</div>
                                         <div class="child-item-follow"><span class="fa fa-chevron-right" aria-hidden="false"></span></div>
                                     </div>
                                 </li>
-                            {% endfor %}
+                            % endfor
                         </ul>
                     </div>
                 </div>
-            {% endfor %}
-        {% endif %}
+            % endfor
+        % endif
         </div>
-
     </div>
 </div>
 
-<script>
-$(document).ready(function(){
-   [].concat(_toConsumableArray(document.querySelectorAll('.accordion'))).forEach(function (accordion) {
-    var sections = Array.prototype.slice.call(accordion.querySelectorAll('.accordion-trigger'));
-
-    sections.forEach(function (section) {
-      return section.addEventListener('click', function (event) {
-        var sectionToggleButton = event.currentTarget;
-        if (sectionToggleButton.classList.contains('accordion-trigger')) {
-          var isExpanded = sectionToggleButton.getAttribute('aria-expanded') === 'true';
-          if (!isExpanded) {
-            expandSection(sectionToggleButton);
-          } else if (isExpanded) {
-            collapseSection(sectionToggleButton);
-          }
-          event.stopImmediatePropagation();
-        }
-      });
-    });
-  });
-});
-
-function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } };
-
-function expandSection(sectionToggleButton) {
-    var $toggleButtonChevron = $(sectionToggleButton).children('.fa-chevron-down');
-    var $contentPanel = $(document.getElementById(sectionToggleButton.getAttribute('aria-controls')));
-
-    $contentPanel.slideDown();
-    $contentPanel.removeClass('is-hidden');
-    $toggleButtonChevron.addClass('fa-rotate-180');
-    sectionToggleButton.setAttribute('aria-expanded', 'true');
-  };
-
-  function collapseSection(sectionToggleButton) {
-    var $toggleButtonChevron = $(sectionToggleButton).children('.fa-chevron-down');
-    var $contentPanel = $(document.getElementById(sectionToggleButton.getAttribute('aria-controls')));
-
-    $contentPanel.slideUp();
-    $contentPanel.addClass('is-hidden');
-    $toggleButtonChevron.removeClass('fa-rotate-180');
-    sectionToggleButton.setAttribute('aria-expanded', 'false');
-  };
-
-</script>
+<%static:webpack entry="CourseOutline">
+    new CourseOutline();
+</%static:webpack>
