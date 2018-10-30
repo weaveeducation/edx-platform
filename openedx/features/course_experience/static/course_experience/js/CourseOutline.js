@@ -35,6 +35,21 @@ export class CourseOutline {  // eslint-disable-line import/prefer-default-expor
       }),
     );
 
+    [...document.querySelectorAll('.complete-status[complete-status]')].forEach(status => {
+        console.log('status -> ' + status.getAttribute('complete-status'));
+
+      var percent = status.getAttribute('complete-status');
+      var circle = status.querySelector('.progress-ring__circle');
+      var radius = circle.r.baseVal.value;
+      var circumference = radius * 2 * Math.PI;
+
+      circle.style.strokeDasharray = `${circumference} ${circumference}`;
+      circle.style.strokeDashoffset = `${circumference}`;
+
+      const offset = circumference - percent / 100 * circumference;
+      circle.style.strokeDashoffset = offset;
+    });
+
     function expandSection(sectionToggleButton) {
       const $toggleButtonChevron = $(sectionToggleButton).children('.fa-chevron-right');
       const $contentPanel = $(document.getElementById(sectionToggleButton.getAttribute('aria-controls')));
