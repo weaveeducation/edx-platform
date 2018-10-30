@@ -3,6 +3,7 @@ Views to show a course outline.
 """
 import re
 import datetime
+import logging
 
 from completion import waffle as completion_waffle
 from django.contrib.auth.models import User
@@ -16,19 +17,32 @@ from web_fragments.fragment import Fragment
 from courseware.courses import get_course_overview_with_access
 from openedx.core.djangoapps.plugin_api.views import EdxFragmentView
 from student.models import CourseEnrollment
+from credo_modules.models import Organization
 
 from util.milestones_helpers import get_course_content_milestones
 from xmodule.modulestore.django import modulestore
 from ..utils import get_course_outline_block_tree, get_resume_block
+from rest_framework.reverse import reverse
 
 
 DEFAULT_COMPLETION_TRACKING_START = datetime.datetime(2018, 1, 24, tzinfo=UTC)
+
+log = logging.getLogger(__name__)
 
 
 class CourseOutlineFragmentView(EdxFragmentView):
     """
     Course outline fragment to be shown in the unified course view.
     """
+
+    def _convert_complete_status(self, status):
+        if status == 'not_started':
+            return 'begin', 'Begin'
+        elif status == 'in_progress':
+            return 'in-progress', 'In progress'
+        elif status == 'finished':
+            return 'complete', 'Completed!'
+        return None, None
 
     def render_to_fragment(self, request, course_id=None, page_context=None, **kwargs):
         """
@@ -37,16 +51,69 @@ class CourseOutlineFragmentView(EdxFragmentView):
         course_key = CourseKey.from_string(course_id)
         course_overview = get_course_overview_with_access(request.user, 'load', course_key, check_if_enrolled=True)
         course = modulestore().get_course(course_key)
+        template = 'course_experience/course-outline-fragment.html'
 
         course_block_tree = get_course_outline_block_tree(request, course_id)
         if not course_block_tree:
             return None
 
+        enable_new_carousel_view = False
+        try:
+            org = Organization.objects.get(org=course.org)
+            if org.org_type is not None:
+                enable_new_carousel_view = org.org_type.enable_new_carousel_view
+        except Organization.DoesNotExist:
+            pass
+
+        highlighted_blocks = []
+        if enable_new_carousel_view:
+            status_map = {}
+            for num_sub, sub in enumerate(course_block_tree.get('children', []), 1):
+                num_completed = 0
+                sub['num_children'] = len(sub.get('children', []))
+                sub['jump_to'] = reverse(
+                        'jump_to',
+                        kwargs={'course_id': unicode(course_key), 'location': sub['id']},
+                    )
+                for i in sub.get('children', []):
+                    status_map[i['id']] = i['complete_status']
+                    if i['complete_status'] == 'finished':
+                        num_completed += 1
+                    i['jump_to'] = reverse(
+                        'jump_to',
+                        kwargs={'course_id': unicode(course_key), 'location': i['id']},
+                    )
+                sub['num_completed'] = num_completed
+
+            top_sequential_blocks = modulestore().get_items(course_key,
+                                                            settings={'top_of_course_outline': True},
+                                                            qualifiers={'category': 'sequential'})
+            for i, item in enumerate(top_sequential_blocks, start=1):
+                progress_status, progress_status_tilte = self._convert_complete_status(status_map.get(unicode(item.location)))
+                jump_item = item
+                highlighted_blocks.append({
+                    'index': i,
+                    'icon': item.course_outline_path_to_icon,
+                    'desc': item.course_outline_description,
+                    'btn_title': item.course_outline_button_title,
+                    'status': progress_status,
+                    'status_title': progress_status_tilte,
+                    'display_name': item.display_name,
+                    'jump_to': reverse(
+                        'jump_to',
+                        kwargs={'course_id': unicode(course_key), 'location': unicode(jump_item.location)},
+                    ),
+                })
+            template = 'course_experience/course-outline-highlighted-fragment.html'
+
+        format('course_block_tree = {}'.format(dir(course_block_tree)))
+
         context = {
             'csrf': csrf(request)['csrf_token'],
             'course': course_overview,
             'due_date_display_format': course.due_date_display_format,
-            'blocks': course_block_tree
+            'blocks': course_block_tree,
+            'highlighted_blocks': highlighted_blocks,
         }
 
         resume_block = get_resume_block(course_block_tree)
@@ -59,7 +126,7 @@ class CourseOutlineFragmentView(EdxFragmentView):
         context['gated_content'] = gated_content
         context['xblock_display_names'] = xblock_display_names
 
-        html = render_to_string('course_experience/course-outline-fragment.html', context)
+        html = render_to_string(template, context)
         return Fragment(html)
 
     def create_xblock_id_and_name_dict(self, course_block_tree, xblock_display_names=None):
