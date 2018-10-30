@@ -70,11 +70,32 @@ from django.utils.translation import ugettext as _
             % for block in blocks['children']:
                 <div class="accordion outline-item">
                     <div class="outline-item-head">
-                        % if block['complete_percent'] == 100:
-                            <div class="complete-status"><span class="icon fa fa-check outline-check-status" aria-hidden="true"></span></div>
-                        % else:
-                            <div class="complete-status">${ block['complete_percent'] }%</div>
-                        % endif
+                        <div class="complete-status" complete-status="${ block['complete_percent']}" style="position: relative;display: flex;">
+                            % if block['complete_percent'] == 100:
+                                <div class="all-completed"><span class="icon fa fa-check outline-check-status" aria-hidden="true"></span></div>
+                            % else:
+                                <div class="percent-status">${ block['complete_percent'] }%</div>
+                            % endif
+                                <svg class="progress-ring" width="50" height="50">
+                                    <circle
+                                        class="progress-ring-base"
+                                        stroke="#9EB19C"
+                                        stroke-width="2"
+                                        fill="transparent"
+                                        r="22"
+                                        cx="25"
+                                        cy="25"/>
+
+                                    <circle
+                                        class="progress-ring__circle"
+                                        stroke="#FBE295"
+                                        stroke-width="3"
+                                        fill="transparent"
+                                        r="22"
+                                        cx="25"
+                                        cy="25"/>
+                                </svg>
+                            </div>
                         <div class="outline-item-title">
                             <div class="outline-item-display-name">${ block['display_name'] }</div>
                             <div class="outline-num-chapters">${ block['num_completed'] } of ${ block['num_children'] } chapters completed</div>
