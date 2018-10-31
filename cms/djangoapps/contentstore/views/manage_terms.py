@@ -12,6 +12,7 @@ from django.utils.translation import ugettext as _
 from credo_modules.models import TermPerOrg
 from edxmako.shortcuts import render_to_response
 from util.json_request import JsonResponse
+from opaque_keys.edx.keys import CourseKey
 from .course import get_courses_accessible_to_user, _process_courses_list
 
 
@@ -25,7 +26,10 @@ def _get_user_orgs(request):
 
     available_orgs = []
     for course in active_courses:
-        available_orgs.append(course['org'])
+        course_key = course.get('course_key', None)
+        if course_key:
+            course_key = CourseKey.from_string(course_key)
+            available_orgs.append(course_key.org)
     return sorted(list(set(available_orgs)))
 
 
