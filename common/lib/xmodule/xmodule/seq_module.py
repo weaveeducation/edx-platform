@@ -102,6 +102,13 @@ class SequenceFields(object):
         help=_("Course outline: button title"),
     )
 
+    after_finish_return_to_course_outline = Boolean(
+        display_name=_("After finish section return user back to course outline"),
+        default=False,
+        scope=Scope.settings,
+        help=_("After finish section return user back to course outline"),
+    )
+
 
 class ProctoringFields(object):
     """
@@ -360,7 +367,9 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
             'banner_text': banner_text,
             'disable_navigation': not self.is_user_authenticated(context),
             'gated_content': self._get_gated_content_info(prereq_met, prereq_meta_info),
-            'enable_new_carousel_view': context.get('enable_new_carousel_view')
+            'enable_new_carousel_view': context.get('enable_new_carousel_view'),
+            'after_finish_return_to_course_outline': 1 if self.after_finish_return_to_course_outline else 0,
+            'course_id': str(self.course_id)
         }
         fragment.add_content(self.system.render_template("seq_module.html", params))
 
