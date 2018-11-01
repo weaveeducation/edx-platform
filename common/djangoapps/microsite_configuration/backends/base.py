@@ -251,7 +251,7 @@ class BaseMicrositeBackend(AbstractBaseMicrositeBackend):
         Helper internal method to actually find the microsite configuration
         """
         config = settings.MICROSITE_CONFIGURATION[microsite_config_key].copy()
-        config['subdomain'] = strip_port_from_host(subdomain)
+        config['subdomain'] = strip_port_from_host(subdomain) if subdomain else None
         config['microsite_config_key'] = microsite_config_key
         config['site_domain'] = strip_port_from_host(domain)
 
@@ -308,10 +308,14 @@ class BaseMicrositeTemplateBackend(object):
         relative_path = template_path[1:] if template_path.startswith('/') else template_path
         search_path = os.path.join(microsite_template_path, relative_path)
         if os.path.isfile(search_path):
-            path = '/{0}/templates/{1}'.format(
-                microsite_get_value('microsite_config_key'),
-                relative_path
-            )
+            template_dir_relative = microsite_get_value('template_dir_relative')
+            if template_dir_relative:
+                path = template_dir_relative + '/' + relative_path
+            else:
+                path = '/{0}/templates/{1}'.format(
+                    microsite_get_value('microsite_config_key'),
+                    relative_path
+                )
             return path
         else:
             return template_path

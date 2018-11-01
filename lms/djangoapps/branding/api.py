@@ -468,6 +468,8 @@ def get_logo_url(is_secure=True):
     # let's use that
     image_url = configuration_helpers.get_value('logo_image_url')
     if image_url:
+        if image_url.startswith('http'):
+            return image_url
         return _absolute_url_staticfile(
             is_secure=is_secure,
             name=image_url,
