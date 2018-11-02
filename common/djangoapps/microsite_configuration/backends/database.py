@@ -61,7 +61,7 @@ class DatabaseMicrositeBackend(BaseMicrositeBackend):
         domain_parts = domain.split('.')
         microsite = None
 
-        if len(domain_parts) == 3:
+        if len(domain_parts) > 2:
             try:
                 microsite = Microsite.objects.get(key=domain_parts[0])
             except Microsite.DoesNotExist:
