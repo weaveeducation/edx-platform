@@ -125,6 +125,11 @@ class DatabaseMicrositeBackend(BaseMicrositeBackend):
         config['subdomain'] = strip_port_from_host(subdomain)
         config['site_domain'] = strip_port_from_host(domain)
         config['microsite_config_key'] = microsite_object.key
+        if 'template_dir' not in config:
+            config['template_dir'] = '/'.join([settings.MICROSITE_ROOT_DIR, 'default', 'templates'])
+            config['template_dir_relative'] = '/default/templates'
+        else:
+            config['template_dir_relative'] = '/' + microsite_object.key + '/templates'
 
         # we take the list of ORGs associated with this microsite from the database mapping
         # tables. NOTE, for now, we assume one ORG per microsite
