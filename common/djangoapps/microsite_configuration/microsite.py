@@ -24,6 +24,14 @@ BACKEND = None
 TEMPLATES_BACKEND = None
 
 
+def get_main_backend():
+    global BACKEND
+    if BACKEND is None:
+        from microsite_configuration.backends.database import DatabaseMicrositeBackend
+        BACKEND = DatabaseMicrositeBackend()
+    return BACKEND
+
+
 def is_feature_enabled():
     """
     Returns whether the feature flag to enable microsite has been set
@@ -35,14 +43,14 @@ def is_request_in_microsite():
     """
     This will return if current request is a request within a microsite
     """
-    return BACKEND.is_request_in_microsite()
+    return get_main_backend().is_request_in_microsite()
 
 
 def get_value(val_name, default=None, **kwargs):
     """
     Returns a value associated with the request's microsite, if present
     """
-    return BACKEND.get_value(val_name, default, **kwargs)
+    return get_main_backend().get_value(val_name, default, **kwargs)
 
 
 def get_dict(dict_name, default=None, **kwargs):
@@ -52,7 +60,7 @@ def get_dict(dict_name, default=None, **kwargs):
     This can be used, for example, to return a merged dictonary from the
     settings.FEATURES dict, including values defined at the microsite
     """
-    return BACKEND.get_dict(dict_name, default, **kwargs)
+    return get_main_backend().get_dict(dict_name, default, **kwargs)
 
 
 def has_override_value(val_name):
@@ -60,7 +68,7 @@ def has_override_value(val_name):
     Returns True/False whether a Microsite has a definition for the
     specified named value
     """
-    return BACKEND.has_override_value(val_name)
+    return get_main_backend().has_override_value(val_name)
 
 
 def get_value_for_org(org, val_name, default=None):
@@ -68,7 +76,7 @@ def get_value_for_org(org, val_name, default=None):
     This returns a configuration value for a microsite which has an org_filter that matches
     what is passed in
     """
-    return BACKEND.get_value_for_org(org, val_name, default)
+    return get_main_backend().get_value_for_org(org, val_name, default)
 
 
 def get_all_orgs():
@@ -76,7 +84,7 @@ def get_all_orgs():
     This returns a set of orgs that are considered within a microsite. This can be used,
     for example, to do filtering
     """
-    return BACKEND.get_all_orgs()
+    return get_main_backend().get_all_orgs()
 
 
 def get_all_config():
@@ -84,14 +92,14 @@ def get_all_config():
     This returns a dict have all microsite configs. Each key in the dict represent a
     microsite config.
     """
-    return BACKEND.get_all_config()
+    return get_main_backend().get_all_config()
 
 
 def clear():
     """
     Clears out any microsite configuration from the current request/thread
     """
-    BACKEND.clear()
+    get_main_backend().clear()
 
 
 def set_by_domain(domain):
@@ -99,7 +107,7 @@ def set_by_domain(domain):
     For a given request domain, find a match in our microsite configuration
     and make it available to the complete django request process
     """
-    BACKEND.set_config_by_domain(domain)
+    get_main_backend().set_config_by_domain(domain)
 
 
 def enable_microsites(log):
@@ -107,7 +115,7 @@ def enable_microsites(log):
     Enable the use of microsites during the startup script
     """
     if is_feature_enabled():
-        BACKEND.enable_microsites(log)
+        get_main_backend().enable_microsites(log)
 
 
 def get_template(uri):
@@ -158,5 +166,4 @@ def get_backend(name, expected_base_class, **kwds):
     return cls(**kwds)
 
 
-BACKEND = get_backend(settings.MICROSITE_BACKEND, BaseMicrositeBackend)
 TEMPLATES_BACKEND = get_backend(settings.MICROSITE_TEMPLATE_BACKEND, BaseMicrositeTemplateBackend)
