@@ -14,6 +14,7 @@ from opaque_keys.edx.django.models import CourseKeyField
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
+from django.utils.timezone import utc
 
 from credo_modules.utils import additional_profile_fields_hash
 from student.models import CourseEnrollment, ENROLL_STATUS_CHANGE, EnrollStatusChange
@@ -250,13 +251,13 @@ class CourseUsage(models.Model):
         if unique_user_id not in course_usage.session_ids:
             CourseUsage.objects.filter(course_id=course_key, user_id=user_id,
                                        block_id=block_id, block_type=block_type) \
-                .update(last_usage_time=datetime.datetime.now(), usage_count=F('usage_count') + 1,
+                .update(last_usage_time=usage_dt_now(), usage_count=F('usage_count') + 1,
                         session_ids=Concat('session_ids', Value('|'), Value(unique_user_id)))
 
     @classmethod
     @deadlock_db_retry
     def _add_block_usage(cls, course_key, user_id, block_type, block_id, unique_user_id):
-        datetime_now = datetime.datetime.now()
+        datetime_now = usage_dt_now()
         with transaction.atomic():
             cu = CourseUsage(
                 course_id=course_key,
@@ -420,3 +421,12 @@ def update_unique_user_id_cookie(request):
         cookie_arr = course_usage_cookie_id.split('_')
         if len(cookie_arr) < 2 or cookie_arr[1] != user_id:
             generate_new_user_id_cookie(request, user_id)
+
+
+def usage_dt_now():
+    """
+    We can't use timezone.now() because we already use America/New_York timezone for usage values
+    so we just replace tzinfo in the datetime object
+    :return: datetime
+    """
+    return datetime.datetime.now().replace(tzinfo=utc)
