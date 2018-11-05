@@ -309,7 +309,13 @@ class BaseMicrositeTemplateBackend(object):
         search_path = os.path.join(microsite_template_path, relative_path)
         if os.path.isfile(search_path):
             template_dir_relative = microsite_get_value('template_dir_relative')
-            path = template_dir_relative + '/' + relative_path
+            if template_dir_relative:
+                path = template_dir_relative + '/' + relative_path
+            else:
+                path = '/{0}/templates/{1}'.format(
+                    microsite_get_value('microsite_config_key'),
+                    relative_path
+                )
             return path
         else:
             return template_path
