@@ -251,7 +251,7 @@ class BaseMicrositeBackend(AbstractBaseMicrositeBackend):
         Helper internal method to actually find the microsite configuration
         """
         config = settings.MICROSITE_CONFIGURATION[microsite_config_key].copy()
-        config['subdomain'] = strip_port_from_host(subdomain)
+        config['subdomain'] = strip_port_from_host(subdomain) if subdomain else None
         config['microsite_config_key'] = microsite_config_key
         config['site_domain'] = strip_port_from_host(domain)
 
