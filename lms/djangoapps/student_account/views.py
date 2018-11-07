@@ -128,7 +128,7 @@ def login_and_registration_form(request, initial_mode="login"):
                 third_party_auth_hint = provider_id
                 initial_mode = "hinted_login"
         except (KeyError, ValueError, IndexError) as ex:
-            log.error("Unknown tpa_hint provider: %s", ex)
+            pass
 
     # If this is a themed site, revert to the old login/registration pages.
     # We need to do this for now to support existing themes.
