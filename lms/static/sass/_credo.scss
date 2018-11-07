@@ -202,6 +202,60 @@
         }
       }
     }
+
+    /* block with grades (after assessment was completed) */
+
+    .seq-grade-block {
+
+      .msg-content {
+        width: 100% !important;
+      }
+
+      .seq-grade-block-text {
+        margin: 10px 0px;
+      }
+
+      .auto-cert-message {
+        border-left: 5px solid #85C9C3 !important;
+      }
+
+      .my-score {
+        font-weight: bold;
+      }
+
+      .email-box, .email-box-button {
+        display: inline-block;
+        vertical-align: middle;
+      }
+
+      .email-box {
+        padding-right: 5px;
+
+        .email-assessment {
+          width: 500px;
+        }
+      }
+
+      .seq-grade-block-details {
+        display: none;
+
+        .detailed-info {
+          padding-top: 20px;
+
+          .full-name, .last-answer-timestamp, .quiz-name {
+            font-weight: bold;
+          }
+
+          .quiz-name {
+            padding-bottom: 5px;
+          }
+
+          .detailed-info-row {
+            padding-top: 10px;
+          }
+        }
+      }
+    }
   }
 
   /* breadcrumbs */

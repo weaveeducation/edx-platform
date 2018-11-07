@@ -370,7 +370,10 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
             'gated_content': self._get_gated_content_info(prereq_met, prereq_meta_info),
             'enable_new_carousel_view': context.get('enable_new_carousel_view'),
             'after_finish_return_to_course_outline': 1 if self.after_finish_return_to_course_outline else 0,
-            'course_id': str(self.course_id)
+            'course_id': str(self.course_id),
+            'graded': self.graded,
+            'lms_url_to_get_grades': context.get('lms_url_to_get_grades'),
+            'show_summary_info_after_quiz': context.get('show_summary_info_after_quiz', False)
         }
         fragment.add_content(self.system.render_template("seq_module.html", params))
 
