@@ -103,10 +103,10 @@ class SequenceFields(object):
     )
 
     after_finish_return_to_course_outline = Boolean(
-        display_name=_("When the section is completed return the user to the course outline"),
+        display_name=_("After finish section return user back to course outline"),
         default=False,
         scope=Scope.settings,
-        help=_("When the section is completed return the user to the course outline"),
+        help=_("After finish section return user back to course outline"),
     )
 
 
