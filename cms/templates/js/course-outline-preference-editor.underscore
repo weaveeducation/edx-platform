@@ -4,7 +4,7 @@
         <div class="list-fields list-input" style="width: 100%" role="group" aria-label="<%- gettext('Extended settings') %>">
             <label class="label">
                 <input type="checkbox" name="after_finish_return_to_course_outline" value="1" class="input input-checkbox" />
-                <%- gettext('After finish section return user back to course outline') %>
+                <%- gettext('When the section is completed return the user to the course outline') %>
             </label>
         </div>
     </div>
@@ -47,3 +47,4 @@
         </div>
     </div>
 </form>
+
