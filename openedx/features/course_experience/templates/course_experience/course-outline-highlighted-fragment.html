@@ -9,9 +9,8 @@ from django.utils.translation import ugettext as _
 
 <style>
 
-   .page-content-main {
+   .page-content-main, .welcome-message {
       width: 965px !important;
-      display: contents !important;
     }
 
     a.course-tool-link {
@@ -20,6 +19,15 @@ from django.utils.translation import ugettext as _
       color: #85C9C3;
       font-size: 18px;
       line-height: 32px;
+    }
+
+    .content-wrapper {
+        padding-left: 67px !important;
+        padding-right: 67px !important;
+    }
+
+    .long_button {
+
     }
 
 </style>
@@ -51,7 +59,7 @@ from django.utils.translation import ugettext as _
                         ${ block['desc'] }
                     </div>
                     <div class="get-started" onclick="location.href='${ block['jump_to'] }'">
-                        <div class="get-started-label">
+                        <div class="get-started-label long_button">
                             % if block.get('btn_title'):
                                 ${ block['btn_title'] }
                             % else:
@@ -112,7 +120,7 @@ from django.utils.translation import ugettext as _
                         <ul class="list-unstyled">
                             % for child in block.get('children', []):
                                 <li><div class="child-item" onclick="location.href='${ child['jump_to'] }'">
-                                        <div class="child-item-flag child-item-flag {% if child.complete_status == 'finished' %} item-complete-flag {% endif %}"></div>
+                                        <div class="${'{} {}'.format('child-item-flag child-item-flag', 'item-complete-flag' if child['complete_status'] == 'finished' else '')}"></div>
                                         <div class="child-item-name">${ child['display_name'] }</div>
                                         <div class="child-item-follow"><span class="fa fa-chevron-right" aria-hidden="false"></span></div>
                                     </div>

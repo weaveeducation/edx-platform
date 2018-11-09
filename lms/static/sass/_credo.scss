@@ -310,6 +310,10 @@
           line-height: 26px;
           margin-bottom: 18px;
           margin-top: 10px;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          width: 350px;
         }
 
       .take-the-pre-program-survey-to {
@@ -330,14 +334,16 @@
         cursor: pointer;
 
         .get-started-label {
-          height: 14px;
           width: 100%;
           color: #FFFFFF;
           font-family: "Open Sans";
           font-size: 16px;
           line-height: 15px;
           text-align: center;
-          padding: 9px 25px 12px 25px
+          padding: 9px 5px 12px 5px;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
         }
       }
 
@@ -384,9 +390,8 @@
           height: 45px;
           display: inline-block;
           float: left;
-          margin-right: 12px;
+          margin-right: 15px;
           border-radius: 45px;
-          padding-top: 5px;
           text-align: center;
           color: #64607B;
           font-family: "Open Sans";
@@ -478,6 +483,7 @@
             display: inline-block;
             margin-right: 5px;
             background: #D2D3DC;
+            margin-bottom: 22px;
           }
 
           .item-complete-flag {
@@ -490,6 +496,10 @@
             font-size: 15px;
             line-height: 56px;
             display: inline-block;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            width: 300px;
           }
 
           .child-item-follow {

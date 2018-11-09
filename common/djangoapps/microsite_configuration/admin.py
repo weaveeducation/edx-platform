@@ -58,7 +58,7 @@ class MicrositeOrganizationMappingForm(forms.ModelForm):
 class MicrositeOrganizationMappingAdmin(admin.ModelAdmin):
     """ Admin interface for the MicrositeOrganizationMapping object. """
     list_display = ('organization', 'microsite')
-    search_fields = ('organization', 'microsite')
+    search_fields = ('organization',)
     form = MicrositeOrganizationMappingForm
 
     class Meta(object):  # pylint: disable=missing-docstring
