@@ -107,6 +107,14 @@ class SequenceFields(object):
         default=False,
         scope=Scope.settings,
         help=_("When the section is completed return the user to the course outline"),
+
+    )
+
+    do_not_display_in_course_outline = Boolean(
+        display_name=_("Do not display in course outline"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Do not display in course outline")
     )
 
 
