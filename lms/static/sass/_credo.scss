@@ -278,6 +278,7 @@
           height: 30px;
           min-width: 110px;
           margin-left: 10px;
+          cursor: pointer;
 
           .status-title {
             height: 17px;
@@ -477,17 +478,16 @@
           cursor: pointer;
 
           .child-item-flag {
-            width: 10px;
-            height: 10px;
-            border-radius: 10px;
             display: inline-block;
-            margin-right: 5px;
-            background: #D2D3DC;
-            margin-bottom: 22px;
+            float: left;
+            line-height: 56px;
+            color: #D2D3DC;
+            margin-right: 10px;
+            font-size: 10px;
           }
 
           .item-complete-flag {
-            background: #FBE295;
+            color: #FBE295;
           }
 
           .child-item-name {

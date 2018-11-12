@@ -42,7 +42,7 @@ class CourseOutlineFragmentView(EdxFragmentView):
             return 'in-progress', 'In progress'
         elif status == 'finished':
             return 'complete', 'Completed!'
-        return None, None
+        return 'begin', status
 
     def render_to_fragment(self, request, course_id=None, page_context=None, **kwargs):
         """
@@ -67,14 +67,27 @@ class CourseOutlineFragmentView(EdxFragmentView):
 
         highlighted_blocks = []
         if enable_new_carousel_view:
+            filtered_course_tree = []
             status_map = {}
+            top_sequential_blocks = modulestore().get_items(course_key,
+                                                            settings={'top_of_course_outline': True},
+                                                            qualifiers={'category': 'sequential'})
+            not_display_outline = []
+
+            for item in top_sequential_blocks:
+                if item.do_not_display_in_course_outline:
+                    not_display_outline.append(unicode(item.location))
+
             for num_sub, sub in enumerate(course_block_tree.get('children', []), 1):
+                filtered_course_tree.append(sub)
                 num_completed = 0
                 sub['num_children'] = len(sub.get('children', []))
                 sub['jump_to'] = reverse(
                         'jump_to',
                         kwargs={'course_id': unicode(course_key), 'location': sub['id']},
                     )
+
+                updated_children_subs = []
                 for i in sub.get('children', []):
                     status_map[i['id']] = i['complete_status']
                     if i['complete_status'] == 'finished':
@@ -83,11 +96,12 @@ class CourseOutlineFragmentView(EdxFragmentView):
                         'jump_to',
                         kwargs={'course_id': unicode(course_key), 'location': i['id']},
                     )
+                    if i['id'] not in not_display_outline:
+                        updated_children_subs.append(i)
+
+                sub['children'] = updated_children_subs
                 sub['num_completed'] = num_completed
 
-            top_sequential_blocks = modulestore().get_items(course_key,
-                                                            settings={'top_of_course_outline': True},
-                                                            qualifiers={'category': 'sequential'})
             for i, item in enumerate(top_sequential_blocks, start=1):
                 progress_status, progress_status_tilte = self._convert_complete_status(status_map.get(unicode(item.location)))
                 jump_item = item
