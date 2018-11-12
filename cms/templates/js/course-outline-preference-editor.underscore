@@ -43,6 +43,12 @@
                         <input type="text" name="course_outline_button_title" value="" class="input input-text" autocomplete="off" />
                     </label>
                 </div>
+                <div class="list-fields list-input" style="width: 100%">
+                    <label class="label">
+                        <input type="checkbox" name="do_not_display_in_course_outline" value="0" class="input input-checkbox" />
+                        <%- gettext('Do not display in course outline') %>
+                    </label>
+                </div>
             </div>
         </div>
     </div>

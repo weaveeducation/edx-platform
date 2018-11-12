@@ -1270,6 +1270,7 @@ def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=F
                 'course_outline_path_to_icon': xblock.course_outline_path_to_icon,
                 'course_outline_description': xblock.course_outline_description,
                 'course_outline_button_title': xblock.course_outline_button_title,
+                'do_not_display_in_course_outline': xblock.do_not_display_in_course_outline,
             })
         elif xblock.category in ('chapter', 'course'):
             if xblock.category == 'chapter':

@@ -11,6 +11,7 @@ from django.utils.translation import ugettext as _
 
    .page-content-main, .welcome-message {
       width: 965px !important;
+      flex-grow: 0 !important;
     }
 
     a.course-tool-link {
@@ -25,11 +26,6 @@ from django.utils.translation import ugettext as _
         padding-left: 67px !important;
         padding-right: 67px !important;
     }
-
-    .long_button {
-
-    }
-
 </style>
 
 <script type="text/javascript" src="/static/bundles/CourseOutline.js" ></script>
@@ -47,7 +43,7 @@ from django.utils.translation import ugettext as _
                                 % endif
                             </div>
                             <div class="col-4">
-                                <div class="status-lable ${ block['status'] }-label">
+                                <div class="status-lable ${ block['status'] }-label" onclick="location.href='${ block['jump_to'] }'">
                                     <div class="status-title">${ block['status_title'] }</div>
                                 </div>
                                 <div class="label-shadow"> </div>
@@ -59,7 +55,7 @@ from django.utils.translation import ugettext as _
                         ${ block['desc'] }
                     </div>
                     <div class="get-started" onclick="location.href='${ block['jump_to'] }'">
-                        <div class="get-started-label long_button">
+                        <div class="get-started-label">
                             % if block.get('btn_title'):
                                 ${ block['btn_title'] }
                             % else:
@@ -120,7 +116,9 @@ from django.utils.translation import ugettext as _
                         <ul class="list-unstyled">
                             % for child in block.get('children', []):
                                 <li><div class="child-item" onclick="location.href='${ child['jump_to'] }'">
-                                        <div class="${'{} {}'.format('child-item-flag child-item-flag', 'item-complete-flag' if child['complete_status'] == 'finished' else '')}"></div>
+                                        <div class="${'{} {}'.format('child-item-flag', 'item-complete-flag' if child['complete_status'] == 'finished' else '')}">
+                                            <span class="fa fa-circle"></span>
+                                        </div>
                                         <div class="child-item-name">${ child['display_name'] }</div>
                                         <div class="child-item-follow"><span class="fa fa-chevron-right" aria-hidden="false"></span></div>
                                     </div>
