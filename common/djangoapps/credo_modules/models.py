@@ -309,6 +309,8 @@ class OrganizationType(models.Model):
                                                                                          ' in the Instructor Dashboard')
     enable_new_carousel_view = models.BooleanField(default=False, verbose_name='Enable new carousel view'
                                                                                ' (horizontal nav bar)')
+    enable_page_level_engagement = models.BooleanField(default=False, verbose_name='Enable Page Level for Engagement '
+                                                                                  'Statistic in Insights')
 
     class Meta:
         ordering = ['title']
@@ -376,12 +378,19 @@ class Organization(models.Model):
         else:
             return OrganizationType.get_all_insights_reports()
 
+    def get_page_level_engagement(self):
+        if self.org_type:
+            return self.org_type.enable_page_level_engagement
+        else:
+            return True
+
     def to_dict(self):
         return {
             'org': self.org,
             'default_frame_domain': self.default_frame_domain,
             'constructor_fields': self.get_constructor_fields(),
             'insights_reports': self.get_insights_reports(),
+            'page_level_engagement': self.get_page_level_engagement(),
         }
 
 
