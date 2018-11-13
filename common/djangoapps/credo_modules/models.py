@@ -393,6 +393,13 @@ class Organization(models.Model):
             'page_level_engagement': self.get_page_level_engagement(),
         }
 
+    @property
+    def is_carousel_view(self):
+        if self.org_type is not None:
+            return self.org_type.enable_new_carousel_view
+        else:
+            return False
+
 
 class CourseExcludeInsights(models.Model):
     course_id = CourseKeyField(max_length=255, db_index=True, null=True, blank=True)

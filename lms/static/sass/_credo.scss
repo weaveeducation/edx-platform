@@ -39,7 +39,7 @@
     background: linear-gradient(to top, #64607B, #807D93);
     border-top-left-radius: 0;
     border-top-right-radius: 0;
-    height: 88px;
+    height: 3rem;
 
     .mr-auto {
       margin-right: 0px !important;
@@ -229,12 +229,18 @@
   }
 }
 
+.ellipsis-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .course-outline-container {
-  border-right: rgba(100, 96, 123, .2) 1px solid;
-  width: 965px;
+  width: 100%;
   margin-top: 30px;
   display: table;
 
+  /* Style for highlight tiles in new design */
   .tile-container {
     display: inline-block;
     margin-right: 43px;
@@ -244,12 +250,11 @@
       background-color: #FAFBFB;
       box-shadow: 1px 0 5px 1px rgba(0, 0, 0, 0.1);
       padding-left: 24px;
-      padding-top: 35px;
+      padding-top: 1rem !important;
       margin-bottom: 43px;
 
       .icon-lable {
         width: 100%;
-        height: 80px;
 
         .complete-label{
           background-color: #D2D3DC;
@@ -303,22 +308,16 @@
       }
 
       .tile-title {
-          width: 257px;
+          width: 100%;
           color: #64607B;
           font-family: "Open Sans";
           font-size: 20px;
           font-weight: bold;
           line-height: 26px;
-          margin-bottom: 18px;
-          margin-top: 10px;
-          overflow: hidden;
-          white-space: nowrap;
-          text-overflow: ellipsis;
-          width: 350px;
         }
 
       .take-the-pre-program-survey-to {
-          height: 39px;
+          height: 5rem;
           width: 336px;
           color: #64607B;
           font-family: "Open Sans";
@@ -342,9 +341,6 @@
           line-height: 15px;
           text-align: center;
           padding: 9px 5px 12px 5px;
-          overflow: hidden;
-          white-space: nowrap;
-          text-overflow: ellipsis;
         }
       }
 
@@ -353,16 +349,16 @@
         width: 400px;
         background-color: #D2D3DC;
         margin-left: -24px;
-        margin-top: 32px;
+        margin-top: 1rem !important;
     }
 
     }
 
   }
 
+  /* Course outline new design */
   .outline-content {
     display: table;
-    width: 891px;
     margin-top: 50px;
 
     .outline-item {
@@ -496,9 +492,6 @@
             font-size: 15px;
             line-height: 56px;
             display: inline-block;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
             width: 300px;
           }
 
