@@ -35,6 +35,11 @@ class CourseOutlineFragmentView(EdxFragmentView):
     Course outline fragment to be shown in the unified course view.
     """
 
+    def __init__(self, *args, **kwargs):
+        super(CourseOutlineFragmentView, self).__init__(*args, **kwargs)
+        self.desc_limit_text = 170
+        self.title_limit_text = 55
+
     def _convert_complete_status(self, status):
         if status == 'not_started':
             return 'begin', 'Begin'
@@ -43,6 +48,22 @@ class CourseOutlineFragmentView(EdxFragmentView):
         elif status == 'finished':
             return 'complete', 'Completed!'
         return 'begin', status
+
+    def find_rev(self, str, target, start):
+        str = str[::-1]
+        index = str.find(target, len(str) - start)
+        if index != -1:
+            index = len(str) - index
+        return index
+
+    def title_limit(self, title, limit):
+        if len(title) <= limit: return title
+        cut = self.find_rev(title, ' ', limit - 3 + 1)
+        if cut != -1:
+            title = title[:cut - 1] + "..."
+        else:
+            title = title[:limit - 3] + "..."
+        return title
 
     def render_to_fragment(self, request, course_id=None, page_context=None, **kwargs):
         """
@@ -57,16 +78,13 @@ class CourseOutlineFragmentView(EdxFragmentView):
         if not course_block_tree:
             return None
 
-        enable_new_carousel_view = False
         try:
             org = Organization.objects.get(org=course.org)
-            if org.org_type is not None:
-                enable_new_carousel_view = org.org_type.enable_new_carousel_view
         except Organization.DoesNotExist:
-            pass
+            org = None
 
         highlighted_blocks = []
-        if enable_new_carousel_view:
+        if org and org.is_carousel_view:
             filtered_course_tree = []
             status_map = {}
             top_sequential_blocks = modulestore().get_items(course_key,
@@ -108,19 +126,17 @@ class CourseOutlineFragmentView(EdxFragmentView):
                 highlighted_blocks.append({
                     'index': i,
                     'icon': item.course_outline_path_to_icon,
-                    'desc': item.course_outline_description,
+                    'desc': self.title_limit(item.course_outline_description, self.desc_limit_text),
                     'btn_title': item.course_outline_button_title,
                     'status': progress_status,
                     'status_title': progress_status_tilte,
-                    'display_name': item.display_name,
+                    'display_name': self.title_limit(item.display_name, self.title_limit_text),
                     'jump_to': reverse(
                         'jump_to',
                         kwargs={'course_id': unicode(course_key), 'location': unicode(jump_item.location)},
                     ),
                 })
             template = 'course_experience/course-outline-highlighted-fragment.html'
-
-        format('course_block_tree = {}'.format(dir(course_block_tree)))
 
         context = {
             'csrf': csrf(request)['csrf_token'],

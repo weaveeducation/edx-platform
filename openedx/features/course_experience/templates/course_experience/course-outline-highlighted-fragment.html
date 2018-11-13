@@ -10,9 +10,12 @@ from django.utils.translation import ugettext as _
 <style>
 
    .page-content-main, .welcome-message {
-      width: 965px !important;
       flex-grow: 0 !important;
     }
+
+   .page-content {
+       padding-top: 0px !important;
+   }
 
     a.course-tool-link {
       height: 49px;
@@ -23,24 +26,23 @@ from django.utils.translation import ugettext as _
     }
 
     .content-wrapper {
-        padding-left: 67px !important;
-        padding-right: 67px !important;
+        padding-left: 0px !important;
+        padding-right: 0px !important;
     }
+
 </style>
 
 <script type="text/javascript" src="/static/bundles/CourseOutline.js" ></script>
 
-<div class="course-outline-container new-course-outline">
+<div id="course_outline" class="course-outline-container new-course-outline">
     <div>
         % for block in highlighted_blocks:
             <div class="tile-container">
                 <div class="tile-body">
                     <div class="icon-lable">
                         <div class="row justify-content-between">
-                            <div class="col-4">
-                                % if block['icon']:
-                                    <div class="icon-place" style="background-image: url(${ block['icon'] })"></div>
-                                % endif
+                            <div class="col-8">
+                                <div class="tile-title">${ block['display_name'] }</div>
                             </div>
                             <div class="col-4">
                                 <div class="status-lable ${ block['status'] }-label" onclick="location.href='${ block['jump_to'] }'">
@@ -50,12 +52,12 @@ from django.utils.translation import ugettext as _
                             </div>
                         </div>
                     </div>
-                    <div class="tile-title">${ block['display_name'] }</div>
+
                     <div class="take-the-pre-program-survey-to">
                         ${ block['desc'] }
                     </div>
                     <div class="get-started" onclick="location.href='${ block['jump_to'] }'">
-                        <div class="get-started-label">
+                        <div class="get-started-label ellipsis-text">
                             % if block.get('btn_title'):
                                 ${ block['btn_title'] }
                             % else:
@@ -119,7 +121,7 @@ from django.utils.translation import ugettext as _
                                         <div class="${'{} {}'.format('child-item-flag', 'item-complete-flag' if child['complete_status'] == 'finished' else '')}">
                                             <span class="fa fa-circle"></span>
                                         </div>
-                                        <div class="child-item-name">${ child['display_name'] }</div>
+                                        <div class="child-item-name ellipsis-text">${ child['display_name'] }</div>
                                         <div class="child-item-follow"><span class="fa fa-chevron-right" aria-hidden="false"></span></div>
                                     </div>
                                 </li>

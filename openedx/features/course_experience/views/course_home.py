@@ -113,13 +113,10 @@ class CourseHomeFragmentView(EdxFragmentView):
         course_key = CourseKey.from_string(course_id)
         course = get_course_with_access(request.user, 'load', course_key)
 
-        enable_new_carousel_view = False
         try:
             org = Organization.objects.get(org=course.org)
-            if org.org_type is not None:
-                enable_new_carousel_view = org.org_type.enable_new_carousel_view
         except Organization.DoesNotExist:
-            pass
+            org = None
 
         # Render the course dates as a fragment
         dates_fragment = CourseDatesFragmentView().render_to_fragment(request, course_id=course_id, **kwargs)
@@ -211,7 +208,7 @@ class CourseHomeFragmentView(EdxFragmentView):
             'uses_pattern_library': True,
             'upgrade_price': upgrade_price,
             'upgrade_url': upgrade_url,
-            'enable_new_carousel_view': enable_new_carousel_view,
+            'enable_new_carousel_view': org and org.is_carousel_view,
         }
         html = render_to_string('course_experience/course-home-fragment.html', context)
         return Fragment(html)
