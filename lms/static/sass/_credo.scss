@@ -11,7 +11,7 @@
       .course-tabs {
         border-top-left-radius: 0;
         border-top-right-radius: 0;
-        height: 88px;
+        height: 3rem;
         padding: 0px !important;
 
         .tab {
@@ -46,7 +46,7 @@
     }
 
     .navbar-nav {
-      height: 88px;
+      height: 3rem;
     }
 
     .nav-item {
@@ -243,7 +243,7 @@
   /* Style for highlight tiles in new design */
   .tile-container {
     display: inline-block;
-    margin-right: 43px;
+    margin-right: 2rem;
 
     .tile-body {
       width: 400px;
@@ -364,8 +364,8 @@
     .outline-item {
       width: 400px;
       display: inline-block;
-      margin-right: 43px;
-      margin-bottom: 43px;
+      margin-right: 2rem;
+      margin-bottom: 2rem;
       vertical-align: top;
 
       .outline-item-head {
