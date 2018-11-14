@@ -19,8 +19,8 @@
           display: inline-block !important;
 
           a {
-            padding-top: 32px;
-            padding-bottom: 32px;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
             color: #FFFFFF;
             font-size: 16px;
           }
@@ -58,8 +58,8 @@
       }
 
       .nav-link {
-        padding-top: 30px !important;
-        padding-bottom: 30px !important;
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
         color: #FFFFFF;
         font-size: 16px !important;
       }
@@ -371,7 +371,7 @@
       .outline-item-head {
         border-bottom: rgba(100, 96, 123, .2) 1px solid;
         width: 100%;
-        height: 88px;
+        height: 3rem;
 
         .outline-check-status {
           height: 20px;
