@@ -38,7 +38,7 @@ class CourseOutlineFragmentView(EdxFragmentView):
     def __init__(self, *args, **kwargs):
         super(CourseOutlineFragmentView, self).__init__(*args, **kwargs)
         self.desc_limit_text = 170
-        self.title_limit_text = 55
+        self.title_limit_text = 50
 
     def _convert_complete_status(self, status):
         if status == 'not_started':
@@ -56,7 +56,7 @@ class CourseOutlineFragmentView(EdxFragmentView):
             index = len(str) - index
         return index
 
-    def title_limit(self, title, limit):
+    def str_limit(self, title, limit):
         if len(title) <= limit: return title
         cut = self.find_rev(title, ' ', limit - 3 + 1)
         if cut != -1:
@@ -64,6 +64,13 @@ class CourseOutlineFragmentView(EdxFragmentView):
         else:
             title = title[:limit - 3] + "..."
         return title
+
+    def get_featured_map(self, course_key):
+        tiles = modulestore().get_items(course_key,
+                                settings={'top_of_course_outline': True},
+                                qualifiers={'category': 'sequential'})
+        tiles = dict([(unicode(sub.location), sub) for sub in tiles])
+        return tiles
 
     def render_to_fragment(self, request, course_id=None, page_context=None, **kwargs):
         """
@@ -85,17 +92,14 @@ class CourseOutlineFragmentView(EdxFragmentView):
 
         highlighted_blocks = []
         if org and org.is_carousel_view:
+            top_sequential_blocks = []
             filtered_course_tree = []
             status_map = {}
-            top_sequential_blocks = modulestore().get_items(course_key,
-                                                            settings={'top_of_course_outline': True},
-                                                            qualifiers={'category': 'sequential'})
-            not_display_outline = []
+            featured_map = self.get_featured_map(course_key)
+            not_display_outline = [loc for loc in featured_map
+                                   if featured_map[loc].do_not_display_in_course_outline]
 
-            for item in top_sequential_blocks:
-                if item.do_not_display_in_course_outline:
-                    not_display_outline.append(unicode(item.location))
-
+            updated_course_children = []
             for num_sub, sub in enumerate(course_block_tree.get('children', []), 1):
                 filtered_course_tree.append(sub)
                 num_completed = 0
@@ -104,36 +108,43 @@ class CourseOutlineFragmentView(EdxFragmentView):
                         'jump_to',
                         kwargs={'course_id': unicode(course_key), 'location': sub['id']},
                     )
-
                 updated_children_subs = []
                 for i in sub.get('children', []):
+                    # show in featured block
+                    if i['id'] in featured_map:
+                        top_sequential_blocks.append(featured_map[i['id']])
+
                     status_map[i['id']] = i['complete_status']
+
                     if i['complete_status'] == 'finished':
                         num_completed += 1
+
                     i['jump_to'] = reverse(
-                        'jump_to',
-                        kwargs={'course_id': unicode(course_key), 'location': i['id']},
-                    )
+                        'jump_to', kwargs={'course_id': unicode(course_key), 'location': i['id']},)
+
                     if i['id'] not in not_display_outline:
                         updated_children_subs.append(i)
 
-                sub['children'] = updated_children_subs
-                sub['num_completed'] = num_completed
+                if len(updated_children_subs) > 0:
+                    sub['children'] = updated_children_subs
+                    sub['num_completed'] = num_completed
+                    updated_course_children.append(sub)
+            course_block_tree['children'] = updated_course_children
 
             for i, item in enumerate(top_sequential_blocks, start=1):
-                progress_status, progress_status_tilte = self._convert_complete_status(status_map.get(unicode(item.location)))
+                progress_status, progress_status_tilte = self._convert_complete_status(
+                    status_map.get(unicode(item.location)))
                 jump_item = item
                 highlighted_blocks.append({
                     'index': i,
                     'icon': item.course_outline_path_to_icon,
-                    'desc': self.title_limit(item.course_outline_description, self.desc_limit_text),
+                    'desc': self.str_limit(item.course_outline_description, self.desc_limit_text),
                     'btn_title': item.course_outline_button_title,
                     'status': progress_status,
                     'status_title': progress_status_tilte,
-                    'display_name': self.title_limit(item.display_name, self.title_limit_text),
+                    'display_name': self.str_limit(item.display_name, self.title_limit_text),
                     'jump_to': reverse(
-                        'jump_to',
-                        kwargs={'course_id': unicode(course_key), 'location': unicode(jump_item.location)},
+                        'jump_to', kwargs={'course_id': unicode(course_key), 'location': unicode(jump_item.location)},
                     ),
                 })
             template = 'course_experience/course-outline-highlighted-fragment.html'
