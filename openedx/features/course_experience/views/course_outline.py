@@ -39,7 +39,7 @@ class CourseOutlineFragmentView(EdxFragmentView):
         super(CourseOutlineFragmentView, self).__init__(*args, **kwargs)
         self.featured_desc_limit = 110
         self.featured_title_limit = 30
-        self.outline_title_limit = 44
+        self.outline_title_limit = 42
 
     def _convert_complete_status(self, status):
         if status == 'not_started':
