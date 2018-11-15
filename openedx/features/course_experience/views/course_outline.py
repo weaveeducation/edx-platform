@@ -37,8 +37,9 @@ class CourseOutlineFragmentView(EdxFragmentView):
 
     def __init__(self, *args, **kwargs):
         super(CourseOutlineFragmentView, self).__init__(*args, **kwargs)
-        self.desc_limit_text = 110
-        self.title_limit_text = 30
+        self.featured_desc_limit = 110
+        self.featured_title_limit = 30
+        self.outline_title_limit = 44
 
     def _convert_complete_status(self, status):
         if status == 'not_started':
@@ -104,6 +105,7 @@ class CourseOutlineFragmentView(EdxFragmentView):
                 filtered_course_tree.append(sub)
                 num_completed = 0
                 sub['num_children'] = len(sub.get('children', []))
+                sub['display_name'] = self.str_limit(sub['display_name'], self.outline_title_limit)
                 sub['jump_to'] = reverse(
                         'jump_to',
                         kwargs={'course_id': unicode(course_key), 'location': sub['id']},
@@ -138,11 +140,11 @@ class CourseOutlineFragmentView(EdxFragmentView):
                 highlighted_blocks.append({
                     'index': i,
                     'icon': item.course_outline_path_to_icon,
-                    'desc': self.str_limit(item.course_outline_description, self.desc_limit_text),
+                    'desc': self.str_limit(item.course_outline_description, self.featured_desc_limit),
                     'btn_title': item.course_outline_button_title,
                     'status': progress_status,
                     'status_title': progress_status_tilte,
-                    'display_name': self.str_limit(item.display_name, self.title_limit_text),
+                    'display_name': self.str_limit(item.display_name, self.featured_title_limit),
                     'jump_to': reverse(
                         'jump_to', kwargs={'course_id': unicode(course_key), 'location': unicode(jump_item.location)},
                     ),
