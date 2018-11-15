@@ -366,7 +366,7 @@
       .outline-item-head {
         border-bottom: rgba(100, 96, 123, .2) 1px solid;
         width: 100%;
-        height: 3.5rem;
+        height: 4.5rem;
 
         .outline-check-status {
           height: 20px;
@@ -389,6 +389,7 @@
           font-family: "Open Sans";
           font-size: 15px;
           line-height: 33px;
+          margin-top: 0.5rem;
 
           .percent-status {
             position: absolute;
@@ -431,14 +432,14 @@
             font-size: 20px;
             font-weight: bold;
             line-height: 24px;
+            height: 3rem;
           }
 
           .outline-num-chapters {
-            height: 14px;
+            height: 1rem;
             color: #64607B;
             font-family: "Open Sans";
             font-size: 12px;
-            line-height: 26px;
           }
         }
 
