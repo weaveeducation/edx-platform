@@ -382,7 +382,7 @@ class Organization(models.Model):
         if self.org_type:
             return self.org_type.enable_page_level_engagement
         else:
-            return True
+            return False
 
     def to_dict(self):
         return {
