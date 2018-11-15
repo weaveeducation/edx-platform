@@ -17,10 +17,11 @@
         .tab {
           float: none !important;
           display: inline-block !important;
+          height: 3rem;
 
           a {
             padding-top: 1rem;
-            padding-bottom: 1rem;
+            padding-bottom: 8px;
             color: #FFFFFF;
             font-size: 16px;
           }
@@ -54,6 +55,7 @@
         .nav-link {
           color: #FFFFFF !important;
           border-bottom: 4px solid #85C9C3 !important;
+          height: 3rem !important;
         }
       }
 
@@ -244,12 +246,12 @@
     margin-right: 2rem;
 
     .tile-body {
-      width: 400px;
+      width: 21rem;
       background-color: #FAFBFB;
-      box-shadow: 1px 0 5px 1px rgba(0, 0, 0, 0.1);
-      padding-left: 24px;
+      box-shadow: 1px 0 5px 1px rgba(0,0,0,0.1);
+      padding-left: 1rem;
       padding-top: 1rem !important;
-      margin-bottom: 43px;
+      margin-bottom: 2rem;
 
       .icon-lable {
         width: 100%;
@@ -279,9 +281,8 @@
 
         .status-lable {
           height: 30px;
-          min-width: 110px;
-          margin-left: 10px;
           cursor: pointer;
+          width: 6.4rem;
 
           .status-title {
             height: 17px;
@@ -297,12 +298,11 @@
 
         .label-shadow {
           height: 12px;
-          width: 17px;
-          margin-left: 105px;
+          width: 1rem;
+          margin-left: 5.5rem;
           background-color: #013A6B;
-          background-image: -webkit-linear-gradient(135deg, #ffffff 50%, #888888 50%);
+          background-image: -webkit-linear-gradient(135deg, #fff 50%, #888 50%);
         }
-
       }
 
       .tile-title {
@@ -315,14 +315,13 @@
         }
 
       .take-the-pre-program-survey-to {
-          height: 5rem;
-          width: 336px;
-          color: #64607B;
-          font-family: "Open Sans";
-          font-size: 16px;
-          line-height: 22px;
-          margin-bottom: 19px;
-        }
+        height: 5rem;
+        width: 97%;
+        color: #64607B;
+        font-family: "Open Sans";
+        line-height: 1.5rem;
+        margin-bottom: 1rem;
+      }
 
       .get-started {
         height: 35px;
@@ -344,14 +343,12 @@
 
       .gray-footer-line {
         height: 10px;
-        width: 400px;
+        width: 21rem;
         background-color: #D2D3DC;
-        margin-left: -24px;
+        margin-left: -1rem;
         margin-top: 1rem !important;
+      }
     }
-
-    }
-
   }
 
   /* Course outline new design */
@@ -360,7 +357,7 @@
     margin-top: 50px;
 
     .outline-item {
-      width: 400px;
+      width: 21rem;
       display: inline-block;
       margin-right: 2rem;
       margin-bottom: 2rem;
@@ -369,7 +366,7 @@
       .outline-item-head {
         border-bottom: rgba(100, 96, 123, .2) 1px solid;
         width: 100%;
-        height: 3rem;
+        height: 3.5rem;
 
         .outline-check-status {
           height: 20px;
@@ -426,7 +423,7 @@
           display: inline-block;
           height: 45px;
           float: left;
-          max-width: 302px;
+          width: 15rem;
 
           .outline-item-display-name {
             color: #64607B;
@@ -438,7 +435,6 @@
 
           .outline-num-chapters {
             height: 14px;
-            width: 153px;
             color: #64607B;
             font-family: "Open Sans";
             font-size: 12px;
@@ -448,7 +444,6 @@
 
         .outline-item-expand {
           height: 9px;
-          width: 20px;
           color: #D2D3DC !important;
           font-family: "Open Sans";
           font-weight: bold;
@@ -468,7 +463,6 @@
 
         .child-item {
           display: inline-block;
-          width: 90%;
           cursor: pointer;
 
           .child-item-flag {
@@ -490,7 +484,7 @@
             font-size: 15px;
             line-height: 56px;
             display: inline-block;
-            width: 300px;
+            width: 18rem;
           }
 
           .child-item-follow {
