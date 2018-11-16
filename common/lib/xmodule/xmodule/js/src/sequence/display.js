@@ -26,12 +26,6 @@
             this.goto = function(event) {
                 return Sequence.prototype.goto.apply(self, [event]);
             };
-            this.carouselButtonPreviousClick = function(event) {
-                return Sequence.prototype.carouselButtonPreviousClick.apply(self, [event]);
-            };
-            this.carouselButtonNextClick = function(event) {
-                return Sequence.prototype.carouselButtonNextClick.apply(self, [event]);
-            };
             this.resizeHandler = function(event) {
                 return Sequence.prototype.resizeHandler.apply(self, [event]);
             };
@@ -72,7 +66,6 @@
             if (this.$('.sequence-nav').hasClass("sequence-nav-carousel")) {
                 this.carouselView = true;
             }
-            this.caroselProgress = false;
             this.resizeId = null;
 
             this.sequenceList = $(element).find('#sequence-list');
@@ -119,8 +112,6 @@
             } else {
                 this.$('#sequence-list .nav-item').click(this.goto);
             }
-            this.$('.button-previous-carousel').click(this.carouselButtonPreviousClick);
-            this.$('.button-next-carousel').click(this.carouselButtonNextClick);
             this.$('#sequence-list .nav-item').keypress(this.keyDownHandler);
             this.el.on('bookmark:add', this.addBookmarkIconToActiveNavItem);
             this.el.on('bookmark:remove', this.removeBookmarkIconFromActiveNavItem);
@@ -157,59 +148,6 @@
             }, 500);
         };
 
-        Sequence.prototype.canPushCarouselButtons = function() {
-            return !this.caroselProgress;
-        };
-
-        Sequence.prototype.lockNavCarouselButtons = function(enable) {
-            this.caroselProgress = !enable;
-        };
-
-        Sequence.prototype._isDisabled = function(el) {
-            var disabled = $(el).attr('disabled');
-            if (typeof disabled !== typeof undefined && disabled !== false) {
-                return true;
-            }
-            return false;
-        };
-
-        Sequence.prototype.checkAndDisableNavCarouselButtons = function() {
-            var currentMarginLeft = $(this.sequenceList).css('marginLeft').slice(0, -2);
-            currentMarginLeft = (-1) * parseInt(currentMarginLeft, 10);
-            var carouselWidth = this.$('.sequence-list-wrapper').width();
-            var len = currentMarginLeft + carouselWidth;
-
-            if (currentMarginLeft <= 0) {
-                this.disableNavCarouselButtons({button: 'previous', enable: false});
-            } else {
-                this.disableNavCarouselButtons({button: 'previous', enable: true});
-            }
-
-            if (len >= this.carouselAllItemsLength) {
-                this.disableNavCarouselButtons({button: 'next', enable: false});
-            } else {
-                this.disableNavCarouselButtons({button: 'next', enable: true});
-            }
-        };
-
-        Sequence.prototype.disableNavCarouselButtons = function(options) {
-            var btn = options.button;
-            var enable = options.enable;
-            var btnEl = null;
-
-            if (btn === 'previous') {
-                btnEl = this.$('.button-previous-carousel');
-            } else if (btn === 'next') {
-                btnEl = this.$('.button-next-carousel');
-            }
-
-            if (enable && this._isDisabled(btnEl)) {
-                $(btnEl).removeAttr("disabled");
-            } else if (!enable && !this._isDisabled(btnEl)) {
-                $(btnEl).attr("disabled", "disabled");
-            }
-        };
-
         Sequence.prototype.highlightNewCarouselElem = function(options) {
             if (!this.carouselView) {
                 return;
@@ -227,86 +165,24 @@
 
             var len = currentMarginLeft + carouselWidth;
             var offset = 0;
-            var self = this;
             if (x < (currentMarginLeft + this.widthElem)) {
                 offset = currentMarginLeft - x + this.widthElem;
                 if (animate) {
-                    this.lockNavCarouselButtons(false);
-                    $(this.sequenceList).animate({marginLeft: '+=' + offset}, {
-                        complete: function() {
-                            self.lockNavCarouselButtons(true);
-                            self.checkAndDisableNavCarouselButtons();
-                        }
-                    });
+                    $(this.sequenceList).animate({marginLeft: '+=' + offset});
                 } else {
                     $(this.sequenceList).css({marginLeft: (-1) * offset});
-                    this.checkAndDisableNavCarouselButtons();
                 }
             } else if (x > len) {
                 offset = x - len;
                 if (animate) {
-                    this.lockNavCarouselButtons(false);
-                    $(this.sequenceList).animate({marginLeft: '-=' + offset}, {
-                        complete: function () {
-                            self.lockNavCarouselButtons(true);
-                            self.checkAndDisableNavCarouselButtons();
-                        }
-                    });
+                    $(this.sequenceList).animate({marginLeft: '-=' + offset});
                 } else {
                     $(this.sequenceList).css({marginLeft: (-1) * offset});
-                    this.checkAndDisableNavCarouselButtons();
                 }
             } else {
                 if (!animate) {
                     $(this.sequenceList).css({marginLeft: 0});
                 }
-                this.checkAndDisableNavCarouselButtons();
-            }
-        };
-
-        Sequence.prototype.carouselButtonPreviousClick = function() {
-            if (!this.canPushCarouselButtons()) {
-                return;
-            }
-            var currentMarginLeft = $(this.sequenceList).css('marginLeft').slice(0, -2);
-            currentMarginLeft = (-1) * parseInt(currentMarginLeft, 10);
-            if (currentMarginLeft > 0) {
-                var offset = this.widthElem;
-                if (currentMarginLeft < offset) {
-                    offset = currentMarginLeft;
-                }
-                var self = this;
-                this.lockNavCarouselButtons(false);
-                $(this.sequenceList).animate({marginLeft: '+=' + offset}, {
-                    complete: function() {
-                        self.lockNavCarouselButtons(true);
-                        self.checkAndDisableNavCarouselButtons();
-                    }
-                });
-            }
-        };
-
-        Sequence.prototype.carouselButtonNextClick = function() {
-            if (!this.canPushCarouselButtons()) {
-                return;
-            }
-            var carouselWidth = this.$('.sequence-list-wrapper').width();
-            var currentMarginLeft = $(this.sequenceList).css('marginLeft').slice(0, -2);
-            currentMarginLeft = (-1) * parseInt(currentMarginLeft, 10);
-            var len = currentMarginLeft + carouselWidth;
-            if (len < this.carouselAllItemsLength) {
-                var offset = this.widthElem;
-                var self = this;
-                if ((offset + len) > this.carouselAllItemsLength) {
-                    offset = this.carouselAllItemsLength - len;
-                }
-                this.lockNavCarouselButtons(false);
-                $(this.sequenceList).animate({marginLeft: '-=' + offset}, {
-                    complete: function() {
-                        self.lockNavCarouselButtons(true);
-                        self.checkAndDisableNavCarouselButtons();
-                    }
-                });
             }
         };
 
@@ -442,20 +318,27 @@
         };
 
         Sequence.prototype.toggleArrows = function() {
-            var isFirstTab, isLastTab, nextButtonClass, previousButtonClass;
+            var isFirstTab, isLastTab, nextButtonClass, previousButtonClass, previousCarouselButtonClass, nextCarouselButtonClass;
 
             this.$('.sequence-nav-button').unbind('click');
+            this.$('.sequence-nav-button-carousel').unbind('click');
 
             // previous button
             isFirstTab = this.position === 1;
             previousButtonClass = '.sequence-nav-button.button-previous';
             this.updateButtonState(previousButtonClass, this.selectPrevious, isFirstTab, this.prevUrl);
 
+            previousCarouselButtonClass = '.sequence-nav-button-carousel.button-previous-carousel';
+            this.updateButtonState(previousCarouselButtonClass, this.selectPrevious, isFirstTab, this.prevUrl);
+
             // next button
             // use inequality in case contents.length is 0 and position is 1.
             isLastTab = this.position >= this.contents.length;
             nextButtonClass = '.sequence-nav-button.button-next';
             this.updateButtonState(nextButtonClass, this.selectNext, isLastTab, this.nextUrl);
+
+            nextCarouselButtonClass = '.sequence-nav-button-carousel.button-next-carousel';
+            this.updateButtonState(nextCarouselButtonClass, this.selectNext, isLastTab, this.nextUrl);
         };
 
         Sequence.prototype.render = function(newPosition) {
