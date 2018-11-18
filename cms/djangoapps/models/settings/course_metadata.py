@@ -61,7 +61,6 @@ class CourseMetadata(object):
         'default_tab',
         'highlights_enabled_for_messaging',
         'top_of_course_outline',
-        'course_outline_path_to_icon',
         'course_outline_description',
         'course_outline_button_title',
         'after_finish_return_to_course_outline'

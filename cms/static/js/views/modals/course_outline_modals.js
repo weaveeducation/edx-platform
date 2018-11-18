@@ -635,7 +635,6 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
         switchAttachAtTheTopSetting: function(val) {
             if (val) {
                 this.$('.attach_at_the_top_settings').show();
-                this.$('[name="course_outline_path_to_icon"]').val(this.model.get('course_outline_path_to_icon'));
                 this.$('[name="course_outline_description"]').val(this.model.get('course_outline_description'));
                 this.$('[name="course_outline_button_title"]').val(this.model.get('course_outline_button_title'));
                 this.$('[name="do_not_display_in_course_outline"]').prop('checked',
@@ -650,19 +649,21 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             this.$('[name="attach_at_the_top"][value="' + val + '"]').prop('checked', true);
             var returnToCourseOutline = this.model.get('after_finish_return_to_course_outline');
             this.$('[name="after_finish_return_to_course_outline"]').prop('checked', returnToCourseOutline ? true : false);
+            var notDisplayInCourseOutline = this.model.get('do_not_display_in_course_outline');
+            this.$('[name="do_not_display_in_course_outline"]').prop('checked', notDisplayInCourseOutline ? true : false);
             this.switchAttachAtTheTopSetting(this.model.get('top_of_course_outline'));
         },
         getRequestData: function() {
             var attachAtTheTop = this.$('[name="attach_at_the_top"]:checked').val();
+            var notDisplayInCourseOutline = this.$('[name="do_not_display_in_course_outline"]').is(':checked');
             var returnToCourseOutline = this.$('[name="after_finish_return_to_course_outline"]').is(':checked');
             if (attachAtTheTop === 'yes') {
                 return {
                     metadata: {
                         top_of_course_outline: true,
-                        course_outline_path_to_icon: this.$('[name="course_outline_path_to_icon"]').val(),
                         course_outline_description: this.$('[name="course_outline_description"]').val(),
                         course_outline_button_title: this.$('[name="course_outline_button_title"]').val(),
-                        do_not_display_in_course_outline: this.$('[name="do_not_display_in_course_outline"]').is(':checked'),
+                        do_not_display_in_course_outline: notDisplayInCourseOutline,
                         after_finish_return_to_course_outline: returnToCourseOutline
                     }
                 };
@@ -670,8 +671,7 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                 return {
                     metadata: {
                         top_of_course_outline: false,
-                        do_not_display_in_course_outline: false,
-                        course_outline_path_to_icon: '',
+                        do_not_display_in_course_outline: notDisplayInCourseOutline,
                         course_outline_description: '',
                         course_outline_button_title: '',
                         after_finish_return_to_course_outline: returnToCourseOutline

@@ -81,13 +81,6 @@ class SequenceFields(object):
         help=_("Attach at the top of the course outline"),
     )
 
-    course_outline_path_to_icon = String(
-        display_name=_("Course outline: path to the icon"),
-        default="",
-        scope=Scope.settings,
-        help=_("Course outline: path to the icon"),
-    )
-
     course_outline_description = String(
         display_name=_("Course outline: description"),
         default="",

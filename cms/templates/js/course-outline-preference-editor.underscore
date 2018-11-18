@@ -25,13 +25,6 @@
             <div class="attach_at_the_top_settings" style="display: none">
                 <div class="field field-text" style="width: 100%">
                     <label class="label">
-                        <%- gettext('Path to the icon:') %>
-                        <input type="text" name="course_outline_path_to_icon" value="" class="input input-text" autocomplete="off" />
-                    </label>
-                </div>
-                <br />
-                <div class="field field-text" style="width: 100%">
-                    <label class="label">
                         <%- gettext('Description:') %>
                         <textarea name="course_outline_description" class="input input-text" value="" rows="7"></textarea>
                     </label>
@@ -43,13 +36,17 @@
                         <input type="text" name="course_outline_button_title" value="" class="input input-text" autocomplete="off" />
                     </label>
                 </div>
-                <div class="list-fields list-input" style="width: 100%">
-                    <label class="label">
-                        <input type="checkbox" name="do_not_display_in_course_outline" value="0" class="input input-checkbox" />
-                        <%- gettext('Do not display in course outline') %>
-                    </label>
-                </div>
             </div>
+        </div>
+    </div>
+    <br />
+    <h3 class="modal-section-title"><%- gettext('Course Outline settings') %></h3>
+    <div class="modal-section-content has-actions">
+        <div class="list-fields list-input" style="width: 100%" role="group" aria-label="<%- gettext('Display settings') %>">
+            <label class="label">
+                <input type="checkbox" name="do_not_display_in_course_outline" value="1" class="input input-checkbox" />
+                <%- gettext('Do not display in course outline') %>
+            </label>
         </div>
     </div>
 </form>
