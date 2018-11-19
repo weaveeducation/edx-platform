@@ -13,6 +13,10 @@ from django.utils.translation import ugettext as _
       flex-grow: 0 !important;
     }
 
+   .page-content-main {
+       width: 100%;
+   }
+
    .page-content {
        padding-top: 0px !important;
    }
@@ -35,7 +39,7 @@ from django.utils.translation import ugettext as _
 <script type="text/javascript" src="/static/bundles/CourseOutline.js" ></script>
 
 <div id="course_outline" class="course-outline-container new-course-outline">
-    <div>
+    <div class="center-content">
         % for block in highlighted_blocks:
             <div class="tile-container">
                 <div class="tile-body">
@@ -70,7 +74,7 @@ from django.utils.translation import ugettext as _
             </div>
         % endfor
     </div>
-    <div class="outline-content">
+    <div class="outline-content center-content">
         <div>
         % if blocks['children']:
             % for block in blocks['children']:

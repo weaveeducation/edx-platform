@@ -72,6 +72,13 @@ class CourseOutlineFragmentView(EdxFragmentView):
         tiles = dict([(unicode(sub.location), sub) for sub in tiles])
         return tiles
 
+    def get_not_display_items(self, course_key):
+        items = modulestore().get_items(course_key,
+                                        settings={'do_not_display_in_course_outline': True},
+                                        qualifiers={'category': 'sequential'})
+        items = [unicode(item.location) for item in items]
+        return items
+
     def render_to_fragment(self, request, course_id=None, page_context=None, **kwargs):
         """
         Renders the course outline as a fragment.
@@ -96,8 +103,7 @@ class CourseOutlineFragmentView(EdxFragmentView):
             filtered_course_tree = []
             status_map = {}
             featured_map = self.get_featured_map(course_key)
-            not_display_outline = [loc for loc in featured_map
-                                   if featured_map[loc].do_not_display_in_course_outline]
+            not_display_outline = self.get_not_display_items(course_key)
 
             updated_course_children = []
             for num_sub, sub in enumerate(course_block_tree.get('children', []), 1):
