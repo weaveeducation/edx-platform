@@ -207,7 +207,6 @@
   /* breadcrumbs */
 
   .breadcrumbs {
-    text-align: center;
     .nav-item a, .nav-item a:visited {
       color: #64607B;
     }
@@ -239,6 +238,12 @@
   width: 100%;
   margin-top: 30px;
   display: table;
+
+  .center-content {
+    max-width: 70rem;
+    margin: 0 auto;
+    position: relative;
+  }
 
   /* Style for highlight tiles in new design */
   .tile-container {
