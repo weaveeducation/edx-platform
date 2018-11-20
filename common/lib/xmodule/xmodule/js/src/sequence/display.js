@@ -60,6 +60,16 @@
             this.ajaxUrl = this.el.data('ajax-url');
             this.nextUrl = this.el.data('next-url');
             this.prevUrl = this.el.data('prev-url');
+
+            this.graded = parseInt(this.el.data('graded')) === 1;
+            this.showSummaryInfoAfterQuiz = parseInt(this.el.data('show-summary-info-after-quiz')) === 1;
+            this.lmsUrlToGetGrades = this.el.data('lms-url-to-get-grades');
+
+            this.questionsQueue = [];
+            this.questionsWithoutAnswer = [];
+            this.questionsInfoReceived = false;
+            this.scores = null;
+
             this.returnToCourseOutline = parseInt(this.el.data('return-to-course-outline')) == 1;
             this.courseId = this.el.data('course-id');
             this.keydownHandler($(element).find('#sequence-list .tab'));
@@ -100,8 +110,94 @@
                 position = this.el.data('position');
             }
 
+            if (this.supportDisplayResults) {
+                this.getQuestionsInfo();
+            }
+
             this.render(parseInt(position, 10));
         }
+
+        Sequence.prototype.supportDisplayResults = function() {
+            return this.graded && this.showSummaryInfoAfterQuiz;
+        };
+
+        Sequence.prototype.getQuestionsInfo = function() {
+            var self = this;
+
+            $.postWithPrefix(this.lmsUrlToGetGrades, {}, function(data) {
+                if (data.items.length > 0) {
+                    $.each(data.items, function(idx, value) {
+                        if ((value.correctness === null) && (self.questionsQueue.indexOf(value.id) === -1)) {
+                            self.questionsWithoutAnswer.push(value.id);
+                        }
+                    });
+                }
+                self.questionsInfoReceived = true;
+                if ((data.items.length > 0) && (self.questionsWithoutAnswer.length === 0)) {
+                    self.displayResults(data);
+                }
+            });
+        };
+
+        Sequence.prototype.fetchAndDisplayResults = function() {
+            var self = this;
+            $.postWithPrefix(this.lmsUrlToGetGrades, {}, function(data) {
+                self.displayResults(data);
+            });
+        };
+
+        Sequence.prototype.displayResultDetails = function(data) {
+            var html  = '<div class="detailed-info-row full-name">' + this.scores.user.full_name + '</div>';
+            if (this.scores.common.last_answer_timestamp) {
+                html += '<div class="detailed-info-row last-answer-timestamp">' + moment(this.scores.common.last_answer_timestamp).format("YYYY-MM-DD HH:mm")  + '</div>';
+            }
+            html += '<div class="detailed-info-row quiz-name">' + this.scores.common.quiz_name + ' - Total score - ' + this.scores.common.percent_graded + '% (' + this.scores.common.earned + ' / ' + this.scores.common.possible  + ')</div>';
+            $.each(this.scores.items, function(idx, value) {
+                html += '<div class="detailed-info-row">' + value.parent_name + ' - ' + value.display_name + '<br />' + value.correctness + ' - ' + value.earned + ' / ' + value.possible + (value.last_answer_timestamp ? (' - ' + moment(value.last_answer_timestamp).format("YYYY-MM-DD HH:mm")) : '') + '</div>';
+            });
+            html += '<div class="detailed-info-row detailed-info-hide"><a href="#" class="seq-grade-block-hide-details">Click here to hide details</a></div>';
+            this.$('.detailed-info').html(html);
+            self.$('.seq-grade-block-hide-details').unbind('click');
+            self.$('.seq-grade-block-hide-details').click(function(event) {
+                event.preventDefault();
+                self.$('.seq-grade-block-show-details').removeClass("opened");
+                self.$('.seq-grade-block-details').slideUp(400, function() {
+                    self.$('.detailed-info').html('');
+                });
+            });
+        };
+
+        Sequence.prototype.displayResults = function(data) {
+            var self = this;
+
+            this.$('.seq-grade-block').show();
+
+            if ((this.scores === null || this.scores.common.percent_graded !==  data.common.percent_graded)) {
+                $('body').scrollTo('.page-header');
+            }
+
+            this.scores = data;
+            this.$('.my-score').html(this.scores.common.percent_graded + '%');
+
+            this.$('.seq-grade-block-show-details').unbind('click');
+            this.$('.seq-grade-block-show-details').click(function(event) {
+                event.preventDefault();
+                if ($(this).hasClass("opened")) {
+                    $(this).removeClass("opened");
+                    self.$('.seq-grade-block-details').slideUp(400, function() {
+                        self.$('.detailed-info').html('');
+                    });
+                } else {
+                    $(this).addClass("opened");
+                    self.displayResultDetails();
+                    self.$('.seq-grade-block-details').slideDown(400, function() {});
+                }
+            });
+
+            if (this.$('.seq-grade-block-show-details').hasClass("opened")) {
+                self.displayResultDetails();
+            }
+        };
 
         Sequence.prototype.$ = function(selector) {
             return $(selector, this.el);
@@ -269,6 +365,23 @@
             var self = this;
 
             return $('.problems-wrapper').bind('contentChanged', function(event, problemId, newContentState, newState) {
+                if (self.supportDisplayResults) {
+                    var index = null;
+                    if (self.questionsInfoReceived) {
+                        index = self.questionsWithoutAnswer.indexOf(problemId);
+                        if (index > -1) {
+                            self.questionsWithoutAnswer.splice(index, 1);
+                        }
+                        if (self.questionsWithoutAnswer.length === 0) {
+                            self.fetchAndDisplayResults();
+                        }
+                    } else {
+                        index = self.questionsQueue.indexOf(problemId);
+                        if (index === -1) {
+                            self.questionsQueue.push(problemId);
+                        }
+                    }
+                }
                 return self.addToUpdatedProblems(problemId, newContentState, newState);
             });
         };

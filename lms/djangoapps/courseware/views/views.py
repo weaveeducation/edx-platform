@@ -4,6 +4,7 @@ Courseware views functions
 import json
 import logging
 import urllib
+import time
 from collections import OrderedDict, namedtuple
 from datetime import datetime
 
@@ -15,7 +16,7 @@ from django.core.exceptions import PermissionDenied
 from django.urls import reverse
 from django.db import transaction
 from django.db.models import Q
-from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
 from django.template.context_processors import csrf
 from django.utils.decorators import method_decorator
@@ -111,7 +112,8 @@ from ..module_render import get_module, get_module_by_usage_id, get_module_for_d
 
 from util.views import add_p3p_header
 from student.views import register_login_and_enroll_anonymous_user, validate_credo_access
-from credo_modules.models import user_must_fill_additional_profile_fields, Organization
+from credo_modules.models import user_must_fill_additional_profile_fields, additional_profile_fields_hash,\
+    Organization, CredoModulesUserProfile
 from credo_modules.views import show_student_profile_form
 from mako.template import Template
 
@@ -1827,3 +1829,113 @@ def launch_new_tab(request, course_id, usage_id):
         raise Http404()
     update_lms_course_usage(request, usage_key, course_key)
     return render_xblock(request, unicode(usage_key), check_if_enrolled=False)
+
+
+def _get_item_correctness(item):
+    id_list = item.lcp.correct_map.keys()
+    answer_notification_type = None
+
+    if len(id_list) == 1:
+        # Only one answer available
+        answer_notification_type = item.lcp.correct_map.get_correctness(id_list[0])
+    elif len(id_list) > 1:
+        # Check the multiple answers that are available
+        answer_notification_type = item.lcp.correct_map.get_correctness(id_list[0])
+        for answer_id in id_list[1:]:
+            if item.lcp.correct_map.get_correctness(answer_id) != answer_notification_type:
+                # There is at least 1 of the following combinations of correctness states
+                # Correct and incorrect, Correct and partially correct, or Incorrect and partially correct
+                # which all should have a message type of Partially Correct
+                answer_notification_type = 'partially correct'
+                break
+    return answer_notification_type
+
+
+def _get_block_children(block, parent_name):
+    data = OrderedDict()
+    for item in block.get_children():
+        loc_id = str(item.location)
+        data[loc_id] = {'data': item, 'parent_name': parent_name, 'id': loc_id}
+        if item.category == 'problem':
+            correctness = _get_item_correctness(item)
+            data[loc_id]['correctness'] = correctness.title() if correctness else None
+        if item.has_children:
+            data.update(_get_block_children(item, item.display_name))
+    return data
+
+
+@transaction.non_atomic_requests
+@login_required
+@require_http_methods(["POST"])
+@ensure_valid_course_key
+@data_sharing_consent_required
+def block_student_progress(request, course_id, usage_id):
+    course_key = CourseKey.from_string(course_id)
+    full_name = unicode(request.user.first_name) + ' ' + unicode(request.user.last_name)
+
+    resp = {
+        'common': {},
+        'items': [],
+        'user': {
+            'username': request.user.username,
+            'email': request.user.email,
+            'full_name': full_name.strip()
+        }
+    }
+
+    with modulestore().bulk_operations(course_key):
+        usage_key = UsageKey.from_string(usage_id)
+
+        course = get_course_with_access(request.user, 'load', course_key)
+
+        if course.credo_additional_profile_fields:
+            fields_version = additional_profile_fields_hash(course.credo_additional_profile_fields)
+            if request.user.email.endswith('@credomodules.com'):
+                profiles = CredoModulesUserProfile.objects.filter(course_id=course_key, user=request.user)
+                for profile in profiles:
+                    if profile.fields_version == fields_version:
+                        profile_fileds = json.loads(profile.meta)
+                        if 'name' in profile_fileds:
+                            resp['user']['username'] = profile_fileds['name']
+                        if 'email' in profile_fileds:
+                            resp['user']['email'] = profile_fileds['email']
+
+        if not resp['user']['full_name']:
+            resp['user']['full_name'] = resp['user']['username']
+
+        seq_item, _ = get_module_by_usage_id(
+            request, text_type(course_key), text_type(usage_key), disable_staff_debug_info=True, course=course
+        )
+
+        seq_item = modulestore().get_item(usage_key)
+        children_dict = _get_block_children(seq_item, seq_item.display_name)
+
+        course_grade = CourseGradeFactory().read(request.user, course)
+        courseware_summary = course_grade.chapter_grades.values()
+
+        for chapter in courseware_summary:
+            for section in chapter['sections']:
+                if str(section.location) == str(usage_id):
+                    resp['common']['quiz_name'] = seq_item.display_name
+                    resp['common']['last_answer_timestamp'] = section.last_answer_timestamp
+                    resp['common']['unix_timestamp'] = int(time.mktime(section.last_answer_timestamp.timetuple()))\
+                        if section.last_answer_timestamp else None
+                    resp['common']['percent_graded'] = int(section.percent_graded * 100)
+                    resp['common'].update(section.percent_info)
+
+                    for key, score in section.problem_scores.items():
+                        item = children_dict.get(str(key))
+                        if item:
+                            unix_timestamp = int(time.mktime(score.last_answer_timestamp.timetuple())) \
+                                if score.last_answer_timestamp else None
+                            resp['items'].append({
+                                'display_name': item['data'].display_name,
+                                'parent_name': item['parent_name'],
+                                'correctness': item['correctness'],
+                                'earned': score.earned,
+                                'possible': score.possible,
+                                'last_answer_timestamp': score.last_answer_timestamp,
+                                'unix_timestamp': unix_timestamp
+                            })
+
+    return JsonResponse(resp)

@@ -917,6 +917,14 @@ class CourseFields(object):
         ),
         scope=Scope.settings
     )
+    show_summary_info_after_quiz = Boolean(
+        display_name=_("Show Summary Info After Quiz"),
+        help=_(
+            "Show Summary Info After Quiz."
+        ),
+        default=False,
+        scope=Scope.settings
+    )
 
 
 class CourseModule(CourseFields, SequenceModule):  # pylint: disable=abstract-method
