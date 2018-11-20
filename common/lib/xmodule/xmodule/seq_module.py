@@ -752,3 +752,4 @@ class SectionModule(HighlightsFields, SequenceModule):
 class SectionDescriptor(HighlightsFields, SequenceDescriptor):
     """Descriptor for a Section/Chapter."""
     module_class = SectionModule
+
