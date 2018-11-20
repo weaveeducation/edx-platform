@@ -1787,7 +1787,10 @@ def render_xblock_course(request, course_id, usage_key_string):
             credo_auth = validate_credo_access(request)
             if not credo_auth:
                 return HttpResponseForbidden('Invalid Credo authentication. '
-                                             'You have no permissions to access the content')
+                                             'You have no permissions to access the content'
+                                             'If you are a student user, please screencap this error and share it '
+                                             'with your instructor. If you are an admin, please see our help site '
+                                             'or contact our support team for help.')
         if course.allow_anonymous_access:
             register_login_and_enroll_anonymous_user(request, course_key)
         else:
