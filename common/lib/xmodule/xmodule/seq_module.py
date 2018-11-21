@@ -373,6 +373,7 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
             'course_id': str(self.course_id),
             'graded': self.graded,
             'lms_url_to_get_grades': context.get('lms_url_to_get_grades'),
+            'lms_url_to_email_grades': context.get('lms_url_to_email_grades'),
             'show_summary_info_after_quiz': context.get('show_summary_info_after_quiz', False)
         }
         fragment.add_content(self.system.render_template("seq_module.html", params))

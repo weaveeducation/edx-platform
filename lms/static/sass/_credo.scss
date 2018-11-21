@@ -207,6 +207,8 @@
 
     .seq-grade-block {
 
+      display: none;
+
       .msg-content {
         width: 100% !important;
       }
@@ -234,6 +236,18 @@
         .email-assessment {
           width: 500px;
         }
+      }
+
+      .email-error {
+        display: none;
+        color: red;
+        padding-top: 10px;
+      }
+
+      .email-success {
+        display: none;
+        color: green;
+        padding-top: 10px;
       }
 
       .seq-grade-block-details {
