@@ -1954,7 +1954,8 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
                                         'possible': score.possible,
                                         'last_answer_timestamp': score.last_answer_timestamp,
                                         'unix_timestamp': unix_timestamp,
-                                        'browser_datetime': browser_datetime
+                                        'browser_datetime': browser_datetime,
+                                        'id': item['id']
                                     })
     except Http404:
         resp['error'] = True
