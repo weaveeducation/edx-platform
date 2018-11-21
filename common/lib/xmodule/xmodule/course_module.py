@@ -918,9 +918,9 @@ class CourseFields(object):
         scope=Scope.settings
     )
     show_summary_info_after_quiz = Boolean(
-        display_name=_("Show Summary Info After Quiz"),
+        display_name=_("Show Summary Info after Course"),
         help=_(
-            "Show Summary Info After Quiz."
+            "Show summary information to student when he completes the course."
         ),
         default=False,
         scope=Scope.settings

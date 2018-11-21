@@ -168,7 +168,7 @@ class GradedAssignmentLock(models.Model):
                 lock = GradedAssignmentLock.objects.get(graded_assignment_id=graded_assignment_id)
                 if lock:
                     time_diff = timezone.now() - lock.created
-                    if time_diff.seconds > 60:  # 1 min
+                    if time_diff.total_seconds() > 60:  # 1 min
                         return lock
             except GradedAssignmentLock.DoesNotExist:
                 pass

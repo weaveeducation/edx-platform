@@ -64,6 +64,7 @@
             this.graded = parseInt(this.el.data('graded')) === 1;
             this.showSummaryInfoAfterQuiz = parseInt(this.el.data('show-summary-info-after-quiz')) === 1;
             this.lmsUrlToGetGrades = this.el.data('lms-url-to-get-grades');
+            this.lmsUrlToEmailGrades = this.el.data('lms-url-to-email-grades');
 
             this.questionsQueue = [];
             this.questionsWithoutAnswer = [];
@@ -125,16 +126,18 @@
             var self = this;
 
             $.postWithPrefix(this.lmsUrlToGetGrades, {}, function(data) {
-                if (data.items.length > 0) {
-                    $.each(data.items, function(idx, value) {
-                        if ((value.correctness === null) && (self.questionsQueue.indexOf(value.id) === -1)) {
-                            self.questionsWithoutAnswer.push(value.id);
-                        }
-                    });
-                }
-                self.questionsInfoReceived = true;
-                if ((data.items.length > 0) && (self.questionsWithoutAnswer.length === 0)) {
-                    self.displayResults(data);
+                if (!data.error) {
+                    if (data.items.length > 0) {
+                        $.each(data.items, function(idx, value) {
+                            if ((value.correctness === null) && (self.questionsQueue.indexOf(value.id) === -1)) {
+                                self.questionsWithoutAnswer.push(value.id);
+                            }
+                        });
+                    }
+                    self.questionsInfoReceived = true;
+                    if ((data.items.length > 0) && (self.questionsWithoutAnswer.length === 0)) {
+                        self.displayResults(data);
+                    }
                 }
             });
         };
@@ -142,12 +145,34 @@
         Sequence.prototype.fetchAndDisplayResults = function() {
             var self = this;
             $.postWithPrefix(this.lmsUrlToGetGrades, {}, function(data) {
-                self.displayResults(data);
+                if ((!data.error) && (data.items.length > 0)) {
+                    self.displayResults(data);
+                }
             });
         };
 
-        Sequence.prototype.displayResultDetails = function(data) {
-            var html  = '<div class="detailed-info-row full-name">' + this.scores.user.full_name + '</div>';
+        Sequence.prototype.validateEmail = function(email) {
+            var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+            return re.test(String(email).toLowerCase());
+        };
+
+        Sequence.prototype.displayError = function(msg) {
+            this.$('.email-error').show().html(msg);
+        };
+
+        Sequence.prototype.lockSendEmailBtn = function() {
+            this.$('.send-email-btn').attr('disabled', 'disabled');
+            this.$('.send-email-btn').text('Sending...');
+        };
+
+        Sequence.prototype.unlockSendEmailBtn = function() {
+            this.$('.send-email-btn').removeAttr('disabled');
+            this.$('.send-email-btn').text('Send email');
+        };
+
+        Sequence.prototype.displayResultDetails = function() {
+            var html = '<div class="detailed-info-row full-name">' + this.scores.user.full_name + '</div>';
+            var self = this;
             if (this.scores.common.last_answer_timestamp) {
                 html += '<div class="detailed-info-row last-answer-timestamp">' + moment(this.scores.common.last_answer_timestamp).format("YYYY-MM-DD HH:mm")  + '</div>';
             }
@@ -157,8 +182,62 @@
             });
             html += '<div class="detailed-info-row detailed-info-hide"><a href="#" class="seq-grade-block-hide-details">Click here to hide details</a></div>';
             this.$('.detailed-info').html(html);
-            self.$('.seq-grade-block-hide-details').unbind('click');
-            self.$('.seq-grade-block-hide-details').click(function(event) {
+            this.$('.send-email-btn').unbind('click');
+
+            this.$('.send-email-btn').click(function(event) {
+                var btn = $(this);
+                event.preventDefault();
+
+                var val = self.$('.email-assessment').val();
+                var arr = val.split(',');
+                var emailsArr = [];
+                var isError = false;
+
+                self.$('.email-error').hide();
+                self.$('.email-success').hide();
+
+                $.each(arr, function(index, value) {
+                    if (isError) {
+                        return;
+                    }
+                    var tmp = $.trim(value);
+                    if (tmp != '') {
+                        if (!self.validateEmail(tmp)) {
+                            isError = true;
+                            self.displayError('Invalid email: ' + tmp);
+                        } else {
+                            emailsArr.push(tmp);
+                        }
+                    }
+                });
+
+                if (!isError) {
+                    if (emailsArr.length > 0) {
+                        self.lockSendEmailBtn();
+
+                        var offset = new Date().getTimezoneOffset();
+
+                        $.postWithPrefix(self.lmsUrlToEmailGrades, {
+                            emails: emailsArr.join(','),
+                            timezone_offset: (-1) * offset
+                        }, function(data) {
+                            btn.removeAttr('disabled');
+                            btn.text('Send email');
+                            if (data.success) {
+                                self.$('.email-success').show();
+                            } else {
+                                self.displayError(data.error);
+                            }
+                            self.unlockSendEmailBtn();
+                        });
+                    } else {
+                        self.displayError('Please enter at least one email');
+                    }
+                }
+            });
+
+            this.$('.seq-grade-block-hide-details').unbind('click');
+            this.$('.seq-grade-block-hide-details').click(function(event) {
                 event.preventDefault();
                 self.$('.seq-grade-block-show-details').removeClass("opened");
                 self.$('.seq-grade-block-details').slideUp(400, function() {
@@ -172,7 +251,7 @@
 
             this.$('.seq-grade-block').show();
 
-            if ((this.scores === null || this.scores.common.percent_graded !==  data.common.percent_graded)) {
+            if ((this.scores === null) || (this.scores.common.percent_graded !== data.common.percent_graded)) {
                 $('body').scrollTo('.page-header');
             }
 
@@ -195,7 +274,7 @@
             });
 
             if (this.$('.seq-grade-block-show-details').hasClass("opened")) {
-                self.displayResultDetails();
+                this.displayResultDetails();
             }
         };
 

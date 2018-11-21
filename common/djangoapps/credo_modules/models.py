@@ -410,6 +410,27 @@ class CourseExcludeInsights(models.Model):
         verbose_name_plural = "exclude insights"
 
 
+class SendScores(models.Model):
+    user = models.ForeignKey(User)
+    course_id = CourseKeyField(max_length=255, db_index=True)
+    block_id = models.CharField(max_length=255, db_index=True)
+    last_send_time = models.DateTimeField(null=True, blank=True)
+
+    class Meta(object):
+        db_table = "credo_send_scores"
+        unique_together = (('user', 'course_id', 'block_id'),)
+
+
+class SendScoresMailing(models.Model):
+    email_scores = models.ForeignKey(SendScores)
+    emails = models.TextField(blank=True)
+    data = models.TextField(blank=True)
+    last_send_time = models.DateTimeField(null=True, blank=True)
+
+    class Meta(object):
+        db_table = "credo_send_scores_mailing"
+
+
 UNIQUE_USER_ID_COOKIE = 'credo-course-usage-id'
 
 
