@@ -1936,6 +1936,10 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
                             if section.last_answer_timestamp else ''
                         resp['common']['percent_graded'] = int(section.percent_graded * 100)
                         resp['common'].update(section.percent_info)
+                        if int(resp['common']['earned']) == resp['common']['earned']:
+                            resp['common']['earned'] = int(resp['common']['earned'])
+                        if int(resp['common']['possible']) == resp['common']['possible']:
+                            resp['common']['possible'] = int(resp['common']['possible'])
 
                         for key, score in section.problem_scores.items():
                             item = children_dict.get(str(key))
@@ -1950,8 +1954,8 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
                                         'display_name': item['data'].display_name,
                                         'parent_name': item['parent_name'],
                                         'correctness': item['correctness'],
-                                        'earned': score.earned,
-                                        'possible': score.possible,
+                                        'earned': int(score.earned) if int(score.earned) == score.earned else score.earned,
+                                        'possible': int(score.possible) if int(score.possible) == score.possible else score.possible,
                                         'last_answer_timestamp': score.last_answer_timestamp,
                                         'unix_timestamp': unix_timestamp,
                                         'browser_datetime': browser_datetime,
@@ -2058,8 +2062,7 @@ def send_email_with_scores(mailing_id):
             'scores': scores_info
         })
 
-        from_address = configuration_helpers.get_value('email_from_address', settings.DEFAULT_FROM_EMAIL)
-        from_address = configuration_helpers.get_value('ACTIVATION_EMAIL_FROM_ADDRESS', from_address)
+        from_address = configuration_helpers.get_value('email_from_address', settings.BULK_EMAIL_DEFAULT_FROM_EMAIL)
 
         if settings.DEBUG:
             log.info('Email text: ' + email_scores)
