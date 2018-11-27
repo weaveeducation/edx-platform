@@ -594,6 +594,8 @@ BROKER_URL = "{0}://{1}:{2}@{3}/{4}".format(CELERY_BROKER_TRANSPORT,
                                             CELERY_BROKER_VHOST)
 BROKER_USE_SSL = ENV_TOKENS.get('CELERY_BROKER_USE_SSL', False)
 
+BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 7 * 24 * 60 * 60}  # 7 days
+
 # Block Structures
 BLOCK_STRUCTURES_SETTINGS = ENV_TOKENS.get('BLOCK_STRUCTURES_SETTINGS', BLOCK_STRUCTURES_SETTINGS)
 
