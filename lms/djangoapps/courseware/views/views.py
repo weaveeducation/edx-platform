@@ -1489,6 +1489,13 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True):
         student_view_context = request.GET.dict()
         student_view_context['show_bookmark_button'] = False
         student_view_context['enable_new_carousel_view'] = False
+        student_view_context['lms_url_to_get_grades'] = reverse('block_student_progress',
+                                                                kwargs={'course_id': unicode(course_key),
+                                                                        'usage_id': unicode(usage_key_string)})
+        student_view_context['lms_url_to_email_grades'] = reverse('email_student_progress',
+                                                                  kwargs={'course_id': unicode(course_key),
+                                                                          'usage_id': unicode(usage_key_string)})
+        student_view_context['show_summary_info_after_quiz'] = course.show_summary_info_after_quiz
 
         try:
             org = Organization.objects.get(org=course.org)

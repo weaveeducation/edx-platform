@@ -252,7 +252,7 @@
             this.$('.seq-grade-block').show();
 
             if ((this.scores === null) || (this.scores.common.percent_graded !== data.common.percent_graded)) {
-                $('body').scrollTo('.page-header');
+                $.scrollTo(0, 150);
             }
 
             this.scores = data;
