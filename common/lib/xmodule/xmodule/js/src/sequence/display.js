@@ -72,6 +72,9 @@
             this.scores = null;
 
             this.returnToCourseOutline = parseInt(this.el.data('return-to-course-outline')) == 1;
+            if (window.chromlessView) {
+                this.returnToCourseOutline = false;
+            }
             this.courseId = this.el.data('course-id');
             this.keydownHandler($(element).find('#sequence-list .tab'));
             this.base_page_title = ($('title').data('base-title') || '').trim();
