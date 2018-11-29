@@ -4,7 +4,38 @@
 
 <div id="sequence_${element_id}" class="sequence" data-id="${item_id}" data-position="${position}"
      data-ajax-url="${ajax_url}" data-next-url="${next_url}" data-prev-url="${prev_url}"
-     data-return-to-course-outline="${after_finish_return_to_course_outline}" data-course-id="${course_id}">
+     data-return-to-course-outline="${after_finish_return_to_course_outline}" data-course-id="${course_id}"
+     data-lms-url-to-get-grades="${lms_url_to_get_grades}"
+     data-lms-url-to-email-grades="${lms_url_to_email_grades}"
+     data-graded=${"1" if graded else "0"}
+     data-show-summary-info-after-quiz=${"1" if show_summary_info_after_quiz else "0"}>
+
+  % if graded and show_summary_info_after_quiz:
+  <div class="seq-grade-block" id="seq-grade-block">
+    <div class="wrapper-msg wrapper-auto-cert">
+      <div class="auto-cert-message" id="course-success">
+        <div class="has-actions">
+          <div class="msg-content">
+            <p class="seq-grade-block-text">Congratulations, you have now completed the assessment. Your score is <span class="my-score"></span>. <a href="#" class="seq-grade-block-show-details">Click here to see details and email your score</a></p>
+            <div class="seq-grade-block-details">
+              <p class="seq-grade-block-text">To email your results to yourself or your instructor, please enter the email address(es) of the recipient(s) in the box below. If there are multiple addresses please separate them with a comma.</p>
+              <p class="seq-grade-block-text">Some instructors may require this step for you to receive credit for your work. If you are not sure, email your results to yourself, and check with your instructor.</p>
+              <p class="seq-grade-block-text">By providing these email addresses, you are granting Credo permission to share your score results on this assessment with the recipients listed.</p>
+              <div>
+                <div class="email-box"><input type="text" maxlength="255" class="email-assessment" name="email-assessment" id="email-assessment" value=""></div>
+                <div class="email-box-button"><button class="send-email-btn">Send email</button></div>
+              </div>
+              <div class="email-error"></div>
+              <div class="email-success">Email was successfully sent</div>
+              <div class="detailed-info"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+     </div>
+  </div>
+  % endif
+
   % if banner_text:
     <div class="pattern-library-shim alert alert-information subsection-header" tabindex="-1">
       <span class="pattern-library-shim icon alert-icon fa fa-info-circle" aria-hidden="true"></span>

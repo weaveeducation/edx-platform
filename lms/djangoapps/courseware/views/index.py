@@ -442,6 +442,13 @@ class CoursewareIndex(View):
                 table_of_contents['next_of_active_section'],
             )
 
+            section_context['lms_url_to_get_grades'] = reverse('block_student_progress',
+                                                               kwargs={'course_id': unicode(self.course_key),
+                                                                       'usage_id': unicode(self.section.location)})
+            section_context['lms_url_to_email_grades'] = reverse('email_student_progress',
+                                                                 kwargs={'course_id': unicode(self.course_key),
+                                                                         'usage_id': unicode(self.section.location)})
+            section_context['show_summary_info_after_quiz'] = self.course.show_summary_info_after_quiz
             section_context['enable_new_carousel_view'] = False
             try:
                 org = Organization.objects.get(org=self.course.org)

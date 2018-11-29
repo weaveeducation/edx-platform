@@ -1,0 +1,20 @@
+<%! from django.utils.translation import ugettext as _ %>
+This email contains the scores received by the student named below on a Credo quiz or test. If you have any questions about the information contained in this report, please contact your instructor and/or librarian. Please do not reply directly to this email, as it is sent from an automated address.
+
+${scores['user']['full_name']}
+% if scores['common']['browser_datetime']:
+${scores['common']['browser_datetime']}
+% endif
+${scores['common']['quiz_name']} - Total score - ${scores['common']['percent_graded']}% (${scores['common']['earned']} / ${scores['common']['possible']})
+
+% for item in scores['items']:
+${item['parent_name']} - ${item['display_name']}
+${item['correctness']} - ${item['earned']} / ${item['possible']} ${' - ' + item['browser_datetime'] if item['browser_datetime'] else ''}
+
+% endfor
+
+This score has also been logged in Credo’s grade reports and can be verified by checking with your instructor and/or librarian.
+
+Privacy Information:
+This email has only been sent to addresses provided by the user listed above. If you are receiving this email, a user has provided your email address to Credo as a recipient.
+Credo protects the privacy of our Licensees’ student education records in conformance with the Family Educational Rights and Privacy Act ("FERPA"), where FERPA is applicable. Please review our Privacy documentation at: https://modules.zendesk.com/hc/en-us/articles/115005329466-Data-Privacy-FERPA-Security
