@@ -21,6 +21,13 @@ from xmodule.modulestore.django import modulestore
 log = logging.getLogger("edx.lti_provider")
 
 
+LTI_TASKS_MAX_RETRIES = 10
+
+
+def get_countdown(attempt_num):
+    return (int(2.71 ** attempt_num) + 5) * 60
+
+
 @receiver(PROBLEM_WEIGHTED_SCORE_CHANGED)
 def score_changed_handler(sender, **kwargs):  # pylint: disable=unused-argument
     """
@@ -79,7 +86,7 @@ def increment_assignment_versions(course_key, usage_key, user_id):
     return assignments
 
 
-@CELERY_APP.task(name='lti_provider.tasks.send_composite_outcome', max_retries=10, bind=True)
+@CELERY_APP.task(name='lti_provider.tasks.send_composite_outcome', max_retries=LTI_TASKS_MAX_RETRIES, bind=True)
 def send_composite_outcome(self, user_id, course_id, assignment_id, version):
     """
     Calculate and transmit the score for a composite module (such as a
@@ -141,7 +148,8 @@ def send_composite_outcome(self, user_id, course_id, assignment_id, version):
                     task_id, version=version)
 
             with SendScoresLock(assignment_id):
-                response_data = outcomes.send_score_update(assignment, weighted_score)
+                response_data = outcomes.send_score_update(assignment, weighted_score, self.request.retries,
+                                                           get_countdown(self.request.retries))
                 request_body = response_data['request_body']
                 response_body = response_data['response_body']
                 lis_outcome_service_url = response_data['lis_outcome_service_url']
@@ -159,11 +167,10 @@ def send_composite_outcome(self, user_id, course_id, assignment_id, version):
         log_lti('send_composite_outcome_task_error', user_id, message, course_id, True,
                 assignment, None, task_id, response_body, request_body, lis_outcome_service_url, version=version,
                 request_error=request_error)
-        countdown = (int(2.71 ** self.request.retries) + 5) * 60
-        raise self.retry(exc=exc, countdown=countdown)
+        raise self.retry(exc=exc, countdown=get_countdown(self.request.retries))
 
 
-@CELERY_APP.task(max_retries=10, bind=True)
+@CELERY_APP.task(max_retries=LTI_TASKS_MAX_RETRIES, bind=True)
 def send_leaf_outcome(self, assignment_id, points_earned, points_possible):
     """
     Calculate and transmit the score for a single problem. This method assumes
@@ -188,7 +195,8 @@ def send_leaf_outcome(self, assignment_id, points_earned, points_possible):
                 assignment, weighted_score, task_id, points_earned=points_earned, points_possible=points_possible)
 
         with SendScoresLock(assignment_id):
-            response_data = outcomes.send_score_update(assignment, weighted_score)
+            response_data = outcomes.send_score_update(assignment, weighted_score, self.request.retries,
+                                                       get_countdown(self.request.retries))
             request_body = response_data['request_body']
             response_body = response_data['response_body']
             lis_outcome_service_url = response_data['lis_outcome_service_url']
@@ -208,5 +216,4 @@ def send_leaf_outcome(self, assignment_id, points_earned, points_possible):
                 str(assignment.course_key), True, assignment, None, task_id, response_body,
                 request_body, lis_outcome_service_url,
                 points_earned=points_earned, points_possible=points_possible, request_error=request_error)
-        countdown = (int(2.71 ** self.request.retries) + 5) * 60
-        raise self.retry(exc=exc, countdown=countdown)
+        raise self.retry(exc=exc, countdown=get_countdown(self.request.retries))
