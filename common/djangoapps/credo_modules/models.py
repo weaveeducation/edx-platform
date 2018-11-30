@@ -89,16 +89,15 @@ def check_and_save_enrollment_attributes(post_data, user, course_id):
                     elif default:
                         CredoStudentProperties(user=user, course_id=course_id,
                                                name=k, value=default).save()
+            set_custom_term(course_id, user)
+
     except EnrollmentPropertiesPerCourse.DoesNotExist:
         return
 
 
 def get_custom_term(org):
     current_date = datetime.date.today()
-    data = TermPerOrg.objects.filter(org=org, start_date__lte=current_date, end_date__gte=current_date)
-    if len(data) > 0:
-        return data[0]
-    return None
+    return TermPerOrg.objects.filter(org=org, start_date__lte=current_date, end_date__gte=current_date).first()
 
 
 def save_custom_term_student_property(term, user, course_id):
@@ -191,12 +190,16 @@ class TermPerOrg(models.Model):
         }
 
 
+def set_custom_term(course_id, user):
+    item = get_custom_term(course_id.org)
+    if item:
+        save_custom_term_student_property(item.term, user, course_id)
+
+
 @receiver(ENROLL_STATUS_CHANGE)
 def add_custom_term_student_property_on_enrollment(sender, event=None, user=None, course_id=None, **kwargs):
     if event == EnrollStatusChange.enroll:
-        item = get_custom_term(course_id.org)
-        if item:
-            save_custom_term_student_property(item.term, user, course_id)
+        set_custom_term(course_id, user)
 
 
 def deadlock_db_retry(func):
