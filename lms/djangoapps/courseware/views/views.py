@@ -1859,7 +1859,10 @@ def _get_item_correctness(item):
                 # There is at least 1 of the following combinations of correctness states
                 # Correct and incorrect, Correct and partially correct, or Incorrect and partially correct
                 # which all should have a message type of Partially Correct
-                answer_notification_type = 'partially correct'
+                if item.lcp.disable_partial_credit:
+                    answer_notification_type = 'incorrect'
+                else:
+                    answer_notification_type = 'partially correct'
                 break
     return answer_notification_type
 
