@@ -291,8 +291,8 @@ class CourseUsage(models.Model):
                     cls._add_block_usage(course_key, request.user.id, block_type, block_id, unique_user_id)
                     return
                 except IntegrityError:
-                    cls._update_block_usage(course_key, request.user.id,
-                                            block_type, block_id, unique_user_id)
+                    #cls._update_block_usage(course_key, request.user.id,
+                    #                        block_type, block_id, unique_user_id)
                     return
 
 

@@ -13,6 +13,8 @@ from completion import waffle as completion_waffle
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.db import transaction
+from django.db.utils import IntegrityError
 from django.template.context_processors import csrf
 from django.core.exceptions import PermissionDenied
 from django.urls import reverse
@@ -519,12 +521,16 @@ def get_module_system_for_user(
         if not completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
             raise Http404
         else:
-            BlockCompletion.objects.submit_completion(
-                user=user,
-                course_key=course_id,
-                block_key=block.scope_ids.usage_id,
-                completion=event['completion'],
-            )
+            try:
+                with transaction.atomic():
+                    BlockCompletion.objects.submit_completion(
+                        user=user,
+                        course_key=course_id,
+                        block_key=block.scope_ids.usage_id,
+                        completion=event['completion'],
+                    )
+            except IntegrityError:
+                log.warning('IntegrityError for block: ' + str(block.scope_ids.usage_id) + ' and user ID: ' + str(user.id))
 
     def handle_grade_event(block, event):
         """
