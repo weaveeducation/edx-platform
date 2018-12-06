@@ -87,7 +87,13 @@ def _re_url_replace(matchobj):
       or matchobj.group(0).startswith('src=http'):
         return matchobj.group(0)
     else:
-        return 'src="/static/' + matchobj.group(1)
+        if matchobj.group(0).startswith('src="%24IMS-CC-FILEBASE%24/'):
+            img_url = matchobj.group(0)[len('src="%24IMS-CC-FILEBASE%24/'):-1]
+            img_url = os.path.basename(img_url) + '"'
+        else:
+            img_url = matchobj.group(1)
+
+        return 'src="/static/' + img_url
 
 
 def get_mattext(element):
@@ -181,7 +187,7 @@ def write_essay_question(item, vertical_root, chapter):
     desc_el.text = text_from_html(item.mattext)
     rubric_el = ET.SubElement(open_ass_el, 'rubric')
     criterion_el = ET.SubElement(rubric_el, 'criterion')
-    criterion_el.set("feedback", "required")
+    criterion_el.set("feedback", "optional")
     name_el = ET.SubElement(criterion_el, 'name')
     name_el.text = "0"
     lab_el = ET.SubElement(criterion_el, 'label')
@@ -274,7 +280,7 @@ def write_problem(item, vertical_root, chapter, problem_dir):
     problem_root = ET.Element('problem')
     problem_root.set("max_attempts", chapter.allowedAttempts)
     problem_root.set("display_name", item.title)
-    problem_root.set("weight", "1.0")
+    problem_root.set("weight", item.metafields.get('points_possible', "1.0"))
     if item.metafields['question_type'] == 'multiple_answers_question':
         write_multiple_answers_question(item, problem_root)
     elif item.metafields['question_type'] == 'multiple_choice_question':
