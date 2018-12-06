@@ -199,3 +199,9 @@ def generate_password(length=12, chars=string.letters + string.digits):
     password += choice(string.letters)
     password += ''.join([choice(chars) for _i in xrange(length - 2)])
     return password
+
+
+def is_user_credo_anonymous(user):
+    if user.email.endswith('@credomodules.com'):
+        return True
+    return False
