@@ -45,6 +45,7 @@ class CourseUsageMiddleware(object):
                         pass
 
     def process_request(self, request):
+        request.csrf_processing_done = True  # ignore CSRF check for the django REST framework
         update_unique_user_id_cookie(request)
 
     def process_response(self, request, response):
