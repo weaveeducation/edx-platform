@@ -190,9 +190,7 @@ class TermPerOrg(models.Model):
 
 
 def set_custom_term(course_id, user):
-    item = get_custom_term(course_id.org)
-    if item:
-        save_custom_term_student_property(item.term, user, course_id)
+    save_custom_term_student_property(get_custom_term(), user, course_id)
 
 
 @receiver(ENROLL_STATUS_CHANGE)
