@@ -190,9 +190,7 @@ class TermPerOrg(models.Model):
 @receiver(ENROLL_STATUS_CHANGE)
 def add_custom_term_student_property_on_enrollment(sender, event=None, user=None, course_id=None, **kwargs):
     if event == EnrollStatusChange.enroll:
-        item = get_custom_term()
-        if item:
-            save_custom_term_student_property(item.term, user, course_id)
+        save_custom_term_student_property(get_custom_term(), user, course_id)
 
 
 def deadlock_db_retry(func):
