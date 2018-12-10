@@ -7,7 +7,6 @@
 from .assets import *
 from .component import *
 from .course import *
-from .manage_terms import *
 from .checklists import *
 from .entrance_exam import *
 from .error import *
