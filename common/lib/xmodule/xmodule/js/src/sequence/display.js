@@ -114,7 +114,7 @@
                 position = this.el.data('position');
             }
 
-            if (this.supportDisplayResults) {
+            if (this.supportDisplayResults()) {
                 this.getQuestionsInfo();
             }
 
@@ -447,7 +447,7 @@
             var self = this;
 
             return $('.problems-wrapper').bind('contentChanged', function(event, problemId, newContentState, newState) {
-                if (self.supportDisplayResults) {
+                if (self.supportDisplayResults()) {
                     var index = null;
                     if (self.questionsInfoReceived) {
                         index = self.questionsWithoutAnswer.indexOf(problemId);
