@@ -1,9 +1,11 @@
 <%! from django.utils.translation import ugettext as _ %>
 This email contains the scores received by the student named below on a Credo quiz or test. If you have any questions about the information contained in this report, please contact your instructor and/or librarian. Please do not reply directly to this email, as it is sent from an automated address.
 
+% if scores['user']['full_name']:
 ${scores['user']['full_name']}
+% endif
 % if scores['common']['browser_datetime']:
-${scores['common']['browser_datetime']}
+Time of the last answer: ${scores['common']['browser_datetime']}
 % endif
 ${scores['common']['quiz_name']} - Total score - ${scores['common']['percent_graded']}% (${scores['common']['earned']} / ${scores['common']['possible']})
 

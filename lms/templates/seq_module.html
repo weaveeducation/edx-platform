@@ -11,28 +11,26 @@
      data-show-summary-info-after-quiz=${"1" if show_summary_info_after_quiz else "0"}>
 
   % if graded and show_summary_info_after_quiz:
-  <div class="seq-grade-block" id="seq-grade-block">
-    <div class="wrapper-msg wrapper-auto-cert">
-      <div class="auto-cert-message" id="course-success">
-        <div class="has-actions">
-          <div class="msg-content">
-            <p class="seq-grade-block-text">Congratulations, you have now completed the assessment. Your score is <span class="my-score"></span>. <a href="#" class="seq-grade-block-show-details">Click here to see details and email your score</a></p>
-            <div class="seq-grade-block-details">
-              <p class="seq-grade-block-text">To email your results to yourself or your instructor, please enter the email address(es) of the recipient(s) in the box below. If there are multiple addresses please separate them with a comma.</p>
-              <p class="seq-grade-block-text">Some instructors may require this step for you to receive credit for your work. If you are not sure, email your results to yourself, and check with your instructor.</p>
-              <p class="seq-grade-block-text">By providing these email addresses, you are granting Credo permission to share your score results on this assessment with the recipients listed.</p>
-              <div>
+  <div id="get-score-modal" class="modal scores-modal" tabindex="-1" role="dialog">
+    <div class="inner-wrapper">
+      <button class="close-modal">
+        <span class="icon fa fa-remove" aria-hidden="true"></span>
+        <span class="sr">${_("Close")}</span>
+      </button>
+        <div class="seq-grade-block" id="seq-grade-block">
+            <p class="seq-grade-block-text">Your score is <span class="my-score"></span>.</p>
+            <p class="seq-grade-block-text">To email your results to yourself or your instructor, please enter the email address(es) of the recipient(s) in the box below. If there are multiple addresses please separate them with a comma.</p>
+            <p class="seq-grade-block-text">Some instructors may require this step for you to receive credit for your work. If you are not sure, email your results to yourself, and check with your instructor.</p>
+            <p class="seq-grade-block-text">By providing these email addresses, you are granting Credo permission to share your score results on this assessment with the recipients listed.</p>
+            <div>
                 <div class="email-box"><input type="text" maxlength="255" class="email-assessment" name="email-assessment" id="email-assessment" value=""></div>
                 <div class="email-box-button"><button class="send-email-btn">Send email</button></div>
-              </div>
-              <div class="email-error"></div>
-              <div class="email-success">Email was successfully sent</div>
-              <div class="detailed-info"></div>
             </div>
-          </div>
+            <div class="email-error"></div>
+            <div class="email-success">Email was successfully sent</div>
+            <div class="detailed-info"></div>
         </div>
-      </div>
-     </div>
+    </div>
   </div>
   % endif
 

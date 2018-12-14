@@ -55,7 +55,13 @@
   }
 }
 
-.proctored_exam_status {
+.scores-panel {
+  display: none;
+  z-index: 10 !important;
+}
+
+.proctored_exam_status,
+.scores-panel {
   // STATE: Fixed to viewport (used for scrolling)
   &.is-fixed {
     @extend %ui-depth4;
@@ -96,6 +102,10 @@
       margin-top: -6px;
     }
 
+    .get-scores-btn {
+      margin-left: 10px !important;
+    }
+
     &.low-time {
       color: theme-color("light");
       background-color: rgb(79, 88, 92);
@@ -112,7 +122,7 @@
           color: theme-color("inverse");
         }
 
-        .exam-button-turn-in-exam {
+        .exam-button-turn-in-exam, .get-scores-btn {
           background-color: transparent;
           border: 1px solid theme-color("inverse");
           color: theme-color("inverse");
@@ -155,7 +165,7 @@
       color: theme-color("inverse");
     }
 
-    .exam-button-turn-in-exam {
+    .exam-button-turn-in-exam, .get-scores-btn {
       @extend %btn-pl-primary-base;
       @extend %t-action3;
       @extend %t-weight4;

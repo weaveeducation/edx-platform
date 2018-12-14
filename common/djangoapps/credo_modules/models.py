@@ -426,7 +426,6 @@ class SendScores(models.Model):
 
 class SendScoresMailing(models.Model):
     email_scores = models.ForeignKey(SendScores)
-    emails = models.TextField(blank=True)
     data = models.TextField(blank=True)
     last_send_time = models.DateTimeField(null=True, blank=True)
 

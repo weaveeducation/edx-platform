@@ -93,6 +93,7 @@ from openedx.core.djangoapps.programs.utils import ProgramMarketingDataExtender
 from openedx.core.djangoapps.self_paced.models import SelfPacedConfiguration
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.util.user_messages import PageLevelMessages
+from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous
 from openedx.core.djangolib.markup import HTML, Text
 from openedx.core.lib.url_utils import unquote_slashes
 from openedx.features.course_experience import UNIFIED_COURSE_TAB_FLAG, course_home_url_name
@@ -1911,20 +1912,26 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
 
             course = get_course_with_access(request.user, 'load', course_key)
 
-            if course.credo_additional_profile_fields:
+            credo_anonymous_name_is_set = False
+            is_credo_anonymous = is_user_credo_anonymous(request.user)
+
+            if is_credo_anonymous and course.credo_additional_profile_fields:
                 fields_version = additional_profile_fields_hash(course.credo_additional_profile_fields)
-                if request.user.email.endswith('@credomodules.com'):
-                    profiles = CredoModulesUserProfile.objects.filter(course_id=course_key, user=request.user)
-                    for profile in profiles:
-                        if profile.fields_version == fields_version:
-                            profile_fileds = json.loads(profile.meta)
-                            if 'name' in profile_fileds:
-                                resp['user']['username'] = profile_fileds['name']
-                            if 'email' in profile_fileds:
-                                resp['user']['email'] = profile_fileds['email']
+
+                profile = CredoModulesUserProfile.objects.filter(course_id=course_key, user=request.user,
+                                                                 fields_version=fields_version).first()
+                if profile:
+                    profile_fileds = json.loads(profile.meta)
+                    if 'name' in profile_fileds:
+                        resp['user']['username'] = profile_fileds['name']
+                        credo_anonymous_name_is_set = True
+                    if 'email' in profile_fileds:
+                        resp['user']['email'] = profile_fileds['email']
 
             if not resp['user']['full_name']:
                 resp['user']['full_name'] = resp['user']['username']
+                if is_credo_anonymous and not credo_anonymous_name_is_set:
+                    resp['user']['full_name'] = None
 
             seq_item, _ = get_module_by_usage_id(
                 request, text_type(course_key), text_type(usage_key), disable_staff_debug_info=True, course=course
@@ -1963,7 +1970,7 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
                                     resp['items'].append({
                                         'display_name': item['data'].display_name,
                                         'parent_name': item['parent_name'],
-                                        'correctness': item['correctness'],
+                                        'correctness': item['correctness'] if item['correctness'] else 'Not Answered',
                                         'earned': int(score.earned) if int(score.earned) == score.earned else score.earned,
                                         'possible': int(score.possible) if int(score.possible) == score.possible else score.possible,
                                         'last_answer_timestamp': score.last_answer_timestamp,
@@ -2030,25 +2037,22 @@ def email_student_progress(request, course_id, usage_id):
             send_scores = SendScores(
                 user=request.user,
                 course_id=course_key,
-                block_id=usage_id,
-                last_send_time=timezone.now())
-            send_scores.save()
-
-        mailing_list = json.dumps(emails_result)
+                block_id=usage_id)
+        send_scores.last_send_time = timezone.now()
+        send_scores.save()
 
         mailing = SendScoresMailing(
             email_scores=send_scores,
-            emails=mailing_list,
             data=json.dumps(resp, cls=DjangoJSONEncoder),
             last_send_time=timezone.now()
         )
         mailing.save()
 
-        send_email_with_scores.delay(mailing.id)
+        send_email_with_scores.delay(mailing.id, emails_result)
 
         log.info(u"Task to send scores was added for user_id: %s, course_id: %s, block_id: %s. "
                  u"Emails: %s. Mailing id: %s",
-                 str(request.user.id), str(course_key), str(usage_id), mailing_list, str(mailing.id))
+                 str(request.user.id), str(course_key), str(usage_id), str(emails_result), str(mailing.id))
 
         return JsonResponse({'success': True, 'error': False})
     else:
@@ -2056,12 +2060,11 @@ def email_student_progress(request, course_id, usage_id):
 
 
 @CELERY_APP.task
-def send_email_with_scores(mailing_id):
+def send_email_with_scores(mailing_id, emails):
     log.info(u"Task to send scores was started. Mailing id: %s", str(mailing_id))
 
     try:
         mailing = SendScoresMailing.objects.get(id=mailing_id)
-        emails = json.loads(mailing.emails)
         scores_info = json.loads(mailing.data)
 
         email_scores = render_to_string('emails/email_scores.txt', {
@@ -2075,6 +2078,7 @@ def send_email_with_scores(mailing_id):
         from_address = configuration_helpers.get_value('email_from_address', settings.BULK_EMAIL_DEFAULT_FROM_EMAIL)
 
         if settings.DEBUG:
+            log.info('Recipient list: ' + str(emails))
             log.info('Email text: ' + email_scores)
 
         mail.send_mail('Credo Assessment Results', email_scores, from_address, emails, fail_silently=False)
