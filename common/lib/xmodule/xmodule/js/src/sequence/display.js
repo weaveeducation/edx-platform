@@ -249,6 +249,10 @@
                 html += '<div class="detailed-info-row">' + value.parent_name + ' - ' + value.display_name + '<br />' + value.correctness + ' - ' + value.earned + ' / ' + value.possible + (value.last_answer_timestamp ? (' - ' + moment(value.last_answer_timestamp).format("YYYY-MM-DD HH:mm")) : '') + '</div>';
             });
             this.$('.detailed-info').html(html);
+            if (this.scores.user.email) {
+                this.$('.email-assessment').val(this.scores.user.email);
+            }
+
             this.$('.send-email-btn').unbind('click');
 
             this.$('.send-email-btn').click(function(event) {
