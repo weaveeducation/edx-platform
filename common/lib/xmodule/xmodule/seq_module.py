@@ -355,6 +355,9 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
         if prereq_met and not self._is_gate_fulfilled():
             banner_text = _('This section is a prerequisite. You must complete this section in order to unlock additional content.')
 
+        # disable scores panel for timed and proctored exams
+        is_time_exam = getattr(self, 'is_proctored_exam', False) or getattr(self, 'is_time_limited', False)
+
         fragment = Fragment()
         params = {
             'items': self._render_student_view_for_items(context, display_items, fragment) if prereq_met else [],
@@ -374,7 +377,7 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
             'graded': self.graded,
             'lms_url_to_get_grades': context.get('lms_url_to_get_grades'),
             'lms_url_to_email_grades': context.get('lms_url_to_email_grades'),
-            'show_summary_info_after_quiz': context.get('show_summary_info_after_quiz', False)
+            'show_summary_info_after_quiz': False if is_time_exam else context.get('show_summary_info_after_quiz', False)
         }
         fragment.add_content(self.system.render_template("seq_module.html", params))
 

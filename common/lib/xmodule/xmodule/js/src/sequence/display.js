@@ -41,6 +41,9 @@
             this.displayTabTooltip = function(event) {
                 return Sequence.prototype.displayTabTooltip.apply(self, [event]);
             };
+            this.detectScroll = function(event) {
+                return Sequence.prototype.detectScroll.apply(self, [event]);
+            };
             this.arrowKeys = {
                 LEFT: 37,
                 UP: 38,
@@ -65,11 +68,10 @@
             this.showSummaryInfoAfterQuiz = parseInt(this.el.data('show-summary-info-after-quiz')) === 1;
             this.lmsUrlToGetGrades = this.el.data('lms-url-to-get-grades');
             this.lmsUrlToEmailGrades = this.el.data('lms-url-to-email-grades');
-
-            this.questionsQueue = [];
-            this.questionsWithoutAnswer = [];
-            this.questionsInfoReceived = false;
             this.scores = null;
+
+            this.scoresBarTopPosition = null;
+            this.courseNavBarMarginTop = null;
 
             this.returnToCourseOutline = parseInt(this.el.data('return-to-course-outline')) == 1;
             if (window.chromlessView) {
@@ -114,12 +116,66 @@
                 position = this.el.data('position');
             }
 
-            if (this.supportDisplayResults) {
+            if (this.supportDisplayResults()) {
                 this.getQuestionsInfo();
             }
 
             this.render(parseInt(position, 10));
         }
+
+        Sequence.prototype.showSendScoresPanel = function() {
+            var panel = $('.scores-panel');
+            var self = this;
+            if ($(panel).hasClass('is-hidden')) {
+                $(panel).html('<div class="exam-timer">' +
+                    '<div class="exam-text">Click here to see details and email your score:' +
+                    '<button class="get-scores-btn btn btn-pl-primary" href="#get-score-modal">Get Scores</button>' +
+                    '<a href="#get-score-modal" class="get-scores-link" style="display: none;">Get Scores</a>' +
+                    '</div>' +
+                    '</div>');
+                $(panel).removeClass('is-hidden');
+                $(panel).show();
+
+                $(panel).find('.get-scores-link').leanModal({
+                    closeButton: '.close-modal',
+                    top: 50
+                });
+
+                this.scoresBarTopPosition = $(panel).position().top;
+                this.courseNavBarMarginTop = this.scoresBarTopPosition - 3;
+
+                $(panel).find('.get-scores-btn').click(function () {
+                    self.fetchAndDisplayResults();
+                    $(panel).find('.get-scores-link').trigger('click');
+                });
+
+                this._checkScroll(window, this.scoresBarTopPosition, this.courseNavBarMarginTop);
+                $(window).bind('scroll', this.detectScroll);
+            }
+        };
+
+        Sequence.prototype.changeScoresBtn = function(enable) {
+            var panel = $('.scores-panel');
+            if (enable) {
+                $(panel).find('.get-scores-btn').removeAttr('disabled').text('Get Scores');
+            } else {
+                $(panel).find('.get-scores-btn').attr('disabled', 'disabled').text('Please wait...');
+            }
+        };
+
+        Sequence.prototype.detectScroll = function(event) {
+            this._checkScroll(event.currentTarget, this.scoresBarTopPosition, this.courseNavBarMarginTop);
+        };
+
+        Sequence.prototype._checkScroll = function(target, scoresBarTopPosition, courseNavBarMarginTop) {
+            if ($(target).scrollTop() > scoresBarTopPosition) {
+                $(".scores-panel").addClass('is-fixed');
+                $(".wrapper-course-material").css('margin-top', courseNavBarMarginTop + 'px');
+            } else {
+                $(".scores-panel").removeClass('is-fixed');
+                $(".wrapper-course-material").css('margin-top', '0');
+            }
+        };
 
         Sequence.prototype.supportDisplayResults = function() {
             return this.graded && this.showSummaryInfoAfterQuiz;
@@ -127,19 +183,20 @@
 
         Sequence.prototype.getQuestionsInfo = function() {
             var self = this;
+            var showPanel = false;
 
             $.postWithPrefix(this.lmsUrlToGetGrades, {}, function(data) {
                 if (!data.error) {
                     if (data.items.length > 0) {
                         $.each(data.items, function(idx, value) {
-                            if ((value.correctness === null) && (self.questionsQueue.indexOf(value.id) === -1)) {
-                                self.questionsWithoutAnswer.push(value.id);
+                            if (value.correctness !== 'Not Answered') {
+                                showPanel = true;
                             }
                         });
-                    }
-                    self.questionsInfoReceived = true;
-                    if ((data.items.length > 0) && (self.questionsWithoutAnswer.length === 0)) {
-                        self.displayResults(data);
+
+                        if (showPanel) {
+                            self.showSendScoresPanel();
+                        }
                     }
                 }
             });
@@ -147,7 +204,9 @@
 
         Sequence.prototype.fetchAndDisplayResults = function() {
             var self = this;
+            this.changeScoresBtn(false);
             $.postWithPrefix(this.lmsUrlToGetGrades, {}, function(data) {
+                self.changeScoresBtn(true);
                 if ((!data.error) && (data.items.length > 0)) {
                     self.displayResults(data);
                 }
@@ -159,7 +218,7 @@
             return re.test(String(email).toLowerCase());
         };
 
-        Sequence.prototype.displayError = function(msg) {
+        Sequence.prototype.displayEmailError = function(msg) {
             this.$('.email-error').show().html(msg);
         };
 
@@ -173,17 +232,22 @@
             this.$('.send-email-btn').text('Send email');
         };
 
-        Sequence.prototype.displayResultDetails = function() {
-            var html = '<div class="detailed-info-row full-name">' + this.scores.user.full_name + '</div>';
+        Sequence.prototype.displayResults = function(data) {
+            this.scores = data;
+            this.$('.my-score').html(this.scores.common.percent_graded + '%');
+            this.$('.email-assessment').val('');
+            this.$('.email-error').hide();
+            this.$('.email-success').hide();
+
             var self = this;
+            var html = this.scores.user.full_name ? ('<div class="detailed-info-row full-name">' + this.scores.user.full_name + '</div>') : '';
             if (this.scores.common.last_answer_timestamp) {
-                html += '<div class="detailed-info-row last-answer-timestamp">' + moment(this.scores.common.last_answer_timestamp).format("YYYY-MM-DD HH:mm")  + '</div>';
+                html += '<div class="detailed-info-row last-answer-timestamp">Time of the last answer: ' + moment(this.scores.common.last_answer_timestamp).format("YYYY-MM-DD HH:mm")  + '</div>';
             }
             html += '<div class="detailed-info-row quiz-name">' + this.scores.common.quiz_name + ' - Total score - ' + this.scores.common.percent_graded + '% (' + this.scores.common.earned + ' / ' + this.scores.common.possible  + ')</div>';
             $.each(this.scores.items, function(idx, value) {
                 html += '<div class="detailed-info-row">' + value.parent_name + ' - ' + value.display_name + '<br />' + value.correctness + ' - ' + value.earned + ' / ' + value.possible + (value.last_answer_timestamp ? (' - ' + moment(value.last_answer_timestamp).format("YYYY-MM-DD HH:mm")) : '') + '</div>';
             });
-            html += '<div class="detailed-info-row detailed-info-hide"><a href="#" class="seq-grade-block-hide-details">Click here to hide details</a></div>';
             this.$('.detailed-info').html(html);
             this.$('.send-email-btn').unbind('click');
 
@@ -207,7 +271,7 @@
                     if (tmp != '') {
                         if (!self.validateEmail(tmp)) {
                             isError = true;
-                            self.displayError('Invalid email: ' + tmp);
+                            self.displayEmailError('Invalid email: ' + tmp);
                         } else {
                             emailsArr.push(tmp);
                         }
@@ -229,56 +293,15 @@
                             if (data.success) {
                                 self.$('.email-success').show();
                             } else {
-                                self.displayError(data.error);
+                                self.displayEmailError(data.error);
                             }
                             self.unlockSendEmailBtn();
                         });
                     } else {
-                        self.displayError('Please enter at least one email');
+                        self.displayEmailError('Please enter at least one email');
                     }
                 }
             });
-
-            this.$('.seq-grade-block-hide-details').unbind('click');
-            this.$('.seq-grade-block-hide-details').click(function(event) {
-                event.preventDefault();
-                self.$('.seq-grade-block-show-details').removeClass("opened");
-                self.$('.seq-grade-block-details').slideUp(400, function() {
-                    self.$('.detailed-info').html('');
-                });
-            });
-        };
-
-        Sequence.prototype.displayResults = function(data) {
-            var self = this;
-
-            this.$('.seq-grade-block').show();
-
-            if ((this.scores === null) || (this.scores.common.percent_graded !== data.common.percent_graded)) {
-                $.scrollTo(0, 150);
-            }
-
-            this.scores = data;
-            this.$('.my-score').html(this.scores.common.percent_graded + '%');
-
-            this.$('.seq-grade-block-show-details').unbind('click');
-            this.$('.seq-grade-block-show-details').click(function(event) {
-                event.preventDefault();
-                if ($(this).hasClass("opened")) {
-                    $(this).removeClass("opened");
-                    self.$('.seq-grade-block-details').slideUp(400, function() {
-                        self.$('.detailed-info').html('');
-                    });
-                } else {
-                    $(this).addClass("opened");
-                    self.displayResultDetails();
-                    self.$('.seq-grade-block-details').slideDown(400, function() {});
-                }
-            });
-
-            if (this.$('.seq-grade-block-show-details').hasClass("opened")) {
-                this.displayResultDetails();
-            }
         };
 
         Sequence.prototype.$ = function(selector) {
@@ -447,22 +470,8 @@
             var self = this;
 
             return $('.problems-wrapper').bind('contentChanged', function(event, problemId, newContentState, newState) {
-                if (self.supportDisplayResults) {
-                    var index = null;
-                    if (self.questionsInfoReceived) {
-                        index = self.questionsWithoutAnswer.indexOf(problemId);
-                        if (index > -1) {
-                            self.questionsWithoutAnswer.splice(index, 1);
-                        }
-                        if (self.questionsWithoutAnswer.length === 0) {
-                            self.fetchAndDisplayResults();
-                        }
-                    } else {
-                        index = self.questionsQueue.indexOf(problemId);
-                        if (index === -1) {
-                            self.questionsQueue.push(problemId);
-                        }
-                    }
+                if (self.supportDisplayResults()) {
+                    self.showSendScoresPanel();
                 }
                 return self.addToUpdatedProblems(problemId, newContentState, newState);
             });
