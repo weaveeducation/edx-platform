@@ -1913,6 +1913,7 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
             course = get_course_with_access(request.user, 'load', course_key)
 
             credo_anonymous_name_is_set = False
+            credo_anonymous_email_is_set = False
             is_credo_anonymous = is_user_credo_anonymous(request.user)
 
             if is_credo_anonymous and course.credo_additional_profile_fields:
@@ -1927,11 +1928,15 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
                         credo_anonymous_name_is_set = True
                     if 'email' in profile_fileds:
                         resp['user']['email'] = profile_fileds['email']
+                        credo_anonymous_email_is_set = True
 
             if not resp['user']['full_name']:
                 resp['user']['full_name'] = resp['user']['username']
                 if is_credo_anonymous and not credo_anonymous_name_is_set:
                     resp['user']['full_name'] = None
+
+            if is_credo_anonymous and not credo_anonymous_email_is_set:
+                resp['user']['email'] = None
 
             seq_item, _ = get_module_by_usage_id(
                 request, text_type(course_key), text_type(usage_key), disable_staff_debug_info=True, course=course
