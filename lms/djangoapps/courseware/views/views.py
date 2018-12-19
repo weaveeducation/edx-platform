@@ -1876,6 +1876,11 @@ def _get_block_children(block, parent_name):
         if item.category == 'problem':
             correctness = _get_item_correctness(item)
             data[loc_id]['correctness'] = correctness.title() if correctness else None
+            question_text = ''
+            dt = item.index_dictionary(remove_variants=True)
+            if dt and 'content' in dt and 'capa_content' in dt['content']:
+                question_text = dt['content']['capa_content'].strip()
+            data[loc_id]['question_text'] = question_text
         if item.has_children:
             data.update(_get_block_children(item, item.display_name))
     return data
@@ -1943,6 +1948,14 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
             )
             children_dict = _get_block_children(seq_item, seq_item.display_name)
 
+            user_state_client = DjangoXBlockUserStateClient(request.user)
+            user_state_dict = {}
+            problem_locations = [item['data'].location for k, item in children_dict.items()
+                                 if item['category'] == 'problem']
+
+            if problem_locations:
+                user_state_dict = user_state_client.get_all_blocks(request.user, course_key, problem_locations)
+
             course_grade = CourseGradeFactory().read(request.user, course)
             courseware_summary = course_grade.chapter_grades.values()
 
@@ -1965,24 +1978,34 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
 
                         for key, score in section.problem_scores.items():
                             item = children_dict.get(str(key))
-                            if item:
+                            if item and item['category'] == 'problem':
+                                answer = []
+                                if user_state_dict:
+                                    answer_state = user_state_dict.get(str(key))
+                                    if answer_state:
+                                        state_gen = item['data'].generate_report_data([answer_state])
+                                        for state_username, state_item in state_gen:
+                                            answer.append(state_item.get('Answer').strip().replace('\n', ' '))
+
                                 unix_timestamp = int(time.mktime(score.last_answer_timestamp.timetuple())) \
                                     if score.last_answer_timestamp else None
                                 browser_datetime = _get_browser_datetime(score.last_answer_timestamp,
                                                                          timezone_offset) \
                                     if score.last_answer_timestamp else ''
-                                if item['category'] == 'problem':
-                                    resp['items'].append({
-                                        'display_name': item['data'].display_name,
-                                        'parent_name': item['parent_name'],
-                                        'correctness': item['correctness'] if item['correctness'] else 'Not Answered',
-                                        'earned': int(score.earned) if int(score.earned) == score.earned else score.earned,
-                                        'possible': int(score.possible) if int(score.possible) == score.possible else score.possible,
-                                        'last_answer_timestamp': score.last_answer_timestamp,
-                                        'unix_timestamp': unix_timestamp,
-                                        'browser_datetime': browser_datetime,
-                                        'id': item['id']
-                                    })
+                                resp['items'].append({
+                                    'display_name': item['data'].display_name,
+                                    'question_text': item['question_text'],
+                                    'answer': '; '.join(answer) if answer else None,
+                                    'question_description': '',
+                                    'parent_name': item['parent_name'],
+                                    'correctness': item['correctness'] if item['correctness'] else 'Not Answered',
+                                    'earned': int(score.earned) if int(score.earned) == score.earned else score.earned,
+                                    'possible': int(score.possible) if int(score.possible) == score.possible else score.possible,
+                                    'last_answer_timestamp': score.last_answer_timestamp,
+                                    'unix_timestamp': unix_timestamp,
+                                    'browser_datetime': browser_datetime,
+                                    'id': item['id']
+                                })
     except Http404:
         resp['error'] = True
 
