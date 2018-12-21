@@ -125,6 +125,11 @@ from credo_modules.models import user_must_fill_additional_profile_fields, addit
 from credo_modules.views import show_student_profile_form
 from mako.template import Template
 from lms import CELERY_APP
+try:
+    from premailer import transform
+except ImportError:
+    transform = None
+
 
 log = logging.getLogger("edx.courseware")
 
@@ -1499,11 +1504,7 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True):
                                                                   kwargs={'course_id': unicode(course_key),
                                                                           'usage_id': unicode(usage_key_string)})
         student_view_context['show_summary_info_after_quiz'] = course.show_summary_info_after_quiz
-        student_view_context['summary_info_imgs'] = {
-            'correct_icon': staticfiles_storage.url('images/credo/question_correct.png'),
-            'incorrect_icon': staticfiles_storage.url('images/credo/question_incorrect.png'),
-            'assessment_done_img': staticfiles_storage.url('images/credo/assessment_done.png')
-        }
+        student_view_context['summary_info_imgs'] = get_student_progress_images()
 
         try:
             org = Organization.objects.get(org=course.org)
@@ -2037,50 +2038,6 @@ def block_student_progress(request, course_id, usage_id):
 
 @transaction.non_atomic_requests
 @login_required
-@ensure_valid_course_key
-@data_sharing_consent_required
-def block_student_progress_test(request, course_id, usage_id):
-    course_key = CourseKey.from_string(course_id)
-    usage_key = UsageKey.from_string(usage_id)
-
-    course = modulestore().get_course(course_key)
-    breadcrumbs = []
-
-    org_name = course.display_organization
-    if not org_name:
-        org_name = course_key.org
-    breadcrumbs.append(org_name.strip())
-
-    course_name = course.display_name
-    if not course_name:
-        course_name = course_key.course
-    breadcrumbs.append(course_name.strip())
-
-    item = modulestore().get_item(usage_key)
-    parent = item.get_parent()
-    if parent.display_name != item.display_name:
-        breadcrumbs.append(parent.display_name)
-    breadcrumbs.append(item.display_name)
-
-    dt_now = datetime.now()
-    scores_info = _get_block_student_progress(request, course_id, usage_id)
-    return render_to_response('emails/email_scores.html', {
-        'breadcrumbs': breadcrumbs,
-        'breadcrumbs_len': len(breadcrumbs) - 1,
-        'lms_url': configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL),
-        'platform_name': configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME),
-        'support_url': configuration_helpers.get_value('SUPPORT_SITE_LINK', settings.SUPPORT_SITE_LINK),
-        'support_email': configuration_helpers.get_value('CONTACT_EMAIL', settings.CONTACT_EMAIL),
-        'scores': scores_info,
-        'current_year': dt_now.year,
-        'section_display_name': item.display_name,
-        'privacy_url': 'https://modules.zendesk.com/hc/en-us/articles/115005329466-Data-Privacy-FERPA-Security',
-        'use_static': True
-    })
-
-
-@transaction.non_atomic_requests
-@login_required
 @require_http_methods(["POST"])
 @ensure_valid_course_key
 @data_sharing_consent_required
@@ -2144,6 +2101,14 @@ def email_student_progress(request, course_id, usage_id):
         return JsonResponse({'success': False, 'error': 'Error. Please refresh the page'})
 
 
+def get_student_progress_images():
+    return {
+        'correct_icon': settings.STATIC_URL + 'images/credo/question_correct.png',
+        'incorrect_icon': settings.STATIC_URL + 'images/credo/question_incorrect.png',
+        'assessment_done_img': settings.STATIC_URL + 'images/credo/assessment_done.png'
+    }
+
+
 @CELERY_APP.task
 def send_email_with_scores(course_id, usage_id, mailing_id, emails):
     log.info(u"Task to send scores was started. Mailing id: %s", str(mailing_id))
@@ -2187,11 +2152,13 @@ def send_email_with_scores(course_id, usage_id, mailing_id, emails):
             'current_year': dt_now.year,
             'section_display_name': item.display_name,
             'privacy_url': 'https://modules.zendesk.com/hc/en-us/articles/115005329466-Data-Privacy-FERPA-Security',
-            'use_static': False
+            'use_static': True
         }
 
         text_email = render_to_string('emails/email_scores.txt', context)
         html_email = render_to_string('emails/email_scores.html', context)
+        if transform:
+            html_email = transform(html_email)
 
         from_address = configuration_helpers.get_value('email_from_address', settings.BULK_EMAIL_DEFAULT_FROM_EMAIL)
 
@@ -2199,21 +2166,24 @@ def send_email_with_scores(course_id, usage_id, mailing_id, emails):
             log.info('Recipient list: ' + str(emails))
             log.info('Email text: ' + text_email)
 
-        msg = mail.EmailMultiAlternatives('Credo Assessment Results: ' + item.display_name, text_email,
-                                          from_address, emails)
-        msg.attach_alternative(html_email, "text/html")
-        msg.mixed_subtype = 'related'
-        for f in ['assessment_done.png', 'credo-logo.png', 'question_correct.png', 'question_incorrect.png']:
-            if settings.DEBUG:
-                path_to_image = settings.PROJECT_ROOT + staticfiles_storage.url('images/credo/' + f)
-            else:
-                path_to_image = staticfiles_storage.path('images/credo/' + f)
-            fp = open(path_to_image, 'rb')
-            msg_img = MIMEImage(fp.read())
-            fp.close()
-            msg_img.add_header('Content-ID', '<{}>'.format(f))
-            msg.attach(msg_img)
-        msg.send()
+#        msg = mail.EmailMultiAlternatives('Credo Assessment Results: ' + item.display_name, text_email,
+#                                          from_address, emails)
+#        msg.attach_alternative(html_email, "text/html")
+#        msg.mixed_subtype = 'related'
+#        for f in ['assessment_done.png', 'credo-logo.png', 'question_correct.png', 'question_incorrect.png']:
+#            if settings.DEBUG:
+#                path_to_image = settings.PROJECT_ROOT + staticfiles_storage.url('images/credo/' + f)
+#            else:
+#                path_to_image = staticfiles_storage.path('images/credo/' + f)
+#            fp = open(path_to_image, 'rb')
+#            msg_img = MIMEImage(fp.read())
+#            fp.close()
+#            msg_img.add_header('Content-ID', '<{}>'.format(f))
+#            msg.attach(msg_img)
+#        msg.send()
+
+        mail.send_mail('Credo Assessment Results: ' + item.display_name, text_email, from_address, emails,
+                       fail_silently=False, html_message=html_email)
 
         log.info(u"Task to send scores successfully finished. Mailing id: %s", str(mailing_id))
     except SendScoresMailing.DoesNotExist:
