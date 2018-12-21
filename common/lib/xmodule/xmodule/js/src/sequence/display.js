@@ -266,9 +266,9 @@
                 if ((value.correctness === 'Not Answered') || (value.correctness === 'Incorrect')) {
                     iconSrc = self.incorrectIcon;
                 }
-                html += '<div class="seq-grade-details-item-block">' +
-                        '<div class="seq-grade-details-item-block-icon"><img src="' + iconSrc + '" alt="' + value.correctness + '" title="' + value.correctness + '" /></div>' +
-                        '<div class="seq-grade-details-item-block-content">' +
+                html += '<div class="seq-grade-details-item-block"><table class="seq-grade-details-item-table"><tr>' +
+                        '<td class="seq-grade-details-item-block-icon"><img src="' + iconSrc + '" alt="' + value.correctness + '" title="' + value.correctness + '" /></td>' +
+                        '<td class="seq-grade-details-item-block-content">' +
                           '<div class="seq-grade-details-item-block-content-header">' + value.parent_name + ' <span class="icon fa fa-angle-right" aria-hidden="true"></span> ' + value.display_name + '</div>';
                 if (value.last_answer_timestamp) {
                     html += '<div class="seq-grade-details-item-block-content-text">Time of the last answer: ' +
@@ -282,9 +282,9 @@
                     html += '<div class="seq-grade-details-item-block-content-header">Answer</div>';
                     html += '<div class="seq-grade-details-item-block-content-text">' + value.answer + '</div>';
                 }
-                html += '</div>' +
-                        '<div class="seq-grade-details-item-block-points">' + value.earned + '/' + value.possible + '</div>' +
-                      '</div>';
+                html += '</td>' +
+                        '<td class="seq-grade-details-item-block-points">' + value.earned + '/' + value.possible + '</td>' +
+                      '</tr></table></div>';
             });
             this.$('.seq-grade-details-items').html(html);
 

@@ -310,6 +310,18 @@
             }
           }
 
+          .seq-grade-comment {
+            display: none;
+            border-bottom: 1px solid #d9d9d9;
+
+            .seq-grade-description {
+              padding-top: 10px;
+              padding-bottom: 10px;
+              padding-left: 20px;
+              font-size: 13px;
+            }
+          }
+
           .seq-grade-details {
             .seq-grade-details-summary, .seq-grade-details-questions {
               display: inline-block;
@@ -360,10 +372,14 @@
                 border: 1px solid #d9d9d9;
                 border-radius: 3px;
 
+                .seq-grade-details-item-table {
+                  width: 100%;
+                  border: 0;
+                }
+
                 .seq-grade-details-item-block-icon,
                 .seq-grade-details-item-block-content,
                 .seq-grade-details-item-block-points {
-                  display: inline-block;
                   vertical-align: top;
                 }
 
@@ -373,7 +389,6 @@
 
                 .seq-grade-details-item-block-content {
                   padding-left: 10px;
-                  width: 85%;
 
                   .seq-grade-details-item-block-content-header {
                     padding-bottom: 4px;
@@ -389,6 +404,7 @@
                 .seq-grade-details-item-block-points {
                   float: right;
                   font-weight: 600;
+                  width: 50px;
                 }
               }
             }
@@ -414,6 +430,14 @@
         @media all and (max-width: 992px) {
           .seq-left-panel {
             width: 100% !important;
+
+            .seq-lesson-completion {
+              border-bottom: none;
+            }
+
+            .seq-grade-comment {
+              display: block;
+            }
           }
 
           .seq-right-panel {
