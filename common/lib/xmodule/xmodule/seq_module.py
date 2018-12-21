@@ -377,7 +377,12 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
             'graded': self.graded,
             'lms_url_to_get_grades': context.get('lms_url_to_get_grades'),
             'lms_url_to_email_grades': context.get('lms_url_to_email_grades'),
-            'show_summary_info_after_quiz': False if is_time_exam else context.get('show_summary_info_after_quiz', False)
+            'show_summary_info_after_quiz': False if is_time_exam else context.get('show_summary_info_after_quiz', False),
+            'summary_info_imgs': context.get('summary_info_imgs', {
+                'correct_icon': '',
+                'incorrect_icon': '',
+                'assessment_done_img': ''
+            })
         }
         fragment.add_content(self.system.render_template("seq_module.html", params))
 

@@ -1499,6 +1499,11 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True):
                                                                   kwargs={'course_id': unicode(course_key),
                                                                           'usage_id': unicode(usage_key_string)})
         student_view_context['show_summary_info_after_quiz'] = course.show_summary_info_after_quiz
+        student_view_context['summary_info_imgs'] = {
+            'correct_icon': staticfiles_storage.url('images/credo/question_correct.png'),
+            'incorrect_icon': staticfiles_storage.url('images/credo/question_incorrect.png'),
+            'assessment_done_img': staticfiles_storage.url('images/credo/assessment_done.png')
+        }
 
         try:
             org = Organization.objects.get(org=course.org)
