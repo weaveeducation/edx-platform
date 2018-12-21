@@ -10,8 +10,8 @@
      data-lms-url-to-email-grades="${lms_url_to_email_grades}"
      data-graded=${"1" if graded else "0"}
      data-show-summary-info-after-quiz=${"1" if show_summary_info_after_quiz else "0"}
-     data-correct-icon="${static.url("images/credo/question_correct.svg")}"
-     data-incorrect-icon="${static.url("images/credo/question_incorrect.svg")}">
+     data-correct-icon="${static.url("images/credo/question_correct.png")}"
+     data-incorrect-icon="${static.url("images/credo/question_incorrect.png")}">
 
   % if graded and show_summary_info_after_quiz:
   <div id="get-score-modal" class="modal scores-modal" tabindex="-1" role="dialog">

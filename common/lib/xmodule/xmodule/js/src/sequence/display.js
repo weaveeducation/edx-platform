@@ -267,7 +267,7 @@
                     iconSrc = self.incorrectIcon;
                 }
                 html += '<div class="seq-grade-details-item-block"><table class="seq-grade-details-item-table"><tr>' +
-                        '<td class="seq-grade-details-item-block-icon"><img src="' + iconSrc + '" alt="' + value.correctness + '" title="' + value.correctness + '" /></td>' +
+                        '<td class="seq-grade-details-item-block-icon"><img src="' + iconSrc + '" alt="' + value.correctness + '" title="' + value.correctness + '" width="25" height="25" /></td>' +
                         '<td class="seq-grade-details-item-block-content">' +
                           '<div class="seq-grade-details-item-block-content-header">' + value.parent_name + ' <span class="icon fa fa-angle-right" aria-hidden="true"></span> ' + value.display_name + '</div>';
                 if (value.last_answer_timestamp) {
