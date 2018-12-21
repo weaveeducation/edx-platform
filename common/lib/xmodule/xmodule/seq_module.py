@@ -206,7 +206,8 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
     Layout module which lays out content in a temporal sequence
     """
     js = {
-        'js': [resource_string(__name__, 'js/src/sequence/display.js')],
+        'js': [resource_string(__name__, 'js/src/sequence/display.js'),
+               resource_string(__name__, 'js/src/sequence/iframeResizer.contentWindow.js'),],
     }
     css = {
         'scss': [resource_string(__name__, 'css/sequence/display.scss')],
