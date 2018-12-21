@@ -7,11 +7,13 @@ import urllib
 import time
 from collections import OrderedDict, namedtuple
 from datetime import datetime, timedelta
+from email.mime.image import MIMEImage
 
 import analytics
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import AnonymousUser, User
+from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.validators import validate_email
@@ -1876,19 +1878,26 @@ def _get_block_children(block, parent_name):
         if item.category == 'problem':
             correctness = _get_item_correctness(item)
             data[loc_id]['correctness'] = correctness.title() if correctness else None
+            question_text = ''
+            dt = item.index_dictionary(remove_variants=True)
+            if dt and 'content' in dt and 'capa_content' in dt['content']:
+                question_text = dt['content']['capa_content'].strip()
+            data[loc_id]['question_text'] = question_text
         if item.has_children:
             data.update(_get_block_children(item, item.display_name))
     return data
 
 
-def _get_browser_datetime(last_answer_datetime, timezone_offset=None):
+def _get_browser_datetime(last_answer_datetime, timezone_offset=None, dt_format=None):
+    if dt_format is None:
+        dt_format = '%Y-%m-%d %H:%M'
     if timezone_offset is not None:
         if timezone_offset > 0:
             last_answer_datetime = last_answer_datetime + timedelta(minutes=timezone_offset)
         else:
             timezone_offset = (-1) * timezone_offset
             last_answer_datetime = last_answer_datetime - timedelta(minutes=timezone_offset)
-    return last_answer_datetime.strftime('%Y-%m-%d %H:%M')
+    return last_answer_datetime.strftime(dt_format)
 
 
 def _get_block_student_progress(request, course_id, usage_id, timezone_offset=None):
@@ -1943,6 +1952,14 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
             )
             children_dict = _get_block_children(seq_item, seq_item.display_name)
 
+            user_state_client = DjangoXBlockUserStateClient(request.user)
+            user_state_dict = {}
+            problem_locations = [item['data'].location for k, item in children_dict.items()
+                                 if item['category'] == 'problem']
+
+            if problem_locations:
+                user_state_dict = user_state_client.get_all_blocks(request.user, course_key, problem_locations)
+
             course_grade = CourseGradeFactory().read(request.user, course)
             courseware_summary = course_grade.chapter_grades.values()
 
@@ -1956,6 +1973,10 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
                         resp['common']['browser_datetime'] = _get_browser_datetime(section.last_answer_timestamp,
                                                                                    timezone_offset)\
                             if section.last_answer_timestamp else ''
+                        resp['common']['browser_datetime_short'] = _get_browser_datetime(section.last_answer_timestamp,
+                                                                                         timezone_offset,
+                                                                                         "%B %d, %Y") \
+                            if section.last_answer_timestamp else ''
                         resp['common']['percent_graded'] = int(section.percent_graded * 100)
                         resp['common'].update(section.percent_info)
                         if int(resp['common']['earned']) == resp['common']['earned']:
@@ -1965,24 +1986,34 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
 
                         for key, score in section.problem_scores.items():
                             item = children_dict.get(str(key))
-                            if item:
+                            if item and item['category'] == 'problem':
+                                answer = []
+                                if user_state_dict:
+                                    answer_state = user_state_dict.get(str(key))
+                                    if answer_state:
+                                        state_gen = item['data'].generate_report_data([answer_state])
+                                        for state_username, state_item in state_gen:
+                                            answer.append(state_item.get('Answer').strip().replace('\n', ' '))
+
                                 unix_timestamp = int(time.mktime(score.last_answer_timestamp.timetuple())) \
                                     if score.last_answer_timestamp else None
                                 browser_datetime = _get_browser_datetime(score.last_answer_timestamp,
                                                                          timezone_offset) \
                                     if score.last_answer_timestamp else ''
-                                if item['category'] == 'problem':
-                                    resp['items'].append({
-                                        'display_name': item['data'].display_name,
-                                        'parent_name': item['parent_name'],
-                                        'correctness': item['correctness'] if item['correctness'] else 'Not Answered',
-                                        'earned': int(score.earned) if int(score.earned) == score.earned else score.earned,
-                                        'possible': int(score.possible) if int(score.possible) == score.possible else score.possible,
-                                        'last_answer_timestamp': score.last_answer_timestamp,
-                                        'unix_timestamp': unix_timestamp,
-                                        'browser_datetime': browser_datetime,
-                                        'id': item['id']
-                                    })
+                                resp['items'].append({
+                                    'display_name': item['data'].display_name,
+                                    'question_text': item['question_text'],
+                                    'answer': '; '.join(answer) if answer else None,
+                                    'question_description': '',
+                                    'parent_name': item['parent_name'],
+                                    'correctness': item['correctness'] if item['correctness'] else 'Not Answered',
+                                    'earned': int(score.earned) if int(score.earned) == score.earned else score.earned,
+                                    'possible': int(score.possible) if int(score.possible) == score.possible else score.possible,
+                                    'last_answer_timestamp': score.last_answer_timestamp,
+                                    'unix_timestamp': unix_timestamp,
+                                    'browser_datetime': browser_datetime,
+                                    'id': item['id']
+                                })
     except Http404:
         resp['error'] = True
 
@@ -1997,6 +2028,50 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
 def block_student_progress(request, course_id, usage_id):
     resp = _get_block_student_progress(request, course_id, usage_id)
     return JsonResponse(resp)
+
+
+@transaction.non_atomic_requests
+@login_required
+@ensure_valid_course_key
+@data_sharing_consent_required
+def block_student_progress_test(request, course_id, usage_id):
+    course_key = CourseKey.from_string(course_id)
+    usage_key = UsageKey.from_string(usage_id)
+
+    course = modulestore().get_course(course_key)
+    breadcrumbs = []
+
+    org_name = course.display_organization
+    if not org_name:
+        org_name = course_key.org
+    breadcrumbs.append(org_name.strip())
+
+    course_name = course.display_name
+    if not course_name:
+        course_name = course_key.course
+    breadcrumbs.append(course_name.strip())
+
+    item = modulestore().get_item(usage_key)
+    parent = item.get_parent()
+    if parent.display_name != item.display_name:
+        breadcrumbs.append(parent.display_name)
+    breadcrumbs.append(item.display_name)
+
+    dt_now = datetime.now()
+    scores_info = _get_block_student_progress(request, course_id, usage_id)
+    return render_to_response('emails/email_scores.html', {
+        'breadcrumbs': breadcrumbs,
+        'breadcrumbs_len': len(breadcrumbs) - 1,
+        'lms_url': configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL),
+        'platform_name': configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME),
+        'support_url': configuration_helpers.get_value('SUPPORT_SITE_LINK', settings.SUPPORT_SITE_LINK),
+        'support_email': configuration_helpers.get_value('CONTACT_EMAIL', settings.CONTACT_EMAIL),
+        'scores': scores_info,
+        'current_year': dt_now.year,
+        'section_display_name': item.display_name,
+        'privacy_url': 'https://modules.zendesk.com/hc/en-us/articles/115005329466-Data-Privacy-FERPA-Security',
+        'use_static': True
+    })
 
 
 @transaction.non_atomic_requests
@@ -2037,7 +2112,7 @@ def email_student_progress(request, course_id, usage_id):
             time_diff = timezone.now() - send_scores.last_send_time
             if time_diff.total_seconds() < 600:  # 10 min
                 return JsonResponse({'success': False, 'error': 'You have already sent email not so long ago. '
-                                                                'Please try again later'})
+                                                                'Please try again later in 10 minutes'})
         except SendScores.DoesNotExist:
             send_scores = SendScores(
                 user=request.user,
@@ -2053,7 +2128,7 @@ def email_student_progress(request, course_id, usage_id):
         )
         mailing.save()
 
-        send_email_with_scores.delay(mailing.id, emails_result)
+        send_email_with_scores.delay(course_id, usage_id, mailing.id, emails_result)
 
         log.info(u"Task to send scores was added for user_id: %s, course_id: %s, block_id: %s. "
                  u"Emails: %s. Mailing id: %s",
@@ -2065,28 +2140,75 @@ def email_student_progress(request, course_id, usage_id):
 
 
 @CELERY_APP.task
-def send_email_with_scores(mailing_id, emails):
+def send_email_with_scores(course_id, usage_id, mailing_id, emails):
     log.info(u"Task to send scores was started. Mailing id: %s", str(mailing_id))
+
+    course_key = CourseKey.from_string(course_id)
+    usage_key = UsageKey.from_string(usage_id)
+
+    course = modulestore().get_course(course_key)
+    breadcrumbs = []
+
+    org_name = course.display_organization
+    if not org_name:
+        org_name = course_key.org
+    breadcrumbs.append(org_name.strip())
+
+    course_name = course.display_name
+    if not course_name:
+        course_name = course_key.course
+    breadcrumbs.append(course_name.strip())
+
+    item = modulestore().get_item(usage_key)
+    parent = item.get_parent()
+    if parent.display_name != item.display_name:
+        breadcrumbs.append(parent.display_name)
+    breadcrumbs.append(item.display_name)
+
+    dt_now = datetime.now()
 
     try:
         mailing = SendScoresMailing.objects.get(id=mailing_id)
         scores_info = json.loads(mailing.data)
 
-        email_scores = render_to_string('emails/email_scores.txt', {
+        context = {
+            'breadcrumbs': breadcrumbs,
+            'breadcrumbs_len': len(breadcrumbs) - 1,
             'lms_url': configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL),
             'platform_name': configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME),
             'support_url': configuration_helpers.get_value('SUPPORT_SITE_LINK', settings.SUPPORT_SITE_LINK),
             'support_email': configuration_helpers.get_value('CONTACT_EMAIL', settings.CONTACT_EMAIL),
-            'scores': scores_info
-        })
+            'scores': scores_info,
+            'current_year': dt_now.year,
+            'section_display_name': item.display_name,
+            'privacy_url': 'https://modules.zendesk.com/hc/en-us/articles/115005329466-Data-Privacy-FERPA-Security',
+            'use_static': False
+        }
+
+        text_email = render_to_string('emails/email_scores.txt', context)
+        html_email = render_to_string('emails/email_scores.html', context)
 
         from_address = configuration_helpers.get_value('email_from_address', settings.BULK_EMAIL_DEFAULT_FROM_EMAIL)
 
         if settings.DEBUG:
             log.info('Recipient list: ' + str(emails))
-            log.info('Email text: ' + email_scores)
+            log.info('Email text: ' + text_email)
 
-        mail.send_mail('Credo Assessment Results', email_scores, from_address, emails, fail_silently=False)
+        msg = mail.EmailMultiAlternatives('Credo Assessment Results: ' + item.display_name, text_email,
+                                          from_address, emails)
+        msg.attach_alternative(html_email, "text/html")
+        msg.mixed_subtype = 'related'
+        for f in ['assessment_done.png', 'credo-logo.png', 'question_correct.png', 'question_incorrect.png']:
+            if settings.DEBUG:
+                path_to_image = settings.PROJECT_ROOT + staticfiles_storage.url('images/credo/' + f)
+            else:
+                path_to_image = staticfiles_storage.path('images/credo/' + f)
+            fp = open(path_to_image, 'rb')
+            msg_img = MIMEImage(fp.read())
+            fp.close()
+            msg_img.add_header('Content-ID', '<{}>'.format(f))
+            msg.attach(msg_img)
+        msg.send()
 
         log.info(u"Task to send scores successfully finished. Mailing id: %s", str(mailing_id))
     except SendScoresMailing.DoesNotExist:

@@ -85,6 +85,8 @@
                 this.carouselView = true;
             }
             this.resizeId = null;
+            this.correctIcon = this.el.data('correct-icon');
+            this.incorrectIcon = this.el.data('incorrect-icon');
 
             this.sequenceList = $(element).find('#sequence-list');
             this.widthElem = 170;
@@ -205,6 +207,13 @@
         Sequence.prototype.fetchAndDisplayResults = function() {
             var self = this;
             this.changeScoresBtn(false);
+
+            this.$('.seq-grade-details-total-score-num').html('');
+            this.$('.seq-grade-details-total-points-num').html('');
+            this.$('.seq-grade-details-quiz-name').html('');
+            this.$('.seq-grade-details-last-answer-timestamp').html('').hide();
+            this.$('.seq-grade-details-items').html('');
+
             $.postWithPrefix(this.lmsUrlToGetGrades, {}, function(data) {
                 self.changeScoresBtn(true);
                 if ((!data.error) && (data.items.length > 0)) {
@@ -234,27 +243,57 @@
 
         Sequence.prototype.displayResults = function(data) {
             this.scores = data;
-            this.$('.my-score').html(this.scores.common.percent_graded + '%');
-            this.$('.email-assessment').val('');
+
             this.$('.email-error').hide();
             this.$('.email-success').hide();
 
             var self = this;
-            var html = this.scores.user.full_name ? ('<div class="detailed-info-row full-name">' + this.scores.user.full_name + '</div>') : '';
+
+            this.$('.seq-grade-details-total-score-num').html(this.scores.common.percent_graded + '%');
+            this.$('.seq-grade-details-total-points-num').html(this.scores.common.earned + '/' + this.scores.common.possible);
+
             if (this.scores.common.last_answer_timestamp) {
-                html += '<div class="detailed-info-row last-answer-timestamp">Time of the last answer: ' + moment(this.scores.common.last_answer_timestamp).format("YYYY-MM-DD HH:mm")  + '</div>';
+                this.$('.seq-grade-details-last-answer-timestamp').show().html('Time of the last answer: ' + moment(this.scores.common.last_answer_timestamp).format("YYYY-MM-DD HH:mm"));
+            } else {
+                this.$('.seq-grade-details-last-answer-timestamp').hide();
             }
-            html += '<div class="detailed-info-row quiz-name">' + this.scores.common.quiz_name + ' - Total score - ' + this.scores.common.percent_graded + '% (' + this.scores.common.earned + ' / ' + this.scores.common.possible  + ')</div>';
+
+            this.$('.seq-grade-details-quiz-name').html(this.scores.common.quiz_name);
+
+            var html = '';
             $.each(this.scores.items, function(idx, value) {
-                html += '<div class="detailed-info-row">' + value.parent_name + ' - ' + value.display_name + '<br />' + value.correctness + ' - ' + value.earned + ' / ' + value.possible + (value.last_answer_timestamp ? (' - ' + moment(value.last_answer_timestamp).format("YYYY-MM-DD HH:mm")) : '') + '</div>';
+                var iconSrc = self.correctIcon;
+                if ((value.correctness === 'Not Answered') || (value.correctness === 'Incorrect')) {
+                    iconSrc = self.incorrectIcon;
+                }
+                html += '<div class="seq-grade-details-item-block"><table class="seq-grade-details-item-table"><tr>' +
+                        '<td class="seq-grade-details-item-block-icon"><img src="' + iconSrc + '" alt="' + value.correctness + '" title="' + value.correctness + '" /></td>' +
+                        '<td class="seq-grade-details-item-block-content">' +
+                          '<div class="seq-grade-details-item-block-content-header">' + value.parent_name + ' <span class="icon fa fa-angle-right" aria-hidden="true"></span> ' + value.display_name + '</div>';
+                if (value.last_answer_timestamp) {
+                    html += '<div class="seq-grade-details-item-block-content-text">Time of the last answer: ' +
+                            moment(value.last_answer_timestamp).format("YYYY-MM-DD HH:mm") +
+                            '</div>';
+                }
+                if (value.question_text) {
+                    html += '<div class="seq-grade-details-item-block-content-text">' + value.question_text + '</div>';
+                }
+                if (value.answer) {
+                    html += '<div class="seq-grade-details-item-block-content-header">Answer</div>';
+                    html += '<div class="seq-grade-details-item-block-content-text">' + value.answer + '</div>';
+                }
+                html += '</td>' +
+                        '<td class="seq-grade-details-item-block-points">' + value.earned + '/' + value.possible + '</td>' +
+                      '</tr></table></div>';
             });
-            this.$('.detailed-info').html(html);
+            this.$('.seq-grade-details-items').html(html);
+
+            this.$('.email-assessment').val('');
             if (this.scores.user.email) {
                 this.$('.email-assessment').val(this.scores.user.email);
             }
 
             this.$('.send-email-btn').unbind('click');
-
             this.$('.send-email-btn').click(function(event) {
                 var btn = $(this);
                 event.preventDefault();
@@ -293,7 +332,7 @@
                             timezone_offset: (-1) * offset
                         }, function(data) {
                             btn.removeAttr('disabled');
-                            btn.text('Send email');
+                            btn.text('Email My Results');
                             if (data.success) {
                                 self.$('.email-success').show();
                             } else {
