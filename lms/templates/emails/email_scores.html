@@ -160,7 +160,7 @@ a, a:hover, a:visited {
     <div class="seq-header">
         <div class="seq-header-icon">
             % if use_static:
-            <img class="seq-img" src="${lms_url}${static.url("images/credo/credo-logo.png")}" />
+            <img class="seq-img" src="${lms_url}${static.url('images/credo/credo-logo.png')}" />
             % else:
             <img class="seq-img" src="cid:credo-logo.png" />
             % endif
@@ -192,7 +192,7 @@ ${scores['common']['browser_datetime_short']}\
             <div class="seq-lesson-completion">
                 <div class="seq-finish-icon">
                     % if use_static:
-                    <img class="seq-img" src="${lms_url}${static.url("images/credo/assessment_done.png")}" />
+                    <img class="seq-img" src="${lms_url}${static.url('images/credo/assessment_done.png')}" />
                     % else:
                     <img class="seq-img" src="cid:assessment_done.png" />
                     % endif
@@ -222,13 +222,13 @@ ${scores['common']['browser_datetime_short']}\
                             <td class="seq-grade-details-item-block-icon">
                                 % if item['correctness'] == 'Not Answered' or item['correctness'] == 'Incorrect':
                                 % if use_static:
-                                <img src="${lms_url}${static.url("images/credo/question_incorrect.png")}" width="25" height="25">
+                                <img src="${lms_url}${static.url('images/credo/question_incorrect.png')}" width="25" height="25">
                                 % else:
                                 <img src="cid:question_incorrect.png" width="25" height="25">
                                 % endif
                                 % else:
                                 % if use_static:
-                                <img src="${lms_url}${static.url("images/credo/question_correct.png")}" width="25" height="25">
+                                <img src="${lms_url}${static.url('images/credo/question_correct.png')}" width="25" height="25">
                                 % else:
                                 <img src="cid:question_correct.png" width="25" height="25">
                                 % endif

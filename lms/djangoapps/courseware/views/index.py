@@ -10,6 +10,7 @@ import urllib
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.views import redirect_to_login
+from django.contrib.staticfiles.storage import staticfiles_storage
 from django.urls import reverse
 from django.http import Http404
 from django.template.context_processors import csrf
@@ -450,6 +451,11 @@ class CoursewareIndex(View):
                                                                          'usage_id': unicode(self.section.location)})
             section_context['show_summary_info_after_quiz'] = self.course.show_summary_info_after_quiz
             section_context['enable_new_carousel_view'] = False
+            section_context['summary_info_imgs'] = {
+                'correct_icon': staticfiles_storage.url('images/credo/question_correct.png'),
+                'incorrect_icon': staticfiles_storage.url('images/credo/question_incorrect.png'),
+                'assessment_done_img': staticfiles_storage.url('images/credo/assessment_done.png')
+            }
             try:
                 org = Organization.objects.get(org=self.course.org)
                 if org.org_type is not None:
