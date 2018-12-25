@@ -538,6 +538,10 @@
             this.updateButtonState(nextCarouselButtonClass, this.selectNext, isLastTab, this.nextUrl);
         };
 
+        Sequence.prototype.postMessageResize = function(height) {
+            window.parent.postMessage("resize::" + height, "*");
+        };
+
         Sequence.prototype.render = function(newPosition) {
             var bookmarked, currentTab, modxFullUrl, sequenceLinks,
                 self = this;
@@ -596,7 +600,12 @@
                 sequenceLinks.click(this.goto);
 
                 this.sr_container.focus();
+
+                if (window.chromlessView) {
+                    this.postMessageResize(document.body.offsetHeight);
+                }
             }
+
         };
 
         Sequence.prototype.goto = function(event) {
