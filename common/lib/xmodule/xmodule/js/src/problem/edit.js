@@ -593,7 +593,7 @@
                             firstAnswer = answerValues[0].replace(/^\=\s*/, '');
 
                             // If answer is not numerical
-                            if (isNaN(parseFloat(firstAnswer)) && !isRangeToleranceCase(firstAnswer)) {
+                            if (!$.isNumeric(firstAnswer) && !isRangeToleranceCase(firstAnswer)) {
                                 return false;
                             }
 
