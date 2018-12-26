@@ -538,8 +538,18 @@
             this.updateButtonState(nextCarouselButtonClass, this.selectNext, isLastTab, this.nextUrl);
         };
 
-        Sequence.prototype.postMessageResize = function(height) {
-            window.parent.postMessage("resize::" + height, "*");
+        Sequence.prototype.inIframe = function() {
+            try {
+                return window.self !== window.top;
+            } catch (e) {
+                return true;
+            }
+        };
+
+        Sequence.prototype.postMessageResize = function() {
+            var height = document.body.offsetHeight;
+            var width = document.body.offsetWidth;
+            window.parent.postMessage("resize::" + height + ":" + width, "*");
         };
 
         Sequence.prototype.render = function(newPosition) {
@@ -601,8 +611,8 @@
 
                 this.sr_container.focus();
 
-                if (window.chromlessView) {
-                    this.postMessageResize(document.body.offsetHeight);
+                if (window.chromlessView && this.inIframe()) {
+                    this.postMessageResize();
                 }
             }
 
