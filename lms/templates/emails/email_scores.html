@@ -22,60 +22,61 @@ a, a:hover, a:visited {
     margin: auto;
     max-width: 800px;
 }
+.separator {
+    border: 1px solid #d9d9d9;
+}
+.seq-table {
+    width: 100%;
+    border: 0;
+}
+.seq-table-total {
+    width: 350px;
+    border: 0;
+}
 .seq-header {
-    background: linear-gradient(to right, #66627C, #8781AD);
+    background-color: #66627C;
     padding: 15px;
     color: #ffffff;
 }
 .seq-header-icon {
-    width: 80px;
-    display: inline-block;
+    width: 120px;
     vertical-align: middle;
     text-align: center;
 }
 .seq-header-text {
-    display: inline-block;
     vertical-align: middle;
-    width: 72%;
     padding-left: 10px;
 }
 .seq-header-breadcrumbs-item {
     font-size: 18px;
 }
 .seq-header-breadcrumbs-separator {
-    margin-left: 7px;
-    margin-right: 5px;
+    padding-left: 10px;
     font-weight: bold;
 }
 .seq-header-breadcrumbs-item-last {
     font-size: 26px;
 }
 .seq-header-user {
-    margin-top: 5px;
+    padding-top: 5px;
 }
 .seq-grade-block {
-    margin-top: 15px;
+    padding-top: 15px;
 }
 .seq-img {
-    max-width: 100%;
     vertical-align: middle;
     border: 0;
 }
 .seq-lesson-completion, .seq-grade-details {
-    border-bottom: 1px solid #d9d9d9;
     padding-left: 10px;
     padding-right: 10px;
     padding-bottom: 20px;
 }
-.seq-finish-icon, .seq-finish-text {
-    display: inline-block;
-}
 .seq-finish-icon {
-    width: 21%;
+    width: 175px;
     vertical-align: top;
 }
 .seq-finish-text {
-    width: 70%;
     padding-top: 5px;
     padding-left: 20px;
 }
@@ -86,13 +87,12 @@ a, a:hover, a:visited {
 }
 .seq-finish-text-congratulations {
     line-height: 2;
-    margin-top: 5px;
+    padding-top: 5px;
 }
-.seq-grade-details-summary, .seq-grade-details-questions {
+.seq-grade-details-questions {
     vertical-align: top;
 }
 .seq-grade-details-total-score, .seq-grade-details-total-points {
-    display: inline-block;
     text-align: center;
     padding: 15px;
 }
@@ -105,19 +105,10 @@ a, a:hover, a:visited {
     font-size: 18px;
     font-weight: bold;
 }
-.seq-grade-details-summary {
-    text-align: center;
-    border-bottom: 1px solid #d9d9d9;
-}
 .seq-grade-details-questions {
-    margin-top: 28px;
-}
-.seq-grade-details-item-table {
-    width: 100%;
-    border: 0;
+    padding-top: 28px;
 }
 .seq-grade-details-item-block {
-    margin-bottom: 15px;
     padding: 10px;
     border: 1px solid #d9d9d9;
     border-radius: 3px;
@@ -156,16 +147,21 @@ a, a:hover, a:visited {
 </style>
 </head>
 <body>
+<!--[if mso]>
+ <center>
+ <table><tr><td width="800">
+<![endif]-->
 <div class="main">
-    <div class="seq-header">
-        <div class="seq-header-icon">
-            % if use_static:
-            <img class="seq-img" src="${lms_url}${static.url('images/credo/credo-logo.png')}" />
-            % else:
-            <img class="seq-img" src="cid:credo-logo.png" />
-            % endif
-        </div>
-        <div class="seq-header-text">
+    <table class="seq-table seq-header">
+        <tr>
+            <td class="seq-header-icon">
+                % if use_static:
+                <img class="seq-img" src="${lms_url}${static.url('images/credo/credo-logo-small.png')}" />
+                % else:
+                <img class="seq-img" src="cid:credo-logo.png" />
+                % endif
+            </td>
+            <td class="seq-header-text">
 <div class="seq-header-breadcrumbs">\
 % for b_item in breadcrumbs:
     % if breadcrumbs_len == loop.index:
@@ -185,39 +181,50 @@ ${scores['common']['browser_datetime_short']}\
 % endif
 </div>
 % endif
-        </div>
-    </div>
+            </td>
+        </tr>
+    </table>
     <div class="seq-grade-block">
         <div class="seq-main-block">
             <div class="seq-lesson-completion">
-                <div class="seq-finish-icon">
-                    % if use_static:
-                    <img class="seq-img" src="${lms_url}${static.url('images/credo/assessment_done.png')}" />
-                    % else:
-                    <img class="seq-img" src="cid:assessment_done.png" />
-                    % endif
-                </div>
-                <div class="seq-finish-text">
-                    <div class="seq-finish-text-header">Hello!</div>
-                    <div class="seq-finish-text-congratulations">This email contains the scores received by the learner named above. If you have any questions about the information contained in this report, please contact your instructor and/or librarian. Please do not reply directly to this email, as it is sent from an automated address.</div>
-                </div>
+                <table class="seq-table">
+                    <tr>
+                        <td class="seq-finish-icon">
+                            % if use_static:
+                            <img class="seq-img" src="${lms_url}${static.url('images/credo/assessment_done_small.png')}" />
+                            % else:
+                            <img class="seq-img" src="cid:assessment_done_small.png" />
+                            % endif
+                        </td>
+                        <td class="seq-finish-text">
+                            <div class="seq-finish-text-header">Hello!</div>
+                            <div class="seq-finish-text-congratulations">This email contains the scores received by the learner named above. If you have any questions about the information contained in this report, please contact your instructor and/or librarian. Please do not reply directly to this email, as it is sent from an automated address.</div>
+                        </td>
+                    </tr>
+                </table>
             </div>
+            <hr class="separator">
             <div class="seq-grade-details">
-                <div class="seq-grade-details-summary">
-                    <div class="seq-grade-details-total-score">
-                      <div class="seq-grade-details-total-score-num">${scores['common']['percent_graded']}%</div>
-                      <div class="seq-grade-details-total-score-text">TOTAL SCORE</div>
-                    </div>
-                    <div class="seq-grade-details-total-points">
-                      <div class="seq-grade-details-total-points-num">${scores['common']['earned']}/${scores['common']['possible']}</div>
-                      <div class="seq-grade-details-total-points-text">POINTS</div>
-                    </div>
-                </div>
+                <center>
+                <table class="seq-table-total">
+                    <tr>
+                        <td class="seq-grade-details-total-score">
+                            <div class="seq-grade-details-total-score-num">${scores['common']['percent_graded']}%</div>
+                            <div class="seq-grade-details-total-score-text">TOTAL SCORE</div>
+                        </td>
+                        <td class="seq-grade-details-total-points">
+                            <div class="seq-grade-details-total-points-num">${scores['common']['earned']}/${scores['common']['possible']}</div>
+                            <div class="seq-grade-details-total-points-text">POINTS</div>
+                        </td>
+                    </tr>
+                </table>
+                </center>
+                <hr class="separator">
                 <div class="seq-grade-details-questions">
                     <div class="seq-grade-details-items">
                         % for item in scores['items']:
                         <div class="seq-grade-details-item-block">
-                            <table class="seq-grade-details-item-table">
+                            <table class="seq-table">
                             <tr>
                             <td class="seq-grade-details-item-block-icon">
                                 % if item['correctness'] == 'Not Answered' or item['correctness'] == 'Incorrect':
@@ -251,12 +258,14 @@ ${scores['common']['browser_datetime_short']}\
                             </tr>
                             </table>
                         </div>
+                        <div style="font-size: 8px">&nbsp;</div>
                         % endfor
                     </div>
                 </div>
             </div>
         </div>
     </div>
+    <hr class="separator">
     <div class="seq-footer">
         <br />
         <div>Privacy Information:<br />This email has only been sent to addresses provided by the user listed above. If you are receiving this email, a user has provided your email address to Credo as a recipient.</div>
@@ -269,5 +278,9 @@ ${scores['common']['browser_datetime_short']}\
         <div>© ${current_year} Credo Courseware | 50 Milk Street, 16th Floor Boston, MA 02109</div>
     </div>
 </div>
+<!--[if mso]>
+ </td></tr></table>
+ </center>
+<![endif]-->
 </body>
 </html>
