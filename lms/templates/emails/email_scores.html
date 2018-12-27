@@ -53,12 +53,6 @@ a, a:hover, a:visited {
 .seq-header-breadcrumbs {
     line-height: 1.5;
 }
-.seq-header-breadcrumbs-item {
-    font-size: 18px;
-}
-.seq-header-breadcrumbs-separator {
-    font-weight: bold;
-}
 .seq-header-breadcrumbs-item-last {
     font-size: 26px;
 }
@@ -147,8 +141,7 @@ a, a:hover, a:visited {
 </head>
 <body>
 <!--[if mso]>
- <center>
- <table cellpadding="0" cellspacing="0"><tr><td width="800">
+<center><table cellpadding="0" cellspacing="0"><tr><td width="800">
 <![endif]-->
 <div class="main">
     <table class="seq-table seq-header" cellpadding="0" cellspacing="0">
@@ -166,7 +159,7 @@ a, a:hover, a:visited {
     % if breadcrumbs_len == loop.index:
 <br /><span class="seq-header-breadcrumbs-item-last">${b_item}</span>\
     % else:
-    <span class="seq-header-breadcrumbs-item">${b_item}</span><span class="seq-header-breadcrumbs-separator">&nbsp;&nbsp;&nbsp;&rang;</span>\
+${b_item}&nbsp;&nbsp;&rsaquo;&nbsp;&nbsp;\
     % endif
 % endfor
 % if scores['user']['full_name'] or scores['common']['browser_datetime_short']:
@@ -292,8 +285,7 @@ ${scores['common']['browser_datetime_short']}\
     </div>
 </div>
 <!--[if mso]>
- </td></tr></table>
- </center>
+</td></tr></table></center>
 <![endif]-->
 </body>
 </html>
