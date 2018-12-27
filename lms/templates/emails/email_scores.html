@@ -6,10 +6,12 @@
 <title>${section_display_name} | Lesson Completion</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <style>
+body, table, td, div, span {
+    font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif;
+}
 body {
     padding: 0;
     margin: 0 auto;
-    font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif;
     line-height: 1.6;
     color: #313131;
     font-size: 15px;
@@ -35,23 +37,26 @@ a, a:hover, a:visited {
 }
 .seq-header {
     background-color: #66627C;
-    padding: 15px;
+    padding: 10px;
     color: #ffffff;
 }
 .seq-header-icon {
-    width: 120px;
+    width: 90px;
     vertical-align: middle;
     text-align: center;
 }
 .seq-header-text {
+    line-height: 1.5;
     vertical-align: middle;
     padding-left: 10px;
+}
+.seq-header-breadcrumbs {
+    line-height: 1.5;
 }
 .seq-header-breadcrumbs-item {
     font-size: 18px;
 }
 .seq-header-breadcrumbs-separator {
-    padding-left: 10px;
     font-weight: bold;
 }
 .seq-header-breadcrumbs-item-last {
@@ -60,24 +65,20 @@ a, a:hover, a:visited {
 .seq-header-user {
     padding-top: 5px;
 }
-.seq-grade-block {
-    padding-top: 15px;
-}
 .seq-img {
+    max-width: 100%;
     vertical-align: middle;
     border: 0;
 }
 .seq-lesson-completion, .seq-grade-details {
     padding-left: 10px;
     padding-right: 10px;
-    padding-bottom: 20px;
 }
 .seq-finish-icon {
-    width: 175px;
+    width: 20%;
     vertical-align: top;
 }
 .seq-finish-text {
-    padding-top: 5px;
     padding-left: 20px;
 }
 .seq-finish-text-header {
@@ -105,9 +106,6 @@ a, a:hover, a:visited {
     font-size: 18px;
     font-weight: bold;
 }
-.seq-grade-details-questions {
-    padding-top: 28px;
-}
 .seq-grade-details-item-block {
     padding: 10px;
     border: 1px solid #d9d9d9;
@@ -125,12 +123,13 @@ a, a:hover, a:visited {
     padding-left: 10px;
 }
 .seq-grade-details-item-block-content-header {
-    padding-bottom: 4px;
     font-weight: 600;
+    padding-bottom: 4px;
 }
 .seq-grade-details-item-block-content-text {
-    padding-bottom: 4px;
     font-size: 13px;
+    line-height: 1.5;
+    padding-bottom: 4px;
 }
 .seq-grade-details-item-block-points {
     text-align: right;
@@ -149,10 +148,10 @@ a, a:hover, a:visited {
 <body>
 <!--[if mso]>
  <center>
- <table><tr><td width="800">
+ <table cellpadding="0" cellspacing="0"><tr><td width="800">
 <![endif]-->
 <div class="main">
-    <table class="seq-table seq-header">
+    <table class="seq-table seq-header" cellpadding="0" cellspacing="0">
         <tr>
             <td class="seq-header-icon">
                 % if use_static:
@@ -167,12 +166,11 @@ a, a:hover, a:visited {
     % if breadcrumbs_len == loop.index:
 <br /><span class="seq-header-breadcrumbs-item-last">${b_item}</span>\
     % else:
-    <span class="seq-header-breadcrumbs-item">${b_item}</span><span class="seq-header-breadcrumbs-separator">&rang;</span>\
+    <span class="seq-header-breadcrumbs-item">${b_item}</span><span class="seq-header-breadcrumbs-separator">&nbsp;&nbsp;&nbsp;&rang;</span>\
     % endif
 % endfor
-</div>
 % if scores['user']['full_name'] or scores['common']['browser_datetime_short']:
-<div class="seq-header-user">\
+<br /><div class="seq-header-user">\
 % if scores['user']['full_name']:
 ${scores['user']['full_name']} | \
 % endif
@@ -181,13 +179,15 @@ ${scores['common']['browser_datetime_short']}\
 % endif
 </div>
 % endif
+</div>
             </td>
         </tr>
     </table>
+    <br />
     <div class="seq-grade-block">
         <div class="seq-main-block">
             <div class="seq-lesson-completion">
-                <table class="seq-table">
+                <table class="seq-table" cellpadding="0" cellspacing="0">
                     <tr>
                         <td class="seq-finish-icon">
                             % if use_static:
@@ -197,16 +197,16 @@ ${scores['common']['browser_datetime_short']}\
                             % endif
                         </td>
                         <td class="seq-finish-text">
-                            <div class="seq-finish-text-header">Hello!</div>
-                            <div class="seq-finish-text-congratulations">This email contains the scores received by the learner named above. If you have any questions about the information contained in this report, please contact your instructor and/or librarian. Please do not reply directly to this email, as it is sent from an automated address.</div>
+                            <div class="seq-finish-text-congratulations"><span class="seq-finish-text-header">Hello!</span><br />This email contains the scores received by the learner named above. If you have any questions about the information contained in this report, please contact your instructor and/or librarian. Please do not reply directly to this email, as it is sent from an automated address.</div>
                         </td>
                     </tr>
                 </table>
             </div>
+            <br />
             <hr class="separator">
             <div class="seq-grade-details">
                 <center>
-                <table class="seq-table-total">
+                <table class="seq-table-total" cellpadding="0" cellspacing="0">
                     <tr>
                         <td class="seq-grade-details-total-score">
                             <div class="seq-grade-details-total-score-num">${scores['common']['percent_graded']}%</div>
@@ -220,11 +220,12 @@ ${scores['common']['browser_datetime_short']}\
                 </table>
                 </center>
                 <hr class="separator">
+                <br />
                 <div class="seq-grade-details-questions">
                     <div class="seq-grade-details-items">
                         % for item in scores['items']:
                         <div class="seq-grade-details-item-block">
-                            <table class="seq-table">
+                            <table class="seq-table" cellpadding="0" cellspacing="0">
                             <tr>
                             <td class="seq-grade-details-item-block-icon">
                                 % if item['correctness'] == 'Not Answered' or item['correctness'] == 'Incorrect':
@@ -242,17 +243,29 @@ ${scores['common']['browser_datetime_short']}\
                                 % endif
                             </td>
                             <td class="seq-grade-details-item-block-content">
-                                <div class="seq-grade-details-item-block-content-header">${item['parent_name']} &rsaquo; ${item['display_name']}</div>
+                                <table class="seq-table" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td class="seq-grade-details-item-block-content-header">${item['parent_name']} &rsaquo; ${item['display_name']}</td>
+                                    </tr>
                                 % if item['browser_datetime']:
-                                <div class="seq-grade-details-item-block-content-text">Time of the last answer: ${item['browser_datetime']}</div>
+                                    <tr>
+                                        <td class="seq-grade-details-item-block-content-text">Time of the last answer: ${item['browser_datetime']}</td>
+                                    </tr>
                                 % endif
                                 % if item['question_text']:
-                                <div class="seq-grade-details-item-block-content-text">${item['question_text']}</div>
+                                    <tr>
+                                        <td class="seq-grade-details-item-block-content-text"> ${item['question_text']}</td>
+                                    </tr>
                                 % endif
                                 % if item['answer']:
-                                <div class="seq-grade-details-item-block-content-header">Answer</div>
-                                <div class="seq-grade-details-item-block-content-text">${item['answer']}</div>
+                                    <tr>
+                                        <td class="seq-grade-details-item-block-content-header">Answer</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="seq-grade-details-item-block-content-text"> ${item['answer']}</td>
+                                    </tr>
                                 % endif
+                                </table>
                             </td>
                             <td class="seq-grade-details-item-block-points">${item['earned']}/${item['possible']}</td>
                             </tr>
