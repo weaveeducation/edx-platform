@@ -1992,23 +1992,26 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
                         for key, score in section.problem_scores.items():
                             item = children_dict.get(str(key))
                             if item and item['category'] == 'problem':
-                                answer = []
+                                answer = {}
                                 if user_state_dict:
                                     answer_state = user_state_dict.get(str(key))
                                     if answer_state:
                                         state_gen = item['data'].generate_report_data([answer_state])
                                         for state_username, state_item in state_gen:
-                                            answer.append(state_item.get('Answer').strip().replace('\n', ' '))
+                                            answer[state_item.get('Answer ID')] = state_item.get('Answer')\
+                                                .strip().replace('\n', ' ')
 
                                 unix_timestamp = int(time.mktime(score.last_answer_timestamp.timetuple())) \
                                     if score.last_answer_timestamp else None
                                 browser_datetime = _get_browser_datetime(score.last_answer_timestamp,
                                                                          timezone_offset) \
                                     if score.last_answer_timestamp else ''
+
+                                od = OrderedDict(sorted(answer.items())) if answer else {}
                                 resp['items'].append({
                                     'display_name': item['data'].display_name,
                                     'question_text': item['question_text'],
-                                    'answer': '; '.join(answer) if answer else None,
+                                    'answer': '; '.join(od.values()) if answer else None,
                                     'question_description': '',
                                     'parent_name': item['parent_name'],
                                     'correctness': item['correctness'] if item['correctness'] else 'Not Answered',
