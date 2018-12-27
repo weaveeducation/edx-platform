@@ -2134,9 +2134,9 @@ def email_student_progress(request, course_id, usage_id):
         try:
             send_scores = SendScores.objects.get(user=request.user, course_id=course_key, block_id=usage_id)
             time_diff = timezone.now() - send_scores.last_send_time
-            if time_diff.total_seconds() < 600:  # 10 min
+            if time_diff.total_seconds() < 300:  # 5 min
                 return JsonResponse({'success': False, 'error': 'You have already sent email not so long ago. '
-                                                                'Please try again later in 10 minutes'})
+                                                                'Please try again later in 5 minutes'})
         except SendScores.DoesNotExist:
             send_scores = SendScores(
                 user=request.user,
