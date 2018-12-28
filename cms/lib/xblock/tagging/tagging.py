@@ -65,7 +65,8 @@ class StructuredTagsAside(XBlockAside):
         """
         from student.models import User
 
-        if isinstance(block, CapaModule) or block.category in ['html', 'video', 'drag-and-drop-v2']:
+        if isinstance(block, CapaModule) or block.category in ['html', 'video', 'drag-and-drop-v2'] or \
+                (block.category == 'openassessment' and len(block.rubric_criteria) == 0):
             tags = []
             user = None
             has_access_any_tag = False
