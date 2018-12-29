@@ -32,7 +32,8 @@ class StudentPropertiesAside(XBlockAside):
                 user = anonymous_user.user
             except ObjectDoesNotExist:
                 pass
-        elif event_type in ("problem_check", "edx.drag_and_drop_v2.item.dropped"):
+        elif event_type in ("problem_check", "edx.drag_and_drop_v2.item.dropped") or \
+                (event_type == 'openassessmentblock.create_submission' and 'submission_uuid' in event):
             try:
                 user = User.objects.get(pk=self.runtime.user_id)
             except ObjectDoesNotExist:

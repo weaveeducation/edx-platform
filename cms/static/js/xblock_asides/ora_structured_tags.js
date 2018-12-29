@@ -140,7 +140,7 @@
 
                 $.ajax({
                     type: 'POST',
-                    url: studioRuntime.handlerUrl(element, 'save_tags'),
+                    url: studioRuntime.handlerUrl(element, 'save_ora_tags'),
                     data: JSON.stringify(dataToPost),
                     dataType: 'json',
                     contentType: 'application/json; charset=utf-8'

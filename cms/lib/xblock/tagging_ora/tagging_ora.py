@@ -30,6 +30,8 @@ class OraStructuredTagsAside(StructuredTagsAside):
         from student.models import User
 
         if block.category == 'openassessment':
+            if len(block.rubric_criteria) == 0:
+                return super(OraStructuredTagsAside, self).student_view_aside(block, context)
             tags = []
             user = None
             has_access_any_tag = False
@@ -100,7 +102,7 @@ class OraStructuredTagsAside(StructuredTagsAside):
             return Fragment(u'')
 
     @XBlock.handler
-    def save_tags(self, request=None, suffix=None):  # pylint: disable=unused-argument
+    def save_ora_tags(self, request=None, suffix=None):  # pylint: disable=unused-argument
         """
         Handler to save chosen tags with connected XBlock
         """
