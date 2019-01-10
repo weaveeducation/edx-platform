@@ -25,6 +25,7 @@ from django.shortcuts import redirect
 from django.template.context_processors import csrf
 from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.utils.html import strip_tags
 from django.utils.http import urlquote_plus
 from django.utils.text import slugify
 from django.utils.translation import ugettext as _
@@ -105,6 +106,7 @@ from openedx.features.course_experience.waffle import ENABLE_COURSE_ABOUT_SIDEBA
 from openedx.features.enterprise_support.api import data_sharing_consent_required
 from shoppingcart.utils import is_shopping_cart_enabled
 from student.models import CourseEnrollment, UserTestGroup
+from submissions import api as sub_data_api
 from util.cache import cache, cache_if_anonymous
 from util.db import outer_atomic
 from util.milestones_helpers import get_prerequisite_courses_display
@@ -194,6 +196,8 @@ UNVERIFIED_CERT_DATA = CertData(
     download_url=None,
     cert_web_view_url=None
 )
+
+CREDO_GRADED_ITEM_CATEGORIES = ('problem', 'drag-and-drop-v2', 'openassessment')
 
 
 def _downloadable_cert_data(download_url=None, cert_web_view_url=None):
@@ -1876,18 +1880,46 @@ def _get_item_correctness(item):
 
 
 def _get_block_children(block, parent_name):
+    brs_tags = ['<br>', '<br/>', '<br />']
     data = OrderedDict()
     for item in block.get_children():
         loc_id = str(item.location)
         data[loc_id] = {'data': item, 'category': item.category, 'parent_name': parent_name, 'id': loc_id}
-        if item.category == 'problem':
-            correctness = _get_item_correctness(item)
-            data[loc_id]['correctness'] = correctness.title() if correctness else None
-            question_text = ''
-            dt = item.index_dictionary(remove_variants=True)
-            if dt and 'content' in dt and 'capa_content' in dt['content']:
-                question_text = dt['content']['capa_content'].strip()
-            data[loc_id]['question_text'] = question_text
+        if item.category in CREDO_GRADED_ITEM_CATEGORIES:
+            data[loc_id]['correctness'] = ''
+            data[loc_id]['question_text'] = ''
+            data[loc_id]['question_text_safe'] = ''
+            data[loc_id]['category'] = item.category
+
+            if item.category == 'problem':
+                correctness = _get_item_correctness(item)
+                data[loc_id]['correctness'] = correctness if correctness else None
+                question_text = ''
+                dt = item.index_dictionary(remove_variants=True)
+                if dt and 'content' in dt and 'capa_content' in dt['content']:
+                    question_text = dt['content']['capa_content'].strip()
+                data[loc_id]['question_text'] = question_text
+                data[loc_id]['question_text_safe'] = question_text
+
+            elif item.category == 'openassessment':
+                prompts = []
+                for pr in item.prompts:
+                    pr_descr = pr['description']
+                    for br_val in brs_tags:
+                        pr_descr = pr_descr.replace(br_val, "\n")
+                    prompts.append(strip_tags(pr_descr).strip())
+
+                if len(prompts) > 1:
+                    data[loc_id]['question_text'] = "<br />".join([p.replace('\n', '<br />') for p in prompts])
+                    data[loc_id]['question_text_safe'] = "\n".join(prompts)
+                elif len(prompts) == 1:
+                    data[loc_id]['question_text'] = prompts[0].replace('\n', '<br />')
+                    data[loc_id]['question_text_safe'] = prompts[0]
+
+            elif item.category == 'drag-and-drop-v2':
+                data[loc_id]['question_text'] = item.question_text
+                data[loc_id]['question_text_safe'] = item.question_text
+
         if item.has_children:
             data.update(_get_block_children(item, item.display_name))
     return data
@@ -1903,6 +1935,26 @@ def _get_browser_datetime(last_answer_datetime, timezone_offset=None, dt_format=
             timezone_offset = (-1) * timezone_offset
             last_answer_datetime = last_answer_datetime - timedelta(minutes=timezone_offset)
     return last_answer_datetime.strftime(dt_format)
+
+
+def _get_dnd_answer_values(item_state, zones):
+    result = {}
+    items = {}
+    some_value = False
+    for it in zones['items']:
+        items[str(it['id'])] = it['displayName']
+    idx = 0
+    for z in zones['zones']:
+        res = []
+        result[str(idx)] = '--'
+        for k, v in item_state.items():
+            if z['uid'] == v['zone']:
+                res.append(items[str(k)])
+        if res:
+            result[str(idx)] = ', '.join(sorted(res))
+            some_value = True
+        idx = idx + 1
+    return result if some_value else {}
 
 
 def _get_block_student_progress(request, course_id, usage_id, timezone_offset=None):
@@ -1991,15 +2043,31 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
 
                         for key, score in section.problem_scores.items():
                             item = children_dict.get(str(key))
-                            if item and item['category'] == 'problem':
+                            if item and item['category'] in CREDO_GRADED_ITEM_CATEGORIES:
                                 answer = {}
-                                if user_state_dict:
+                                if item['category'] == 'problem' and user_state_dict:
                                     answer_state = user_state_dict.get(str(key))
                                     if answer_state:
                                         state_gen = item['data'].generate_report_data([answer_state])
                                         for state_username, state_item in state_gen:
                                             answer[state_item.get('Answer ID')] = state_item.get('Answer')\
                                                 .strip().replace('\n', ' ')
+                                elif item['category'] == 'openassessment':
+                                    if item['data'].submission_uuid:
+                                        submission_dict = sub_data_api.get_submission(item['data'].submission_uuid)
+                                        if 'answer' in submission_dict and 'parts' in submission_dict['answer']:
+                                            for answ_idx, answ_val in enumerate(submission_dict['answer']['parts']):
+                                                answer[str(answ_idx)] = answ_val['text']
+                                elif item['category'] == 'drag-and-drop-v2':
+                                    answer = _get_dnd_answer_values(item['data'].item_state, item['data'].data)
+
+                                if answer and item['category'] in ('openassessment', 'drag-and-drop-v2'):
+                                    if score.earned == 0:
+                                        item['correctness'] = 'incorrect'
+                                    elif score.possible == score.earned:
+                                        item['correctness'] = 'correct'
+                                    else:
+                                        item['correctness'] = 'partially correct'
 
                                 unix_timestamp = int(time.mktime(score.last_answer_timestamp.timetuple())) \
                                     if score.last_answer_timestamp else None
@@ -2011,10 +2079,11 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
                                 resp['items'].append({
                                     'display_name': item['data'].display_name,
                                     'question_text': item['question_text'],
+                                    'question_text_safe': item['question_text_safe'],
                                     'answer': '; '.join(od.values()) if answer else None,
                                     'question_description': '',
                                     'parent_name': item['parent_name'],
-                                    'correctness': item['correctness'] if item['correctness'] else 'Not Answered',
+                                    'correctness': item['correctness'].title() if item['correctness'] else 'Not Answered',
                                     'earned': int(score.earned) if int(score.earned) == score.earned else score.earned,
                                     'possible': int(score.possible) if int(score.possible) == score.possible else score.possible,
                                     'last_answer_timestamp': score.last_answer_timestamp,
