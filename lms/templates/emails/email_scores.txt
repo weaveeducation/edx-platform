@@ -18,8 +18,8 @@ POINTS: ${scores['common']['earned']}/${scores['common']['possible']}
 ${item['parent_name']} | ${item['display_name']}
 ${item['correctness']} - ${item['earned']} / ${item['possible']} ${'- ' + item['browser_datetime'] if item['browser_datetime'] else ''}
 
-% if item['question_text']:
-${item['question_text']}
+% if item['question_text_safe']:
+${item['question_text_safe']}
 
 % endif
 % if item['answer']:
