@@ -302,6 +302,8 @@ def get_customer_info(user):
                 insights_reports.update(v.get_insights_reports())
             insights_reports = list(insights_reports)
     return {
+        'is_superuser': user.is_superuser,
+        'is_staff': user.is_staff,
         'insights_reports': insights_reports,
         'details': [v.to_dict() for v in data]
     }
@@ -315,3 +317,24 @@ class CustomerInfoView(APIView):
     def get(self, request):
         return Response(get_customer_info(request.user))
 
+
+@can_disable_rate_limit
+class OrgsView(APIView):
+    authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
+    permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
+
+    def get(self, request):
+        if not request.user.is_staff and not request.user.is_superuser:
+            return Response({'success': False, 'error': "You have no permissions to view organizations"})
+        org_type = request.GET.get('org_type', None)
+        if org_type:
+            try:
+                org_type = int(org_type)
+            except:
+                org_type = None
+        if not org_type:
+            org_types = OrganizationType.objects.all().order_by('title')
+            return Response({'success': True, 'org_types': [{'id': org.id, 'title': org.title} for org in org_types]})
+        else:
+            orgs = Organization.objects.filter(org_type=org_type).order_by('org')
+            return Response({'success': True, 'orgs': [o.org for o in orgs]})
