@@ -68,7 +68,7 @@ if course is not None:
     window.chromlessView = true;
     var $$course_id = "${course.id | n, js_escaped_string}";
 
-    $( document ).ready(function() {
+    $(document).ready(function() {
 
       function inIframe() {
         try {
@@ -87,7 +87,7 @@ if course is not None:
       if (inIframe()) {
         postMessageResize();
       }
-    })
+    });
   </script>
 
 ${HTML(fragment.foot_html())}
