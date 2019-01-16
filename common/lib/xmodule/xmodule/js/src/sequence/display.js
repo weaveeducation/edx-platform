@@ -590,20 +590,6 @@
             this.updateButtonState(nextCarouselButtonClass, this.selectNext, isLastTab, this.nextUrl);
         };
 
-        Sequence.prototype.inIframe = function() {
-            try {
-                return window.self !== window.top;
-            } catch (e) {
-                return true;
-            }
-        };
-
-        Sequence.prototype.postMessageResize = function() {
-            var height = document.body.offsetHeight;
-            var width = document.body.offsetWidth;
-            window.parent.postMessage("resize::" + height + ":" + width, "*");
-        };
-
         Sequence.prototype.render = function(newPosition) {
             var bookmarked, currentTab, modxFullUrl, sequenceLinks,
                 self = this;
@@ -662,12 +648,7 @@
                 sequenceLinks.click(this.goto);
 
                 this.sr_container.focus();
-
-                if (window.chromlessView && this.inIframe()) {
-                    this.postMessageResize();
-                }
             }
-
         };
 
         Sequence.prototype.goto = function(event) {
