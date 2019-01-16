@@ -68,23 +68,26 @@ if course is not None:
     window.chromlessView = true;
     var $$course_id = "${course.id | n, js_escaped_string}";
 
-    function inIframe() {
-        try {
-            return window.self !== window.top;
-        } catch (e) {
-            return true;
-        }
-    }
+    $( document ).ready(function() {
 
-    function postMessageResize () {
+      function inIframe() {
+        try {
+          return window.self !== window.top;
+        } catch (e) {
+          return true;
+        }
+      }
+
+      function postMessageResize() {
         var height = document.body.offsetHeight;
         var width = document.body.offsetWidth;
         window.parent.postMessage("resize::" + height + ":" + width, "*");
-    }
+      }
 
-    if (window.chromlessView && inIframe()) {
+      if (inIframe()) {
         postMessageResize();
-    }
+      }
+    })
   </script>
 
 ${HTML(fragment.foot_html())}
