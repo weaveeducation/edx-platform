@@ -59,9 +59,7 @@ class StudentPropertiesAside(XBlockAside):
                 pass
 
             if 'term' not in result['enrollment']:
-                item = get_custom_term(self.runtime.course_id.org)
-                if item:
-                    result['enrollment']['term'] = item.term
+                result['enrollment']['term'] = get_custom_term()
             if is_ora:
                 return {'student_properties': result, 'student_id': user.id}
             else:

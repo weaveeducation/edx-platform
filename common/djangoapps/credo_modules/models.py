@@ -95,9 +95,8 @@ def check_and_save_enrollment_attributes(post_data, user, course_id):
         return
 
 
-def get_custom_term(org):
-    current_date = datetime.date.today()
-    return TermPerOrg.objects.filter(org=org, start_date__lte=current_date, end_date__gte=current_date).first()
+def get_custom_term():
+    return datetime.datetime.now().strftime("%B %Y")
 
 
 def save_custom_term_student_property(term, user, course_id):
@@ -191,9 +190,7 @@ class TermPerOrg(models.Model):
 
 
 def set_custom_term(course_id, user):
-    item = get_custom_term(course_id.org)
-    if item:
-        save_custom_term_student_property(item.term, user, course_id)
+    save_custom_term_student_property(get_custom_term(), user, course_id)
 
 
 @receiver(ENROLL_STATUS_CHANGE)
