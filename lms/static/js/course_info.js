@@ -8,8 +8,18 @@ $(document).ready(function() {
         $('.tab').slideUp();
         $(data_class + ':hidden').slideDown();
     });
-    var isSafari = !!navigator.userAgent.match(/Version\/[\d\.]+.*Safari/);
-    if (isSafari) {
-        $('.main-cta').addClass('safari-wrapper');
+
+    function checkEnrollButton() {
+        const tableHeight = $('.table').height();
+        if (tableHeight > 410) {
+            $('.main-cta').addClass('about-wide-enroll-button');
+        }
+        else {
+            $('.main-cta').removeClass('about-wide-enroll-button');
+        }
     }
+
+    window.addEventListener('resize', checkEnrollButton);
+
+    checkEnrollButton();
 });
