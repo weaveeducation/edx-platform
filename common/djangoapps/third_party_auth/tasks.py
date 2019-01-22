@@ -79,7 +79,7 @@ def fetch_saml_metadata():
             log.info("Fetching %s", url)
             if not url.lower().startswith('https'):
                 log.warning("This SAML metadata URL is not secure! It should use HTTPS. (%s)", url)
-            response = requests.get(url, verify=True)  # May raise HTTPError or SSLError or ConnectionError
+            response = requests.get(url, verify=True, headers={'User-Agent': 'credo-http-client'})  # May raise HTTPError or SSLError or ConnectionError
             response.raise_for_status()  # May raise an HTTPError
 
             try:

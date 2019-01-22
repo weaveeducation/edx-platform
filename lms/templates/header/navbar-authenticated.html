@@ -64,8 +64,8 @@ from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonym
       </div>
     % endif
   </div>
-  % if not credo_anonymous_user:
   <div class="secondary">
+  % if not credo_anonymous_user:
     % if should_display_shopping_cart_func() and not (course and static.is_request_in_themed_site()): # see shoppingcart.context_processor.user_has_cart_context_processor
       <div class="mobile-nav-item hidden-mobile nav-item">
         <a class="shopping-cart" href="${reverse('shoppingcart.views.show_cart')}">
@@ -74,6 +74,12 @@ from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonym
       </div>
     % endif
     <%include file="user_dropdown.html"/>
-  </div>
+  % else:
+    <div class="nav-item hidden-mobile">
+      <a class="menu-title" href="${reverse('logout')}?redirect_url=%2Flogin">
+        ${_("Login as admin")}
+      </a>
+    </div>
   % endif
+  </div>
 </div>
