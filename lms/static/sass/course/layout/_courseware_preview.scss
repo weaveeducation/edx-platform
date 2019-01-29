@@ -73,7 +73,7 @@
   }
 
   .exam-timer {
-    @include font-size(14);
+    font-size: 14px;
 
     background-color: rgb(229, 234, 236);
     padding: $baseline ($baseline*2);
@@ -83,7 +83,7 @@
 
     .exam-text {
       display: inline-block;
-      width: calc(100% - 250px);
+      width: calc(100% - 300px);
     }
 
     a {
@@ -176,6 +176,10 @@
       padding: ($baseline/5) ($baseline*0.75);
       box-shadow: none;
       text-shadow: none;
+      cursor: pointer;
+      background-color: #0d4e6c;
+      color: #ffffff;
+      border-radius: 3px;
 
       &:hover,
       &:focus {
