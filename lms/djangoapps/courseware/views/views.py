@@ -64,6 +64,7 @@ from courseware.courses import (
     sort_by_start_date,
     update_lms_course_usage
 )
+from courseware.extended_progress import progress_main_page
 from courseware.masquerade import setup_masquerade
 from courseware.model_data import FieldDataCache
 from courseware.models import BaseStudentModuleHistory, StudentModule
@@ -998,6 +999,17 @@ def _progress(request, course_key, student_id):
         # refetch the course as the assumed student
         course = get_course_with_access(student, 'load', course_key, check_if_enrolled=True)
 
+    enable_extended_progress_page = False
+    try:
+        org = Organization.objects.get(org=course_key.org)
+        if org.org_type is not None:
+            enable_extended_progress_page = org.org_type.enable_extended_progress_page
+    except Organization.DoesNotExist:
+        pass
+
+    if enable_extended_progress_page:
+        return _extended_progress_page(request, course, student)
+
     # NOTE: To make sure impersonation by instructor works, use
     # student instead of request.user in the rest of the function.
 
@@ -1031,6 +1043,29 @@ def _progress(request, course_key, student_id):
         response = render_to_response('courseware/progress.html', context)
 
     return response
+
+
+def _extended_progress_page(request, course, student):
+    page = request.GET.get('page')
+    if page is None:
+        page_context = progress_main_page(request, course, student)
+        tpl_name = 'extended_progress.html'
+    else:
+        raise Http404
+
+    context = {
+        'course': course,
+        'student_id': student.id,
+        'student': student
+    }
+    context.update(page_context)
+    context.update(
+        get_experiment_user_metadata_context(
+            course,
+            student,
+        )
+    )
+    return render_to_response('courseware/' + tpl_name, context)
 
 
 def _downloadable_certificate_message(course, cert_downloadable_status):
