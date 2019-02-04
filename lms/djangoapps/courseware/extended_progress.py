@@ -5,6 +5,10 @@ from student.models import anonymous_id_for_user
 from xmodule.modulestore.django import modulestore
 
 
+def _tag_title(tag):
+    return tag.replace(' - ', ' > ').replace('"', '')
+
+
 def tags_student_progress(course, student):
     course_grade = CourseGradeFactory().read(student, course)
     courseware_summary = course_grade.chapter_grades.values()
@@ -38,23 +42,26 @@ def tags_student_progress(course, student):
                     for tag_key, tag_values in aside.saved_tags.items():
                         if tag_key in tag_categories:
                             for tag in tag_values:
-                                if tag not in tags:
-                                    tags[tag] = {
-                                        'tag': tag,
+                                tag_key = tag.strip()
+                                if tag_key not in tags:
+                                    tags[tag_key] = {
+                                        'tag': tag_key.strip(),
+                                        'tag_title': _tag_title(tag_key),
                                         'problems': [],
                                         'problems_answered': [],
                                         'answers': 0
                                     }
-                                tags[tag]['problems'].append({
+                                tags[tag_key]['problems'].append({
                                     'problem_id': item_block_location,
                                     'possible': items[item_block_location]['possible'],
                                     'earned': items[item_block_location]['earned'],
                                     'answered': items[item_block_location]['answered']
                                 })
                                 if items[item_block_location]['answered'] \
-                                        and item_block_location not in tags[tag]['problems_answered']:
-                                    tags[tag]['problems_answered'].append(item_block_location)
-                                    tags[tag]['answers'] = tags[tag]['answers'] + items[item_block_location]['answered']
+                                        and item_block_location not in tags[tag_key]['problems_answered']:
+                                    tags[tag_key]['problems_answered'].append(item_block_location)
+                                    tags[tag_key]['answers'] = tags[tag_key]['answers']\
+                                                               + items[item_block_location]['answered']
                 elif aside.scope_ids.block_type == 'tagging_ora_aside' \
                   and len(aside.saved_tags) > 0 \
                   and problem_block.category == 'openassessment' \
@@ -91,14 +98,16 @@ def tags_student_progress(course, student):
                             for tag_key, tag_values in tags_dict.items():
                                 if tag_key in tag_categories:
                                     for tag in tag_values:
-                                        if tag not in tags:
-                                            tags[tag] = {
-                                                'tag': tag,
+                                        tag_k = tag.strip()
+                                        if tag_k not in tags:
+                                            tags[tag_k] = {
+                                                'tag': tag_k,
+                                                'tag_title': _tag_title(tag_k),
                                                 'problems': [],
                                                 'problems_answered': [],
                                                 'answers': 0
                                             }
-                                        tags[tag]['problems'].append({
+                                        tags[tag_k]['problems'].append({
                                             'problem_id': item_block_location,
                                             'criterion': criterions[criterion]['label'],
                                             'possible': criterions[criterion]['possible'],
@@ -106,9 +115,9 @@ def tags_student_progress(course, student):
                                             'answered': items[item_block_location]['answered']
                                         })
                                         if items[item_block_location]['answered'] \
-                                                and item_block_location not in tags[tag]['problems_answered']:
-                                            tags[tag]['problems_answered'].append(item_block_location)
-                                            tags[tag]['answers'] = tags[tag]['answers'] \
+                                                and item_block_location not in tags[tag_k]['problems_answered']:
+                                            tags[tag_k]['problems_answered'].append(item_block_location)
+                                            tags[tag_k]['answers'] = tags[tag_k]['answers'] \
                                                                    + items[item_block_location]['answered']
 
     for tag_k, tag_v in tags.items():
@@ -123,7 +132,7 @@ def tags_student_progress(course, student):
 def progress_main_page(request, course, student):
     tags = tags_student_progress(course, student)
     context = {
-        'top5tags': tags[-5:],
+        'top5tags': tags[-5:][::-1],
         'lowest5tags': tags[:5]
     }
     return context
