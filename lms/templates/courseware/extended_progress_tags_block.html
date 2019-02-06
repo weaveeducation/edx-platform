@@ -1,0 +1,55 @@
+## mako
+
+<%page args="tags, icon" expression_filter="h" />
+<%namespace name='static' file='/static_content.html'/>
+
+<table class="tags-table">
+    <tr>
+        % if icon == 'top5':
+        <td class="tags-percentage">
+            <img src="${static.url('images/credo/top5skills.png')}" title="Top 5 Skills" width="85" height="85" />
+        </td>
+        <td class="tags-block-top5-title">
+            <div class="tags-block-title">Top 5 Skills</div>
+            <div class="tags-block-see-all"><a href="javascript: void(0);">See All</a></div>
+            <div class="clear"></div>
+        </td>
+        % endif
+        % if icon == 'lowest5':
+        <td class="tags-percentage">
+            <img src="${static.url('images/credo/lowest5skills.png')}" title="Lowest 5 Skills" width="85" height="85" />
+        </td>
+        <td class="tags-block-lowest5-title">
+            <div class="tags-block-title">Lowest 5 Skills</div>
+            <div class="tags-block-see-all"><a href="javascript: void(0);">See All</a></div>
+            <div class="clear"></div>
+        </td>
+        % endif
+    </tr>
+    % for tag in tags:
+    <tr>
+        <td class="tags-percentage">${tag['percent_correct']}%</td>
+        <td class="tags-block-info">
+            <div class="tags-block-info-data"
+                 data-percent-correct="${tag['percent_correct']}"
+                 data-answers="${tag['answers']}"
+                 data-label="${tag['tag_title']}">
+                <div class="tags-block-info-title">
+                    <div class="tags-block-info-name">${tag['tag_title']}</div>
+                    <div class="tags-block-info-chevron"><i class="fa fa-chevron-right" aria-hidden="true"></i></div>
+                    <div class="clear"></div>
+                </div>
+                <div class="tags-block-progress">
+                    % if tag['percent_correct'] > 50:
+                    <div class="tags-block-progress-bar tags-block-progress-bar-more50"
+                         style="width:${tag['percent_correct']}%;"></div>
+                    % else:
+                    <div class="tags-block-progress-bar tags-block-progress-bar-less50"
+                         style="width:${tag['percent_correct']}%;"></div>
+                    % endif
+                </div>
+            </div>
+        </td>
+    </tr>
+    % endfor
+</table>
