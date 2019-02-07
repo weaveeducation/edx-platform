@@ -1,0 +1,47 @@
+## mako
+
+<%page args="" expression_filter="h" />
+<%namespace name='static' file='/static_content.html'/>
+
+<div class="progress-assessments-header">
+    <div class="progress-assessments-title">Overall Grades by Assessment</div>
+    <div class="progress-assessments-see-all"><a href="javascript: void(0);">See Grade Breakdown</a></div>
+    <div class="clear"></div>
+</div>
+<div class="progress-assessments-summary">
+    <div class="progress-assessments-summary-block">
+        <div class="progress-assessments-summary-block-number">83%</div>
+        <div class="progress-assessments-summary-block-title">Total Grade</div>
+    </div>
+    <div class="progress-assessments-summary-block progress-assessments-summary-block-not-first">
+        <div class="progress-assessments-summary-block-number">95%</div>
+        <div class="progress-assessments-summary-block-title">Best Grade</div>
+    </div>
+    <div class="progress-assessments-summary-block progress-assessments-summary-block-not-first">
+        <div class="progress-assessments-summary-block-number">40%</div>
+        <div class="progress-assessments-summary-block-title">Lowest Grade</div>
+    </div>
+    <div class="progress-assessments-summary-block progress-assessments-summary-block-separator">
+        <div class="progress-assessments-summary-block-number">12</div>
+        <div class="progress-assessments-summary-block-title">Total Assessments</div>
+    </div>
+    <div class="progress-assessments-summary-block progress-assessments-summary-block-not-first">
+        <div class="progress-assessments-summary-block-number">10</div>
+        <div class="progress-assessments-summary-block-title">Completed</div>
+    </div>
+    <div class="progress-assessments-summary-block progress-assessments-summary-block-not-first">
+        <div class="progress-assessments-summary-block-number">2</div>
+        <div class="progress-assessments-summary-block-title">Not Started</div>
+    </div>
+</div>
+<div class="progress-assessments-chart">
+    <canvas id="assessmentsChart" height="150" width="600"></canvas>
+</div>
+<div class="progress-assessments-legend">
+    <div class="progress-assessments-legend-block progress-assessments-legend-block-left">
+        <i class="fa fa-square progress-assessments-legend-pass" aria-hidden="true"></i> Pass
+    </div>
+    <div class="progress-assessments-legend-block">
+        <i class="fa fa-square progress-assessments-legend-fail" aria-hidden="true"></i> Fail
+    </div>
+</div>

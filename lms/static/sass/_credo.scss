@@ -871,12 +871,110 @@
     height: 18px;
   }
 
-  .tags-block-progress-bar-more50 {
-    background-color: #00DCFF;
+  .tags-block-info-data {
+    .tags-block-progress-bar-more50 {
+      background-color: #00DCFF;
+    }
+
+    .tags-block-progress-bar-less50 {
+      background-color: #046DB4;
+    }
   }
 
-  .tags-block-progress-bar-less50 {
-    background-color: #046DB4;
+  .tags-block-info-data:hover {
+    .tags-block-progress-bar-more50 {
+      background-color: #03C7E6;
+    }
+
+    .tags-block-progress-bar-less50 {
+      background-color: #0062A3;
+    }
+  }
+
+  .progress-assessments {
+    border: #c8c8c8 1px solid;
+    margin-top: 20px;
+    padding: 15px;
+    line-height: normal;
+
+    .progress-assessments-header {
+      .progress-assessments-title {
+        font-weight: bold;
+        font-size: 18px;
+        display: inline-block;
+      }
+
+      .progress-assessments-see-all {
+        display: inline-block;
+        text-align: right;
+        float: right;
+      }
+    }
+
+    .progress-assessments-summary {
+      text-align: left;
+      padding-top: 30px;
+
+      .progress-assessments-summary-block {
+        display: inline-block;
+        width: 200px;
+        text-align: left;
+
+        .progress-assessments-summary-block-number {
+          color: #999999;
+          font-weight: 400;
+          font-size: 40px;
+        }
+
+        .progress-assessments-summary-block-title {
+          font-size: 16px;
+        }
+      }
+
+      .progress-assessments-summary-block-not-first {
+        padding-left: 50px;
+      }
+
+      .progress-assessments-summary-block-separator {
+        padding-left: 50px;
+        border-left: #636363 1px solid;
+      }
+    }
+
+    .progress-assessments-chart {
+      padding-top: 30px;
+    }
+
+    .progress-assessments-legend {
+      text-align: center;
+      font-size: 18px;
+
+      .progress-assessments-legend-block {
+        display: inline-block;
+      }
+
+      .progress-assessments-legend-block-left {
+        padding-right: 10px;
+      }
+
+      .progress-assessments-legend-pass {
+        color: #00DCFF;
+      }
+
+      .progress-assessments-legend-fail {
+        color: #046DB4;
+      }
+    }
+  }
+
+  @media all and (max-width: 1600px) {
+    .progress-assessments-summary-block-not-first {
+      padding-left: 0 !important;
+    }
+
+    .progress-assessments-summary-block-separator {
+      padding-left: 50px !important;
+    }
   }
 
   @media all and (max-width: 1200px) {
@@ -885,11 +983,18 @@
     }
   }
 
+  @media all and (max-width: 1070px) {
+    .progress-assessments-summary-block-separator {
+      border-left: none !important;
+      padding-left: 0 !important;
+    }
+  }
+
   @media all and (max-width: 800px) {
     .progress-tags-summary-block {
       border: #c8c8c8 1px solid;
       display: block;
-      width: 90%;
+      width: 90% !important;
     }
 
     .progress-tags-summary-top5 {
@@ -903,6 +1008,12 @@
     .tags-block-info-name {
       display: inline-block;
       width: 88%;
+    }
+
+    .progress-assessments-summary {
+      .progress-assessments-summary-block {
+        text-align: center !important;
+      }
     }
   }
 }
@@ -919,8 +1030,12 @@
     font-size: 18px;
   }
 
-  .tags-percentage, .tags-help {
+  .tags-percentage {
     width: 120px;
+  }
+
+  .tags-help {
+    width: 150px;
   }
 
   .tags-percentage {
