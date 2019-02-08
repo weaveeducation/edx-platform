@@ -1,3 +1,5 @@
+import json
+
 from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
 from openassessment.assessment.api import staff as staff_api
 from submissions.api import get_submissions
@@ -9,9 +11,7 @@ def _tag_title(tag):
     return tag.replace(' - ', ' > ').replace('"', '')
 
 
-def tags_student_progress(course, student):
-    course_grade = CourseGradeFactory().read(student, course)
-    courseware_summary = course_grade.chapter_grades.values()
+def tags_student_progress(course, student, problem_blocks, courseware_summary):
     anonymous_user_id = anonymous_id_for_user(student, course.id, save=False)
 
     items = {}
@@ -26,10 +26,8 @@ def tags_student_progress(course, student):
                     }
 
     tags = {}
-    tagged_categories = ['problem', 'openassessment', 'drag-and-drop-v2']
     tag_categories = ['learning_outcome', 'custom_outcome']
 
-    problem_blocks = modulestore().get_items(course.id, qualifiers={'category': {'$in': tagged_categories}})
     for problem_block in problem_blocks:
         item_block_location = str(problem_block.location)
         if item_block_location in items:
@@ -129,10 +127,82 @@ def tags_student_progress(course, student):
     return tags_result
 
 
+def assessments_progress(courseware_summary):
+    data = []
+    percent_correct_sections_lst = []
+    total_grade_lst = []
+    total_num_questions = 0
+    total_assessments = 0
+    completed_assessments = 0
+    not_started_assessments = 0
+
+    for chapter in courseware_summary:
+        for section in chapter['sections']:
+            if section.graded:
+                total_assessments = total_assessments + 1
+                num_questions = len(section.problem_scores)
+                percent_correct_tmp_lst = []
+                completed_lst = []
+                not_started_lst = []
+                num_correct_lst = []
+
+                for key, score in section.problem_scores.items():
+                    percent_correct_tmp_lst.append(score.earned / score.possible)
+                    completed_lst.append(score.first_attempted is not None)
+                    not_started_lst.append(score.first_attempted is None)
+                    num_correct_lst.append(1 if score.possible == score.earned else 0)
+                    total_grade_lst.append({
+                        'earned': score.earned,
+                        'possible': score.possible
+                    })
+                    total_num_questions = total_num_questions + 1
+
+                percent_correct = int((sum(percent_correct_tmp_lst) / num_questions) * 100)
+                percent_correct_sections_lst.append(percent_correct)
+
+                is_completed = all(completed_lst)
+                is_not_started = all(not_started_lst)
+                num_correct = sum(num_correct_lst)
+
+                if is_completed:
+                    completed_assessments = completed_assessments + 1
+                if is_not_started:
+                    not_started_assessments = not_started_assessments + 1
+
+                data.append({
+                    'title': section.display_name,
+                    'percent_correct': percent_correct,
+                    'correct': num_correct,
+                    'total': num_questions,
+                    'is_completed': is_completed,
+                    'is_not_started': is_not_started
+                })
+    total_grade = int((sum([val['earned'] / val['possible'] for val in total_grade_lst]) / total_num_questions) * 100)
+    return {
+        'data': data,
+        'data_str': json.dumps(data),
+        'total_grade': total_grade,
+        'best_grade': max(percent_correct_sections_lst),
+        'lowest_grade': min(percent_correct_sections_lst),
+        'total_assessments': total_assessments,
+        'completed_assessments': completed_assessments,
+        'not_started_assessments': not_started_assessments
+    }
+
+
 def progress_main_page(request, course, student):
-    tags = tags_student_progress(course, student)
+    tagged_categories = ['problem', 'openassessment', 'drag-and-drop-v2']
+    problem_blocks = modulestore().get_items(course.id, qualifiers={'category': {'$in': tagged_categories}})
+
+    course_grade = CourseGradeFactory().read(student, course)
+    courseware_summary = course_grade.chapter_grades.values()
+
+    tags = tags_student_progress(course, student, problem_blocks, courseware_summary)
+    assessments = assessments_progress(courseware_summary)
+
     context = {
         'top5tags': tags[-5:][::-1],
-        'lowest5tags': tags[:5]
+        'lowest5tags': tags[:5],
+        'assessments': assessments
     }
     return context

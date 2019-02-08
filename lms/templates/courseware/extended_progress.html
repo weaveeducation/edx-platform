@@ -30,38 +30,10 @@ username = get_enterprise_learner_generic_name(request) or student.username
 
 <%block name="js_extra">
 <script type="text/javascript">
-    window.extendedProgressChart = {
-        data: [],
-        passValue: 50
-    };
-    var numValues = 10;
-
-    for (var i = 0; i < numValues; i++) {
-        window.extendedProgressChart.data.push({
-            title: 'Mercury Mercury Mercury Mercury Mercury Mercury Mercury Mercury Mercury Mercury',
-            value: 42,
-            submitted: 5,
-            total: 10
-        });
-        window.extendedProgressChart.data.push({
-            title: 'Venus Venus Venus Venus Venus Venus Venus Venus Venus Venus Venus Venus Venus Venus Venus Venus',
-            value: 83,
-            submitted: 6,
-            total: 6
-        });
-        window.extendedProgressChart.data.push({
-            title: 'Earth Earth Earth Earth Earth Earth Earth Earth Earth Earth',
-            value: 1,
-            submitted: 10,
-            total: 10
-        });
-        window.extendedProgressChart.data.push({
-            title: 'Mars Mars Mars Mars Mars Mars Mars Mars Mars Mars Mars Mars Mars Mars Mars Mars Mars Mars Mars Mars Mars',
-            value: 100,
-            submitted: 84,
-            total: 100
-        });
-    }
+window.extendedProgressChart = {
+    data: ${assessments['data_str'] | n},
+    passValue: 50
+};
 </script>
 <script type="text/javascript" src="${static.url('js/vendor/tooltipsy.min.js')}"></script>
 <script type="text/javascript" src="${static.url('js/vendor/chartjs.min.js')}"></script>
@@ -94,7 +66,7 @@ username = get_enterprise_learner_generic_name(request) or student.username
                         <div class="clear"></div>
                     </div>
                     <div class="progress-assessments">
-                        <%include file="/courseware/extended_progress_chart.html" />
+                        <%include file="/courseware/extended_progress_chart.html" args="assessments=assessments" />
                     </div>
                 </div>
             </section>

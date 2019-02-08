@@ -1,15 +1,15 @@
-function getTooltipHtml(label, percentCorrect, answers, total) {
+function getTooltipHtml(label, percentCorrect, value, total) {
     var displayTotal = ((total !== null) && (total !== undefined));
     var html = '<div class="tags-tooltip-block">' +
             '<div class="tags-label">' + label + '</div>' +
             '<table class="tags-table">' +
             '<tr>' +
             '<td class="tags-percentage">' + percentCorrect + '%</td>' +
-            '<td class="tags-percentage">' + (displayTotal ? (answers + '/' + total) : answers) + '</td>' +
+            '<td class="tags-percentage">' + (displayTotal ? (value + '/' + total) : value) + '</td>' +
             '</tr>' +
             '<tr>' +
             '<td class="tags-help">Percent Correct</td>' +
-            '<td class="tags-help">' + (displayTotal ? 'Submitted/Total Answers' : 'Answers Submitted') + '</td>' +
+            '<td class="tags-help">' + (displayTotal ? 'Correct/Total Questions' : 'Answers Submitted') + '</td>' +
             '</tr>' +
             '</table>' +
             '</div>';
@@ -89,8 +89,8 @@ function displayAssessmentsChart(chartEl, passValue, data) {
     }
 
     for (var i = 0; i < data.length; i++) {
-        dataValues.push(data[i].value);
-        backgroundColorValues.push((data[i].value > passValue) ? 'rgba(0, 220, 255, 1)' : 'rgba(4, 109, 180, 1)');
+        dataValues.push(data[i].percent_correct);
+        backgroundColorValues.push((data[i].percent_correct > passValue) ? 'rgba(0, 220, 255, 1)' : 'rgba(4, 109, 180, 1)');
         labels.push(formatChartLabel(data[i].title, labelMaxwidth, labelTruncate));
     }
 
@@ -170,7 +170,7 @@ function displayAssessmentsChart(chartEl, passValue, data) {
                         var idx = tooltipModel.dataPoints[0].index;
                         var val = data[idx];
                         var tableRoot = tooltipEl.querySelector('.progress-tooltip');
-                        var html = getTooltipHtml(val.title, val.value, val.submitted, val.total);
+                        var html = getTooltipHtml(val.title, val.percent_correct, val.correct, val.total);
                         tableRoot.innerHTML = '<div style="background-color: #ffffff; ' +
                             'border: 1px solid #c8c8c8; ' +
                             'max-width: 500px; ' +
