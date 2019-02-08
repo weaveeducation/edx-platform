@@ -26,11 +26,18 @@ username = get_enterprise_learner_generic_name(request) or student.username
 <%static:css group='style-course'/>
 </%block>
 
-
 <%block name="pagetitle">${_("{course_number} Progress").format(course_number=course.display_number_with_default)}</%block>
 
 <%block name="js_extra">
+<script type="text/javascript">
+window.extendedProgressChart = {
+    data: ${assessments['data_str'] | n},
+    passValue: 50
+};
+</script>
 <script type="text/javascript" src="${static.url('js/vendor/tooltipsy.min.js')}"></script>
+<script type="text/javascript" src="${static.url('js/vendor/chartjs.min.js')}"></script>
+<script type="text/javascript" src="${static.url('js/vendor/chartjs-plugin-annotation.min.js')}"></script>
 <script type="text/javascript" src="${static.url('js/courseware/extended_progress.js')}"></script>
 </%block>
 
@@ -57,6 +64,9 @@ username = get_enterprise_learner_generic_name(request) or student.username
                         </div>
                         % endif
                         <div class="clear"></div>
+                    </div>
+                    <div class="progress-assessments">
+                        <%include file="/courseware/extended_progress_chart.html" args="assessments=assessments" />
                     </div>
                 </div>
             </section>
