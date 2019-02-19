@@ -310,7 +310,8 @@ class OrganizationType(models.Model):
     enable_new_carousel_view = models.BooleanField(default=False, verbose_name='Enable new carousel view'
                                                                                ' (horizontal nav bar)')
     enable_page_level_engagement = models.BooleanField(default=False, verbose_name='Enable Page Level for Engagement '
-                                                                                  'Statistic in Insights')
+                                                                                   'Statistic in Insights')
+    enable_extended_progress_page = models.BooleanField(default=False, verbose_name='Enable Extended Progress Page')
 
     class Meta:
         ordering = ['title']
