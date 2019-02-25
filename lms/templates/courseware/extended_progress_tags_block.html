@@ -1,9 +1,29 @@
 ## mako
 
-<%page args="tags, icon" expression_filter="h" />
+<%page args="tags, icon, course_id" expression_filter="h" />
 <%namespace name='static' file='/static_content.html'/>
+<%!
+from django.urls import reverse
+%>
 
-<table class="tags-table">
+% if icon == '':
+<div class="tags-all-skills">
+    <div class="tags-block-title">All Skills</div>
+    <div class="tags-block-see-all">
+        <a href="javascript: void(0);" class="tags-block-see-all-link tags-block-see-all-part">Sort By <i class="fa fa-chevron-down tags-block-see-all-part" aria-hidden="true"></i></a>
+        <div class="tags-all-skills-menu" aria-label="More" options="" role="menu" tabindex="-1">
+            <a href="javascript: void(0);" class="tags-sort-link" data-sort-by="h2l" role="menuitem">Highest to Lowest</a>
+            <a href="javascript: void(0);" class="tags-sort-link" data-sort-by="l2h" role="menuitem">Lowest to Highest</a>
+            <a href="javascript: void(0);" class="tags-sort-link" data-sort-by="a2z" role="menuitem">A to Z</a>
+            <a href="javascript: void(0);" class="tags-sort-link" data-sort-by="z2a" role="menuitem">Z to A</a>
+        </div>
+    </div>
+    <div class="clear"></div>
+</div>
+% endif
+
+<table class="tags-table tags-table-main">
+    % if icon == 'top5' or icon == 'lowest5':
     <tr>
         % if icon == 'top5':
         <td class="tags-percentage">
@@ -11,23 +31,25 @@
         </td>
         <td class="tags-block-top5-title">
             <div class="tags-block-title">Top 5 Skills</div>
-            <div class="tags-block-see-all"><a href="javascript: void(0);">See All</a></div>
+            <div class="tags-block-see-all"><a href="${reverse('progress', kwargs={'course_id': course_id})}?page=skills">See All</a></div>
             <div class="clear"></div>
         </td>
-        % endif
-        % if icon == 'lowest5':
+        % elif icon == 'lowest5':
         <td class="tags-percentage">
             <img src="${static.url('images/credo/lowest5skills.png')}" title="Lowest 5 Skills" width="85" height="85" />
         </td>
         <td class="tags-block-lowest5-title">
             <div class="tags-block-title">Lowest 5 Skills</div>
-            <div class="tags-block-see-all"><a href="javascript: void(0);">See All</a></div>
+            <div class="tags-block-see-all"><a href="${reverse('progress', kwargs={'course_id': course_id})}?page=skills">See All</a></div>
             <div class="clear"></div>
         </td>
         % endif
     </tr>
+    % endif
     % for tag in tags:
-    <tr>
+    <tr class="tags-table-block-item"
+        data-percent-correct="${tag['percent_correct']}"
+        data-label="${tag['tag_title']}">
         <td class="tags-percentage">${tag['percent_correct']}%</td>
         <td class="tags-block-info">
             <div class="tags-block-info-data"
