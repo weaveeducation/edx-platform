@@ -326,15 +326,36 @@ class OrgsView(APIView):
     def get(self, request):
         if not request.user.is_staff and not request.user.is_superuser:
             return Response({'success': False, 'error': "You have no permissions to view organizations"})
+        org_slug = request.GET.get('org_slug', None)
         org_type = request.GET.get('org_type', None)
+
         if org_type:
             try:
                 org_type = int(org_type)
             except:
                 org_type = None
-        if not org_type:
-            org_types = OrganizationType.objects.all().order_by('title')
-            return Response({'success': True, 'org_types': [{'id': org.id, 'title': org.title} for org in org_types]})
-        else:
+
+        if org_slug:
+            insights_reports = OrganizationType.get_all_insights_reports()
+            org_type_result = {}
+            try:
+                org_obj = Organization.objects.get(org=org_slug)
+                if org_obj.org_type is not None:
+                    insights_reports = org_obj.org_type.get_insights_reports()
+                    org_type_result = {
+                        'id': org_obj.org_type.id,
+                        'title': org_obj.org_type.title
+                    }
+            except Organization.DoesNotExist:
+                pass
+            return Response({
+                'success': True,
+                'insights_reports': insights_reports,
+                'org_type': org_type_result
+            })
+        elif org_type:
             orgs = Organization.objects.filter(org_type=org_type).order_by('org')
             return Response({'success': True, 'orgs': [o.org for o in orgs]})
+        else:
+            org_types = OrganizationType.objects.all().order_by('title')
+            return Response({'success': True, 'org_types': [{'id': org.id, 'title': org.title} for org in org_types]})

@@ -80,7 +80,7 @@ if course is not None:
         if (inIframe()) {
             var height = document.body.offsetHeight;
             var width = document.body.offsetWidth;
-            window.parent.postMessage("resize1::" + height + ":" + width, "*");
+            window.parent.postMessage("resize::" + height + ":" + width, "*");
         }
     }
 
