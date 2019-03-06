@@ -64,31 +64,34 @@ if course is not None:
   	<%include file="xqa_interface.html"/>
   % endif
 
-  <script type="text/javascript">
+<script type="text/javascript">
     window.chromlessView = true;
     var $$course_id = "${course.id | n, js_escaped_string}";
 
-    $(document).ready(function() {
-
-      function inIframe() {
+    function inIframe() {
         try {
-          return window.self !== window.top;
+            return window.self !== window.top;
         } catch (e) {
-          return true;
+            return true;
         }
-      }
+    }
 
-      function postMessageResize() {
-        var height = document.body.offsetHeight;
-        var width = document.body.offsetWidth;
-        window.parent.postMessage("resize::" + height + ":" + width, "*");
-      }
+    function postMessageResize() {
+        if (inIframe()) {
+            var height = document.body.offsetHeight;
+            var width = document.body.offsetWidth;
+            window.parent.postMessage("resize1::" + height + ":" + width, "*");
+        }
+    }
 
-      if (inIframe()) {
+    $(".sequence-nav").click(function(event){
         postMessageResize();
-      }
     });
-  </script>
+
+    $(document).ready(function() {
+        postMessageResize();
+    });
+</script>
 
 ${HTML(fragment.foot_html())}
 
