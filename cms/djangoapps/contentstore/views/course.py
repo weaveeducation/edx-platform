@@ -10,6 +10,7 @@ import string  # pylint: disable=deprecated-module
 
 import django.utils
 import six
+from uuid import uuid4
 from ccx_keys.locator import CCXLocator
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -21,7 +22,7 @@ from django.utils.translation import ugettext as _
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods
 from opaque_keys import InvalidKeyError
-from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys.edx.locator import BlockUsageLocator
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.djangoapps.waffle_utils import WaffleSwitchNamespace
@@ -66,6 +67,7 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
 from openedx.core.djangolib.js_utils import dump_js_escaped_json
 from openedx.core.lib.course_tabs import CourseTabPluginManager
 from openedx.core.lib.courses import course_image_url
+from credo_modules.models import CopySectionTask
 from student import auth
 from student.auth import has_course_author_access, has_studio_read_access, has_studio_write_access
 from student.roles import CourseCreatorRole, CourseInstructorRole, CourseStaffRole, GlobalStaff, UserBasedRole
@@ -91,12 +93,13 @@ from xmodule.modulestore.exceptions import DuplicateCourseError, ItemNotFoundErr
 from xmodule.tabs import CourseTab, CourseTabList, InvalidTabsException
 
 from .component import ADVANCED_COMPONENT_TYPES
-from .item import create_xblock_info
+from .item import create_xblock_info, copy_to_other_course
 from .library import LIBRARIES_ENABLED, get_library_creator_status
 
 log = logging.getLogger(__name__)
 
 __all__ = ['course_info_handler', 'course_handler', 'course_listing', 'course_listing_short',
+           'copy_section_to_other_courses', 'copy_section_to_other_courses_result',
            'course_info_update_handler', 'course_search_index_handler',
            'course_rerun_handler',
            'settings_handler',
@@ -568,6 +571,74 @@ def course_listing_short(request):
     split_archived = settings.FEATURES.get(u'ENABLE_SEPARATE_ARCHIVED_COURSES', False)
     active_courses, _ = _process_courses_list(courses_iter, in_process_course_actions, split_archived)
     return JsonResponse([course for course in active_courses])
+
+
+@login_required
+@ensure_csrf_cookie
+@require_http_methods(["POST"])
+def copy_section_to_other_courses(request):
+    json_data = json.loads(request.body)
+    usage_key_string = json_data.get('usage_key')
+    copy_to_courses = json_data.get('copy_to_courses', [])
+
+    task_id = str(uuid4())
+
+    usage_key = ''
+    try:
+        usage_key = UsageKey.from_string(usage_key_string)
+        source_course_key = usage_key.course_key
+    except InvalidKeyError:
+        pass
+
+    if not source_course_key or not usage_key or not copy_to_courses\
+            or not has_studio_read_access(request.user, usage_key.course_key):
+        return JsonResponse({'task_id': None})
+
+    tasks_num = 0
+    for course_id in copy_to_courses:
+        try:
+            course_key = CourseKey.from_string(course_id)
+            if has_studio_write_access(request.user, course_key):
+                section_task = CopySectionTask(
+                    task_id=task_id,
+                    block_id=usage_key_string,
+                    source_course_id=source_course_key,
+                    dst_course_id=course_key
+                )
+                section_task.save()
+                copy_to_other_course.delay(int(section_task.id), request.user.id,
+                                           usage_key_string, course_id)
+                tasks_num = tasks_num + 1
+        except InvalidKeyError:
+            pass
+
+    if tasks_num > 0:
+        return JsonResponse({'task_id': task_id})
+    else:
+        return JsonResponse({'task_id': None})
+
+
+@require_http_methods(["POST"])
+def copy_section_to_other_courses_result(request):
+    json_data = json.loads(request.body)
+    task_id = json_data.get('task_id')
+    if not task_id:
+        return HttpResponseBadRequest()
+
+    result = True
+    result_list = []
+
+    tasks = CopySectionTask.objects.filter(task_id=task_id)
+
+    for t in tasks:
+        if not t.is_finished():
+            result = False
+        result_list.append({
+            'title': str(t.dst_course_id),
+            'result': t.is_finished()
+        })
+
+    return JsonResponse({'result': result, 'courses': result_list})
 
 
 def _get_rerun_link_for_item(course_key):
