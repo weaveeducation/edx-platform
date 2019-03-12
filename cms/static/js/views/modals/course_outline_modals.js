@@ -8,9 +8,9 @@
 define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
     'js/views/modals/base_modal', 'date', 'js/views/utils/xblock_utils',
     'js/utils/date_utils', 'edx-ui-toolkit/js/utils/html-utils',
-    'edx-ui-toolkit/js/utils/string-utils', 'magicsuggest'
+    'edx-ui-toolkit/js/utils/string-utils', 'jquery-multiselect'
 ], function(
-    $, Backbone, _, gettext, BaseView, BaseModal, date, XBlockViewUtils, DateUtils, HtmlUtils, StringUtils, magicsuggest
+    $, Backbone, _, gettext, BaseView, BaseModal, date, XBlockViewUtils, DateUtils, HtmlUtils, StringUtils, jquerymultiselect
 ) {
     'use strict';
     var CourseOutlineXBlockModal, SettingsXBlockModal, PublishXBlockModal, HighlightsXBlockModal,
@@ -187,10 +187,12 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             'click .action-copy': 'save'
         }),
 
+        options: $.extend({}, BaseModal.prototype.options, {
+            modalSize: 'lg'
+        }),
+
         initialize: function() {
             CourseOutlineXBlockModal.prototype.initialize.call(this);
-            this.courseList = null;
-            this.courseSelector = null;
             this.progress = false;
             this.taskId = null;
             this.intervalId = null;
@@ -224,57 +226,49 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
         initializeEditors: function () {
             var self = this;
             var currentCourseKey = this.getCurrentCourseKey();
-            if (!this.courseList) {
-                $.ajax({
-                    url: '/course_listing',
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function(data) {
-                        var windowTemplate = self.loadTemplate('copy-to-other-course');
-                        data.sort(function(a, b) {
-                            if(a.display_name < b.display_name) return -1;
-                            if(a.display_name > b.display_name) return 1;
-                            return 0;
-                        });
-                        var result = [];
-                        $.each(data, function(index, course) {
-                            if (course.course_key !== currentCourseKey) {
-                                result.push({
-                                    id: course.course_key,
-                                    name: course.display_name + ' [ ' + course.number + ' / ' + course.run + ' ]'
-                                });
-                            }
-                        });
 
-                        self.courseList = result;
-                        self.$('.modal-section').html(windowTemplate({}));
-                        self.courseSelector = self.$('.modal-section').find("input[name='copy-to-course']").magicSuggest({
-                            data: self.courseList,
-                            width: 600,
-                            allowFreeEntries: false,
-                            maxSelection: 1000
-                        });
-                    },
-                    error: function(jqXHR, textStatus, errorThrown) {
-                        self.$('.modal-section').html(gettext("Course list can't be loaded from server"));
-                    }
-                });
-            } else {
-                var windowTemplate = self.loadTemplate('copy-to-other-course');
-                self.$('.modal-section').html(windowTemplate({}));
-                self.courseSelector = self.$('.modal-section').find("input[name='copy-to-course']").magicSuggest({
-                    data: self.courseList,
-                    width: 600,
-                    allowFreeEntries: false,
-                    maxSelection: 1000
-                });
-            }
+            $.ajax({
+                url: '/course_listing',
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    var windowTemplate = self.loadTemplate('copy-to-other-course');
+                    data.sort(function(a, b) {
+                        if (a.display_name < b.display_name) return -1;
+                        if (a.display_name > b.display_name) return 1;
+                        return 0;
+                    });
+                    var result = [];
+                    $.each(data, function(index, course) {
+                        if (course.course_key !== currentCourseKey) {
+                            result.push({
+                                id: course.course_key,
+                                name: course.display_name + ' [ ' + course.number + ' / ' + course.run + ' ]'
+                            });
+                        }
+                    });
+
+                    self.$('.modal-section').html(windowTemplate({courses: result}));
+                    self.$('.modal-section').find("select[name='copy-to-courses']").multiselect({
+                        columns: 1,
+                        search: true,
+                        selectAll: true,
+                        texts: {
+                            placeholder: 'Select Courses',
+                            search: 'Search...'
+                        }
+                    });
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    self.$('.modal-section').html(gettext("Course list can't be loaded from server"));
+                }
+            });
         },
 
         getRequestData: function () {
             var requestData = {
                 'usage_key': this.model.id,
-                'copy_to_courses': this.courseSelector.getValue()
+                'copy_to_courses': this.$('.modal-section').find("select[name='copy-to-courses']").val()
             };
             return $.extend.apply(this, [true, {}].concat(requestData));
         },

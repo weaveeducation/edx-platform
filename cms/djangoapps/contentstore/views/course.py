@@ -12,6 +12,7 @@ import django.utils
 import six
 from uuid import uuid4
 from ccx_keys.locator import CCXLocator
+from django.db import transaction
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -584,6 +585,7 @@ def copy_section_to_other_courses(request):
     task_id = str(uuid4())
 
     usage_key = ''
+    source_course_key = None
     try:
         usage_key = UsageKey.from_string(usage_key_string)
         source_course_key = usage_key.course_key
@@ -599,13 +601,14 @@ def copy_section_to_other_courses(request):
         try:
             course_key = CourseKey.from_string(course_id)
             if has_studio_write_access(request.user, course_key):
-                section_task = CopySectionTask(
-                    task_id=task_id,
-                    block_id=usage_key_string,
-                    source_course_id=source_course_key,
-                    dst_course_id=course_key
-                )
-                section_task.save()
+                with transaction.atomic():
+                    section_task = CopySectionTask(
+                        task_id=task_id,
+                        block_id=usage_key_string,
+                        source_course_id=source_course_key,
+                        dst_course_id=course_key
+                    )
+                    section_task.save()
                 copy_to_other_course.delay(int(section_task.id), request.user.id,
                                            usage_key_string, course_id)
                 tasks_num = tasks_num + 1
