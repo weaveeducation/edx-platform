@@ -577,6 +577,7 @@ def course_listing_short(request):
 @login_required
 @ensure_csrf_cookie
 @require_http_methods(["POST"])
+@transaction.non_atomic_requests
 def copy_section_to_other_courses(request):
     json_data = json.loads(request.body)
     usage_key_string = json_data.get('usage_key')
@@ -638,6 +639,7 @@ def copy_section_to_other_courses_result(request):
             result = False
         result_list.append({
             'title': str(t.dst_course_id),
+            'status': t.status,
             'result': t.is_finished()
         })
 

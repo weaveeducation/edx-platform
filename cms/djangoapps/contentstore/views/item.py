@@ -501,32 +501,31 @@ def _update_with_callback(xblock, user, old_metadata=None, old_content=None):
 
 @task()
 def copy_to_other_course(task_id, user_id, usage_key_string, destination_course_key_string):
-    user = None
-    copy_task = None
-
     try:
         copy_task = CopySectionTask.objects.get(id=task_id)
     except CopySectionTask.DoesNotExist:
-        pass
+        return
 
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
-        pass
+        copy_task.set_error()
+        copy_task.save()
+        return
 
-    if user and copy_task:
-        try:
-            copy_task.set_started()
-            copy_task.save()
+    try:
+        copy_task.set_started()
+        copy_task.save()
 
-            usage_key = UsageKey.from_string(usage_key_string)
-            _copy_to_other_course(user, _get_xblock(usage_key, user), destination_course_key_string)
+        usage_key = UsageKey.from_string(usage_key_string)
+        _copy_to_other_course(user, _get_xblock(usage_key, user), destination_course_key_string)
 
-            copy_task.set_finished()
-            copy_task.save()
-        except:
-            copy_task.set_error()
-            copy_task.save()
+        copy_task.set_finished()
+        copy_task.save()
+    except:
+        copy_task.set_error()
+        copy_task.save()
+        raise
 
 
 def _copy_to_other_course(user, xblock, course_dst_id):
