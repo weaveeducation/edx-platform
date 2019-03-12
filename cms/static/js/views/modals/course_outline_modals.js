@@ -330,7 +330,15 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                     } else {
                         var html = '';
                         $.each(data.courses, function(index, course) {
-                            html = html + '<div>' + course.title + ': ' + (course.result ? '<span style="color: green;">Success</span>' : '<span style="color: red;">Fail</span>') + '</div>';
+                            var st = '-';
+                            if (course.status === 'started') {
+                                st = '<span>In progress</span>';
+                            } else if (course.status === 'finished') {
+                                st = '<span style="color: green;">Success</span>';
+                            } else if (course.status === 'error') {
+                                st = '<span style="color: red;">Fail</span>';
+                            }
+                            html = html + '<div>' + course.title + ': ' + st + '</div>';
                         });
                         self.$('.modal-section').find('.copy-to-course-result').html(html);
                     }
