@@ -149,6 +149,7 @@
             'catch': 'js/vendor/ova/catch/js/catch',
             'handlebars': 'js/vendor/ova/catch/js/handlebars-1.1.2',
             'lang_edx': 'js/src/lang_edx',
+            'magicsuggest': 'cms/js/magicsuggest-1.3.1',
             // end of Annotation tool files
 
             // externally hosted files

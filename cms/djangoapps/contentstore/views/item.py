@@ -15,7 +15,7 @@ from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.utils.translation import ugettext as _
 from django.views.decorators.http import require_http_methods
-from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys.edx.locator import LibraryUsageLocator, BlockUsageLocator
 from pytz import UTC
 from six import text_type
@@ -25,6 +25,7 @@ from xblock.fields import Scope
 
 import dogstats_wrapper as dog_stats_api
 from cms.lib.xblock.authoring_mixin import VISIBILITY_VIEW
+from celery.task import task
 from contentstore.utils import (
     ancestor_has_staff_lock,
     find_release_date_source,
@@ -72,6 +73,7 @@ from xmodule.x_module import DEPRECATION_VSCOMPAT_EVENT, PREVIEW_VIEWS, STUDENT_
 from xmodule.contentstore.content import StaticContent
 from xmodule.contentstore.django import contentstore
 from xmodule.exceptions import NotFoundError
+from credo_modules.models import CopySectionTask
 
 __all__ = [
     'orphan_handler', 'xblock_handler', 'xblock_view_handler', 'xblock_outline_handler', 'xblock_container_handler'
@@ -195,7 +197,8 @@ def xblock_handler(request, usage_key_string):
         else:  # Since we have a usage_key, we are updating an existing xblock.
             copy_to_course = request.json.get('copy_to_course', None)
             if copy_to_course:
-                return _copy_to_other_course(request.user, _get_xblock(usage_key, request.user), copy_to_course)
+                copy_result = _copy_to_other_course(request.user, _get_xblock(usage_key, request.user), copy_to_course)
+                return JsonResponse(copy_result, encoder=EdxJSONEncoder)
             else:
                 return _save_xblock(
                     request.user,
@@ -496,6 +499,36 @@ def _update_with_callback(xblock, user, old_metadata=None, old_content=None):
     return modulestore().update_item(xblock, user.id)
 
 
+@task()
+def copy_to_other_course(task_id, user_id, usage_key_string, destination_course_key_string):
+    user = None
+    copy_task = None
+
+    try:
+        copy_task = CopySectionTask.objects.get(id=task_id)
+    except CopySectionTask.DoesNotExist:
+        pass
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        pass
+
+    if user and copy_task:
+        try:
+            copy_task.set_started()
+            copy_task.save()
+
+            usage_key = UsageKey.from_string(usage_key_string)
+            _copy_to_other_course(user, _get_xblock(usage_key, user), destination_course_key_string)
+
+            copy_task.set_finished()
+            copy_task.save()
+        except:
+            copy_task.set_error()
+            copy_task.save()
+
+
 def _copy_to_other_course(user, xblock, course_dst_id):
     broken_blocks = {}
     course_key = CourseKey.from_string(course_dst_id)
@@ -503,7 +536,7 @@ def _copy_to_other_course(user, xblock, course_dst_id):
     duplicate_source_usage_key = usage_key_with_run(str(course.location))
     _duplicate_item(duplicate_source_usage_key, xblock.location, user, xblock.display_name, course_key=course_key,
                     broken_blocks=broken_blocks)
-    return JsonResponse({'id': unicode(xblock.location), 'broken_blocks': broken_blocks}, encoder=EdxJSONEncoder)
+    return {'id': unicode(xblock.location), 'broken_blocks': broken_blocks}
 
 
 def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, nullout=None,

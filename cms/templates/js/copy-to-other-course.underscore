@@ -1,5 +1,2 @@
-<select name="copy-to-course" class="copy-to-course" style="width: 600px; text-overflow: ellipsis;">
-    <% _.each(courses, function(course) { %>
-    <option value="<%- course.course_key %>"><%- course.display_name %> [ <%- course.number %> / <%- course.run %> ]</option>
-    <% }); %>
-</select>
+<input name="copy-to-course" />
+<div class="copy-to-course-result" style="padding-top: 10px;"></div>
