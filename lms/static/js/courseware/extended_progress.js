@@ -209,7 +209,84 @@ function displayAssessmentsChart(chartEl, passValue, data) {
     });
 }
 
+function displayAssessmentsTree() {
+    var currentOrderBy = 'percent-correct';
+    var currentSort = -1;
+
+    $('.progress-assessments-expand-link').click(function() {
+        var blockType = $(this).data('block-type');
+        var opened = $(this).hasClass('opened');
+        var parent = null;
+
+        if (opened) {
+            $(this).removeClass('opened');
+            $(this).find('.header-icon').removeClass('fa-chevron-down').addClass('fa-chevron-right');
+
+            if (blockType === 'assessments') {
+                parent = $(this).closest(".progress-tags-assessments-item");
+                $(parent).find('.progress-tags-assessments-item-assessments').addClass('closed');
+            } else if (blockType === 'questions') {
+                parent = $(this).closest(".progress-tags-assessments-item-assessment");
+                $(parent).find('.progress-tags-assessments-item-assessment-questions').addClass('closed');
+            }
+        } else {
+            $(this).addClass('opened');
+            $(this).find('.header-icon').removeClass('fa-chevron-right').addClass('fa-chevron-down');
+
+            if (blockType === 'assessments') {
+                parent = $(this).closest(".progress-tags-assessments-item");
+                $(parent).find('.progress-tags-assessments-item-assessments').removeClass('closed');
+            } else if (blockType === 'questions') {
+                parent = $(this).closest(".progress-tags-assessments-item-assessment");
+                $(parent).find('.progress-tags-assessments-item-assessment-questions').removeClass('closed');
+            }
+        }
+    });
+
+    $('.progress-assessments-cell-head-link').click(function() {
+        var itemOrderBy = $(this).data('order-by');
+        if (itemOrderBy === currentOrderBy) {
+            currentSort = currentSort * (-1);
+        } else {
+            currentOrderBy = itemOrderBy;
+            currentSort = 1;
+        }
+        var sortIcon = '';
+        if (currentSort === 1) {
+            sortIcon = '<i class="fa fa-chevron-up header-icon progress-assessments-cell-head-icon" aria-hidden="true"></i>';
+        } else {
+            sortIcon = '<i class="fa fa-chevron-down header-icon progress-assessments-cell-head-icon" aria-hidden="true"></i>';
+        }
+
+        $('.progress-assessments-cell-head-icon').remove();
+        var link = $('.progress-assessments-cell-head-link-' + currentOrderBy);
+        link.html(link.html() + sortIcon);
+
+        var mainDiv = $('.progress-assessments-body');
+        var items = mainDiv.find('.progress-tags-assessments-item').get();
+
+        items.sort(function (a, b) {
+            var titleA = $(a).data('title');
+            var valA = $(a).data(currentOrderBy) + titleA;
+            var titleB = $(b).data('title');
+            var valB = $(b).data(currentOrderBy) + titleB;
+
+            if (currentSort === -1) {
+                return (valA > valB) ? -1 : (valA < valB) ? 1 : 0;
+            } else if (currentSort === 1) {
+                return (valA < valB) ? -1 : (valA > valB) ? 1 : 0;
+            }
+        });
+
+        $.each(items, function(index, row) {
+            mainDiv.append(row);
+        });
+    });
+}
+
 $(document).ready(function() {
+    displayAssessmentsTree();
+
     $('.tags-block-info-data').each(function() {
         var label = $(this).data('label'),
             percentCorrect = $(this).data('percent-correct'),
@@ -228,6 +305,45 @@ $(document).ready(function() {
             }
         });
     });
+
+    $(".tags-block-see-all-link").click(function() {
+        $(".tags-all-skills-menu").addClass('tags-all-skills-menu-show');
+    });
+
+    $(".tags-sort-link").on("click", function() {
+        var sortBy = $(this).data('sort-by');
+        var table = $('.tags-table-main');
+        var rows = table.find('tr').get();
+
+        rows.sort(function (a, b) {
+            var contentApc = parseInt($(a).data('percent-correct'));
+            var contentAl = $(a).data('label');
+            var contentBpc = parseInt($(b).data('percent-correct'));
+            var contentBl = $(b).data('label');
+
+            if (sortBy === 'h2l') {
+                return (contentApc > contentBpc) ? -1 : (contentApc < contentBpc) ? 1 : 0;
+            } else if (sortBy === 'l2h') {
+                return (contentApc < contentBpc) ? -1 : (contentApc > contentBpc) ? 1 : 0;
+            } else if (sortBy === 'a2z') {
+                return (contentAl < contentBl) ? -1 : (contentAl > contentBl) ? 1 : 0;
+            } else if (sortBy === 'z2a') {
+                return (contentAl > contentBl) ? -1 : (contentAl < contentBl) ? 1 : 0;
+            }
+        });
+
+        $.each(rows, function(index, row) {
+            table.append(row);
+        });
+    });
+
+    if ($(".tags-sort-link").length > 0) {
+        document.addEventListener('click', function(event) {
+            if (!$(event.target).hasClass('tags-block-see-all-part')) {
+                $(".tags-all-skills-menu").removeClass('tags-all-skills-menu-show');
+            }
+        });
+    }
 
     var chartEl = document.getElementById("assessmentsChart");
     if (chartEl && window.extendedProgressChart) {
