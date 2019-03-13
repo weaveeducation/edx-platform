@@ -196,6 +196,7 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             this.progress = false;
             this.taskId = null;
             this.intervalId = null;
+            this.done = false;
         },
 
         getTitle: function () {
@@ -278,6 +279,9 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             if (this.progress) {
                 return;
             }
+            if (this.done) {
+                this.hide();
+            }
             var requestData = this.getRequestData();
             if (requestData.copy_to_courses.length === 0) {
                 return;
@@ -323,25 +327,27 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                 contentType: 'application/json',
                 dataType: 'json',
                 success: function(data) {
+                    var html = '';
                     if (data.result) {
+                        html = '<div><strong>Done!</strong></div>';
                         clearInterval(self.intervalId);
                         self.progress = false;
-                        self.hide();
-                    } else {
-                        var html = '';
-                        $.each(data.courses, function(index, course) {
-                            var st = '-';
-                            if (course.status === 'started') {
-                                st = '<span>In progress</span>';
-                            } else if (course.status === 'finished') {
-                                st = '<span style="color: green;">Success</span>';
-                            } else if (course.status === 'error') {
-                                st = '<span style="color: red;">Fail</span>';
-                            }
-                            html = html + '<div>' + course.title + ': ' + st + '</div>';
-                        });
-                        self.$('.modal-section').find('.copy-to-course-result').html(html);
+                        self.done = true;
+                        self.getActionButton('copy').html('Close');
                     }
+
+                    $.each(data.courses, function(index, course) {
+                        var st = '<span>Not started</span>';
+                        if (course.status === 'started') {
+                            st = '<span>In progress</span>';
+                        } else if (course.status === 'finished') {
+                            st = '<span style="color: green;">Success</span>';
+                        } else if (course.status === 'error') {
+                            st = '<span style="color: red;">Fail</span>';
+                        }
+                        html = html + '<div>' + course.title + ': ' + st + '</div>';
+                    });
+                    self.$('.modal-section').find('.copy-to-course-result').html(html);
                 }
             });
         }
