@@ -15,7 +15,7 @@ import json
 import platform
 
 from django.contrib.auth.models import User
-from django.db import models, IntegrityError
+from django.db import models, IntegrityError, transaction
 from django.utils import timezone
 from provider.utils import short_token
 
@@ -160,9 +160,10 @@ class GradedAssignmentLock(models.Model):
     @classmethod
     def create(cls, graded_assignment_id):
         try:
-            lock = GradedAssignmentLock(graded_assignment_id=graded_assignment_id, created=timezone.now())
-            lock.save()
-            return lock
+            with transaction.atomic():
+                lock = GradedAssignmentLock(graded_assignment_id=graded_assignment_id, created=timezone.now())
+                lock.save()
+                return lock
         except IntegrityError:
             try:
                 lock = GradedAssignmentLock.objects.get(graded_assignment_id=graded_assignment_id)
