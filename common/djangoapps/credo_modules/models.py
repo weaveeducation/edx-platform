@@ -249,10 +249,11 @@ class CourseUsage(models.Model):
             block_id=block_id
         )
         if unique_user_id not in course_usage.session_ids:
-            CourseUsage.objects.filter(course_id=course_key, user_id=user_id,
-                                       block_id=block_id, block_type=block_type) \
-                .update(last_usage_time=usage_dt_now(), usage_count=F('usage_count') + 1,
-                        session_ids=Concat('session_ids', Value('|'), Value(unique_user_id)))
+            with transaction.atomic():
+                CourseUsage.objects.filter(course_id=course_key, user_id=user_id,
+                                           block_id=block_id, block_type=block_type) \
+                    .update(last_usage_time=usage_dt_now(), usage_count=F('usage_count') + 1,
+                            session_ids=Concat('session_ids', Value('|'), Value(unique_user_id)))
 
     @classmethod
     @deadlock_db_retry

@@ -172,11 +172,12 @@ def anonymous_id_for_user(user, course_id, save=True):
         return digest
 
     try:
-        AnonymousUserId.objects.get_or_create(
-            user=user,
-            course_id=course_id,
-            anonymous_user_id=digest,
-        )
+        with transaction.atomic():
+            AnonymousUserId.objects.get_or_create(
+                user=user,
+                course_id=course_id,
+                anonymous_user_id=digest,
+            )
     except IntegrityError:
         # Another thread has already created this entry, so
         # continue
