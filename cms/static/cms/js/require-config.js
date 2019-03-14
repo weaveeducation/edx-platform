@@ -151,6 +151,8 @@
             'lang_edx': 'js/src/lang_edx',
             // end of Annotation tool files
 
+            'jquery-multiselect': 'cms/js/jquery.multiselect-2.4.12',
+
             // externally hosted files
             mathjax: '//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_SVG&delayStartupUntil=configured',  // eslint-disable-line max-len
             'youtube': [

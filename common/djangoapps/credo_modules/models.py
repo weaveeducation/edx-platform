@@ -15,6 +15,7 @@ from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.utils.timezone import utc
+from model_utils.models import TimeStampedModel
 
 from credo_modules.utils import additional_profile_fields_hash
 from student.models import CourseEnrollment, ENROLL_STATUS_CHANGE, EnrollStatusChange
@@ -430,6 +431,45 @@ class SendScoresMailing(models.Model):
 
     class Meta(object):
         db_table = "credo_send_scores_mailing"
+
+
+class CopySectionTask(TimeStampedModel, models.Model):
+    NOT_STARTED = 'not_started'
+    STARTED = 'started'
+    FINISHED = 'finished'
+    ERROR = 'error'
+    STATUSES = (
+        (NOT_STARTED, 'Not Started'),
+        (STARTED, 'Started'),
+        (FINISHED, 'Finished'),
+        (ERROR, 'Error'),
+    )
+
+    task_id = models.CharField(max_length=255, db_index=True)
+    block_id = models.CharField(max_length=255)
+    source_course_id = CourseKeyField(max_length=255, db_index=True)
+    dst_course_id = CourseKeyField(max_length=255)
+    status = models.CharField(
+        max_length=255,
+        choices=STATUSES,
+        default=NOT_STARTED,
+    )
+
+    def set_started(self):
+        self.status = self.STARTED
+
+    def set_finished(self):
+        self.status = self.FINISHED
+
+    def set_error(self):
+        self.status = self.ERROR
+
+    def is_finished(self):
+        return self.status == self.FINISHED
+
+    class Meta(object):
+        db_table = "copy_section_task"
+        unique_together = (('task_id', 'block_id', 'dst_course_id'),)
 
 
 UNIQUE_USER_ID_COOKIE = 'credo-course-usage-id'

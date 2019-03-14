@@ -93,7 +93,6 @@ class OraStructuredTagsAside(StructuredTagsAside):
                                                                                     'block_location': block.location,
                                                                                     'show_save_btn': has_access_any_tag,
                                                                                     }))
-            fragment.add_css_url(self._get_studio_resource_url('/cms/css/magicsuggest-1.3.1.css'))
             fragment.add_javascript_url(self._get_studio_resource_url('/cms/js/magicsuggest-1.3.1.js'))
             fragment.add_javascript_url(self._get_studio_resource_url('/js/xblock_asides/ora_structured_tags.js'))
             fragment.initialize_js('OraStructuredTagsInit')
