@@ -526,7 +526,8 @@ def _section_membership(course, access):
         'modify_access_url': reverse('modify_access', kwargs={'course_id': unicode(course_key)}),
         'list_forum_members_url': reverse('list_forum_members', kwargs={'course_id': unicode(course_key)}),
         'update_forum_role_membership_url': reverse('update_forum_role_membership', kwargs={'course_id': unicode(course_key)}),
-        'enrollment_role_choices': enrollment_role_choices
+        'enrollment_role_choices': enrollment_role_choices,
+        'current_platform_name': configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
     }
     return section_data
 
@@ -612,6 +613,7 @@ def _section_student_admin(course, access):
         'list_entrace_exam_instructor_tasks_url': reverse('list_entrance_exam_instructor_tasks',
                                                           kwargs={'course_id': unicode(course_key)}),
         'spoc_gradebook_url': reverse('spoc_gradebook', kwargs={'course_id': unicode(course_key)}),
+        'current_platform_name': configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
     }
     return section_data
 
@@ -824,11 +826,13 @@ def _section_lti_constructor(request, course):
 
 
 def _section_credo_insights(request, course):
+    current_platform_name = configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
     section_data = {
         'section_key': 'credo_insights',
-        'section_display_name': _('Credo Insights'),
+        'section_display_name': current_platform_name + ' Insights',
         'course_id': unicode(course.id),
         'credo_insights_url': settings.CREDO_INSIGHTS_LINK,
+        'current_platform_name': current_platform_name
     }
     return section_data
 
