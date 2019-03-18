@@ -520,19 +520,16 @@ class CourseTabView(EdxFragmentView):
         course_key = CourseKey.from_string(course_id)
         with modulestore().bulk_operations(course_key):
             course = get_course_with_access(request.user, 'load', course_key)
-            try:
-                # Render the page
-                tab = CourseTabList.get_tab_by_type(course.tabs, tab_type)
-                page_context = self.create_page_context(request, course=course, tab=tab, **kwargs)
+            # Render the page
+            tab = CourseTabList.get_tab_by_type(course.tabs, tab_type)
+            page_context = self.create_page_context(request, course=course, tab=tab, **kwargs)
 
-                # Show warnings if the user has limited access
-                # Must come after masquerading on creation of page context
-                self.register_user_access_warning_messages(request, course_key)
+            # Show warnings if the user has limited access
+            # Must come after masquerading on creation of page context
+            self.register_user_access_warning_messages(request, course_key)
 
-                set_custom_metrics_for_course_key(course_key)
-                return super(CourseTabView, self).get(request, course=course, page_context=page_context, **kwargs)
-            except Exception as exception:  # pylint: disable=broad-except
-                return CourseTabView.handle_exceptions(request, course, exception)
+            set_custom_metrics_for_course_key(course_key)
+            return super(CourseTabView, self).get(request, course=course, page_context=page_context, **kwargs)
 
     @staticmethod
     def url_to_enroll(course_key):
