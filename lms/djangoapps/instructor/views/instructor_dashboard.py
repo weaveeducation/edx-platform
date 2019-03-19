@@ -94,7 +94,6 @@ def show_analytics_dashboard_message(course_key):
     if hasattr(course_key, 'ccx'):
         ccx_analytics_enabled = settings.FEATURES.get('ENABLE_CCX_ANALYTICS_DASHBOARD_URL', False)
         return settings.ANALYTICS_DASHBOARD_URL and ccx_analytics_enabled
-
     return settings.ANALYTICS_DASHBOARD_URL
 
 
@@ -818,7 +817,7 @@ def _section_lti_constructor(request, course):
         'section_key': 'lti_constructor',
         'section_display_name': _('Link Constructor'),
         'course_id': unicode(course.id),
-        'constructor_url': settings.CONSTRUCTOR_LINK,
+        'constructor_url': configuration_helpers.get_value('CONSTRUCTOR_LINK', settings.CONSTRUCTOR_LINK),
         'course_id_hash': hashlib.md5(unicode(course.id) + u'_credo_lti_constructor').hexdigest(),
         'org_details': urllib.quote_plus(json.dumps(org_details)),
     }
