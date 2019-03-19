@@ -20,18 +20,6 @@ define(['js/models/component_template'],
                         boilerplate_name: 'multiple_choice.yaml',
                         display_name: 'Multiple Choice'
                     }, {
-                        category: 'problem',
-                        boilerplate_name: 'drag_and_drop.yaml',
-                        display_name: 'Drag and Drop'
-                    }, {
-                        category: 'problem',
-                        boilerplate_name: 'problem_with_hint.yaml',
-                        display_name: 'Problem with Adaptive Hint'
-                    }, {
-                        category: 'problem',
-                        boilerplate_name: 'imageresponse.yaml',
-                        display_name: 'Image Mapped Input'
-                    }, {
                         category: 'openassessment',
                         boilerplate_name: null,
                         display_name: 'Peer Assessment'
