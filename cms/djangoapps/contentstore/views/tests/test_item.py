@@ -265,12 +265,8 @@ class GetItemTest(ItemTest):
         resp = self.create_xblock(parent_usage_key=split_test_usage_key, category='html',
                                   boilerplate='announcement.yaml')
         self.assertEqual(resp.status_code, 200)
-        resp = self.create_xblock(parent_usage_key=split_test_usage_key, category='html',
-                                  boilerplate='zooming_image.yaml')
-        self.assertEqual(resp.status_code, 200)
         html, __ = self._get_container_preview(split_test_usage_key)
         self.assertIn('Announcement', html)
-        self.assertIn('Zooming', html)
 
     def test_split_test_edited(self):
         """
