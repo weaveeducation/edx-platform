@@ -15,9 +15,7 @@ class ResourceTemplatesTests(unittest.TestCase):
     def test_templates(self):
         expected = set([
             'latex_html.yaml',
-            'zooming_image.yaml',
-            'announcement.yaml',
-            'anon_user_id.yaml'])
+            'announcement.yaml'])
         got = set((t['template_id'] for t in TestClass.templates()))
         self.assertEqual(expected, got)
 

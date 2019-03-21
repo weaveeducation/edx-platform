@@ -932,54 +932,6 @@ class TestPythonGradedResponse(TestSubmittingProblems):
         # re-fetch the course from the database so the object is up to date
         self.refresh_course()
 
-    def custom_response_setup(self, name):
-        """
-        set up an example custom response problem using a check function
-        """
-
-        test_csv = self.CUSTOM_RESPONSE_SCRIPT
-        expect = self.CUSTOM_RESPONSE_CORRECT
-        cfn_problem_xml = CustomResponseXMLFactory().build_xml(script=test_csv, cfn='test_csv', expect=expect)
-
-        ItemFactory.create(
-            parent_location=self.section.location,
-            category='problem',
-            boilerplate='customgrader.yaml',
-            data=cfn_problem_xml,
-            display_name=name
-        )
-
-        # define the correct and incorrect responses to this problem
-        self.correct_responses[name] = expect
-        self.incorrect_responses[name] = self.CUSTOM_RESPONSE_INCORRECT
-
-        # re-fetch the course from the database so the object is up to date
-        self.refresh_course()
-
-    def computed_answer_setup(self, name):
-        """
-        set up an example problem using an answer script'''
-        """
-
-        script = self.COMPUTED_ANSWER_SCRIPT
-
-        computed_xml = CustomResponseXMLFactory().build_xml(answer=script)
-
-        ItemFactory.create(
-            parent_location=self.section.location,
-            category='problem',
-            boilerplate='customgrader.yaml',
-            data=computed_xml,
-            display_name=name
-        )
-
-        # define the correct and incorrect responses to this problem
-        self.correct_responses[name] = self.COMPUTED_ANSWER_CORRECT
-        self.incorrect_responses[name] = self.COMPUTED_ANSWER_INCORRECT
-
-        # re-fetch the course from the database so the object is up to date
-        self.refresh_course()
-
     def _check_correct(self, name):
         """
         check that problem named "name" gets evaluated correctly correctly
