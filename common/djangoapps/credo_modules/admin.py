@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import RegistrationPropertiesPerMicrosite, EnrollmentPropertiesPerCourse,\
-    Organization, OrganizationType, CourseExcludeInsights, CourseUsage
+    Organization, OrganizationType, CourseExcludeInsights, CourseUsage, CustomUserRole
 
 
 class RegistrationPropertiesPerMicrositeForm(admin.ModelAdmin):
@@ -44,9 +44,15 @@ class CourseUsageForm(admin.ModelAdmin):
         return []
 
 
+class CustomUserRoleForm(admin.ModelAdmin):
+    list_display = ('id', 'title')
+
+
 admin.site.register(RegistrationPropertiesPerMicrosite, RegistrationPropertiesPerMicrositeForm)
 admin.site.register(EnrollmentPropertiesPerCourse, EnrollmentPropertiesPerCourseForm)
 admin.site.register(Organization, OrganizationForm)
 admin.site.register(OrganizationType, OrganizationTypeForm)
 admin.site.register(CourseExcludeInsights, CourseExcludeInsightsForm)
 admin.site.register(CourseUsage, CourseUsageForm)
+admin.site.register(CustomUserRole, CustomUserRoleForm)
+
