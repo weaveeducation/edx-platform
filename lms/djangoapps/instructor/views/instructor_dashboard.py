@@ -210,7 +210,8 @@ def instructor_dashboard_2(request, course_id):
     if available_tabs.show_open_responses:
         openassessment_blocks = modulestore().get_items(course_key, qualifiers={'category': 'openassessment'})
         # filter out orphaned openassessment blocks
-        openassessment_blocks = [block for block in openassessment_blocks if block.parent is not None]
+        openassessment_blocks = [block for block in openassessment_blocks if block.parent is not None and
+                                 block.rubric_criteria]
         if len(openassessment_blocks) > 0:
             sections.append(_section_open_response_assessment(request, course, openassessment_blocks, access))
 
