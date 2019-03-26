@@ -96,7 +96,8 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview',
                     'submit #create-user-form': 'createUserFormSubmit',
                     'click .action-cancel': 'cancelEditHandler',
                     keyup: 'keyUpHandler',
-                    'click .remove-user': 'removeUserHandler'
+                    'click .remove-user': 'removeUserHandler',
+                    'click .change-custom-role': 'changeCustomRole'
                 };
                 var roleEvents = {};
                 var self = this;
@@ -132,6 +133,19 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview',
                 this.$createUserFormWrapper = this.$el.find('.wrapper-create-user');
                 this.$cancelButton = this.$el.find('.action-cancel');
                 this.$userList = this.$el.find('#user-list');
+                this.custom_roles = options.custom_roles;
+                this.is_library = options.is_library;
+            },
+
+            changeCustomRole: function(event) {
+                event.preventDefault();
+                var el = $(event.target);
+                if ($(el).prop("tagName") !== 'A') {
+                    el = $(el).closest("a");
+                }
+                var userid = $(el).data('userid');
+                var newRole = $('.change-user-role-selector-' + userid).val();
+                this.changeRole($(el).data('email'), newRole, {});
             },
 
             render: function() {
@@ -154,7 +168,9 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview',
                         allow_delete: !(user.role === this.admin_role.key && adminRoleCount === 1),
                         allow_actions: this.allow_actions,
                         is_current_user: is_current_user,
-                        viewHelpers: viewHelpers
+                        viewHelpers: viewHelpers,
+                        custom_roles: this.custom_roles,
+                        is_library: this.is_library
                     };
 
                     this.$userList.append(templateFn(template_data));
