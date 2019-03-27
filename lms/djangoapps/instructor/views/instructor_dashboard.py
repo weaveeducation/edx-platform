@@ -765,6 +765,13 @@ def _section_metrics(course, access):
     return section_data
 
 
+def _get_full_path_names(block):
+    vert = modulestore().get_item(block.parent)
+    seq = modulestore().get_item(vert.parent)
+    chapter = modulestore().get_item(seq.parent)
+    return vert, seq, chapter
+
+
 def _section_open_response_assessment(request, course, openassessment_blocks, access):
     """Provide data for the corresponding dashboard section """
     course_key = course.id
@@ -775,14 +782,17 @@ def _section_open_response_assessment(request, course, openassessment_blocks, ac
     for block in openassessment_blocks:
         block_parent_id = unicode(block.parent)
         result_item_id = unicode(block.location)
-        if block_parent_id not in parents:
-            parents[block_parent_id] = modulestore().get_item(block.parent)
+        if result_item_id not in parents:
+            vert, seq, chapter = _get_full_path_names(block)
+            parents[result_item_id] = (vert, seq, chapter)
 
         ora_items.append({
             'id': result_item_id,
             'name': block.display_name,
             'parent_id': block_parent_id,
-            'parent_name': parents[block_parent_id].display_name,
+            'parent_name': parents[result_item_id][0].display_name,
+            'seq_name': parents[result_item_id][1].display_name,
+            'chapter_name': parents[result_item_id][2].display_name,
             'staff_assessment': 'staff-assessment' in block.assessment_steps,
             'url_base': reverse('xblock_view', args=[course.id, block.location, 'student_view']),
             'url_grade_available_responses': reverse('xblock_view', args=[course.id, block.location,
