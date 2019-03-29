@@ -17,7 +17,7 @@ from xblock.exceptions import NoSuchHandlerError
 from xblock.plugin import PluginMissingError
 from xblock.runtime import Mixologist
 
-from contentstore.utils import get_lms_link_for_item, get_xblock_aside_instance, reverse_course_url
+from contentstore.utils import get_lms_link_for_item, get_xblock_aside_instance, reverse_course_url, get_role_features
 from contentstore.views.helpers import get_parent_xblock, is_unit, xblock_type_display_name
 from contentstore.views.item import StudioEditModuleRuntime, add_container_page_publishing_info, create_xblock_info
 from edxmako.shortcuts import render_to_response
@@ -113,7 +113,16 @@ def container_handler(request, usage_key_string):
             except ItemNotFoundError:
                 return HttpResponseBadRequest()
 
-            component_templates = get_component_templates(course)
+            component_templates = []
+            component_templates_tmp = get_component_templates(course)
+
+            features = get_role_features(course.id, request.user)
+            for tpl in component_templates_tmp:
+                if (tpl['type'] == 'advanced' and features['unit_add_advanced_component'])\
+                        or (tpl['type'] == 'discussion' and features['unit_add_discussion_component'])\
+                        or (tpl['type'] not in ('advanced', 'discussion')):
+                    component_templates.append(tpl)
+
             ancestor_xblocks = []
             parent = get_parent_xblock(xblock)
             action = request.GET.get('action', 'view')
