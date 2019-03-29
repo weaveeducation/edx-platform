@@ -22,6 +22,7 @@ from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.partitions.partitions_service import get_all_partitions_for_course
+from credo_modules.models import get_custom_user_role, get_extended_role_default_permissions
 
 log = logging.getLogger(__name__)
 
@@ -509,3 +510,22 @@ def is_self_paced(course):
     Returns True if course is self-paced, False otherwise.
     """
     return course and course.self_paced
+
+
+def feature_is_available(course_key, user, feature):
+    if not hasattr(user, 'extended_role'):
+        role = get_custom_user_role(course_key, user, check_enrollment=False)
+        setattr(user, 'extended_role', role)
+    if user.extended_role:
+        return getattr(user.extended_role, feature)
+    return True
+
+
+def get_role_features(course_key, user):
+    if not hasattr(user, 'extended_role'):
+        role = get_custom_user_role(course_key, user, check_enrollment=False)
+        setattr(user, 'extended_role', role)
+    if user.extended_role:
+        return user.extended_role.to_dict()
+    else:
+        return get_extended_role_default_permissions()

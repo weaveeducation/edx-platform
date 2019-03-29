@@ -315,7 +315,7 @@ class OrganizationType(models.Model):
                                                                                    'Statistic in Insights')
     enable_extended_progress_page = models.BooleanField(default=False, verbose_name='Enable Extended Progress Page')
 
-    available_roles = models.ManyToManyField('CustomUserRole')
+    available_roles = models.ManyToManyField('CustomUserRole', blank=True)
 
     class Meta:
         ordering = ['title']
@@ -509,6 +509,19 @@ class CustomUserRole(models.Model):
     def __unicode__(self):
         return self.title
 
+    def to_dict(self):
+        return {
+            'course_outline_create_new_section': self.course_outline_create_new_section,
+            'course_outline_create_new_subsection': self.course_outline_create_new_subsection,
+            'course_outline_duplicate_section': self.course_outline_duplicate_section,
+            'course_outline_duplicate_subsection': self.course_outline_duplicate_subsection,
+            'course_outline_copy_to_other_course': self.course_outline_copy_to_other_course,
+            'top_menu_tools': self.top_menu_tools,
+            'unit_add_advanced_component': self.unit_add_advanced_component,
+            'unit_add_discussion_component': self.unit_add_discussion_component,
+            'view_tags': self.view_tags
+        }
+
 
 class CourseStaffExtended(models.Model):
     user = models.ForeignKey(User)
@@ -572,13 +585,14 @@ def get_org_roles_types(org):
     return []
 
 
-def get_custom_user_role(course_id, user):
-    try:
-        enrollment = CourseAccessRole.objects.get(user=user, course_id=course_id)
-        if enrollment.role != 'staff':
+def get_custom_user_role(course_id, user, check_enrollment=True):
+    if check_enrollment:
+        try:
+            enrollment = CourseAccessRole.objects.get(user=user, course_id=course_id)
+            if enrollment.role != 'staff':
+                return None
+        except CourseAccessRole.DoesNotExist:
             return None
-    except CourseAccessRole.DoesNotExist:
-        return None
 
     try:
         staff_extended = CourseStaffExtended.objects.get(user=user, course_id=course_id)
@@ -590,3 +604,7 @@ def get_custom_user_role(course_id, user):
 def get_all_course_staff_extended_roles(course_id):
     staff_users = CourseStaffExtended.objects.filter(course_id=course_id)
     return {s.user_id: s.role_id for s in staff_users}
+
+
+def get_extended_role_default_permissions():
+    return CustomUserRole().to_dict()
