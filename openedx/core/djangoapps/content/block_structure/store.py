@@ -94,8 +94,13 @@ class BlockStructureStore(object):
         except BlockStructureNotFound:
             serialized_data = self._get_from_store(bs_model)
             self._add_to_cache(serialized_data, bs_model)
-
-        return self._deserialize(serialized_data, root_block_usage_key)
+        try:
+            return self._deserialize(serialized_data, root_block_usage_key)
+        except ImportError:
+            logger.error("BlockStructure: deserialize error %s." % str(root_block_usage_key))
+            serialized_data = self._get_from_store(bs_model)
+            self._add_to_cache(serialized_data, bs_model)
+            return self._deserialize(serialized_data, root_block_usage_key)
 
     def delete(self, root_block_usage_key):
         """
