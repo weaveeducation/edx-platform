@@ -94,6 +94,7 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
                 }
                 /* globals course */
                 return {
+                    userPermissions: (this.initialState && this.initialState.user_permissions) ? this.initialState.user_permissions : {},
                     xblockInfo: xblockInfo,
                     visibilityClass: XBlockViewUtils.getXBlockVisibilityClass(xblockInfo.get('visibility_state')),
                     typeListClass: XBlockViewUtils.getXBlockListTypeClass(xblockType),

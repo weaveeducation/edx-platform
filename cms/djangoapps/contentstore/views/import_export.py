@@ -32,7 +32,7 @@ from wsgiref.util import FileWrapper
 
 from contentstore.storage import course_import_export_storage
 from contentstore.tasks import CourseExportTask, CourseImportTask, export_olx, import_olx
-from contentstore.utils import reverse_course_url, reverse_library_url
+from contentstore.utils import reverse_course_url, reverse_library_url, feature_is_available
 from edxmako.shortcuts import render_to_response
 from student.auth import has_course_author_access
 from util.json_request import JsonResponse
@@ -83,6 +83,9 @@ def import_handler(request, course_key_string):
         context_name = 'context_library'
         courselike_module = modulestore().get_library(courselike_key)
     else:
+        if not feature_is_available(courselike_key, request.user, 'top_menu_tools'):
+            raise PermissionDenied()
+
         successful_url = reverse_course_url('course_handler', courselike_key)
         context_name = 'context_course'
         courselike_module = modulestore().get_course(courselike_key)
@@ -321,6 +324,9 @@ def export_handler(request, course_key_string):
             'library': True
         }
     else:
+        if not feature_is_available(course_key, request.user, 'top_menu_tools'):
+            raise PermissionDenied()
+
         courselike_module = modulestore().get_course(course_key)
         if courselike_module is None:
             raise Http404
@@ -518,6 +524,8 @@ def export_handler_cc(request, course_key_string):
     course_key = CourseKey.from_string(course_key_string)
     export_url_cc = reverse_course_url('export_cc_handler', course_key)
     if not has_course_author_access(request.user, course_key):
+        raise PermissionDenied()
+    if not feature_is_available(course_key, request.user, 'top_menu_tools'):
         raise PermissionDenied()
 
     courselike_module = modulestore().get_course(course_key)

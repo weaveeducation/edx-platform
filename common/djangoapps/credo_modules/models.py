@@ -18,7 +18,7 @@ from django.utils.timezone import utc
 from model_utils.models import TimeStampedModel
 
 from credo_modules.utils import additional_profile_fields_hash
-from student.models import CourseEnrollment, ENROLL_STATUS_CHANGE, EnrollStatusChange
+from student.models import CourseEnrollment, CourseAccessRole, ENROLL_STATUS_CHANGE, EnrollStatusChange
 
 
 log = logging.getLogger("course_usage")
@@ -315,6 +315,8 @@ class OrganizationType(models.Model):
                                                                                    'Statistic in Insights')
     enable_extended_progress_page = models.BooleanField(default=False, verbose_name='Enable Extended Progress Page')
 
+    available_roles = models.ManyToManyField('CustomUserRole', blank=True)
+
     class Meta:
         ordering = ['title']
 
@@ -472,6 +474,66 @@ class CopySectionTask(TimeStampedModel, models.Model):
         unique_together = (('task_id', 'block_id', 'dst_course_id'),)
 
 
+class CustomUserRole(models.Model):
+    title = models.CharField(max_length=255, verbose_name='Title', unique=True)
+    alias = models.SlugField(max_length=255, verbose_name='Slug', unique=True)
+    course_outline_create_new_section = models.BooleanField(default=True,
+                                                            verbose_name='Course Outline: Can create new Section')
+    course_outline_create_new_subsection = models.BooleanField(default=True,
+                                                               verbose_name='Course Outline: Can create new Subsection')
+    course_outline_duplicate_section = models.BooleanField(default=True,
+                                                           verbose_name='Course Outline: Can duplicate Section')
+    course_outline_duplicate_subsection = models.BooleanField(default=True,
+                                                              verbose_name='Course Outline: Can duplicate Subsection')
+    course_outline_copy_to_other_course = models.BooleanField(default=True,
+                                                              verbose_name='Course Outline: '
+                                                                           'Can copy Section to other course')
+    top_menu_tools = models.BooleanField(default=True, verbose_name='Top Menu: Tools Dropdown menu')
+    unit_add_advanced_component = models.BooleanField(default=True,
+                                                      verbose_name='Unit: Can add advanced components to a unit')
+    unit_add_discussion_component = models.BooleanField(default=True,
+                                                        verbose_name='Unit: Can add discussion components to a unit')
+    view_tags = models.BooleanField(default=True, verbose_name='Unit: Can view tags')
+#    rerun_course = models.BooleanField(default=True, verbose_name='Studio Home Page: Can re-run a course')
+#    create_new_course = models.BooleanField(default=True, verbose_name='Studio Home Page: Can create new course')
+#    view_archived_courses = models.BooleanField(default=True,
+#                                                verbose_name='Studio Home Page: Can view archived courses')
+#    create_new_library = models.BooleanField(default=True, verbose_name='Studio Home Page: Can create new library')
+#    view_libraries = models.BooleanField(default=True, verbose_name='Studio Home Page: Can view libraries')
+
+    class Meta:
+        ordering = ['title']
+        verbose_name = "custom user role"
+        verbose_name_plural = "custom user roles"
+
+    def __unicode__(self):
+        return self.title
+
+    def to_dict(self):
+        return {
+            'course_outline_create_new_section': self.course_outline_create_new_section,
+            'course_outline_create_new_subsection': self.course_outline_create_new_subsection,
+            'course_outline_duplicate_section': self.course_outline_duplicate_section,
+            'course_outline_duplicate_subsection': self.course_outline_duplicate_subsection,
+            'course_outline_copy_to_other_course': self.course_outline_copy_to_other_course,
+            'top_menu_tools': self.top_menu_tools,
+            'unit_add_advanced_component': self.unit_add_advanced_component,
+            'unit_add_discussion_component': self.unit_add_discussion_component,
+            'view_tags': self.view_tags
+        }
+
+
+class CourseStaffExtended(models.Model):
+    user = models.ForeignKey(User)
+    course_id = CourseKeyField(max_length=255, db_index=True)
+    role = models.ForeignKey(CustomUserRole)
+
+    class Meta(object):
+        unique_together = (('user', 'course_id'),)
+        verbose_name = "user role"
+        verbose_name_plural = "extended user roles"
+
+
 UNIQUE_USER_ID_COOKIE = 'credo-course-usage-id'
 
 
@@ -508,3 +570,41 @@ def usage_dt_now():
     :return: datetime
     """
     return datetime.datetime.now().replace(tzinfo=utc)
+
+
+def get_org_roles_types(org):
+    org = Organization.objects.get(org=org)
+    if org.org_type is not None:
+        roles = [{
+            'title': r.title,
+            'id': r.id
+        } for r in org.org_type.available_roles.order_by('title').all()]
+        roles.append({'id': 'staff', 'title': 'Staff'})
+        roles.append({'id': 'instructor', 'title': 'Admin'})
+        return sorted(roles, key=lambda k: k['title'])
+    return []
+
+
+def get_custom_user_role(course_id, user, check_enrollment=True):
+    if check_enrollment:
+        try:
+            enrollment = CourseAccessRole.objects.get(user=user, course_id=course_id)
+            if enrollment.role != 'staff':
+                return None
+        except CourseAccessRole.DoesNotExist:
+            return None
+
+    try:
+        staff_extended = CourseStaffExtended.objects.get(user=user, course_id=course_id)
+        return staff_extended.role
+    except CourseStaffExtended.DoesNotExist:
+        return None
+
+
+def get_all_course_staff_extended_roles(course_id):
+    staff_users = CourseStaffExtended.objects.filter(course_id=course_id)
+    return {s.user_id: s.role_id for s in staff_users}
+
+
+def get_extended_role_default_permissions():
+    return CustomUserRole().to_dict()

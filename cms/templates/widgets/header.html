@@ -6,6 +6,7 @@
   from django.utils.translation import ugettext as _
   from openedx.core.djangoapps.lang_pref.api import header_language_selector_is_enabled, released_languages
   from cms.djangoapps.contentstore.config.waffle_utils import should_show_checklists_page
+  from cms.djangoapps.contentstore.utils import feature_is_available
 %>
 <div class="wrapper-header wrapper" id="view-top">
   <header class="primary" role="banner">
@@ -112,6 +113,7 @@
             </div>
           </li>
 
+          % if feature_is_available(course_key, request.user, 'top_menu_tools'):
           <li class="nav-item nav-course-tools">
             <h3 class="title"><span class="label">${_("Tools")}</span> <span class="icon fa fa-caret-down ui-toggle-dd" aria-hidden="true"></span></h3>
             <div class="wrapper wrapper-nav-sub">
@@ -140,6 +142,7 @@
               </div>
             </div>
           </li>
+          % endif
         </ol>
       </nav>
       % elif context_library:
