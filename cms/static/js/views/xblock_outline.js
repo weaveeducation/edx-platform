@@ -93,8 +93,9 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
                     defaultNewChildName = childInfo.display_name;
                 }
                 /* globals course */
+                var userPermissions = (this.initialState && this.initialState.user_permissions) ? this.initialState.user_permissions : {};
                 return {
-                    userPermissions: (this.initialState && this.initialState.user_permissions) ? this.initialState.user_permissions : {},
+                    userPermissions: userPermissions,
                     xblockInfo: xblockInfo,
                     visibilityClass: XBlockViewUtils.getXBlockVisibilityClass(xblockInfo.get('visibility_state')),
                     typeListClass: XBlockViewUtils.getXBlockListTypeClass(xblockType),
