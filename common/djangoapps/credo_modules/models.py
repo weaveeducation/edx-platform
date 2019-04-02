@@ -573,16 +573,19 @@ def usage_dt_now():
 
 
 def get_org_roles_types(org):
-    org = Organization.objects.get(org=org)
-    if org.org_type is not None:
-        roles = [{
-            'title': r.title,
-            'id': r.id
-        } for r in org.org_type.available_roles.order_by('title').all()]
-        roles.append({'id': 'staff', 'title': 'Staff'})
-        roles.append({'id': 'instructor', 'title': 'Admin'})
-        return sorted(roles, key=lambda k: k['title'])
-    return []
+    roles = []
+    try:
+        org = Organization.objects.get(org=org)
+        if org.org_type is not None:
+            roles = [{
+                'title': r.title,
+                'id': r.id
+            } for r in org.org_type.available_roles.order_by('title').all()]
+    except Organization.DoesNotExist:
+        pass
+    roles.append({'id': 'staff', 'title': 'Staff'})
+    roles.append({'id': 'instructor', 'title': 'Admin'})
+    return sorted(roles, key=lambda k: k['title'])
 
 
 def get_custom_user_role(course_id, user, check_enrollment=True):
