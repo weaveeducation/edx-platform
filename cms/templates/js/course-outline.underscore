@@ -274,6 +274,7 @@ if (is_proctored_exam) {
     <% if (!parentInfo && xblockInfo.get('child_info') && xblockInfo.get('child_info').children.length === 0) { %>
         <div class="no-content add-section">
             <p><%- gettext("You haven't added any content to this course yet.") %>
+                <% if (userPermissions.course_outline_create_new_section) { %>
                 <a href="#" class="button button-new" data-category="<%- childCategory %>"
                    data-parent="<%- xblockInfo.get('id') %>" data-default-name="<%- defaultNewChildName %>"
                    title="<%- interpolate(
@@ -282,6 +283,7 @@ if (is_proctored_exam) {
                 >
                     <span class="icon fa fa-plus" aria-hidden="true"></span><%- addChildLabel %>
                 </a>
+                <% } %>
             </p>
         </div>
     <% } else if (!xblockInfo.isVertical()) { %>
