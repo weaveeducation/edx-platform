@@ -11,7 +11,7 @@ from collections import Counter
 
 from celery.states import READY_STATES
 
-from bulk_email.models import CourseEmail
+from bulk_email.models import CourseEmail, CourseEmailSite
 from lms.djangoapps.certificates.models import CertificateGenerationHistory
 from lms.djangoapps.instructor_task.api_helper import (
     check_arguments_for_rescoring,
@@ -44,6 +44,7 @@ from lms.djangoapps.instructor_task.tasks import (
 )
 from util import milestones_helpers
 from xmodule.modulestore.django import modulestore
+from openedx.core.djangoapps.site_configuration.helpers import get_current_site_configuration
 
 
 class SpecificStudentIdMissingError(Exception):
@@ -320,6 +321,14 @@ def submit_bulk_course_email(request, course_key, email_id):
         "{} {}".format(count, target)
         for target, count in targets.iteritems()
     ]
+
+    site_cfg = get_current_site_configuration()
+    if site_cfg:
+        course_email_site = CourseEmailSite(
+            course_email=email_obj,
+            site_id=int(site_cfg.site.id)
+        )
+        course_email_site.save()
 
     task_type = 'bulk_course_email'
     task_class = send_bulk_course_email

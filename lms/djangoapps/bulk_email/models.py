@@ -314,6 +314,15 @@ class Optout(models.Model):
         unique_together = ('user', 'course_id')
 
 
+class CourseEmailSite(models.Model):
+    class Meta(object):
+        app_label = "bulk_email"
+
+    course_email = models.OneToOneField(CourseEmail, primary_key=True,
+                                        related_name="email_from_site")
+    site_id = models.IntegerField()
+
+
 # Defines the tag that must appear in a template, to indicate
 # the location where the email message body is to be inserted.
 COURSE_EMAIL_MESSAGE_BODY_TAG = '{{message_body}}'
