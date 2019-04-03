@@ -8,6 +8,7 @@ import logging
 import random
 import re
 from collections import Counter
+from crum import set_current_request
 from smtplib import SMTPConnectError, SMTPDataError, SMTPException, SMTPServerDisconnected
 from time import sleep
 
@@ -28,6 +29,7 @@ from celery.exceptions import RetryTaskError  # pylint: disable=no-name-in-modul
 from celery.states import FAILURE, RETRY, SUCCESS  # pylint: disable=no-name-in-module, import-error
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.contrib.sites.models import Site
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.core.mail.message import forbid_multi_line_headers
 from django.urls import reverse
@@ -37,7 +39,7 @@ from markupsafe import escape
 from six import text_type
 
 import dogstats_wrapper as dog_stats_api
-from bulk_email.models import CourseEmail, Optout
+from bulk_email.models import CourseEmail, CourseEmailSite, Optout
 from courseware.courses import get_course
 from lms.djangoapps.instructor_task.models import InstructorTask
 from lms.djangoapps.instructor_task.subtasks import (
@@ -92,6 +94,13 @@ BULK_EMAIL_FAILURE_ERRORS = (
     SESDailyQuotaExceededError,  # 24-hour allotment of outbound email has been exceeded.
     SMTPException,
 )
+
+
+class FakeRequest(object):
+    site = None
+
+    def __init__(self, site):
+        self.site = site
 
 
 def _get_course_email_context(course):
@@ -289,10 +298,28 @@ def send_course_email(entry_id, email_id, to_list, global_email_context, subtask
     # To deal with that, we need to confirm that the task has not already been completed.
     check_subtask_is_valid(entry_id, current_task_id, subtask_status)
 
+    course_email_site = None
+    site_obj = None
+    execution_on_worker = not getattr(settings, 'CELERY_ALWAYS_EAGER', False)
+
+    if execution_on_worker:
+        try:
+            course_email_site = CourseEmailSite.objects.get(course_email__id=email_id)
+        except CourseEmailSite.DoesNotExist:
+            pass
+
+        if course_email_site:
+            try:
+                site_obj = Site.objects.get(id=course_email_site.site_id)
+            except Site.DoesNotExist:
+                pass
+
     send_exception = None
     new_subtask_status = None
     try:
         course_title = global_email_context['course_title']
+        if site_obj:
+            set_current_request(FakeRequest(site_obj))
         with dog_stats_api.timer('course_email.single_task.time.overall', tags=[_statsd_tag(course_title)]):
             new_subtask_status, send_exception = _send_course_email(
                 entry_id,
@@ -310,6 +337,9 @@ def send_course_email(entry_id, email_id, to_list, global_email_context, subtask
         subtask_status.increment(failed=num_to_send, state=FAILURE)
         update_subtask_status(entry_id, current_task_id, subtask_status)
         raise
+    finally:
+        if site_obj:
+            set_current_request(None)
 
     if send_exception is None:
         # Update the InstructorTask object that is storing its progress.
