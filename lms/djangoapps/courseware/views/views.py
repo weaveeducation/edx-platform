@@ -519,6 +519,11 @@ class CourseTabView(EdxFragmentView):
         """
         course_key = CourseKey.from_string(course_id)
         with modulestore().bulk_operations(course_key):
+            course_obj = modulestore().get_course(course_key, depth=0)
+            if request.user.is_authenticated and is_user_credo_anonymous(request.user)\
+                    and course_obj.allow_anonymous_access:
+                CourseEnrollment.enroll(request.user, course_key)
+
             course = get_course_with_access(request.user, 'load', course_key)
             # Render the page
             tab = CourseTabList.get_tab_by_type(course.tabs, tab_type)
