@@ -93,7 +93,12 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
                     defaultNewChildName = childInfo.display_name;
                 }
                 /* globals course */
-                var userPermissions = (this.initialState && this.initialState.user_permissions) ? this.initialState.user_permissions : {};
+                var userPermissions = {};
+                if (this.initialState && this.initialState.user_permissions) {
+                    userPermissions = this.initialState.user_permissions;
+                } else if (window.courseOutlineInitialState && window.courseOutlineInitialState.user_permissions) {
+                    userPermissions = window.courseOutlineInitialState.user_permissions;
+                }
                 return {
                     userPermissions: userPermissions,
                     xblockInfo: xblockInfo,
