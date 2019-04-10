@@ -1860,6 +1860,9 @@ def render_xblock_course(request, course_id, usage_key_string):
             register_login_and_enroll_anonymous_user(request, course_key)
         else:
             return HttpResponseForbidden('Unauthorized')
+    elif is_user_credo_anonymous(request.user) and course.allow_anonymous_access \
+            and not CourseEnrollment.is_enrolled(request.user, course_key):
+        CourseEnrollment.enroll(request.user, course_key)
 
     if user_must_fill_additional_profile_fields(course, request.user, block):
         return show_student_profile_form(request, course, True)
