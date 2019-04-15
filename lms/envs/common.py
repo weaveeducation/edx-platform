@@ -2284,6 +2284,9 @@ INSTALLED_APPS = [
     'credo_modules',
 ]
 
+if os.environ.get('PYCHARM_DEBUG', '0') != '1':
+    INSTALLED_APPS.extend(['raven.contrib.django.raven_compat'])
+
 ######################### CSRF #########################################
 
 # Forwards-compatibility with Django 1.7
