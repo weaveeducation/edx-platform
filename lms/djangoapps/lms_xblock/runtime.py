@@ -228,8 +228,13 @@ class LmsModuleSystem(ModuleSystem):  # pylint: disable=abstract-method
 
         # TODO: aside_type != 'acid_aside' check should be removed once AcidBlock is only installed during tests
         # (see https://openedx.atlassian.net/browse/TE-811)
-        return [
+        lst = [
             aside_type
             for aside_type in super(LmsModuleSystem, self).applicable_aside_types(block)
             if aside_type != 'acid_aside'
         ]
+        if block.scope_ids.block_type != 'openassessment' and 'tagging_ora_aside' in lst:
+            lst.remove('tagging_ora_aside')
+        if block.scope_ids.block_type == 'openassessment' and 'tagging_aside' in lst:
+            lst.remove('tagging_aside')
+        return lst

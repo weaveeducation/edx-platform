@@ -69,6 +69,8 @@ class HtmlBlock(object):
         scope=Scope.settings
     )
 
+    has_author_view = True
+
     ENABLE_HTML_XBLOCK_STUDENT_VIEW_DATA = 'ENABLE_HTML_XBLOCK_STUDENT_VIEW_DATA'
 
     @XBlock.supports("multi_device")
@@ -84,6 +86,13 @@ class HtmlBlock(object):
         Returns a fragment that contains the html for the preview view
         """
         return self.student_view(context)
+
+    @XBlock.supports("multi_device")
+    def author_view(self, _context):
+        """
+        Return a fragment that contains the html for the author view
+        """
+        return Fragment(self.get_html())
 
     def student_view_data(self, context=None):  # pylint: disable=unused-argument
         """

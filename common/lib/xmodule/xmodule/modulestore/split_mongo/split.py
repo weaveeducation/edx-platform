@@ -3278,7 +3278,7 @@ class SplitMongoModuleStore(SplitBulkWriteMixin, ModuleStoreWriteBase):
                 new_block.definition,
                 destination_version,
                 raw=True,
-                asides=new_block.asides,
+                asides=copy.copy(new_block.asides) if new_block.asides else None,
                 block_defaults=new_block.defaults
             )
             # Extend the block's new edit_info with any extra edit_info fields from the source (e.g. original_usage):

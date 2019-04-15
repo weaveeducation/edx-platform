@@ -228,6 +228,9 @@ class CachingDescriptorSystem(MakoDescriptorSystem, EditInfoRuntimeMixin):
             if block_data.asides:
                 aside_fields = {block_key.type: {}}
                 for aside in block_data.asides:
+                    if (block_key.type != 'openassessment' and aside['aside_type'] == 'tagging_ora_aside') or \
+                        (block_key.type == 'openassessment' and aside['aside_type'] == 'tagging_aside'):
+                        continue
                     aside_fields[block_key.type].update(aside['fields'])
         except AttributeError:
             pass

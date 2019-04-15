@@ -136,6 +136,16 @@ class VideoModule(VideoFields, VideoTranscriptsMixin, VideoStudentViewHandlers, 
         resource_string(module, 'css/video/accessible_menu.scss'),
     ]}
     js_module_name = "Video"
+    has_author_view = True
+
+    def author_view(self, context):
+        """
+        Return a fragment with the html from this XModule
+        Doesn't yet add any of the javascript to the fragment, nor the css.
+        Also doesn't expect any javascript binding, yet.
+        Makes no use of the context parameter
+        """
+        return Fragment(self.get_html())
 
     def validate(self):
         """
@@ -446,6 +456,11 @@ class VideoDescriptor(VideoFields, VideoTranscriptsMixin, VideoStudioViewHandler
             'template': "tabs/metadata-edit-tab.html"
         }
     ]
+
+    has_author_view = True
+
+    def author_view(self, context):
+        return Fragment(self.get_html())
 
     def __init__(self, *args, **kwargs):
         """

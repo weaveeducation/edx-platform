@@ -40,6 +40,8 @@ XBLOCKS = [
 ]
 XBLOCKS_ASIDES = [
     'tagging_aside = cms.lib.xblock.tagging:StructuredTagsAside',
+    'tagging_ora_aside = cms.lib.xblock.tagging_ora:OraStructuredTagsAside',
+    'student_properties_aside = cms.lib.xblock.student_properties:StudentPropertiesAside',
 ]
 
 setup(
