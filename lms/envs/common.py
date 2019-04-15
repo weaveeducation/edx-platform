@@ -2517,6 +2517,7 @@ REGISTRATION_EXTRA_FIELDS = {
     'terms_of_service': 'hidden',
     'city': 'hidden',
     'country': 'hidden',
+    'password_copy': 'hidden',
 }
 
 REGISTRATION_FIELD_ORDER = [

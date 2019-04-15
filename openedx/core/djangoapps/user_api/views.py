@@ -149,6 +149,13 @@ class RegistrationView(APIView):
         # for TOS, privacy policy, etc.
         if data.get("honor_code") and "terms_of_service" not in data:
             data["terms_of_service"] = data["honor_code"]
+        password = data.get("password")
+        password_copy = data.get("password_copy")
+        if password and password_copy and password != password_copy:
+            errors = {
+                'password_copy': [{"user_message": "The passwords must match."}]
+            }
+            return JsonResponse(errors, status=400)
 
         try:
             user = create_account_with_params(request, data)
