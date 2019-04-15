@@ -1250,9 +1250,11 @@ MIDDLEWARE_CLASSES = [
 
     # CORS and CSRF
     'corsheaders.middleware.CorsMiddleware',
-    'openedx.core.djangoapps.cors_csrf.middleware.CorsCSRFMiddleware',
+# disable CSRF check - temporary solution!!
+#    'openedx.core.djangoapps.cors_csrf.middleware.CorsCSRFMiddleware',
     'openedx.core.djangoapps.cors_csrf.middleware.CsrfCrossDomainCookieMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+# disable CSRF check - temporary solution!!
+#    'django.middleware.csrf.CsrfViewMiddleware',
 
     'splash.middleware.SplashMiddleware',
 
