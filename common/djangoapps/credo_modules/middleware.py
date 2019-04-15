@@ -1,7 +1,7 @@
 import json
-import datetime
 from credo.auth_helper import get_request_referer_from_other_domain, get_saved_referer, save_referer
-from credo_modules.models import CourseUsage, get_unique_user_id, UNIQUE_USER_ID_COOKIE, update_unique_user_id_cookie
+from credo_modules.models import CourseUsage, get_unique_user_id, UNIQUE_USER_ID_COOKIE, update_unique_user_id_cookie,\
+    usage_dt_now
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import F
@@ -45,6 +45,7 @@ class CourseUsageMiddleware(object):
                         pass
 
     def process_request(self, request):
+        request.csrf_processing_done = True  # ignore CSRF check for the django REST framework
         update_unique_user_id_cookie(request)
 
     def process_response(self, request, response):
@@ -88,7 +89,7 @@ class CourseUsageMiddleware(object):
             except ValueError:
                 pass
 
-            datetime_now = datetime.datetime.now()
+            datetime_now = usage_dt_now()
             if course_id and course_id not in course_usage_cookie_dict:
                 try:
                     course_key = CourseKey.from_string(course_id)

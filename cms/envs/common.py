@@ -1171,6 +1171,8 @@ INSTALLED_APPS = [
     # API Documentation
     'rest_framework_swagger',
 
+    'credo_modules',
+
     'openedx.features.course_duration_limits',
     'openedx.features.content_type_gating',
     'experiments',

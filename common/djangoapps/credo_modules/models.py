@@ -1,3 +1,5 @@
+import logging
+import time
 import datetime
 import json
 import re
@@ -5,16 +7,21 @@ import uuid
 from urlparse import urlparse
 from django.dispatch import receiver
 from django.contrib.auth.models import User
-from django.db import models, IntegrityError, transaction
+from django.db import models, IntegrityError, OperationalError, transaction
 from django.db.models import F, Value
 from django.db.models.functions import Concat
 from opaque_keys.edx.django.models import CourseKeyField
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
+from django.utils.timezone import utc
+from model_utils.models import TimeStampedModel
 
 from credo_modules.utils import additional_profile_fields_hash
-from student.models import CourseEnrollment, ENROLL_STATUS_CHANGE, EnrollStatusChange
+from student.models import CourseEnrollment, CourseAccessRole, ENROLL_STATUS_CHANGE, EnrollStatusChange
+
+
+log = logging.getLogger("course_usage")
 
 
 class CredoModulesUserProfile(models.Model):
@@ -83,16 +90,14 @@ def check_and_save_enrollment_attributes(post_data, user, course_id):
                     elif default:
                         CredoStudentProperties(user=user, course_id=course_id,
                                                name=k, value=default).save()
+            set_custom_term(course_id, user)
+
     except EnrollmentPropertiesPerCourse.DoesNotExist:
         return
 
 
-def get_custom_term(org):
-    current_date = datetime.date.today()
-    data = TermPerOrg.objects.filter(org=org, start_date__lte=current_date, end_date__gte=current_date)
-    if len(data) > 0:
-        return data[0]
-    return None
+def get_custom_term():
+    return datetime.datetime.now().strftime("%B %Y")
 
 
 def save_custom_term_student_property(term, user, course_id):
@@ -160,8 +165,8 @@ class EnrollmentPropertiesPerCourse(models.Model):
 def user_must_fill_additional_profile_fields(course, user, block=None):
     graded = block.graded if block else False
     course_key = course.id
-    if graded and course.credo_additional_profile_fields and user.email.endswith('@credomodules.com') \
-            and CourseEnrollment.is_enrolled(user, course_key):
+    if graded and course.credo_additional_profile_fields and user.is_authenticated and\
+            user.email.endswith('@credomodules.com') and CourseEnrollment.is_enrolled(user, course_key):
         fields_version = additional_profile_fields_hash(course.credo_additional_profile_fields)
         profiles = CredoModulesUserProfile.objects.filter(user=user, course_id=course_key)
         if len(profiles) == 0 or profiles[0].fields_version != fields_version:
@@ -185,12 +190,32 @@ class TermPerOrg(models.Model):
         }
 
 
+def set_custom_term(course_id, user):
+    save_custom_term_student_property(get_custom_term(), user, course_id)
+
+
 @receiver(ENROLL_STATUS_CHANGE)
 def add_custom_term_student_property_on_enrollment(sender, event=None, user=None, course_id=None, **kwargs):
     if event == EnrollStatusChange.enroll:
-        item = get_custom_term(course_id.org)
-        if item:
-            save_custom_term_student_property(item.term, user, course_id)
+        set_custom_term(course_id, user)
+
+
+def deadlock_db_retry(func):
+    def func_wrapper(*args, **kwargs):
+        max_attempts = 2
+        current_attempt = 0
+        while True:
+            try:
+                return func(*args, **kwargs)
+            except OperationalError, e:
+                if current_attempt < max_attempts:
+                    current_attempt += 1
+                    time.sleep(3)
+                else:
+                    log.error('Failed to save course usage: ' + str(e))
+                    return
+
+    return func_wrapper
 
 
 class CourseUsage(models.Model):
@@ -216,7 +241,8 @@ class CourseUsage(models.Model):
         unique_together = (('user', 'course_id', 'block_id'),)
 
     @classmethod
-    def _add_block_usage(cls, course_key, user_id, block_type, block_id, unique_user_id):
+    @deadlock_db_retry
+    def _update_block_usage(cls, course_key, user_id, block_type, block_id, unique_user_id):
         course_usage = CourseUsage.objects.get(
             course_id=course_key,
             user_id=user_id,
@@ -224,10 +250,29 @@ class CourseUsage(models.Model):
             block_id=block_id
         )
         if unique_user_id not in course_usage.session_ids:
-            CourseUsage.objects.filter(course_id=course_key, user_id=user_id,
-                                       block_id=block_id, block_type=block_type) \
-                .update(last_usage_time=datetime.datetime.now(), usage_count=F('usage_count') + 1,
-                        session_ids=Concat('session_ids', Value('|'), Value(unique_user_id)))
+            with transaction.atomic():
+                CourseUsage.objects.filter(course_id=course_key, user_id=user_id,
+                                           block_id=block_id, block_type=block_type) \
+                    .update(last_usage_time=usage_dt_now(), usage_count=F('usage_count') + 1,
+                            session_ids=Concat('session_ids', Value('|'), Value(unique_user_id)))
+
+    @classmethod
+    @deadlock_db_retry
+    def _add_block_usage(cls, course_key, user_id, block_type, block_id, unique_user_id):
+        datetime_now = usage_dt_now()
+        with transaction.atomic():
+            cu = CourseUsage(
+                course_id=course_key,
+                user_id=user_id,
+                usage_count=1,
+                block_type=block_type,
+                block_id=block_id,
+                first_usage_time=datetime_now,
+                last_usage_time=datetime_now,
+                session_ids=unique_user_id
+            )
+            cu.save()
+            return
 
     @classmethod
     def update_block_usage(cls, request, course_key, block_id):
@@ -241,26 +286,16 @@ class CourseUsage(models.Model):
             block_id = str(block_id)
 
             try:
-                cls._add_block_usage(course_key, request.user.id,
-                                     block_type, block_id, unique_user_id)
+                cls._update_block_usage(course_key, request.user.id,
+                                        block_type, block_id, unique_user_id)
             except CourseUsage.DoesNotExist:
-                datetime_now = datetime.datetime.now()
                 try:
-                    with transaction.atomic():
-                        cu = CourseUsage(
-                            course_id=course_key,
-                            user_id=request.user.id,
-                            usage_count=1,
-                            block_type=block_type,
-                            block_id=block_id,
-                            first_usage_time=datetime_now,
-                            last_usage_time=datetime_now,
-                            session_ids=unique_user_id
-                        )
-                        cu.save()
+                    cls._add_block_usage(course_key, request.user.id, block_type, block_id, unique_user_id)
+                    return
                 except IntegrityError:
-                    cls._add_block_usage(course_key, request.user.id,
-                                         block_type, block_id, unique_user_id)
+                    #cls._update_block_usage(course_key, request.user.id,
+                    #                        block_type, block_id, unique_user_id)
+                    return
 
 
 class OrganizationType(models.Model):
@@ -274,6 +309,13 @@ class OrganizationType(models.Model):
     insights_engagement = models.BooleanField(default=True, verbose_name='Display Engagement report in Credo Insights')
     instructor_dashboard_credo_insights = models.BooleanField(default=True, verbose_name='Show Credo Insights link'
                                                                                          ' in the Instructor Dashboard')
+    enable_new_carousel_view = models.BooleanField(default=False, verbose_name='Enable new carousel view'
+                                                                               ' (horizontal nav bar)')
+    enable_page_level_engagement = models.BooleanField(default=False, verbose_name='Enable Page Level for Engagement '
+                                                                                   'Statistic in Insights')
+    enable_extended_progress_page = models.BooleanField(default=False, verbose_name='Enable Extended Progress Page')
+
+    available_roles = models.ManyToManyField('CustomUserRole', blank=True)
 
     class Meta:
         ordering = ['title']
@@ -341,13 +383,27 @@ class Organization(models.Model):
         else:
             return OrganizationType.get_all_insights_reports()
 
+    def get_page_level_engagement(self):
+        if self.org_type:
+            return self.org_type.enable_page_level_engagement
+        else:
+            return False
+
     def to_dict(self):
         return {
             'org': self.org,
             'default_frame_domain': self.default_frame_domain,
             'constructor_fields': self.get_constructor_fields(),
             'insights_reports': self.get_insights_reports(),
+            'page_level_engagement': self.get_page_level_engagement(),
         }
+
+    @property
+    def is_carousel_view(self):
+        if self.org_type is not None:
+            return self.org_type.enable_new_carousel_view
+        else:
+            return False
 
 
 class CourseExcludeInsights(models.Model):
@@ -357,6 +413,125 @@ class CourseExcludeInsights(models.Model):
         db_table = "credo_course_exclude_insights"
         verbose_name = "course"
         verbose_name_plural = "exclude insights"
+
+
+class SendScores(models.Model):
+    user = models.ForeignKey(User)
+    course_id = CourseKeyField(max_length=255, db_index=True)
+    block_id = models.CharField(max_length=255, db_index=True)
+    last_send_time = models.DateTimeField(null=True, blank=True)
+
+    class Meta(object):
+        db_table = "credo_send_scores"
+        unique_together = (('user', 'course_id', 'block_id'),)
+
+
+class SendScoresMailing(models.Model):
+    email_scores = models.ForeignKey(SendScores)
+    data = models.TextField(blank=True)
+    last_send_time = models.DateTimeField(null=True, blank=True)
+
+    class Meta(object):
+        db_table = "credo_send_scores_mailing"
+
+
+class CopySectionTask(TimeStampedModel, models.Model):
+    NOT_STARTED = 'not_started'
+    STARTED = 'started'
+    FINISHED = 'finished'
+    ERROR = 'error'
+    STATUSES = (
+        (NOT_STARTED, 'Not Started'),
+        (STARTED, 'Started'),
+        (FINISHED, 'Finished'),
+        (ERROR, 'Error'),
+    )
+
+    task_id = models.CharField(max_length=255, db_index=True)
+    block_id = models.CharField(max_length=255)
+    source_course_id = CourseKeyField(max_length=255, db_index=True)
+    dst_course_id = CourseKeyField(max_length=255)
+    status = models.CharField(
+        max_length=255,
+        choices=STATUSES,
+        default=NOT_STARTED,
+    )
+
+    def set_started(self):
+        self.status = self.STARTED
+
+    def set_finished(self):
+        self.status = self.FINISHED
+
+    def set_error(self):
+        self.status = self.ERROR
+
+    def is_finished(self):
+        return self.status == self.FINISHED
+
+    class Meta(object):
+        db_table = "copy_section_task"
+        unique_together = (('task_id', 'block_id', 'dst_course_id'),)
+
+
+class CustomUserRole(models.Model):
+    title = models.CharField(max_length=255, verbose_name='Title', unique=True)
+    alias = models.SlugField(max_length=255, verbose_name='Slug', unique=True)
+    course_outline_create_new_section = models.BooleanField(default=True,
+                                                            verbose_name='Course Outline: Can create new Section')
+    course_outline_create_new_subsection = models.BooleanField(default=True,
+                                                               verbose_name='Course Outline: Can create new Subsection')
+    course_outline_duplicate_section = models.BooleanField(default=True,
+                                                           verbose_name='Course Outline: Can duplicate Section')
+    course_outline_duplicate_subsection = models.BooleanField(default=True,
+                                                              verbose_name='Course Outline: Can duplicate Subsection')
+    course_outline_copy_to_other_course = models.BooleanField(default=True,
+                                                              verbose_name='Course Outline: '
+                                                                           'Can copy Section to other course')
+    top_menu_tools = models.BooleanField(default=True, verbose_name='Top Menu: Tools Dropdown menu')
+    unit_add_advanced_component = models.BooleanField(default=True,
+                                                      verbose_name='Unit: Can add advanced components to a unit')
+    unit_add_discussion_component = models.BooleanField(default=True,
+                                                        verbose_name='Unit: Can add discussion components to a unit')
+    view_tags = models.BooleanField(default=True, verbose_name='Unit: Can view tags')
+#    rerun_course = models.BooleanField(default=True, verbose_name='Studio Home Page: Can re-run a course')
+#    create_new_course = models.BooleanField(default=True, verbose_name='Studio Home Page: Can create new course')
+#    view_archived_courses = models.BooleanField(default=True,
+#                                                verbose_name='Studio Home Page: Can view archived courses')
+#    create_new_library = models.BooleanField(default=True, verbose_name='Studio Home Page: Can create new library')
+#    view_libraries = models.BooleanField(default=True, verbose_name='Studio Home Page: Can view libraries')
+
+    class Meta:
+        ordering = ['title']
+        verbose_name = "custom user role"
+        verbose_name_plural = "custom user roles"
+
+    def __unicode__(self):
+        return self.title
+
+    def to_dict(self):
+        return {
+            'course_outline_create_new_section': self.course_outline_create_new_section,
+            'course_outline_create_new_subsection': self.course_outline_create_new_subsection,
+            'course_outline_duplicate_section': self.course_outline_duplicate_section,
+            'course_outline_duplicate_subsection': self.course_outline_duplicate_subsection,
+            'course_outline_copy_to_other_course': self.course_outline_copy_to_other_course,
+            'top_menu_tools': self.top_menu_tools,
+            'unit_add_advanced_component': self.unit_add_advanced_component,
+            'unit_add_discussion_component': self.unit_add_discussion_component,
+            'view_tags': self.view_tags
+        }
+
+
+class CourseStaffExtended(models.Model):
+    user = models.ForeignKey(User)
+    course_id = CourseKeyField(max_length=255, db_index=True)
+    role = models.ForeignKey(CustomUserRole)
+
+    class Meta(object):
+        unique_together = (('user', 'course_id'),)
+        verbose_name = "user role"
+        verbose_name_plural = "extended user roles"
 
 
 UNIQUE_USER_ID_COOKIE = 'credo-course-usage-id'
@@ -386,3 +561,53 @@ def update_unique_user_id_cookie(request):
         cookie_arr = course_usage_cookie_id.split('_')
         if len(cookie_arr) < 2 or cookie_arr[1] != user_id:
             generate_new_user_id_cookie(request, user_id)
+
+
+def usage_dt_now():
+    """
+    We can't use timezone.now() because we already use America/New_York timezone for usage values
+    so we just replace tzinfo in the datetime object
+    :return: datetime
+    """
+    return datetime.datetime.now().replace(tzinfo=utc)
+
+
+def get_org_roles_types(org):
+    roles = []
+    try:
+        org = Organization.objects.get(org=org)
+        if org.org_type is not None:
+            roles = [{
+                'title': r.title,
+                'id': r.id
+            } for r in org.org_type.available_roles.order_by('title').all()]
+    except Organization.DoesNotExist:
+        pass
+    roles.append({'id': 'staff', 'title': 'Staff'})
+    roles.append({'id': 'instructor', 'title': 'Admin'})
+    return sorted(roles, key=lambda k: k['title'])
+
+
+def get_custom_user_role(course_id, user, check_enrollment=True):
+    if check_enrollment:
+        try:
+            enrollment = CourseAccessRole.objects.get(user=user, course_id=course_id)
+            if enrollment.role != 'staff':
+                return None
+        except CourseAccessRole.DoesNotExist:
+            return None
+
+    try:
+        staff_extended = CourseStaffExtended.objects.get(user=user, course_id=course_id)
+        return staff_extended.role
+    except CourseStaffExtended.DoesNotExist:
+        return None
+
+
+def get_all_course_staff_extended_roles(course_id):
+    staff_users = CourseStaffExtended.objects.filter(course_id=course_id)
+    return {s.user_id: s.role_id for s in staff_users}
+
+
+def get_extended_role_default_permissions():
+    return CustomUserRole().to_dict()

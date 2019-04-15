@@ -2,7 +2,6 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
-import django.core.validators
 from opaque_keys.edx.django.models import CourseKeyField
 
 

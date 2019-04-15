@@ -2,8 +2,8 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
-from opaque_keys.edx.django.models import CourseKeyField
 import credo_modules.models
+from opaque_keys.edx.django.models import CourseKeyField
 
 
 class Migration(migrations.Migration):
