@@ -2744,3 +2744,6 @@ class AccountRecovery(models.Model):
         db_table = "auth_accountrecovery"
 
     objects = AccountRecoveryManager()
+
+
+User._meta.get_field('email')._unique = True
