@@ -17,6 +17,7 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import get_language, to_locale
 from django.utils.translation import ugettext as _
 from django.views.generic.base import View
+from django.conf import settings
 from ipware.ip import get_ip
 from opaque_keys.edx.keys import CourseKey
 from six import text_type
@@ -32,7 +33,7 @@ from openedx.core.djangoapps.programs.utils import ProgramDataExtender, ProgramP
 from openedx.core.djangoapps.waffle_utils import WaffleFlag, WaffleFlagNamespace
 from openedx.features.content_type_gating.models import ContentTypeGatingConfig
 from openedx.features.course_duration_limits.models import CourseDurationLimitConfig
-from student.models import CourseEnrollment
+from student.models import CourseEnrollment, CourseEnrollmentAllowed
 from util.db import outer_atomic
 from xmodule.modulestore.django import modulestore
 
@@ -278,7 +279,11 @@ class ChooseModeView(View):
             # been configured.  However, alternative enrollment workflows have been introduced into the
             # system, such as third-party discovery.  These workflows result in learners arriving
             # directly at this screen, and they will not necessarily be pre-enrolled in the audit mode.
-            CourseEnrollment.enroll(request.user, course_key, CourseMode.AUDIT)
+            if settings.FEATURES.get('ENROLL_ACTIVE_USERS_ONLY', False) and not request.user.is_active:
+                CourseEnrollmentAllowed.objects.get_or_create(course_id=course_key, email=request.user.email,
+                                                              auto_enroll=True)
+            else:
+                CourseEnrollment.enroll(request.user, course_key, CourseMode.AUDIT)
             # If the course has started redirect to course home instead
             if course.has_started():
                 return redirect(reverse('openedx.course_experience.course_home', kwargs={'course_id': course_key}))
