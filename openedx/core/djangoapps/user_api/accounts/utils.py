@@ -106,13 +106,14 @@ def _is_valid_social_username(value):
     return '/' not in value
 
 
-def retrieve_last_sitewide_block_completed(user):
+def retrieve_last_sitewide_block_completed(user, absolute_path=True):
     """
     Completion utility
     From a string 'username' or object User retrieve
     the last course block marked as 'completed' and construct a URL
 
     :param user: obj(User)
+    :param absolute_path: bool
     :return: block_lms_url
 
     """
@@ -173,11 +174,17 @@ def retrieve_last_sitewide_block_completed(user):
     if not (lms_root and item):
         return
 
-    return u"{lms_root}/courses/{course_key}/jump_to/{location}".format(
-        lms_root=lms_root,
-        course_key=text_type(item.location.course_key),
-        location=text_type(item.location),
-    )
+    if absolute_path:
+        return u"{lms_root}/courses/{course_key}/jump_to/{location}".format(
+            lms_root=lms_root,
+            course_key=text_type(item.location.course_key),
+            location=text_type(item.location),
+        )
+    else:
+        return u"/courses/{course_key}/jump_to/{location}".format(
+            course_key=text_type(item.location.course_key),
+            location=text_type(item.location),
+        )
 
 
 def generate_password(length=12, chars=string.letters + string.digits):
@@ -214,3 +221,9 @@ def is_secondary_email_feature_enabled_for_user(user):
     # import is placed here to avoid cyclic import.
     from openedx.features.enterprise_support.utils import is_enterprise_learner
     return is_secondary_email_feature_enabled() and is_enterprise_learner(user)
+
+
+def is_user_credo_anonymous(user):
+    if user.email.endswith('@credomodules.com'):
+        return True
+    return False

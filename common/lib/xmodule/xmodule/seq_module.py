@@ -455,6 +455,10 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
         completion_service = self.runtime.service(self, 'completion')
         context['username'] = self.runtime.service(self, 'user').get_current_user().opt_attrs.get(
             'edx-platform.username')
+        is_user_credo_anonymous = False
+        if is_user_authenticated:
+            is_user_credo_anonymous = self.runtime.service(self, 'user').get_current_user().opt_attrs.get(
+                'edx-platform.is_credo_anonymous')
         display_names = [
             self.get_parent().display_name_with_default,
             self.display_name_with_default
@@ -479,7 +483,10 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
                 show_bookmark_button = True
                 is_bookmarked = bookmarks_service.is_bookmarked(usage_key=usage_id)
 
-            context['show_bookmark_button'] = show_bookmark_button
+            if is_user_credo_anonymous:
+                context['show_bookmark_button'] = False
+            else:
+                context['show_bookmark_button'] = context.get('show_bookmark_button', show_bookmark_button)
             context['bookmarked'] = is_bookmarked
 
             rendered_item = item.render(view, context)

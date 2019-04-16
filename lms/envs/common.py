@@ -108,6 +108,7 @@ FEATURES = {
     'ENROLL_ACTIVE_USERS_ONLY': False,
 
     'DISABLE_LOGIN_BUTTON': False,  # used in systems where login is automatic, eg MIT SSL
+    'DISABLE_REGISTER_BUTTON': False,  # used for cases if you want to register users only after push "enroll" button
 
     # extrernal access methods
     'AUTH_USE_OPENID': False,
