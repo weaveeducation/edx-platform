@@ -985,6 +985,29 @@ class CourseFields(object):
         ),
         scope=Scope.settings
     )
+    allow_anonymous_access = Boolean(
+        display_name=_("Allow Anonymous Access"),
+        help=_(
+            "Allow anonymous access."
+        ),
+        default=False,
+        scope=Scope.settings
+    )
+    credo_authentication = Boolean(
+        display_name=_("Credo Authentication"),
+        help=_(
+            "Credo Authentication."
+        ),
+        default=False,
+        scope=Scope.settings
+    )
+    credo_additional_profile_fields = Dict(
+        display_name=_("Credo Modules Additional Profile Fields"),
+        help=_(
+            'Credo Modules Additional Student Profile Fields.'
+        ),
+        scope=Scope.settings
+    )
 
 
 class CourseModule(CourseFields, SequenceModule):  # pylint: disable=abstract-method

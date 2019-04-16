@@ -35,6 +35,8 @@ from student.roles import BulkRoleCache
 from xmodule.modulestore.django import modulestore
 from xmodule.partitions.partitions_service import PartitionService
 from xmodule.split_test_module import get_split_user_partitions
+from credo_modules.models import CredoModulesUserProfile
+from credo_modules.views import StudentProfileField
 
 from .runner import TaskProgress
 from .utils import upload_csv_to_report_store
@@ -201,6 +203,11 @@ class CourseGradeReport(object):
     # Batch size for chunking the list of enrollees in the course.
     USER_BATCH_SIZE = 100
 
+    def __init__(self):
+        self.additional_profile_fields = []
+        self.additional_profile_fields_title = []
+        self.users_with_additional_profile = {}
+
     @classmethod
     def generate(cls, _xmodule_instance_args, _entry_id, course_id, _task_input, action_name):
         """
@@ -215,6 +222,15 @@ class CourseGradeReport(object):
         Internal method for generating a grade report for the given context.
         """
         context.update_status(u'Starting grades')
+
+        # additional profile fields from credo modules
+        course = context.course
+        if course.credo_additional_profile_fields:
+            for k, v in StudentProfileField.init_from_course(course).iteritems():
+                self.additional_profile_fields.append(v.alias)
+                self.additional_profile_fields_title.append(v.title)
+            self.users_with_additional_profile = CredoModulesUserProfile.users_with_additional_profile(context.course_id)
+
         success_headers = self._success_headers(context)
         error_headers = self._error_headers()
         batched_rows = self._batched_rows(context)
@@ -233,6 +249,7 @@ class CourseGradeReport(object):
         """
         return (
             ["Student ID", "Email", "Username"] +
+            self.additional_profile_fields_title +
             self._grades_header(context) +
             (['Cohort Name'] if context.cohorts_enabled else []) +
             [u'Experiment Group ({})'.format(partition.name) for partition in context.course_experiments] +
@@ -500,12 +517,19 @@ class CourseGradeReport(object):
                 collected_block_structure=context.course_structure,
                 course_key=context.course_id,
             ):
+                # additional profile fields from credo modules
+                row_additional_profile = []
+                if context.course.credo_additional_profile_fields:
+                    additional_student_fields = self.users_with_additional_profile.get(user.id, {})
+                    for field in self.additional_profile_fields:
+                        row_additional_profile.append(additional_student_fields.get(field, ''))
+
                 if not course_grade:
                     # An empty gradeset means we failed to grade a student.
                     error_rows.append([user.id, user.username, text_type(error)])
                 else:
                     success_rows.append(
-                        [user.id, user.email, user.username] +
+                        [user.id, user.email, user.username] + row_additional_profile +
                         self._user_grades(course_grade, context) +
                         self._user_cohort_group_names(user, context) +
                         self._user_experiment_group_names(user, context) +
@@ -527,6 +551,7 @@ class ProblemGradeReport(object):
         start_time = time()
         start_date = datetime.now(UTC)
         status_interval = 100
+        course = get_course_by_id(course_id)
         enrolled_students = CourseEnrollment.objects.users_enrolled_in(course_id, include_inactive=True)
         task_progress = TaskProgress(action_name, enrolled_students.count(), start_time)
 
@@ -535,11 +560,24 @@ class ProblemGradeReport(object):
         # as the keys.  It is structured in this way to keep the values related.
         header_row = OrderedDict([('id', 'Student ID'), ('email', 'Email'), ('username', 'Username')])
 
+        # additional profile fields from credo modules
+        additional_profile_fields = OrderedDict()
+        users_with_additional_profile_dict = {}
+        if course.credo_additional_profile_fields:
+            users_with_additional_profile_dict = CredoModulesUserProfile.users_with_additional_profile(course_id)
+            additional_profile_fields = StudentProfileField.init_from_course(course)
+
         course = get_course_by_id(course_id)
         graded_scorable_blocks = cls._graded_scorable_blocks_to_header(course)
 
         # Just generate the static fields for now.
-        rows = [list(header_row.values()) + ['Enrollment Status', 'Grade'] + _flatten(graded_scorable_blocks.values())]
+        first_row = list(header_row.values())
+        if additional_profile_fields:
+            first_row += [v.title for k, v in additional_profile_fields.iteritems()]
+        first_row += ['Enrollment Status', 'Grade'] + _flatten(graded_scorable_blocks.values())
+
+        rows = [first_row]
+
         error_rows = [list(header_row.values()) + ['error_msg']]
         current_step = {'step': 'Calculating Grades'}
 
@@ -549,6 +587,13 @@ class ProblemGradeReport(object):
 
         for student, course_grade, error in CourseGradeFactory().iter(enrolled_students, course):
             student_fields = [getattr(student, field_name) for field_name in header_row]
+
+            # additional profile fields from credo modules
+            if additional_profile_fields:
+                additional_student_fields = users_with_additional_profile_dict.get(student.id, {})
+                for field in additional_profile_fields:
+                    student_fields.append(additional_student_fields.get(field, ''))
+
             task_progress.attempted += 1
 
             if not course_grade:

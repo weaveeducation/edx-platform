@@ -8,6 +8,7 @@
 from django.urls import reverse
 from django.utils.translation import ugettext as _
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous
 %>
 
 <%
@@ -15,6 +16,7 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
   show_explore_courses = settings.FEATURES.get('COURSES_ARE_BROWSABLE') and not show_program_listing
   show_sysadmin_dashboard = settings.FEATURES.get('ENABLE_SYSADMIN_DASHBOARD','') and user.is_staff
   self.real_user = getattr(user, 'real_user', user)
+  credo_anonymous_user = is_user_credo_anonymous(self.real_user)
 %>
 
 <div class="nav-links">
@@ -64,6 +66,7 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
     % endif
 
   </div>
+  % if not credo_anonymous_user:
   <div class="secondary">
     % if should_display_shopping_cart_func() and not (course and static.is_request_in_themed_site()): # see shoppingcart.context_processor.user_has_cart_context_processor
       <div class="mobile-nav-item hidden-mobile nav-item">
@@ -81,6 +84,7 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
     </div>
     <%include file="user_dropdown.html"/>
   </div>
+  % endif
 </div>
 
 

@@ -608,6 +608,9 @@ COURSE_ENROLLMENT_MODES = ENV_TOKENS.get('COURSE_ENROLLMENT_MODES', COURSE_ENROL
 ############## Sentry ############################
 RAVEN_CONFIG = ENV_TOKENS.get('RAVEN_CONFIG', {})
 
+############## Credo API config ############################
+CREDO_API_CONFIG = ENV_TOKENS.get('CREDO_API_CONFIG', {})
+
 ############## LTI Constructor ############################
 CONSTRUCTOR_LINK = ENV_TOKENS.get('CONSTRUCTOR_LINK', 'http://127.0.0.1:9015')
 

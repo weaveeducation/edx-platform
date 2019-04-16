@@ -1,0 +1,133 @@
+<%inherit file="main.html" />
+<%!
+from django.urls import reverse
+from django.utils.translation import ugettext as _
+%>
+
+<%block name="js_extra">
+  <script type="text/javascript">
+    (function() {
+      toggleSubmitButton(true);
+      var nextUrl = "${redirect_url}";
+
+      function updatePage() {
+          if (nextUrl) {
+              location.href = nextUrl;
+          } else {
+              location.reload();
+          }
+      }
+
+      $('#credo-additional-fields-form').on('submit', function() {
+        $(".field-error").removeClass('field-error');
+        $(".submission-error").addClass('hidden');
+        $(".message-copy").empty();
+        toggleSubmitButton(false);
+      });
+
+      $('#credo-additional-fields-form').on('ajax:error', function() {
+        toggleSubmitButton(true);
+      });
+
+      $('#credo-additional-fields-form').on('ajax:success', function(event, json, xhr) {
+          updatePage();
+      });
+
+      $('#credo-additional-fields-form').on('ajax:error', function(event, jqXHR, textStatus) {
+        if (jqXHR.status == 404) {
+            updatePage();
+            return null;
+        }
+        toggleSubmitButton(true);
+        var json = $.parseJSON(jqXHR.responseText);
+        var errorMessage = '';
+        for (var item in json) {
+            $("#credo-additional-fields-form input[name=" + item + "]").addClass('field-error');
+            errorMessage += "<li>" + json[item] + "</li>";
+        }
+
+        $(".submission-error").removeClass('hidden');
+        $(".message-copy").html(errorMessage);
+      });
+    })(this);
+
+    function toggleSubmitButton(enable) {
+      var $submitButton = $('form .form-actions #submit');
+
+      if(enable) {
+        $submitButton.
+          removeClass('is-disabled').
+          attr('aria-disabled', false).
+          removeProp('disabled');
+      }
+      else {
+        $submitButton.
+          addClass('is-disabled').
+          prop('disabled', true);
+      }
+    }
+  </script>
+</%block>
+
+<%block name="headextra">
+    <style>
+        section[class='register container'] {
+            padding-left: 20px;
+            padding-right: 20px;
+            max-width: 600px;
+            min-width: 380px;
+        }
+
+        section[class='register container'] section {
+            width: 100%;
+        }
+
+        .credo-modules-information {
+            line-height: 1.5;
+        }
+    </style>
+</%block>
+
+<section class="register container" style="padding-left: 20px;">
+    <section role="main">
+        <form role="form" id="credo-additional-fields-form" method="post" data-remote="true" action="/credo_modules/profile/${course_id}/">
+            <div role="alert" class="status message submission-error hidden" tabindex="-1">
+                <h3 class="message-title">${_("The following errors occurred:")} </h3>
+                <ul class="message-copy"> </ul>
+            </div>
+            <div class="group group-form group-form-requiredinformation">
+                <h2 class="sr">${_('Required Information')}</h2>
+
+                <ol class="list-input">
+                  % for field in fields:
+                  <li class="field ${'required' if field.required else ''} text">
+                    % if field.info:
+                        <p class="credo-modules-information"> ${field.title} </p>
+                    % else:
+                        <label for="${field.alias}">${field.title}</label>
+                        % if field.options:
+                            <select id="credo-modules-${field.alias}" name="${field.alias}" ${'required aria-required="true"' if field.required else ''}>
+                                <option value="" ${'' if field.default else 'selected=""'}>Not selected</option>
+                                % for option in field.options:
+                                    <%
+                                        selected = ''
+                                        if option == field.default:
+                                            selected = 'selected=""'
+                                    %>
+                                    <option value="${option}" ${selected}>${option}</option>
+                                % endfor
+                            </select>
+                        % else:
+                            <input class="" id="credo-modules-${field.alias}" type="text" name="${field.alias}" value="${field.default}" ${'required aria-required="true"' if field.required else ''} />
+                        % endif
+                    % endif
+                  </li>
+                  % endfor
+                </ol>
+            </div>
+            <div class="form-actions">
+                <button name="submit" type="submit" id="submit" class="action action-primary action-update register-button">${_('Submit')}</button>
+            </div>
+        </form>
+    </section>
+</section>

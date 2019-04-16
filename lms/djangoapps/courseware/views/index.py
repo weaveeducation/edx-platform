@@ -62,6 +62,7 @@ from ..masquerade import (
 )
 from ..model_data import FieldDataCache
 from ..module_render import get_module_for_descriptor, toc_for_course
+from credo_modules.decorators import credo_additional_profile
 
 log = logging.getLogger("edx.courseware.views.index")
 
@@ -82,6 +83,7 @@ class CoursewareIndex(View):
     @method_decorator(cache_control(no_cache=True, no_store=True, must_revalidate=True))
     @method_decorator(ensure_valid_course_key)
     @method_decorator(data_sharing_consent_required)
+    @credo_additional_profile
     def get(self, request, course_id, chapter=None, section=None, position=None):
         """
         Displays courseware accordion and associated content.  If course, chapter,
@@ -115,44 +117,41 @@ class CoursewareIndex(View):
         self.course = None
         self.url = request.path
 
-        try:
-            set_custom_metrics_for_course_key(self.course_key)
-            self._clean_position()
-            with modulestore().bulk_operations(self.course_key):
+        set_custom_metrics_for_course_key(self.course_key)
+        self._clean_position()
+        with modulestore().bulk_operations(self.course_key):
 
-                self.view = STUDENT_VIEW
+            self.view = STUDENT_VIEW
 
-                # Do the enrollment check if enable_unenrolled_access is not enabled.
-                self.course = get_course_with_access(
-                    request.user, 'load', self.course_key,
-                    depth=CONTENT_DEPTH,
-                    check_if_enrolled=not self.enable_unenrolled_access,
-                )
+            # Do the enrollment check if enable_unenrolled_access is not enabled.
+            self.course = get_course_with_access(
+                request.user, 'load', self.course_key,
+                depth=CONTENT_DEPTH,
+                check_if_enrolled=not self.enable_unenrolled_access,
+            )
 
-                if self.enable_unenrolled_access:
-                    # Check if the user is considered enrolled (i.e. is an enrolled learner or staff).
-                    try:
-                        check_course_access(
-                            self.course, request.user, 'load', check_if_enrolled=True,
-                        )
-                    except CourseAccessRedirect as exception:
-                        # If the user is not considered enrolled:
-                        if self.course.course_visibility == COURSE_VISIBILITY_PUBLIC:
-                            # If course visibility is public show the XBlock public_view.
-                            self.view = PUBLIC_VIEW
-                        else:
-                            # Otherwise deny them access.
-                            raise exception
+            if self.enable_unenrolled_access:
+                # Check if the user is considered enrolled (i.e. is an enrolled learner or staff).
+                try:
+                    check_course_access(
+                        self.course, request.user, 'load', check_if_enrolled=True,
+                    )
+                except CourseAccessRedirect as exception:
+                    # If the user is not considered enrolled:
+                    if self.course.course_visibility == COURSE_VISIBILITY_PUBLIC:
+                        # If course visibility is public show the XBlock public_view.
+                        self.view = PUBLIC_VIEW
                     else:
-                        # If the user is considered enrolled show the default XBlock student_view.
-                        pass
+                        # Otherwise deny them access.
+                        raise exception
+                else:
+                    # If the user is considered enrolled show the default XBlock student_view.
+                    pass
 
-                self.is_staff = has_access(request.user, 'staff', self.course)
-                self._setup_masquerade_for_effective_user()
+            self.is_staff = has_access(request.user, 'staff', self.course)
+            self._setup_masquerade_for_effective_user()
 
-                return self.render(request)
-        except Exception as exception:  # pylint: disable=broad-except
-            return CourseTabView.handle_exceptions(request, self.course, exception)
+            return self.render(request)
 
     def _setup_masquerade_for_effective_user(self):
         """

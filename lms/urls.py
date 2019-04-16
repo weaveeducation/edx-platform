@@ -16,7 +16,8 @@ from courseware.masquerade import handle_ajax as courseware_masquerade_handle_aj
 from courseware.module_render import handle_xblock_callback, handle_xblock_callback_noauth, xblock_view, xqueue_callback
 from courseware.views import views as courseware_views
 from courseware.views.index import CoursewareIndex
-from courseware.views.views import CourseTabView, EnrollStaffView, StaticCourseTabView
+from courseware.views.views import CourseTabView, EnrollStaffView, StaticCourseTabView,\
+    cookie_check, render_xblock_course
 from debug import views as debug_views
 from django_comment_common.models import ForumsConfig
 from django_openid_auth import views as django_openid_auth_views
@@ -265,6 +266,21 @@ urlpatterns += [
         r'^xblock/{usage_key_string}$'.format(usage_key_string=settings.USAGE_KEY_PATTERN),
         courseware_views.render_xblock,
         name='render_xblock',
+    ),
+
+    url(
+        r'^cookie/check$',
+        cookie_check,
+        name='cookie_check',
+    ),
+
+    url(
+        r'^courses/{course_key}/xblock/{usage_key_string}/?$'.format(
+            course_key=settings.COURSE_ID_PATTERN,
+            usage_key_string=settings.USAGE_KEY_PATTERN
+        ),
+        render_xblock_course,
+        name='render_xblock_course',
     ),
 
     # xblock Resource URL

@@ -536,6 +536,9 @@ COURSEGRAPH_JOB_QUEUE = ENV_TOKENS.get('COURSEGRAPH_JOB_QUEUE', DEFAULT_PRIORITY
 ############## Sentry ############################
 RAVEN_CONFIG = ENV_TOKENS.get('RAVEN_CONFIG', {})
 
+############## Credo API config ############################
+CREDO_API_CONFIG = ENV_TOKENS.get('CREDO_API_CONFIG', {})
+
 ########## Settings for video transcript migration tasks ############
 VIDEO_TRANSCRIPT_MIGRATIONS_JOB_QUEUE = ENV_TOKENS.get('VIDEO_TRANSCRIPT_MIGRATIONS_JOB_QUEUE', DEFAULT_PRIORITY_QUEUE)
 

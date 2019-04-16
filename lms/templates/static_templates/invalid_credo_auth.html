@@ -1,0 +1,10 @@
+<%! from django.utils.translation import ugettext as _ %>
+<%inherit file="../main.html" />
+
+<%block name="pagetitle">${_("Invalid Credo authentication")}</%block>
+
+<section class="outside-app">
+<h1>${_("Invalid Credo authentication")}</h1>
+<p>${_('You have no permissions to access the content.')}</p>
+<p>${_('If you are a student user, please screencap this error and share it with your instructor. If you are an admin, please see our help site or contact our support team for help.')}</p>
+</section>

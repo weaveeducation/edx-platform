@@ -1308,6 +1308,8 @@ MIDDLEWARE_CLASSES = [
 
     'edx_rest_framework_extensions.auth.jwt.middleware.EnsureJWTAuthSettingsMiddleware',
 
+    'credo_modules.middleware.RefererSaveMiddleware',
+
     'third_party_auth.middleware.SSOAuthMiddleware',
 
     # This must be last

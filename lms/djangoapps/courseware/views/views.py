@@ -4,20 +4,26 @@ Courseware views functions
 import json
 import logging
 import urllib
+import time
 from collections import OrderedDict, namedtuple
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import bleach
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import AnonymousUser, User
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.validators import validate_email
+from django.core.serializers.json import DjangoJSONEncoder
+from django.core import mail
 from django.db import transaction
 from django.db.models import Q, prefetch_related_objects
-from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotAllowed,\
+    JsonResponse
 from django.shortcuts import redirect
 from django.template.context_processors import csrf
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.http import urlquote_plus
 from django.utils.text import slugify
@@ -51,8 +57,12 @@ from courseware.courses import (
     get_permission_for_course_about,
     get_studio_url,
     sort_by_announcement,
-    sort_by_start_date
+    sort_by_start_date,
+    update_lms_course_usage
 )
+from courseware.extended_progress import progress_main_page, progress_skills_page
+from courseware.utils import get_problem_detailed_info, get_answer_and_correctness, get_score_points,\
+    CREDO_GRADED_ITEM_CATEGORIES
 from courseware.masquerade import setup_masquerade
 from courseware.model_data import FieldDataCache
 from courseware.models import BaseStudentModuleHistory, StudentModule
@@ -86,7 +96,9 @@ from openedx.core.djangoapps.programs.utils import ProgramMarketingDataExtender
 from openedx.core.djangoapps.self_paced.models import SelfPacedConfiguration
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.util.user_messages import PageLevelMessages
+from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous
 from openedx.core.djangolib.markup import HTML, Text
+from openedx.core.lib.url_utils import unquote_slashes
 from openedx.features.course_duration_limits.access import generate_course_expired_fragment
 from openedx.features.course_experience import (
     UNIFIED_COURSE_TAB_FLAG,
@@ -115,6 +127,20 @@ from xmodule.x_module import STUDENT_VIEW
 
 from ..entrance_exams import user_can_skip_entrance_exam
 from ..module_render import get_module, get_module_by_usage_id, get_module_for_descriptor
+
+from util.views import add_p3p_header
+from openedx.core.djangoapps.user_authn.views.login import register_login_and_enroll_anonymous_user,\
+    validate_credo_access
+from credo_modules.models import user_must_fill_additional_profile_fields, additional_profile_fields_hash,\
+    Organization, CredoModulesUserProfile, SendScores, SendScoresMailing
+from credo_modules.views import show_student_profile_form
+from mako.template import Template
+from lms import CELERY_APP
+try:
+    from premailer import transform
+except ImportError:
+    transform = None
+
 
 log = logging.getLogger("edx.courseware")
 
@@ -301,6 +327,7 @@ def jump_to(_request, course_id, location):
 @ensure_csrf_cookie
 @ensure_valid_course_key
 @data_sharing_consent_required
+@login_required
 def course_info(request, course_id):
     """
     Display the course's info.html, or 404 if there is no such course.
@@ -502,20 +529,22 @@ class CourseTabView(EdxFragmentView):
         """
         course_key = CourseKey.from_string(course_id)
         with modulestore().bulk_operations(course_key):
+            course_obj = modulestore().get_course(course_key, depth=0)
+            if request.user.is_authenticated and is_user_credo_anonymous(request.user)\
+                    and course_obj.allow_anonymous_access:
+                CourseEnrollment.enroll(request.user, course_key)
+
             course = get_course_with_access(request.user, 'load', course_key)
-            try:
-                # Render the page
-                tab = CourseTabList.get_tab_by_type(course.tabs, tab_type)
-                page_context = self.create_page_context(request, course=course, tab=tab, **kwargs)
+            # Render the page
+            tab = CourseTabList.get_tab_by_type(course.tabs, tab_type)
+            page_context = self.create_page_context(request, course=course, tab=tab, **kwargs)
 
-                # Show warnings if the user has limited access
-                # Must come after masquerading on creation of page context
-                self.register_user_access_warning_messages(request, course)
+            # Show warnings if the user has limited access
+            # Must come after masquerading on creation of page context
+            self.register_user_access_warning_messages(request, course)
 
-                set_custom_metrics_for_course_key(course_key)
-                return super(CourseTabView, self).get(request, course=course, page_context=page_context, **kwargs)
-            except Exception as exception:  # pylint: disable=broad-except
-                return CourseTabView.handle_exceptions(request, course, exception)
+            set_custom_metrics_for_course_key(course_key)
+            return super(CourseTabView, self).get(request, course=course, page_context=page_context, **kwargs)
 
     @staticmethod
     def url_to_enroll(course_key):
@@ -573,11 +602,11 @@ class CourseTabView(EdxFragmentView):
         Handle exceptions raised when rendering a view.
         """
         if isinstance(exception, Redirect) or isinstance(exception, Http404):
-            raise
+            raise exception
         if isinstance(exception, UnicodeEncodeError):
             raise Http404("URL contains Unicode characters")
         if settings.DEBUG:
-            raise
+            raise exception
         user = request.user
         log.exception(
             u"Error in %s: user=%s, effective_user=%s, course=%s",
@@ -1752,3 +1781,398 @@ def get_financial_aid_courses(user):
             )
 
     return financial_aid_courses
+
+
+@ensure_valid_course_key
+@add_p3p_header
+def render_xblock_course(request, course_id, usage_key_string):
+    course_key = CourseKey.from_string(course_id)
+    course = modulestore().get_course(course_key, depth=2)
+
+    if not course:
+        raise Http404("Course not found")
+
+    try:
+        block = modulestore().get_item(UsageKey.from_string(usage_key_string))
+    except ItemNotFoundError:
+        raise Http404("Block not found")
+    is_time_exam = getattr(block, 'is_proctored_exam', False) or getattr(block, 'is_time_limited', False)
+
+    if not request.GET.get('process_request'):
+        additional_url_params = ''
+        jwt_token = request.GET.get('jwt_token', None)
+        if jwt_token:
+            additional_url_params = '&jwt_token=' + jwt_token
+
+        template = Template(render_to_string('static_templates/embedded_new_tab.html', {
+            'disable_accordion': True,
+            'allow_iframing': True,
+            'disable_header': True,
+            'disable_footer': True,
+            'disable_window_wrap': True,
+            'hash': '',
+            'additional_url_params': additional_url_params,
+            'time_exam': 1 if is_time_exam else 0,
+        }))
+        return HttpResponse(template.render())
+
+    if not request.user.is_authenticated():
+        if course.credo_authentication:
+            credo_auth = validate_credo_access(request)
+            if not credo_auth:
+                return HttpResponseForbidden('Invalid Credo authentication. '
+                                             'You have no permissions to access the content'
+                                             'If you are a student user, please screencap this error and share it '
+                                             'with your instructor. If you are an admin, please see our help site '
+                                             'or contact our support team for help.')
+        if course.allow_anonymous_access:
+            register_login_and_enroll_anonymous_user(request, course_key)
+        else:
+            return HttpResponseForbidden('Unauthorized')
+    elif is_user_credo_anonymous(request.user) and course.allow_anonymous_access \
+            and not CourseEnrollment.is_enrolled(request.user, course_key):
+        CourseEnrollment.enroll(request.user, course_key)
+
+    if user_must_fill_additional_profile_fields(course, request.user, block):
+        return show_student_profile_form(request, course, True)
+
+    update_lms_course_usage(request, UsageKey.from_string(usage_key_string), course_key)
+    return render_xblock(request, usage_key_string)
+
+
+@require_http_methods(["GET"])
+def cookie_check(request):
+    cookie_sent = True if request.META.get('HTTP_COOKIE') else False
+    return HttpResponse(json.dumps({'cookie_sent': cookie_sent}), content_type='application/json')
+
+
+@require_http_methods(["GET"])
+def launch_new_tab(request, course_id, usage_id):
+    if not request.user.is_authenticated():
+        return HttpResponseForbidden('Unauthorized')
+    try:
+        course_key = CourseKey.from_string(course_id)
+        usage_id = unquote_slashes(usage_id)
+        usage_key = UsageKey.from_string(usage_id).map_into_course(course_key)
+    except InvalidKeyError:
+        log.error(
+            'Invalid course key %s or usage key %s from request %s',
+            course_id,
+            usage_id,
+            request
+        )
+        raise Http404()
+    update_lms_course_usage(request, usage_key, course_key)
+    return render_xblock(request, unicode(usage_key), check_if_enrolled=False)
+
+
+def _get_block_children(block, parent_name):
+    data = OrderedDict()
+    for item in block.get_children():
+        loc_id = str(item.location)
+        data[loc_id] = get_problem_detailed_info(item, parent_name)
+        if item.has_children:
+            data.update(_get_block_children(item, item.display_name))
+    return data
+
+
+def _get_browser_datetime(last_answer_datetime, timezone_offset=None, dt_format=None):
+    if dt_format is None:
+        dt_format = '%Y-%m-%d %H:%M'
+    if timezone_offset is not None:
+        if timezone_offset > 0:
+            last_answer_datetime = last_answer_datetime + timedelta(minutes=timezone_offset)
+        else:
+            timezone_offset = (-1) * timezone_offset
+            last_answer_datetime = last_answer_datetime - timedelta(minutes=timezone_offset)
+    return last_answer_datetime.strftime(dt_format)
+
+
+def _get_block_student_progress(request, course_id, usage_id, timezone_offset=None):
+    course_key = CourseKey.from_string(course_id)
+    full_name = unicode(request.user.first_name) + ' ' + unicode(request.user.last_name)
+
+    resp = {
+        'error': False,
+        'common': {},
+        'items': [],
+        'user': {
+            'username': request.user.username,
+            'email': request.user.email,
+            'full_name': full_name.strip()
+        }
+    }
+
+    try:
+        with modulestore().bulk_operations(course_key):
+            usage_key = UsageKey.from_string(usage_id)
+
+            course = get_course_with_access(request.user, 'load', course_key)
+
+            credo_anonymous_name_is_set = False
+            credo_anonymous_email_is_set = False
+            is_credo_anonymous = is_user_credo_anonymous(request.user)
+
+            if is_credo_anonymous and course.credo_additional_profile_fields:
+                fields_version = additional_profile_fields_hash(course.credo_additional_profile_fields)
+
+                profile = CredoModulesUserProfile.objects.filter(course_id=course_key, user=request.user,
+                                                                 fields_version=fields_version).first()
+                if profile:
+                    profile_fileds = json.loads(profile.meta)
+                    if 'name' in profile_fileds:
+                        resp['user']['username'] = profile_fileds['name']
+                        credo_anonymous_name_is_set = True
+                    if 'email' in profile_fileds:
+                        resp['user']['email'] = profile_fileds['email']
+                        credo_anonymous_email_is_set = True
+
+            if not resp['user']['full_name']:
+                resp['user']['full_name'] = resp['user']['username']
+                if is_credo_anonymous and not credo_anonymous_name_is_set:
+                    resp['user']['full_name'] = None
+
+            if is_credo_anonymous and not credo_anonymous_email_is_set:
+                resp['user']['email'] = None
+
+            seq_item, _ = get_module_by_usage_id(
+                request, text_type(course_key), text_type(usage_key), disable_staff_debug_info=True, course=course
+            )
+            children_dict = _get_block_children(seq_item, seq_item.display_name)
+
+            user_state_client = DjangoXBlockUserStateClient(request.user)
+            user_state_dict = {}
+            problem_locations = [item['data'].location for k, item in children_dict.items()
+                                 if item['category'] == 'problem']
+
+            if problem_locations:
+                user_state_dict = user_state_client.get_all_blocks(request.user, course_key, problem_locations)
+
+            course_grade = CourseGradeFactory().read(request.user, course)
+            courseware_summary = course_grade.chapter_grades.values()
+
+            for chapter in courseware_summary:
+                for section in chapter['sections']:
+                    if str(section.location) == str(usage_id):
+                        resp['common']['quiz_name'] = seq_item.display_name
+                        resp['common']['last_answer_timestamp'] = section.last_answer_timestamp
+                        resp['common']['unix_timestamp'] = int(time.mktime(section.last_answer_timestamp.timetuple()))\
+                            if section.last_answer_timestamp else None
+                        resp['common']['browser_datetime'] = _get_browser_datetime(section.last_answer_timestamp,
+                                                                                   timezone_offset)\
+                            if section.last_answer_timestamp else ''
+                        resp['common']['browser_datetime_short'] = _get_browser_datetime(section.last_answer_timestamp,
+                                                                                         timezone_offset,
+                                                                                         "%B %d, %Y") \
+                            if section.last_answer_timestamp else ''
+                        resp['common']['percent_graded'] = int(section.percent_graded * 100)
+                        resp['common'].update(section.percent_info)
+                        if int(resp['common']['earned']) == resp['common']['earned']:
+                            resp['common']['earned'] = int(resp['common']['earned'])
+                        if int(resp['common']['possible']) == resp['common']['possible']:
+                            resp['common']['possible'] = int(resp['common']['possible'])
+
+                        for key, score in section.problem_scores.items():
+                            item = children_dict.get(str(key))
+                            if item and item['category'] in CREDO_GRADED_ITEM_CATEGORIES:
+                                submission_uuid = None
+                                if item['category'] == 'openassessment':
+                                    submission_uuid = item['data'].submission_uuid
+                                answer, tmp_correctness = get_answer_and_correctness(user_state_dict, score,
+                                                                                     item['category'],
+                                                                                     item['data'],
+                                                                                     key,
+                                                                                     submission_uuid=submission_uuid)
+
+                                if answer and item['category'] in ('openassessment', 'drag-and-drop-v2'):
+                                    item['correctness'] = tmp_correctness
+
+                                unix_timestamp = int(time.mktime(score.last_answer_timestamp.timetuple())) \
+                                    if score.last_answer_timestamp else None
+                                browser_datetime = _get_browser_datetime(score.last_answer_timestamp,
+                                                                         timezone_offset) \
+                                    if score.last_answer_timestamp else ''
+
+                                od = OrderedDict(sorted(answer.items())) if answer else {}
+                                resp['items'].append({
+                                    'display_name': item['data'].display_name,
+                                    'question_text': item['question_text'],
+                                    'question_text_safe': item['question_text_safe'],
+                                    'answer': '; '.join(od.values()) if answer else None,
+                                    'question_description': '',
+                                    'parent_name': item['parent_name'],
+                                    'correctness': item['correctness'].title() if item['correctness'] else 'Not Answered',
+                                    'earned': get_score_points(score.earned),
+                                    'possible': get_score_points(score.possible),
+                                    'last_answer_timestamp': score.last_answer_timestamp,
+                                    'unix_timestamp': unix_timestamp,
+                                    'browser_datetime': browser_datetime,
+                                    'id': item['id']
+                                })
+    except Http404:
+        resp['error'] = True
+
+    return resp
+
+
+def get_student_progress_images():
+    return {
+        'correct_icon': settings.STATIC_URL + 'images/credo/question_correct.png',
+        'incorrect_icon': settings.STATIC_URL + 'images/credo/question_incorrect.png',
+        'assessment_done_img': settings.STATIC_URL + 'images/credo/assessment_done.png'
+    }
+
+
+def get_student_progress_email_html(course_id, usage_id, request=None, student_progress=None):
+    course_key = CourseKey.from_string(course_id)
+    usage_key = UsageKey.from_string(usage_id)
+
+    course = modulestore().get_course(course_key)
+    breadcrumbs = []
+
+    org_name = course.display_organization
+    if not org_name:
+        org_name = course_key.org
+    breadcrumbs.append(org_name.strip())
+
+    course_name = course.display_name
+    if not course_name:
+        course_name = course_key.course
+    breadcrumbs.append(course_name.strip())
+
+    item = modulestore().get_item(usage_key)
+    parent = item.get_parent()
+    if parent.display_name != item.display_name:
+        breadcrumbs.append(parent.display_name)
+    breadcrumbs.append(item.display_name)
+
+    dt_now = datetime.now()
+    if request:
+        scores_info = _get_block_student_progress(request, course_id, usage_id)
+    else:
+        scores_info = student_progress
+    context = {
+        'breadcrumbs': breadcrumbs,
+        'breadcrumbs_len': len(breadcrumbs) - 1,
+        'lms_url': configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL),
+        'platform_name': configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME),
+        'support_url': configuration_helpers.get_value('SUPPORT_SITE_LINK', settings.SUPPORT_SITE_LINK),
+        'support_email': configuration_helpers.get_value('CONTACT_EMAIL', settings.CONTACT_EMAIL),
+        'scores': scores_info,
+        'current_year': dt_now.year,
+        'section_display_name': item.display_name,
+        'privacy_url': 'https://modules.zendesk.com/hc/en-us/articles/115005329466-Data-Privacy-FERPA-Security',
+        'use_static': True
+    }
+    html_email = render_to_string('emails/email_scores.html', context)
+    if transform:
+        html_email = transform(html_email)
+    return html_email, context
+
+
+@transaction.non_atomic_requests
+@login_required
+@ensure_valid_course_key
+@data_sharing_consent_required
+def block_student_progress(request, course_id, usage_id):
+    if request.method == 'GET':
+        email_test = request.GET.get('email-test', None)
+        if email_test == 'y':
+            html_email, context = get_student_progress_email_html(course_id, usage_id, request)
+            return HttpResponse(html_email)
+        else:
+            return HttpResponseBadRequest()
+    elif request.method == 'POST':
+        resp = _get_block_student_progress(request, course_id, usage_id)
+        return JsonResponse(resp)
+    return HttpResponseNotAllowed(['GET', 'POST'])
+
+
+@transaction.non_atomic_requests
+@login_required
+@require_http_methods(["POST"])
+@ensure_valid_course_key
+@data_sharing_consent_required
+def email_student_progress(request, course_id, usage_id):
+    try:
+        timezone_offset = int(request.POST.get('timezone_offset', 0))
+    except ValueError:
+        timezone_offset = 0
+
+    course_key = CourseKey.from_string(course_id)
+    resp = _get_block_student_progress(request, course_id, usage_id, timezone_offset)
+
+    emails = request.POST.get('emails', '')
+    emails = emails.split(',')
+    emails_result = []
+
+    for e in emails:
+        try:
+            email = e.strip()
+            validate_email(email)
+            if email not in emails_result:
+                emails_result.append(email)
+        except ValidationError:
+            pass
+
+    if len(emails_result) > 10:
+        return JsonResponse({'success': False, 'error': "Too much emails. Please don't use more than 10 emails"})
+    elif len(emails_result) == 0:
+        return JsonResponse({'success': False, 'error': "There are no valid emails"})
+
+    if not resp['error']:
+        try:
+            send_scores = SendScores.objects.get(user=request.user, course_id=course_key, block_id=usage_id)
+            time_diff = timezone.now() - send_scores.last_send_time
+            if time_diff.total_seconds() < 300:  # 5 min
+                return JsonResponse({'success': False, 'error': 'You have already sent email not so long ago. '
+                                                                'Please try again later in 5 minutes'})
+        except SendScores.DoesNotExist:
+            send_scores = SendScores(
+                user=request.user,
+                course_id=course_key,
+                block_id=usage_id)
+        send_scores.last_send_time = timezone.now()
+        send_scores.save()
+
+        mailing = SendScoresMailing(
+            email_scores=send_scores,
+            data=json.dumps(resp, cls=DjangoJSONEncoder),
+            last_send_time=timezone.now()
+        )
+        mailing.save()
+
+        send_email_with_scores.delay(course_id, usage_id, mailing.id, emails_result)
+
+        log.info(u"Task to send scores was added for user_id: %s, course_id: %s, block_id: %s. "
+                 u"Emails: %s. Mailing id: %s",
+                 str(request.user.id), str(course_key), str(usage_id), str(emails_result), str(mailing.id))
+
+        return JsonResponse({'success': True, 'error': False})
+    else:
+        return JsonResponse({'success': False, 'error': 'Error. Please refresh the page'})
+
+
+@CELERY_APP.task
+def send_email_with_scores(course_id, usage_id, mailing_id, emails):
+    log.info(u"Task to send scores was started. Mailing id: %s", str(mailing_id))
+
+    try:
+        mailing = SendScoresMailing.objects.get(id=mailing_id)
+        scores_info = json.loads(mailing.data)
+
+        html_email, context = get_student_progress_email_html(course_id, usage_id, None, scores_info)
+        text_email = render_to_string('emails/email_scores.txt', context)
+        from_address = configuration_helpers.get_value('email_from_address', settings.BULK_EMAIL_DEFAULT_FROM_EMAIL)
+
+        if settings.DEBUG:
+            log.info('Recipient list: ' + str(emails))
+            log.info('Email text: ' + text_email)
+
+        mail.send_mail('Credo Assessment Results: ' + context['section_display_name'], text_email, from_address, emails,
+                       fail_silently=False, html_message=html_email)
+
+        log.info(u"Task to send scores successfully finished. Mailing id: %s", str(mailing_id))
+    except SendScoresMailing.DoesNotExist:
+        log.info(u"Task to send scores finished with error. Mailing id: %s", str(mailing_id))
+

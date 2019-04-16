@@ -8,12 +8,14 @@
 from django.urls import reverse
 from django.utils.translation import ugettext as _
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous
 %>
 
 <%
   show_explore_courses = settings.FEATURES.get('COURSES_ARE_BROWSABLE') and not show_program_listing
   show_sysadmin_dashboard = settings.FEATURES.get('ENABLE_SYSADMIN_DASHBOARD','') and user.is_staff
   self.real_user = getattr(user, 'real_user', user)
+  credo_anonymous_user = is_user_credo_anonymous(self.real_user)
 
   support_link = configuration_helpers.get_value('SUPPORT_SITE_LINK', settings.SUPPORT_SITE_LINK)
   doc_link = get_online_help_info(online_help_token)['doc_url']
@@ -74,6 +76,7 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
     % endif
   </div>
   <div class="secondary">
+  % if not credo_anonymous_user:
     % if should_display_shopping_cart_func() and not (course and static.is_request_in_themed_site()): # see shoppingcart.context_processor.user_has_cart_context_processor
       <div class="mobile-nav-item hidden-mobile nav-item">
         <a class="shopping-cart" href="${reverse('shoppingcart.views.show_cart')}">
@@ -81,9 +84,13 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
         </a>
       </div>
     % endif
-    <div class="mobile-nav-item hidden-mobile nav-item">
-      <a class="help-link" href="${help_link}" target="_blank">${_("Help")}</a>
-    </div>
     <%include file="user_dropdown.html"/>
+  % else:
+    <div class="nav-item hidden-mobile">
+      <a class="menu-title" href="${reverse('logout')}?redirect_url=%2Flogin">
+        ${_("Login as admin")}
+      </a>
+    </div>
+  % endif
   </div>
 </div>
