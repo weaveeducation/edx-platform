@@ -19,7 +19,7 @@ from opaque_keys.edx.keys import CourseKey
 from courseware.courses import get_course_by_id
 from student.models import CourseEnrollment
 from django.http import HttpResponseRedirect
-from util.request import course_id_from_url
+from openedx.core.lib.request_utils import course_id_from_url
 
 
 class ExceptionMiddleware(SocialAuthExceptionMiddleware):
