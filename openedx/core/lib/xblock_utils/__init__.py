@@ -321,8 +321,10 @@ def add_staff_markup(user, disable_staff_debug_info, block, view, frag, context)
     if isinstance(block, VerticalBlock) and (not context or not context.get('child_of_vertical', False)):
         # check that the course is a mongo backed Studio course before doing work
         is_studio_course = block.course_edit_method == "Studio"
+        show_studio_link = user.instructor_dashboard_tabs.show_studio_link if \
+            hasattr(user, 'instructor_dashboard_tabs') else True
 
-        if is_studio_course:
+        if show_studio_link and is_studio_course:
             # build edit link to unit in CMS. Can't use reverse here as lms doesn't load cms's urls.py
             edit_link = "//" + settings.CMS_BASE + '/container/' + text_type(block.location)
 

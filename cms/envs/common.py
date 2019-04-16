@@ -1180,7 +1180,7 @@ INSTALLED_APPS = [
 ]
 
 if os.environ.get('PYCHARM_DEBUG', '0') != '1':
-    INSTALLED_APPS.extend(['raven.contrib.django.raven_compat'])
+    INSTALLED_APPS.extend(['raven.contrib.django.raven_compat', 'django_extensions'])
 
 
 ################# EDX MARKETING SITE ##################################
