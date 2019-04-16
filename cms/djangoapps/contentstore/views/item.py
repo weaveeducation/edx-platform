@@ -16,7 +16,7 @@ from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.utils.translation import ugettext as _
 from django.views.decorators.http import require_http_methods
 from opaque_keys.edx.keys import CourseKey
-from opaque_keys.edx.locator import LibraryUsageLocator
+from opaque_keys.edx.locator import LibraryUsageLocator, BlockUsageLocator
 from pytz import UTC
 from six import text_type
 from web_fragments.fragment import Fragment
@@ -68,6 +68,9 @@ from xmodule.modulestore.inheritance import own_metadata
 from xmodule.services import ConfigurationService, SettingsService
 from xmodule.tabs import CourseTabList
 from xmodule.x_module import DEPRECATION_VSCOMPAT_EVENT, PREVIEW_VIEWS, STUDENT_VIEW, STUDIO_VIEW
+from xmodule.contentstore.content import StaticContent
+from xmodule.contentstore.django import contentstore
+from xmodule.exceptions import NotFoundError
 from edx_proctoring.api import get_exam_configuration_dashboard_url
 
 __all__ = [
@@ -826,15 +829,42 @@ def _move_item(source_usage_key, target_parent_usage_key, user, target_index=Non
         return JsonResponse(context)
 
 
-def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_name=None, is_child=False):
+def _get_breadcrumbs(item):
+    names_list = []
+    first = True
+    parent = None
+    while first or parent:
+        if first:
+            first = False
+            names_list.append(item.display_name)
+            parent = item.get_parent()
+        else:
+            names_list.append(parent.display_name)
+            parent = parent.get_parent()
+        if parent.category == 'course':
+            parent = None
+    return u' / ' .join(names_list[::-1])
+
+
+def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_name=None, is_child=False,
+                    course_key=None, broken_blocks=None):
     """
     Duplicate an existing xblock as a child of the supplied parent_usage_key.
     """
+    if broken_blocks is None:
+        broken_blocks = {}
+
     store = modulestore()
-    with store.bulk_operations(duplicate_source_usage_key.course_key):
+    with store.bulk_operations(course_key if course_key else duplicate_source_usage_key.course_key):
         source_item = store.get_item(duplicate_source_usage_key)
         # Change the blockID to be unique.
         dest_usage_key = source_item.location.replace(name=uuid4().hex)
+        if course_key and (str(course_key) != str(dest_usage_key.course_key)):
+            dest_usage_key = BlockUsageLocator(
+                course_key.version_agnostic(),
+                block_type=dest_usage_key.block_type,
+                block_id=dest_usage_key.block_id,
+            )
         category = dest_usage_key.block_type
 
         # Update the display name to indicate this is a duplicate (unless display name provided).
@@ -870,7 +900,7 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
 
         dest_module = store.create_item(
             user.id,
-            dest_usage_key.course_key,
+            course_key if course_key else dest_usage_key.course_key,
             dest_usage_key.block_type,
             block_id=dest_usage_key.block_id,
             definition_data=source_item.get_explicitly_set_fields_by_scope(Scope.content),
@@ -879,6 +909,18 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
             asides=asides_to_create
         )
 
+        if course_key and dest_module.category == 'video' and dest_module.sub:
+            filename = 'subs_{0}.srt.sjson'.format(dest_module.sub)
+            content_location_src = StaticContent.compute_location(source_item.location.course_key, filename)
+            content_location_dst = StaticContent.compute_location(course_key, filename)
+            try:
+                sjson_transcripts = contentstore().find(content_location_src)
+                new_content = StaticContent(content_location_dst, filename,
+                                            sjson_transcripts.content_type, sjson_transcripts.data)
+                contentstore().save(new_content)
+            except NotFoundError:
+                pass
+
         children_handled = False
 
         if hasattr(dest_module, 'studio_post_duplicate'):
@@ -886,14 +928,19 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
             # These blocks may handle their own children or parenting if needed. Let them return booleans to
             # let us know if we need to handle these or not.
             dest_module.xmodule_runtime = StudioEditModuleRuntime(user)
-            children_handled = dest_module.studio_post_duplicate(store, source_item)
+
+            try:
+                children_handled = dest_module.studio_post_duplicate(store, source_item)
+            except ItemNotFoundError:
+                broken_blocks[str(source_item.location)] = _get_breadcrumbs(source_item)
 
         # Children are not automatically copied over (and not all xblocks have a 'children' attribute).
         # Because DAGs are not fully supported, we need to actually duplicate each child as well.
-        if source_item.has_children and not children_handled:
+        if source_item.has_children and not children_handled and source_item.category != 'library_content':
             dest_module.children = dest_module.children or []
             for child in source_item.children:
-                dupe = _duplicate_item(dest_module.location, child, user=user, is_child=True)
+                dupe = _duplicate_item(dest_module.location, child, user=user, is_child=True, course_key=course_key,
+                                       broken_blocks=broken_blocks)
                 if dupe not in dest_module.children:  # _duplicate_item may add the child for us.
                     dest_module.children.append(dupe)
             store.update_item(dest_module, user.id)
