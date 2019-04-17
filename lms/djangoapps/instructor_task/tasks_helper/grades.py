@@ -24,6 +24,7 @@ from lms.djangoapps.certificates.models import CertificateWhitelist, GeneratedCe
 from lms.djangoapps.grades.context import grading_context, grading_context_for_course
 from lms.djangoapps.grades.models import PersistentCourseGrade, PersistentSubsectionGrade
 from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
+from lms.djangoapps.grades.subsection_grade import FakeSubsectionGrade
 from lms.djangoapps.teams.models import CourseTeamMembership
 from lms.djangoapps.verify_student.services import IDVerificationService
 from openedx.core.djangoapps.content.block_structure.api import get_course_in_cache
@@ -386,7 +387,7 @@ class CourseGradeReport(object):
             assignment_average, last_answer_timestamp = self._user_assignment_average(course_grade, subsection_grades,
                                                                                       assignment_info)
             if assignment_average is not None:
-                grade_results.append([assignment_average, last_answer_timestamp])
+                grade_results.append([assignment_average])
 
         return [course_grade.percent] + _flatten(grade_results)
 
@@ -398,7 +399,14 @@ class CourseGradeReport(object):
         subsection_grades = []
         grade_results = []
         for subsection_location in subsection_headers:
-            subsection_grade = course_grade.subsection_grade(subsection_location)
+            try:
+                subsection_grade = course_grade.subsection_grade(subsection_location)
+            except KeyError:
+                subsection_grade = FakeSubsectionGrade()
+                TASK_LOG.warning(
+                    u'CourseGradeReport: section %s was not found',
+                    str(subsection_location),
+                )
             if subsection_grade.attempted_graded:
                 grade_result = subsection_grade.percent_graded
                 grade_last_timestamp = subsection_grade.last_answer_timestamp

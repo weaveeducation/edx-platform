@@ -348,3 +348,21 @@ class CreateSubsectionGrade(NonZeroSubsectionGrade):
             for location, score in
             self.problem_scores.iteritems()
         ]
+
+
+class FakeSubsectionGrade(object):
+    """
+    Class for Subsection Grades with Zero values.
+    """
+
+    @property
+    def percent_graded(self):
+        return 0.0
+
+    @property
+    def last_answer_timestamp(self):
+        return None
+
+    @property
+    def attempted_graded(self):
+        return False
