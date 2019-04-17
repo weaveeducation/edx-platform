@@ -519,6 +519,11 @@ class CourseTabView(EdxFragmentView):
         """
         course_key = CourseKey.from_string(course_id)
         with modulestore().bulk_operations(course_key):
+            course_obj = modulestore().get_course(course_key, depth=0)
+            if request.user.is_authenticated and is_user_credo_anonymous(request.user)\
+                    and course_obj.allow_anonymous_access:
+                CourseEnrollment.enroll(request.user, course_key)
+
             course = get_course_with_access(request.user, 'load', course_key)
             # Render the page
             tab = CourseTabList.get_tab_by_type(course.tabs, tab_type)
@@ -1855,6 +1860,9 @@ def render_xblock_course(request, course_id, usage_key_string):
             register_login_and_enroll_anonymous_user(request, course_key)
         else:
             return HttpResponseForbidden('Unauthorized')
+    elif is_user_credo_anonymous(request.user) and course.allow_anonymous_access \
+            and not CourseEnrollment.is_enrolled(request.user, course_key):
+        CourseEnrollment.enroll(request.user, course_key)
 
     if user_must_fill_additional_profile_fields(course, request.user, block):
         return show_student_profile_form(request, course, True)
