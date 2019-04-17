@@ -131,7 +131,7 @@
             'draggabilly': 'js/vendor/draggabilly',
             'hls': 'common/js/vendor/hls',
             'lang_edx': 'js/src/lang_edx',
-            'magicsuggest': 'cms/js/magicsuggest-1.3.1',
+            'jquery-multiselect': 'cms/js/jquery.multiselect-2.4.12',
 
             // externally hosted files
             mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@2.7.5/MathJax.js?config=TeX-MML-AM_SVG&delayStartupUntil=configured',  // eslint-disable-line max-len
