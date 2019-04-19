@@ -24,11 +24,14 @@ from openedx.features.course_experience.course_tools import HttpMethod
 
 <%block name="content">
 <div class="course-view page-content-container" id="course-container">
+    % if not enable_new_carousel_view:
     <header class="page-header has-secondary">
         <div class="page-header-main">
-            <nav aria-label="${_('Course Outline')}" class="sr-is-focusable" tabindex="-1">
-                <h2 class="hd hd-3 page-title">${course.display_name_with_default}</h2>
-            </nav>
+
+                <nav aria-label="${_('Course Outline')}" class="sr-is-focusable" tabindex="-1">
+                    <h2 class="hd hd-3 page-title">${course.display_name_with_default}</h2>
+                </nav>
+
         </div>
         <div class="page-header-secondary">
             % if show_search:
@@ -48,19 +51,22 @@ from openedx.features.course_experience.course_tools import HttpMethod
                     </form>
                 </div>
             % endif
-            <div class="form-actions">
-                % if resume_course_url:
-                    <a class="btn btn-primary action-resume-course" href="${resume_course_url}">
-                        % if has_visited_course:
-                            <span data-action-type="resume">${_("Resume Course")}</span>
-                        % else:
-                            <span data-action-type="start">${_("Start Course")}</span>
-                        % endif
-                    </a>
-                % endif
-            </div>
+            % if not enable_new_carousel_view:
+                <div class="form-actions">
+                    % if resume_course_url:
+                        <a class="btn btn-primary action-resume-course" href="${resume_course_url}">
+                            % if has_visited_course:
+                                <span data-action-type="resume">${_("Resume Course")}</span>
+                            % else:
+                                <span data-action-type="start">${_("Start Course")}</span>
+                            % endif
+                        </a>
+                    % endif
+                </div>
+            % endif
         </div>
     </header>
+     % endif
     <div class="page-content">
         <div class="page-content-main">
             % if next_up_banner_fragment:
@@ -86,7 +92,8 @@ from openedx.features.course_experience.course_tools import HttpMethod
                 ${HTML(outline_fragment.body_html())}
             % endif
         </div>
-        <aside class="page-content-secondary course-sidebar">
+         % if not enable_new_carousel_view:
+            <aside class="page-content-secondary course-sidebar">
             % if has_goal_permission:
                 <div class="section section-goals ${'' if current_goal else 'hidden'}">
                     <div class="current-goal-container">
@@ -135,6 +142,14 @@ from openedx.features.course_experience.course_tools import HttpMethod
                                 % endif
                             </li>
                         % endfor
+                        % if enable_new_carousel_view:
+                            <li class="course-tool">
+                                <a class="course-tool-link" href="${resume_course_url}">
+                                    <span class="icon fa fa-undo" aria-hidden="true"></span>
+                                    ${_("Last Visited")}
+                                </a>
+                            </li>
+                        % endif
                     </ul>
                 </div>
             % endif
@@ -168,6 +183,7 @@ from openedx.features.course_experience.course_tools import HttpMethod
                 </div>
             % endif
         </aside>
+         % endif
     </div>
     % if course_sock_fragment:
         ${HTML(course_sock_fragment.body_html())}

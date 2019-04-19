@@ -84,6 +84,7 @@ from lms.djangoapps.courseware.permissions import (
 )
 from lms.djangoapps.courseware.url_helpers import get_redirect_url
 from lms.djangoapps.courseware.user_state_client import DjangoXBlockUserStateClient
+from lms.djangoapps.courseware.extended_progress import progress_main_page, progress_skills_page, progress_grades_page
 from lms.djangoapps.courseware.utils import get_block_children, CREDO_GRADED_ITEM_CATEGORIES,\
     get_answer_and_correctness, get_score_points
 from lms.djangoapps.experiments.utils import get_experiment_user_metadata_context
@@ -1138,6 +1139,16 @@ def _progress(request, course_key, student_id, display_in_frame=False):
         except ValueError:
             raise Http404
 
+    is_frame = request.GET.get('frame')
+    if is_frame:
+        try:
+            is_frame = int(is_frame)
+            is_frame = is_frame == 1
+        except ValueError:
+            is_frame = None
+    if not is_frame:
+        is_frame = display_in_frame
+
     course = get_course_with_access(request.user, 'load', course_key)
 
     staff_access = bool(has_access(request.user, 'staff', course))
@@ -1172,6 +1183,17 @@ def _progress(request, course_key, student_id, display_in_frame=False):
         # refetch the course as the assumed student
         course = get_course_with_access(student, 'load', course_key, check_if_enrolled=True)
 
+    enable_extended_progress_page = False
+    try:
+        org = Organization.objects.get(org=course_key.org)
+        if org.org_type is not None:
+            enable_extended_progress_page = org.org_type.enable_extended_progress_page
+    except Organization.DoesNotExist:
+        pass
+
+    if enable_extended_progress_page:
+        return _extended_progress_page(request, course, student)
+
     # NOTE: To make sure impersonation by instructor works, use
     # student instead of request.user in the rest of the function.
 
@@ -1196,7 +1218,8 @@ def _progress(request, course_key, student_id, display_in_frame=False):
         'student': student,
         'credit_course_requirements': _credit_course_requirements(course_key, student),
         'course_expiration_fragment': course_expiration_fragment,
-        'certificate_data': _get_cert_data(student, course, enrollment_mode, course_grade)
+        'certificate_data': _get_cert_data(student, course, enrollment_mode, course_grade),
+        'is_frame': is_frame
     }
 
     context.update(
@@ -1206,10 +1229,73 @@ def _progress(request, course_key, student_id, display_in_frame=False):
         )
     )
 
-    with outer_atomic():
+    if is_frame:
+        context.update({
+            'allow_iframing': True,
+            'disable_accordion': True,
+            'disable_header': True,
+            'disable_footer': True,
+            'disable_window_wrap': True,
+            'disable_tabs': True
+        })
         response = render_to_response('courseware/progress.html', context)
+    else:
+        with outer_atomic():
+            response = render_to_response('courseware/progress.html', context)
+
 
     return response
+
+
+def _extended_progress_page(request, course, student, student_id=None, is_frame=False):
+    page = request.GET.get('page')
+
+    with modulestore().bulk_operations(course.id):
+        if page is None or page == 'progress':
+            page_context = progress_main_page(request, course, student)
+            tpl_name = 'extended_progress.html'
+        elif page == 'skills':
+            page_context = progress_skills_page(request, course, student)
+            tpl_name = 'extended_progress_skills.html'
+        elif page == 'grades':
+            page_context = progress_grades_page(request, course, student)
+            tpl_name = 'extended_progress_assessments.html'
+        else:
+            raise Http404
+
+    student_name = student.first_name + ' ' + student.last_name
+    student_name = student_name.strip()
+    if student_name:
+        student_name = student_name + ' (' + student.email + ')'
+    else:
+        student_name = student.email
+
+    context = {
+        'course': course,
+        'student_id': student.id,
+        'student': student,
+        'student_name': student_name,
+        'current_url': reverse('progress', kwargs={'course_id': course.id}) if student_id is None else reverse(
+            'student_progress', kwargs={'course_id': course.id, 'student_id': student_id}),
+        'current_url_additional_params': 'frame=1' if is_frame else ''
+    }
+    context.update(page_context)
+    if is_frame:
+        context.update({
+            'allow_iframing': True,
+            'disable_accordion': True,
+            'disable_header': True,
+            'disable_footer': True,
+            'disable_window_wrap': True,
+            'disable_tabs': True
+        })
+    context.update(
+        get_experiment_user_metadata_context(
+            course,
+            student,
+        )
+    )
+    return render_to_response('courseware/' + tpl_name, context)
 
 
 def _downloadable_certificate_message(course, cert_downloadable_status):
@@ -1676,6 +1762,24 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookma
         )
 
         student_view_context = request.GET.dict()
+        student_view_context['show_bookmark_button'] = False
+        student_view_context['enable_new_carousel_view'] = False
+        student_view_context['lms_url_to_get_grades'] = reverse('block_student_progress',
+                                                                kwargs={'course_id': str(course_key),
+                                                                        'usage_id': str(usage_key_string)})
+        student_view_context['lms_url_to_email_grades'] = reverse('email_student_progress',
+                                                                  kwargs={'course_id': str(course_key),
+                                                                          'usage_id': str(usage_key_string)})
+        student_view_context['show_summary_info_after_quiz'] = course.show_summary_info_after_quiz
+        student_view_context['summary_info_imgs'] = get_student_progress_images()
+
+        try:
+            org = Organization.objects.get(org=course.org)
+            if org.org_type is not None:
+                student_view_context['enable_new_carousel_view'] = org.org_type.enable_new_carousel_view
+        except Organization.DoesNotExist:
+            pass
+
         if show_bookmark_button is not None:
             student_view_context['show_bookmark_button'] = show_bookmark_button
         else:

@@ -35,6 +35,7 @@ from openedx.features.discounts.utils import get_first_purchase_offer_banner_fra
 from openedx.features.discounts.utils import format_strikeout_price
 from student.models import CourseEnrollment
 from util.views import ensure_valid_course_key
+from credo_modules.models import Organization
 from xmodule.course_module import COURSE_VISIBILITY_PUBLIC, COURSE_VISIBILITY_PUBLIC_OUTLINE
 
 from .. import (
@@ -124,6 +125,11 @@ class CourseHomeFragmentView(EdxFragmentView):
         """
         course_key = CourseKey.from_string(course_id)
         course = get_course_with_access(request.user, 'load', course_key)
+
+        try:
+            org = Organization.objects.get(org=course.org)
+        except Organization.DoesNotExist:
+            org = None
 
         # Render the course dates as a fragment
         dates_fragment = CourseDatesFragmentView().render_to_fragment(request, course_id=course_id, **kwargs)
@@ -264,6 +270,7 @@ class CourseHomeFragmentView(EdxFragmentView):
             'upgrade_url': upgrade_url,
             'has_discount': has_discount,
             'show_search': show_search,
+            'enable_new_carousel_view': org and org.is_carousel_view,
         }
         html = render_to_string('course_experience/course-home-fragment.html', context)
         return Fragment(html)

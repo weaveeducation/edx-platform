@@ -1022,6 +1022,45 @@ class CourseFields(object):
         ),
         scope=Scope.settings
     )
+    allow_anonymous_access = Boolean(
+        display_name=_("Allow Anonymous Access"),
+        help=_(
+            "Allow anonymous access."
+        ),
+        default=False,
+        scope=Scope.settings
+    )
+    credo_authentication = Boolean(
+        display_name=_("IP Authentication"),
+        help=_(
+            "IP Authentication."
+        ),
+        default=False,
+        scope=Scope.settings
+    )
+    credo_additional_profile_fields = Dict(
+        display_name=_("IP Auth Profile Fields"),
+        help=_(
+            'IP Auth Profile Fields.'
+        ),
+        scope=Scope.settings
+    )
+    course_tab_names = Dict(
+        display_name=_("Rename default tab titles"),
+        help=_(
+            'Possible values: courseware, discussion, wiki, progress, instructor. '
+            'Example: {"courseware": "Start Here", "wiki": "Articles"}'
+        ),
+        scope=Scope.settings
+    )
+    show_summary_info_after_quiz = Boolean(
+        display_name=_("Show Summary Info after Course"),
+        help=_(
+            "Show summary information to student when he completes the course."
+        ),
+        default=False,
+        scope=Scope.settings
+    )
 
 
 class CourseModule(CourseFields, SequenceModule):  # pylint: disable=abstract-method

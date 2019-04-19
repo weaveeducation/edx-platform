@@ -44,6 +44,7 @@ from openedx.features.course_experience import (
     default_course_url_name,
     RELATIVE_DATES_FLAG,
 )
+from credo_modules.models import Organization
 from openedx.features.course_experience.urls import COURSE_HOME_VIEW_NAME
 from openedx.features.course_experience.views.course_sock import CourseSockFragmentView
 from openedx.features.enterprise_support.api import data_sharing_consent_required
@@ -78,7 +79,7 @@ from ..toggles import (
 )
 from ..url_helpers import get_microfrontend_url
 
-from .views import CourseTabView
+from .views import CourseTabView, get_student_progress_images
 
 
 log = logging.getLogger("edx.courseware.views.index")
@@ -499,6 +500,23 @@ class CoursewareIndex(View):
                 table_of_contents['previous_of_active_section'],
                 table_of_contents['next_of_active_section'],
             )
+
+            section_context['lms_url_to_get_grades'] = reverse('block_student_progress',
+                                                               kwargs={'course_id': str(self.course_key),
+                                                                       'usage_id': str(self.section.location)})
+            section_context['lms_url_to_email_grades'] = reverse('email_student_progress',
+                                                                 kwargs={'course_id': str(self.course_key),
+                                                                         'usage_id': str(self.section.location)})
+            section_context['show_summary_info_after_quiz'] = self.course.show_summary_info_after_quiz
+            section_context['enable_new_carousel_view'] = False
+            section_context['summary_info_imgs'] = get_student_progress_images()
+            try:
+                org = Organization.objects.get(org=self.course.org)
+                if org.org_type is not None:
+                    section_context['enable_new_carousel_view'] = org.org_type.enable_new_carousel_view
+            except Organization.DoesNotExist:
+                pass
+
             courseware_context['fragment'] = self.section.render(self.view, section_context)
 
             if self.section.position and self.section.has_children:

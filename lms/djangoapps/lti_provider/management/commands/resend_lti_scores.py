@@ -44,7 +44,7 @@ class Command(BaseCommand):
         """
         tasks.send_composite_outcome.delay(
             assignment.user_id,
-            unicode(assignment.course_key),
+            str(assignment.course_key),
             assignment.id,
             assignment.version_number,
         )

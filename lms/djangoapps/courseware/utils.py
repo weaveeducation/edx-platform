@@ -87,7 +87,7 @@ def can_show_verified_upgrade(user, enrollment, course=None):
 
 
 def _get_item_correctness(item):
-    id_list = item.lcp.correct_map.keys()
+    id_list = list(item.lcp.correct_map.keys())
     answer_notification_type = None
 
     if len(id_list) == 1:
