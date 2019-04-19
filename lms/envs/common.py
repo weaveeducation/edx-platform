@@ -1310,6 +1310,8 @@ MIDDLEWARE_CLASSES = [
 
     'credo_modules.middleware.RefererSaveMiddleware',
 
+    'credo_modules.middleware.CourseUsageMiddleware',
+
     'third_party_auth.middleware.SSOAuthMiddleware',
 
     # This must be last

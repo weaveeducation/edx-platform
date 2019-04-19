@@ -63,6 +63,8 @@ from ..masquerade import (
 from ..model_data import FieldDataCache
 from ..module_render import get_module_for_descriptor, toc_for_course
 from credo_modules.decorators import credo_additional_profile
+from credo_modules.models import Organization
+from courseware.courses import update_lms_course_usage
 
 log = logging.getLogger("edx.courseware.views.index")
 
@@ -179,6 +181,8 @@ class CoursewareIndex(View):
             self._reset_section_to_exam_if_required()
             self.chapter = self._find_chapter()
             self.section = self._find_section()
+
+            update_lms_course_usage(request, self.section.location, self.course_key)
 
             if self.chapter and self.section:
                 self._redirect_if_not_requested_section()
