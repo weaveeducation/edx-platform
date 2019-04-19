@@ -12,6 +12,7 @@
   .course-tabs {
     padding: 0;
     font-size: $font-size-sm;
+    overflow-x: scroll;
     overflow-y: hidden;
     white-space: nowrap;
 
