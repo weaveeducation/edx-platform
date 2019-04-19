@@ -26,6 +26,9 @@
             this.goto = function(event) {
                 return Sequence.prototype.goto.apply(self, [event]);
             };
+            this.resizeHandler = function(event) {
+                return Sequence.prototype.resizeHandler.apply(self, [event]);
+            };
             this.toggleArrows = function() {
                 return Sequence.prototype.toggleArrows.apply(self);
             };
@@ -37,6 +40,9 @@
             };
             this.displayTabTooltip = function(event) {
                 return Sequence.prototype.displayTabTooltip.apply(self, [event]);
+            };
+            this.detectScroll = function(event) {
+                return Sequence.prototype.detectScroll.apply(self, [event]);
             };
             this.arrowKeys = {
                 LEFT: 37,
@@ -59,23 +65,373 @@
             this.prevUrl = this.el.data('prev-url');
             this.savePosition = this.el.data('save-position');
             this.showCompletion = this.el.data('show-completion');
+
+            this.graded = parseInt(this.el.data('graded')) === 1;
+            this.showSummaryInfoAfterQuiz = parseInt(this.el.data('show-summary-info-after-quiz')) === 1;
+            this.lmsUrlToGetGrades = this.el.data('lms-url-to-get-grades');
+            this.lmsUrlToEmailGrades = this.el.data('lms-url-to-email-grades');
+            this.scores = null;
+
+            this.scoresBarTopPosition = null;
+            this.courseNavBarMarginTop = null;
+
+            this.returnToCourseOutline = parseInt(this.el.data('return-to-course-outline')) == 1;
+            if (window.chromlessView) {
+                this.returnToCourseOutline = false;
+            }
+            this.courseId = this.el.data('course-id');
             this.keydownHandler($(element).find('#sequence-list .tab'));
             this.base_page_title = ($('title').data('base-title') || '').trim();
+            this.carouselView = false;
+            if (this.$('.sequence-nav').hasClass("sequence-nav-carousel")) {
+                this.carouselView = true;
+            }
+            this.resizeId = null;
+            this.correctIcon = this.el.data('correct-icon');
+            this.incorrectIcon = this.el.data('incorrect-icon');
+
+            this.sequenceList = $(element).find('#sequence-list');
+            this.widthElem = 170;
+            this.carouselAllItemsLength = this.num_contents * this.widthElem;
             this.bind();
-            this.render(parseInt(this.el.data('position'), 10));
+
+            var position = 0;
+            var foundBlockId = false;
+            var foundBlock = null;
+            var search = window.location.search;
+            var tmpArr = [];
+
+            if (search) {
+                var searchArr = search.substring(1).split('&');
+                for (var i = 0; i < searchArr.length; i++) {
+                    if (searchArr[i] && (searchArr[i].indexOf('activate_block_id') !== -1)) {
+                        tmpArr = searchArr[i].split('=');
+                        foundBlockId = decodeURIComponent(tmpArr[1]);
+                        foundBlock = this.link_for_by_id(foundBlockId);
+                        if (foundBlock.length > 0) {
+                            position = foundBlock.data('element');
+                        } else {
+                            foundBlockId = false;
+                        }
+                    }
+                }
+            }
+            if (!foundBlockId) {
+                position = this.el.data('position');
+            }
+
+            if (this.supportDisplayResults()) {
+                this.getQuestionsInfo();
+            }
+
+            this.render(parseInt(position, 10));
         }
+
+        Sequence.prototype.showSendScoresPanel = function() {
+            var panel = $('.scores-panel');
+            var self = this;
+            if ($(panel).hasClass('is-hidden')) {
+                $(panel).html('<div class="exam-timer">' +
+                    '<div class="exam-text">Click here to see details and email your score:' +
+                    '<button class="get-scores-btn btn btn-pl-primary" href="#get-score-modal">Get Scores</button>' +
+                    '<a href="#get-score-modal" class="get-scores-link" style="display: none;">Get Scores</a>' +
+                    '</div>' +
+                    '</div>');
+                $(panel).removeClass('is-hidden');
+                $(panel).show();
+
+                $(panel).find('.get-scores-link').leanModal({
+                    closeButton: '.close-modal',
+                    top: 50
+                });
+
+                this.scoresBarTopPosition = $(panel).position().top;
+                this.courseNavBarMarginTop = this.scoresBarTopPosition - 3;
+
+                $(panel).find('.get-scores-btn').click(function () {
+                    self.fetchAndDisplayResults();
+                    $(panel).find('.get-scores-link').trigger('click');
+                });
+
+                this._checkScroll(window, this.scoresBarTopPosition, this.courseNavBarMarginTop);
+                $(window).bind('scroll', this.detectScroll);
+            }
+        };
+
+        Sequence.prototype.changeScoresBtn = function(enable) {
+            var panel = $('.scores-panel');
+            if (enable) {
+                $(panel).find('.get-scores-btn').removeAttr('disabled').text('Get Scores');
+            } else {
+                $(panel).find('.get-scores-btn').attr('disabled', 'disabled').text('Please wait...');
+            }
+        };
+
+        Sequence.prototype.detectScroll = function(event) {
+            this._checkScroll(event.currentTarget, this.scoresBarTopPosition, this.courseNavBarMarginTop);
+        };
+
+        Sequence.prototype._checkScroll = function(target, scoresBarTopPosition, courseNavBarMarginTop) {
+            if ($(target).scrollTop() > scoresBarTopPosition) {
+                $(".scores-panel").addClass('is-fixed');
+                $(".wrapper-course-material").css('margin-top', courseNavBarMarginTop + 'px');
+            } else {
+                $(".scores-panel").removeClass('is-fixed');
+                $(".wrapper-course-material").css('margin-top', '0');
+            }
+        };
+
+        Sequence.prototype.supportDisplayResults = function() {
+            return this.graded && this.showSummaryInfoAfterQuiz;
+        };
+
+        Sequence.prototype.getQuestionsInfo = function() {
+            var self = this;
+            var showPanel = false;
+
+            $.postWithPrefix(this.lmsUrlToGetGrades, {}, function(data) {
+                if (!data.error) {
+                    if (data.items.length > 0) {
+                        $.each(data.items, function(idx, value) {
+                            if (value.correctness !== 'Not Answered') {
+                                showPanel = true;
+                            }
+                        });
+
+                        if (showPanel) {
+                            self.showSendScoresPanel();
+                        }
+                    }
+                }
+            });
+        };
+
+        Sequence.prototype.fetchAndDisplayResults = function() {
+            var self = this;
+            this.changeScoresBtn(false);
+
+            this.$('.seq-grade-details-total-score-num').html('');
+            this.$('.seq-grade-details-total-points-num').html('');
+            this.$('.seq-grade-details-quiz-name').html('');
+            this.$('.seq-grade-details-last-answer-timestamp').html('').hide();
+            this.$('.seq-grade-details-items').html('');
+
+            $.postWithPrefix(this.lmsUrlToGetGrades, {}, function(data) {
+                self.changeScoresBtn(true);
+                if ((!data.error) && (data.items.length > 0)) {
+                    self.displayResults(data);
+                }
+            });
+        };
+
+        Sequence.prototype.validateEmail = function(email) {
+            var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+            return re.test(String(email).toLowerCase());
+        };
+
+        Sequence.prototype.displayEmailError = function(msg) {
+            this.$('.email-error').show().html(msg);
+        };
+
+        Sequence.prototype.lockSendEmailBtn = function() {
+            this.$('.send-email-btn').attr('disabled', 'disabled');
+            this.$('.send-email-btn').text('Sending...');
+        };
+
+        Sequence.prototype.unlockSendEmailBtn = function() {
+            this.$('.send-email-btn').removeAttr('disabled');
+            this.$('.send-email-btn').text('Send email');
+        };
+
+        Sequence.prototype.displayResults = function(data) {
+            this.scores = data;
+
+            this.$('.email-error').hide();
+            this.$('.email-success').hide();
+
+            var self = this;
+
+            this.$('.seq-grade-details-total-score-num').html(this.scores.common.percent_graded + '%');
+            this.$('.seq-grade-details-total-points-num').html(this.scores.common.earned + '/' + this.scores.common.possible);
+
+            if (this.scores.common.last_answer_timestamp) {
+                this.$('.seq-grade-details-last-answer-timestamp').show().html('Time of the last answer: ' + moment(this.scores.common.last_answer_timestamp).format("YYYY-MM-DD HH:mm"));
+            } else {
+                this.$('.seq-grade-details-last-answer-timestamp').hide();
+            }
+
+            this.$('.seq-grade-details-quiz-name').html(this.scores.common.quiz_name);
+
+            var html = '';
+            $.each(this.scores.items, function(idx, value) {
+                var iconSrc = self.correctIcon;
+                if ((value.correctness === 'Not Answered') || (value.correctness === 'Incorrect')) {
+                    iconSrc = self.incorrectIcon;
+                }
+                html += '<div class="seq-grade-details-item-block"><table class="seq-grade-details-item-table"><tr>' +
+                        '<td class="seq-grade-details-item-block-icon"><img src="' + iconSrc + '" alt="' + value.correctness + '" title="' + value.correctness + '" width="25" height="25" /></td>' +
+                        '<td class="seq-grade-details-item-block-content">' +
+                          '<div class="seq-grade-details-item-block-content-header">' + value.parent_name + ' <span class="icon fa fa-angle-right" aria-hidden="true"></span> ' + value.display_name + '</div>';
+                if (value.last_answer_timestamp) {
+                    html += '<div class="seq-grade-details-item-block-content-text">Time of the last answer: ' +
+                            moment(value.last_answer_timestamp).format("YYYY-MM-DD HH:mm") +
+                            '</div>';
+                }
+                if (value.question_text) {
+                    html += '<div class="seq-grade-details-item-block-content-text">' + value.question_text + '</div>';
+                }
+                if (value.answer) {
+                    html += '<div class="seq-grade-details-item-block-content-header">Answer</div>';
+                    html += '<div class="seq-grade-details-item-block-content-text">' + value.answer + '</div>';
+                }
+                html += '</td>' +
+                        '<td class="seq-grade-details-item-block-points">' + value.earned + '/' + value.possible + '</td>' +
+                      '</tr></table></div>';
+            });
+            this.$('.seq-grade-details-items').html(html);
+
+            this.$('.email-assessment').val('');
+            if (this.scores.user.email) {
+                this.$('.email-assessment').val(this.scores.user.email);
+            }
+
+            this.$('.send-email-btn').unbind('click');
+            this.$('.send-email-btn').click(function(event) {
+                var btn = $(this);
+                event.preventDefault();
+
+                var val = self.$('.email-assessment').val();
+                var arr = val.split(',');
+                var emailsArr = [];
+                var isError = false;
+
+                self.$('.email-error').hide();
+                self.$('.email-success').hide();
+
+                $.each(arr, function(index, value) {
+                    if (isError) {
+                        return;
+                    }
+                    var tmp = $.trim(value);
+                    if (tmp != '') {
+                        if (!self.validateEmail(tmp)) {
+                            isError = true;
+                            self.displayEmailError('Invalid email: ' + tmp);
+                        } else {
+                            emailsArr.push(tmp);
+                        }
+                    }
+                });
+
+                if (!isError) {
+                    if (emailsArr.length > 0) {
+                        self.lockSendEmailBtn();
+
+                        var offset = new Date().getTimezoneOffset();
+
+                        $.postWithPrefix(self.lmsUrlToEmailGrades, {
+                            emails: emailsArr.join(','),
+                            timezone_offset: (-1) * offset
+                        }, function(data) {
+                            btn.removeAttr('disabled');
+                            btn.text('Email My Results');
+                            if (data.success) {
+                                self.$('.email-success').show();
+                            } else {
+                                self.displayEmailError(data.error);
+                            }
+                            self.unlockSendEmailBtn();
+                        });
+                    } else {
+                        self.displayEmailError('Please enter at least one email');
+                    }
+                }
+            });
+        };
 
         Sequence.prototype.$ = function(selector) {
             return $(selector, this.el);
         };
 
         Sequence.prototype.bind = function() {
-            this.$('#sequence-list .nav-item').click(this.goto);
+            if (this.carouselView) {
+                this.$('#sequence-list .seq-item').click(this.goto);
+                $(window).resize(this.resizeHandler);
+            } else {
+                this.$('#sequence-list .nav-item').click(this.goto);
+            }
             this.$('#sequence-list .nav-item').keypress(this.keyDownHandler);
             this.el.on('bookmark:add', this.addBookmarkIconToActiveNavItem);
             this.el.on('bookmark:remove', this.removeBookmarkIconFromActiveNavItem);
             this.$('#sequence-list .nav-item').on('focus mouseenter', this.displayTabTooltip);
             this.$('#sequence-list .nav-item').on('blur mouseleave', this.hideTabTooltip);
+        };
+
+        Sequence.prototype.changeUrl = function(blockName, blockId) {
+            blockName = blockName + ' | ' + this.base_page_title;
+            blockId = encodeURIComponent(blockId);
+
+            var pathname = window.location.pathname;
+            var search = window.location.search;
+            var newSearchArr = [];
+            newSearchArr.push('activate_block_id=' + blockId);
+            if (search) {
+                var searchArr = search.substring(1).split('&');
+                for (var i = 0; i < searchArr.length; i++) {
+                    if (searchArr[i] && (searchArr[i].indexOf('activate_block_id') === -1)) {
+                        newSearchArr.push(searchArr[i]);
+                    }
+                }
+            }
+            window.history.pushState({activate_block_id: blockId}, blockName, pathname + '?' + newSearchArr.join('&'));
+        };
+
+        Sequence.prototype.resizeHandler = function() {
+            clearTimeout(this.resizeId);
+            var self = this;
+            this.resizeId = setTimeout(function() {
+                self.highlightNewCarouselElem({
+                    position: self.position,
+                    animate: false});
+            }, 500);
+        };
+
+        Sequence.prototype.highlightNewCarouselElem = function(options) {
+            if (!this.carouselView) {
+                return;
+            }
+            var position = options.position;
+            var animate = options.animate;
+            var x = position * this.widthElem;
+            var carouselWidth = this.$('.sequence-list-wrapper').width();
+            var currentMarginLeft = 0;
+
+            if (animate) {
+                currentMarginLeft = $(this.sequenceList).css('marginLeft').slice(0, -2);
+                currentMarginLeft = (-1) * parseInt(currentMarginLeft, 10);
+            }
+
+            var len = currentMarginLeft + carouselWidth;
+            var offset = 0;
+            if (x < (currentMarginLeft + this.widthElem)) {
+                offset = currentMarginLeft - x + this.widthElem;
+                if (animate) {
+                    $(this.sequenceList).animate({marginLeft: '+=' + offset});
+                } else {
+                    $(this.sequenceList).css({marginLeft: (-1) * offset});
+                }
+            } else if (x > len) {
+                offset = x - len;
+                if (animate) {
+                    $(this.sequenceList).animate({marginLeft: '-=' + offset});
+                } else {
+                    $(this.sequenceList).css({marginLeft: (-1) * offset});
+                }
+            } else {
+                if (!animate) {
+                    $(this.sequenceList).css({marginLeft: 0});
+                }
+            }
         };
 
         Sequence.prototype.previousNav = function(focused, index) {
@@ -159,6 +515,9 @@
             var self = this;
 
             return $('.problems-wrapper').bind('contentChanged', function(event, problemId, newContentState, newState) {
+                if (self.supportDisplayResults()) {
+                    self.showSendScoresPanel();
+                }
                 return self.addToUpdatedProblems(problemId, newContentState, newState);
             });
         };
@@ -202,7 +561,7 @@
         };
 
         Sequence.prototype.updateButtonState = function(buttonClass, buttonAction, isAtBoundary, boundaryUrl) {
-            if (isAtBoundary && boundaryUrl === 'None') {
+            if (!this.returnToCourseOutline && isAtBoundary && boundaryUrl === 'None') {
                 this.disableButton(buttonClass);
             } else {
                 this.enableButton(buttonClass, buttonAction);
@@ -210,25 +569,36 @@
         };
 
         Sequence.prototype.toggleArrows = function() {
-            var isFirstTab, isLastTab, nextButtonClass, previousButtonClass;
+            var isFirstTab, isLastTab, nextButtonClass, previousButtonClass, previousCarouselButtonClass, nextCarouselButtonClass;
 
             this.$('.sequence-nav-button').unbind('click');
+            this.$('.sequence-nav-button-carousel').unbind('click');
 
             // previous button
             isFirstTab = this.position === 1;
             previousButtonClass = '.sequence-nav-button.button-previous';
             this.updateButtonState(previousButtonClass, this.selectPrevious, isFirstTab, this.prevUrl);
 
+            previousCarouselButtonClass = '.sequence-nav-button-carousel.button-previous-carousel';
+            this.updateButtonState(previousCarouselButtonClass, this.selectPrevious, isFirstTab, this.prevUrl);
+
             // next button
             // use inequality in case contents.length is 0 and position is 1.
             isLastTab = this.position >= this.contents.length;
             nextButtonClass = '.sequence-nav-button.button-next';
             this.updateButtonState(nextButtonClass, this.selectNext, isLastTab, this.nextUrl);
+
+            nextCarouselButtonClass = '.sequence-nav-button-carousel.button-next-carousel';
+            this.updateButtonState(nextCarouselButtonClass, this.selectNext, isLastTab, this.nextUrl);
         };
 
         Sequence.prototype.render = function(newPosition) {
             var bookmarked, currentTab, modxFullUrl, sequenceLinks,
                 self = this;
+            this.highlightNewCarouselElem({
+                position: newPosition,
+                animate: true
+            });
             if (this.position !== newPosition) {
                 if (this.position) {
                     this.mark_visited(this.position);
@@ -323,7 +693,13 @@
                     window.clearTimeout(window.queuePollerID);
                     delete window.queuePollerID;
                 }
+
                 this.render(newPosition);
+
+                if (!window.chromlessView) {
+                    var positionLink = this.link_for(newPosition);
+                    this.changeUrl(positionLink.data('page-title'), positionLink.data('id'));
+                }
             } else {
                 alertTemplate = gettext('Sequence error! Cannot navigate to %(tab_name)s in the current SequenceModule. Please contact the course staff.');  // eslint-disable-line max-len
                 alertText = interpolate(alertTemplate, {
@@ -360,7 +736,11 @@
             }
 
             if ((direction === 'next') && (this.position >= this.contents.length)) {
-                targetUrl = this.nextUrl;
+                if (this.returnToCourseOutline) {
+                    targetUrl = '/courses/' + this.courseId + '/course/';
+                } else {
+                    targetUrl = this.nextUrl;
+                }
             } else if ((direction === 'previous') && (this.position === 1)) {
                 targetUrl = this.prevUrl;
             }
@@ -396,7 +776,19 @@
         };
 
         Sequence.prototype.link_for = function(position) {
-            return this.$('#sequence-list .nav-item[data-element=' + position + ']');
+            if (this.carouselView) {
+                return this.$('#sequence-list .seq-item[data-element=' + position + ']');
+            } else {
+                return this.$('#sequence-list .nav-item[data-element=' + position + ']');
+            }
+        };
+
+        Sequence.prototype.link_for_by_id = function(blockId) {
+            if (this.carouselView) {
+                return this.$('#sequence-list .seq-item[data-id="' + blockId + '"]');
+            } else {
+                return this.$('#sequence-list .nav-item[data-id="' + blockId + '"]');
+            }
         };
 
         Sequence.prototype.mark_visited = function(position) {
@@ -414,12 +806,23 @@
             var completionUrl = this.ajaxUrl + '/get_completion';
             var usageKey = element[0].attributes['data-id'].value;
             var completionIndicators = element.find('.check-circle');
-            if (completionIndicators.length) {
+            var supportCompletion = element.data('support-completion');
+            if (this.carouselView) {
+                supportCompletion = parseInt(supportCompletion, 10);
+            }
+            var self = this;
+            if (completionIndicators.length || (supportCompletion === 1)) {
                 $.postWithPrefix(completionUrl, {
                     usage_key: usageKey
                 }, function(data) {
                     if (data.complete === true) {
-                        completionIndicators.removeClass('is-hidden');
+                        if (self.carouselView) {
+                            if (!$(element).hasClass('completed')) {
+                                $(element).addClass('completed');
+                            }
+                        } else {
+                            completionIndicators.removeClass('is-hidden');
+                        }
                     }
                 });
             }

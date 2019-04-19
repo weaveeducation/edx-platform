@@ -30,6 +30,7 @@ from openedx.features.course_experience.course_tools import CourseToolsPluginMan
 from openedx.features.course_duration_limits.access import generate_course_expired_fragment
 from student.models import CourseEnrollment
 from util.views import ensure_valid_course_key
+from credo_modules.models import Organization
 from xmodule.course_module import COURSE_VISIBILITY_PUBLIC_OUTLINE, COURSE_VISIBILITY_PUBLIC
 
 from .. import (
@@ -114,6 +115,11 @@ class CourseHomeFragmentView(EdxFragmentView):
         """
         course_key = CourseKey.from_string(course_id)
         course = get_course_with_access(request.user, 'load', course_key)
+
+        try:
+            org = Organization.objects.get(org=course.org)
+        except Organization.DoesNotExist:
+            org = None
 
         # Render the course dates as a fragment
         dates_fragment = CourseDatesFragmentView().render_to_fragment(request, course_id=course_id, **kwargs)
@@ -221,6 +227,7 @@ class CourseHomeFragmentView(EdxFragmentView):
             'uses_pattern_library': True,
             'upgrade_price': upgrade_price,
             'upgrade_url': upgrade_url,
+            'enable_new_carousel_view': org and org.is_carousel_view,
         }
         html = render_to_string('course_experience/course-home-fragment.html', context)
         return Fragment(html)

@@ -646,12 +646,19 @@ html.video-fullscreen {
       }
     }
 
-    .xqa-modal, .staff-modal, .history-modal {
+    .xqa-modal, .staff-modal, .history-modal, .scores-modal {
       width: 80%;
       height: 80%;
       left: left(20%);
       overflow: auto;
       display: none;
+    }
+
+    .scores-modal {
+      background: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      max-width: 1400px;
     }
 
     div.staff_info {

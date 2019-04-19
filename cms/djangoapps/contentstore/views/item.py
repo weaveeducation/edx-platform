@@ -1298,6 +1298,11 @@ def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=F
         if xblock.category == 'sequential':
             xblock_info.update({
                 'hide_after_due': xblock.hide_after_due,
+                'after_finish_return_to_course_outline': xblock.after_finish_return_to_course_outline,
+                'top_of_course_outline': xblock.top_of_course_outline,
+                'course_outline_description': xblock.course_outline_description,
+                'course_outline_button_title': xblock.course_outline_button_title,
+                'do_not_display_in_course_outline': xblock.do_not_display_in_course_outline,
             })
         elif xblock.category in ('chapter', 'course'):
             if xblock.category == 'chapter':

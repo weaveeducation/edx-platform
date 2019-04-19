@@ -1013,6 +1013,17 @@ def _progress(request, course_key, student_id):
         # refetch the course as the assumed student
         course = get_course_with_access(student, 'load', course_key, check_if_enrolled=True)
 
+    enable_extended_progress_page = False
+    try:
+        org = Organization.objects.get(org=course_key.org)
+        if org.org_type is not None:
+            enable_extended_progress_page = org.org_type.enable_extended_progress_page
+    except Organization.DoesNotExist:
+        pass
+
+    if enable_extended_progress_page:
+        return _extended_progress_page(request, course, student)
+
     # NOTE: To make sure impersonation by instructor works, use
     # student instead of request.user in the rest of the function.
 
@@ -1050,6 +1061,32 @@ def _progress(request, course_key, student_id):
         response = render_to_response('courseware/progress.html', context)
 
     return response
+
+
+def _extended_progress_page(request, course, student):
+    page = request.GET.get('page')
+    if page is None:
+        page_context = progress_main_page(request, course, student)
+        tpl_name = 'extended_progress.html'
+    elif page == 'skills':
+        page_context = progress_skills_page(request, course, student)
+        tpl_name = 'extended_progress_skills.html'
+    else:
+        raise Http404
+
+    context = {
+        'course': course,
+        'student_id': student.id,
+        'student': student
+    }
+    context.update(page_context)
+    context.update(
+        get_experiment_user_metadata_context(
+            course,
+            student,
+        )
+    )
+    return render_to_response('courseware/' + tpl_name, context)
 
 
 def _downloadable_certificate_message(course, cert_downloadable_status):
@@ -1523,6 +1560,22 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True):
 
         student_view_context = request.GET.dict()
         student_view_context['show_bookmark_button'] = False
+        student_view_context['enable_new_carousel_view'] = False
+        student_view_context['lms_url_to_get_grades'] = reverse('block_student_progress',
+                                                                kwargs={'course_id': unicode(course_key),
+                                                                        'usage_id': unicode(usage_key_string)})
+        student_view_context['lms_url_to_email_grades'] = reverse('email_student_progress',
+                                                                  kwargs={'course_id': unicode(course_key),
+                                                                          'usage_id': unicode(usage_key_string)})
+        student_view_context['show_summary_info_after_quiz'] = course.show_summary_info_after_quiz
+        student_view_context['summary_info_imgs'] = get_student_progress_images()
+
+        try:
+            org = Organization.objects.get(org=course.org)
+            if org.org_type is not None:
+                student_view_context['enable_new_carousel_view'] = org.org_type.enable_new_carousel_view
+        except Organization.DoesNotExist:
+            pass
 
         enable_completion_on_view_service = False
         completion_service = block.runtime.service(block, 'completion')

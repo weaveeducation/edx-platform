@@ -47,7 +47,7 @@ from util.views import ensure_valid_course_key
 from xmodule.modulestore.django import modulestore
 from xmodule.course_module import COURSE_VISIBILITY_PUBLIC
 from xmodule.x_module import PUBLIC_VIEW, STUDENT_VIEW
-from .views import CourseTabView
+from .views import CourseTabView, get_student_progress_images
 from ..access import has_access
 from ..courses import check_course_access, get_course_with_access, get_current_child, get_studio_url
 from ..entrance_exams import (
@@ -467,6 +467,22 @@ class CoursewareIndex(View):
                 table_of_contents['previous_of_active_section'],
                 table_of_contents['next_of_active_section'],
             )
+
+            section_context['lms_url_to_get_grades'] = reverse('block_student_progress',
+                                                               kwargs={'course_id': unicode(self.course_key),
+                                                                       'usage_id': unicode(self.section.location)})
+            section_context['lms_url_to_email_grades'] = reverse('email_student_progress',
+                                                                 kwargs={'course_id': unicode(self.course_key),
+                                                                         'usage_id': unicode(self.section.location)})
+            section_context['show_summary_info_after_quiz'] = self.course.show_summary_info_after_quiz
+            section_context['enable_new_carousel_view'] = False
+            section_context['summary_info_imgs'] = get_student_progress_images()
+            try:
+                org = Organization.objects.get(org=self.course.org)
+                if org.org_type is not None:
+                    section_context['enable_new_carousel_view'] = org.org_type.enable_new_carousel_view
+            except Organization.DoesNotExist:
+                pass
 
             courseware_context['fragment'] = self.section.render(self.view, section_context)
 

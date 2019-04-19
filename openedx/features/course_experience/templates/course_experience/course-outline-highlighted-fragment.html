@@ -1,0 +1,143 @@
+## mako
+
+<%page expression_filter="h"/>
+<%namespace name='static' file='../static_content.html'/>
+
+<%!
+from django.utils.translation import ugettext as _
+%>
+
+<style>
+   .page-content-main, .welcome-message {
+      flex-grow: 0 !important;
+    }
+
+   .page-content-main {
+       width: 100%;
+   }
+
+   .page-content {
+       padding-top: 0px !important;
+   }
+
+    a.course-tool-link {
+      height: 49px;
+      width: 16px;
+      color: #85C9C3;
+      font-size: 18px;
+      line-height: 32px;
+    }
+
+    .content-wrapper {
+        padding-left: 0px !important;
+        padding-right: 0px !important;
+    }
+
+</style>
+
+<script type="text/javascript" src="/static/bundles/CourseOutline.js" ></script>
+
+<div id="course_outline" class="course-outline-container new-course-outline">
+    <div class="center-content">
+        % for block in highlighted_blocks:
+            <div class="tile-container">
+                <div class="tile-body">
+                    <div class="icon-lable">
+                        <div class="row justify-content-between">
+                            <div class="col-8">
+                                <div class="tile-title">${ block['display_name'] }</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="status-lable ${ block['status'] }-label" onclick="location.href='${ block['jump_to'] }'">
+                                    <div class="status-title">${ block['status_title'] }</div>
+                                </div>
+                                <div class="label-shadow"> </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="take-the-pre-program-survey-to">
+                        ${ block['desc'] }
+                    </div>
+                    <div class="get-started" onclick="location.href='${ block['jump_to'] }'">
+                        <div class="get-started-label ellipsis-text">
+                            % if block.get('btn_title'):
+                                ${ block['btn_title'] }
+                            % else:
+                                ${ _("Get started") }
+                            % endif
+                        </div>
+                    </div>
+                    <div class="gray-footer-line"></div>
+                </div>
+            </div>
+        % endfor
+    </div>
+    <div class="outline-content center-content">
+        <div>
+        % if blocks['children']:
+            % for block in blocks['children']:
+                <div class="accordion outline-item">
+                    <div class="outline-item-head">
+                        <div class="complete-status" complete-status="${ block['complete_percent']}" style="position: relative;display: flex;">
+                            % if block['complete_percent'] == 100:
+                                <div class="all-completed"><span class="icon fa fa-check outline-check-status" aria-hidden="true"></span></div>
+                            % else:
+                                <div class="percent-status">${ block['complete_percent'] }%</div>
+                            % endif
+                                <svg class="progress-ring" width="50" height="50">
+                                    <circle
+                                        class="progress-ring-base"
+                                        stroke="#9EB19C"
+                                        stroke-width="2"
+                                        fill="transparent"
+                                        r="22"
+                                        cx="25"
+                                        cy="25"/>
+
+                                    <circle
+                                        class="progress-ring__circle"
+                                        stroke="#FBE295"
+                                        stroke-width="3"
+                                        fill="transparent"
+                                        r="22"
+                                        cx="25"
+                                        cy="25"/>
+                                </svg>
+                            </div>
+                        <div class="outline-item-title">
+                            <div class="outline-item-display-name">${ block['display_name'] }</div>
+                            <div class="outline-num-chapters">${ block['num_completed'] } of ${ block['num_children'] } chapters completed</div>
+                        </div>
+                        <div class="outline-item-expand">
+                            <button class="section-name accordion-trigger" id="${ block['id'] }" aria-expanded="true"
+                                    aria-controls="${ block['id'] }_contents">
+                                <span class="fa fa-chevron-down" aria-hidden="false"></span>
+                                <h3 class="section-title"></h3>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="children-list" id="${ block['id'] }_contents">
+                        <ul class="list-unstyled">
+                            % for child in block.get('children', []):
+                                <li><div class="child-item" onclick="location.href='${ child['jump_to'] }'">
+                                        <div class="${'{} {}'.format('child-item-flag', 'item-complete-flag' if child['complete_status'] == 'finished' else '')}">
+                                            <span class="fa fa-circle"></span>
+                                        </div>
+                                        <div class="child-item-name ellipsis-text">${ child['display_name'] }</div>
+                                        <div class="child-item-follow"><span class="fa fa-chevron-right" aria-hidden="false"></span></div>
+                                    </div>
+                                </li>
+                            % endfor
+                        </ul>
+                    </div>
+                </div>
+            % endfor
+        % endif
+        </div>
+    </div>
+</div>
+
+<%static:webpack entry="CourseOutline">
+    new CourseOutline();
+</%static:webpack>

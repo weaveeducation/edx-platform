@@ -1,0 +1,291 @@
+<%namespace name='static' file='/static_content.html'/>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>${section_display_name} | Lesson Completion</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+body, table, td, div, span {
+    font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif;
+}
+body {
+    padding: 0;
+    margin: 0 auto;
+    line-height: 1.6;
+    color: #313131;
+    font-size: 15px;
+    word-break: break-word;
+}
+a, a:hover, a:visited {
+    color: #87B6D7;
+}
+.main {
+    margin: auto;
+    max-width: 800px;
+}
+.separator {
+    border: 1px solid #d9d9d9;
+}
+.seq-table {
+    width: 100%;
+    border: 0;
+}
+.seq-table-total {
+    width: 350px;
+    border: 0;
+}
+.seq-header {
+    background-color: #66627C;
+    padding: 10px;
+    color: #ffffff;
+}
+.seq-header-icon {
+    width: 90px;
+    vertical-align: middle;
+    text-align: center;
+}
+.seq-header-text {
+    line-height: 1.5;
+    vertical-align: middle;
+    padding-left: 10px;
+}
+.seq-header-breadcrumbs {
+    line-height: 1.5;
+}
+.seq-header-breadcrumbs-item-last {
+    font-size: 26px;
+}
+.seq-header-user {
+    padding-top: 5px;
+}
+.seq-img {
+    max-width: 100%;
+    vertical-align: middle;
+    border: 0;
+}
+.seq-lesson-completion, .seq-grade-details {
+    padding-left: 10px;
+    padding-right: 10px;
+}
+.seq-finish-icon {
+    width: 20%;
+    vertical-align: top;
+}
+.seq-finish-text {
+    padding-left: 20px;
+}
+.seq-finish-text-header {
+    font-size: 18px;
+    font-weight: bold;
+    color: #8E8E8E;
+}
+.seq-finish-text-congratulations {
+    line-height: 2;
+    padding-top: 5px;
+}
+.seq-grade-details-questions {
+    vertical-align: top;
+}
+.seq-grade-details-total-score, .seq-grade-details-total-points {
+    text-align: center;
+    padding: 15px;
+}
+.seq-grade-details-total-score-num, .seq-grade-details-total-points-num {
+    font-size: 34px;
+    color: #A5A5A5;
+}
+.seq-grade-details-total-score-text, .seq-grade-details-total-points-text {
+    color: #85C9C3;
+    font-size: 18px;
+    font-weight: bold;
+}
+.seq-grade-details-item-block {
+    padding: 10px;
+    border: 1px solid #d9d9d9;
+    border-radius: 3px;
+}
+.seq-grade-details-item-block-icon,
+.seq-grade-details-item-block-content,
+.seq-grade-details-item-block-points {
+    vertical-align: top;
+}
+.seq-grade-details-item-block-icon {
+    width: 25px;
+}
+.seq-grade-details-item-block-content {
+    padding-left: 10px;
+}
+.seq-grade-details-item-block-content-header {
+    font-weight: 600;
+    padding-bottom: 4px;
+}
+.seq-grade-details-item-block-content-text {
+    font-size: 13px;
+    line-height: 1.5;
+    padding-bottom: 4px;
+}
+.seq-grade-details-item-block-points {
+    text-align: right;
+    font-weight: 600;
+    width: 50px;
+}
+.seq-footer {
+    color: #767676;
+    font-size: 11px;
+    text-align: center;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+</style>
+</head>
+<body>
+<!--[if mso]>
+<center><table cellpadding="0" cellspacing="0"><tr><td width="800">
+<![endif]-->
+<div class="main">
+    <table class="seq-table seq-header" cellpadding="0" cellspacing="0">
+        <tr>
+            <td class="seq-header-icon">
+                % if use_static:
+                <img class="seq-img" src="${lms_url}${static.url('images/credo/credo-logo-small.png')}" />
+                % else:
+                <img class="seq-img" src="cid:credo-logo.png" />
+                % endif
+            </td>
+            <td class="seq-header-text">
+<div class="seq-header-breadcrumbs">\
+% for b_item in breadcrumbs:
+    % if breadcrumbs_len == loop.index:
+<br /><span class="seq-header-breadcrumbs-item-last">${b_item}</span>\
+    % else:
+${b_item}&nbsp;&nbsp;&rsaquo;&nbsp;&nbsp;\
+    % endif
+% endfor
+% if scores['user']['full_name'] or scores['common']['browser_datetime_short']:
+<br /><div class="seq-header-user">\
+% if scores['user']['full_name']:
+${scores['user']['full_name']} | \
+% endif
+% if scores['common']['browser_datetime_short']:
+${scores['common']['browser_datetime_short']}\
+% endif
+</div>
+% endif
+</div>
+            </td>
+        </tr>
+    </table>
+    <br />
+    <div class="seq-grade-block">
+        <div class="seq-main-block">
+            <div class="seq-lesson-completion">
+                <table class="seq-table" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td class="seq-finish-icon">
+                            % if use_static:
+                            <img class="seq-img" src="${lms_url}${static.url('images/credo/assessment_done_small.png')}" />
+                            % else:
+                            <img class="seq-img" src="cid:assessment_done_small.png" />
+                            % endif
+                        </td>
+                        <td class="seq-finish-text">
+                            <div class="seq-finish-text-congratulations"><span class="seq-finish-text-header">Hello!</span><br />This email contains the scores received by the learner named above. If you have any questions about the information contained in this report, please contact your instructor and/or librarian. Please do not reply directly to this email, as it is sent from an automated address.</div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <br />
+            <hr class="separator">
+            <div class="seq-grade-details">
+                <center>
+                <table class="seq-table-total" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td class="seq-grade-details-total-score">
+                            <div class="seq-grade-details-total-score-num">${scores['common']['percent_graded']}%</div>
+                            <div class="seq-grade-details-total-score-text">TOTAL SCORE</div>
+                        </td>
+                        <td class="seq-grade-details-total-points">
+                            <div class="seq-grade-details-total-points-num">${scores['common']['earned']}/${scores['common']['possible']}</div>
+                            <div class="seq-grade-details-total-points-text">POINTS</div>
+                        </td>
+                    </tr>
+                </table>
+                </center>
+                <hr class="separator">
+                <br />
+                <div class="seq-grade-details-questions">
+                    <div class="seq-grade-details-items">
+                        % for item in scores['items']:
+                        <div class="seq-grade-details-item-block">
+                            <table class="seq-table" cellpadding="0" cellspacing="0">
+                            <tr>
+                            <td class="seq-grade-details-item-block-icon">
+                                % if item['correctness'] == 'Not Answered' or item['correctness'] == 'Incorrect':
+                                % if use_static:
+                                <img src="${lms_url}${static.url('images/credo/question_incorrect.png')}" width="25" height="25">
+                                % else:
+                                <img src="cid:question_incorrect.png" width="25" height="25">
+                                % endif
+                                % else:
+                                % if use_static:
+                                <img src="${lms_url}${static.url('images/credo/question_correct.png')}" width="25" height="25">
+                                % else:
+                                <img src="cid:question_correct.png" width="25" height="25">
+                                % endif
+                                % endif
+                            </td>
+                            <td class="seq-grade-details-item-block-content">
+                                <table class="seq-table" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td class="seq-grade-details-item-block-content-header">${item['parent_name']} &rsaquo; ${item['display_name']}</td>
+                                    </tr>
+                                % if item['browser_datetime']:
+                                    <tr>
+                                        <td class="seq-grade-details-item-block-content-text">Time of the last answer: ${item['browser_datetime']}</td>
+                                    </tr>
+                                % endif
+                                % if item['question_text']:
+                                    <tr>
+                                        <td class="seq-grade-details-item-block-content-text"> ${item['question_text']}</td>
+                                    </tr>
+                                % endif
+                                % if item['answer']:
+                                    <tr>
+                                        <td class="seq-grade-details-item-block-content-header">Answer</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="seq-grade-details-item-block-content-text"> ${item['answer']}</td>
+                                    </tr>
+                                % endif
+                                </table>
+                            </td>
+                            <td class="seq-grade-details-item-block-points">${item['earned']}/${item['possible']}</td>
+                            </tr>
+                            </table>
+                        </div>
+                        <div style="font-size: 8px">&nbsp;</div>
+                        % endfor
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <hr class="separator">
+    <div class="seq-footer">
+        <br />
+        <div>Privacy Information:<br />This email has only been sent to addresses provided by the user listed above. If you are receiving this email, a user has provided your email address to Credo as a recipient.</div>
+        <br />
+        <div>Credo protects the privacy of our Licensees' student education records in conformance with the Family Educational Rights and Privacy Act ("FERPA"), where FERPA is applicable. Please review our <a href="${privacy_url}">Privacy documentation</a>.</div>
+        <br />
+        <div>
+            <a href="http://www.credoeducation.com/">About Credo Education</a> | <a href="${privacy_url}">Privacy Policy</a>
+        </div>
+        <div>© ${current_year} Credo Courseware | 50 Milk Street, 16th Floor Boston, MA 02109</div>
+    </div>
+</div>
+<!--[if mso]>
+</td></tr></table></center>
+<![endif]-->
+</body>
+</html>

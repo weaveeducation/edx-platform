@@ -74,6 +74,41 @@ class SequenceFields(object):
         scope=Scope.settings,
     )
 
+    top_of_course_outline = Boolean(
+        display_name=_("Attach at the top of the course outline"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Attach at the top of the course outline"),
+    )
+
+    course_outline_description = String(
+        display_name=_("Course outline: description"),
+        default="",
+        scope=Scope.settings,
+        help=_("Course outline: description"),
+    )
+
+    course_outline_button_title = String(
+        display_name=_("Course outline: button title"),
+        default="",
+        scope=Scope.settings,
+        help=_("Course outline: button title"),
+    )
+
+    after_finish_return_to_course_outline = Boolean(
+        display_name=_("When the section is completed return the user to the course outline"),
+        default=False,
+        scope=Scope.settings,
+        help=_("When the section is completed return the user to the course outline"),
+    )
+
+    do_not_display_in_course_outline = Boolean(
+        display_name=_("Do not display in course outline"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Do not display in course outline")
+    )
+
 
 class ProctoringFields(object):
     """
@@ -339,6 +374,9 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
                 'This section is a prerequisite. You must complete this section in order to unlock additional content.'
             )
 
+        # disable scores panel for timed and proctored exams
+        is_time_exam = getattr(self, 'is_proctored_exam', False) or getattr(self, 'is_time_limited', False)
+
         fragment = Fragment()
         items = self._render_student_view_for_items(context, display_items, fragment, view) if prereq_met else []
         params = {
@@ -353,7 +391,19 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
             'banner_text': banner_text,
             'save_position': view != PUBLIC_VIEW,
             'show_completion': view != PUBLIC_VIEW,
-            'gated_content': self._get_gated_content_info(prereq_met, prereq_meta_info)
+            'gated_content': self._get_gated_content_info(prereq_met, prereq_meta_info),
+            'enable_new_carousel_view': context.get('enable_new_carousel_view'),
+            'after_finish_return_to_course_outline': 1 if self.after_finish_return_to_course_outline else 0,
+            'course_id': str(self.course_id),
+            'graded': self.graded,
+            'lms_url_to_get_grades': context.get('lms_url_to_get_grades'),
+            'lms_url_to_email_grades': context.get('lms_url_to_email_grades'),
+            'show_summary_info_after_quiz': False if is_time_exam else context.get('show_summary_info_after_quiz', False),
+            'summary_info_imgs': context.get('summary_info_imgs', {
+                'correct_icon': '',
+                'incorrect_icon': '',
+                'assessment_done_img': ''
+            })
         }
         fragment.add_content(self.system.render_template("seq_module.html", params))
 
@@ -459,6 +509,7 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
         if is_user_authenticated:
             is_user_credo_anonymous = self.runtime.service(self, 'user').get_current_user().opt_attrs.get(
                 'edx-platform.is_credo_anonymous')
+
         display_names = [
             self.get_parent().display_name_with_default,
             self.display_name_with_default

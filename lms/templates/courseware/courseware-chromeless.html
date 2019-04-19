@@ -3,6 +3,7 @@
 <%namespace name='static' file='/static_content.html'/>
 <%!
 from django.utils.translation import ugettext as _
+from django.conf import settings
 from edxnotes.helpers import is_feature_enabled as is_edxnotes_enabled
 
 from openedx.core.djangolib.markup import HTML
@@ -63,15 +64,50 @@ if course is not None:
   	<%include file="xqa_interface.html"/>
   % endif
 
-  <script type="text/javascript">
+<script type="text/javascript">
+    window.chromlessView = true;
     var $$course_id = "${course.id | n, js_escaped_string}";
-  </script>
+
+    function inIframe() {
+        try {
+            return window.self !== window.top;
+        } catch (e) {
+            return true;
+        }
+    }
+
+    function postMessageResize() {
+        if (inIframe()) {
+            var height = document.body.offsetHeight;
+            var width = document.body.offsetWidth;
+            window.parent.postMessage("resize::" + height + ":" + width, "*");
+        }
+    }
+
+    $(".sequence-nav").click(function(event){
+        postMessageResize();
+    });
+
+    $(document).ready(function() {
+        postMessageResize();
+    });
+</script>
 
 ${HTML(fragment.foot_html())}
 
 </%block>
 
+<div class="proctored_exam_status"></div>
+<div class="scores-panel is-hidden"></div>
 <div class="course-wrapper chromeless">
+    % if include_special_exams is not UNDEFINED and include_special_exams:
+        <%static:js group='proctoring'/>
+        % for template_name in ["proctored-exam-status"]:
+            <script type="text/template" id="${template_name}-tpl">
+                <%static:include path="courseware/${template_name}.underscore" />
+            </script>
+        % endfor
+    % endif
   <section class="course-content" id="course-content"\
     % if enable_completion_on_view_service:
       data-enable-completion-on-view-service="true" \

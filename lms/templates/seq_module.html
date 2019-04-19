@@ -1,12 +1,85 @@
 <%page expression_filter="h"/>
 <%! from django.utils.translation import ugettext as _ %>
+<%! from django.utils.text import wrap %>
 
 <div id="sequence_${element_id}" class="sequence" data-id="${item_id}"
      data-position="${position}" data-ajax-url="${ajax_url}"
      data-next-url="${next_url}" data-prev-url="${prev_url}"
      data-save-position="${'true' if save_position else 'false'}"
      data-show-completion="${'true' if show_completion else 'false'}"
->
+     data-return-to-course-outline="${after_finish_return_to_course_outline}"
+     data-course-id="${course_id}"
+     data-lms-url-to-get-grades="${lms_url_to_get_grades}"
+     data-lms-url-to-email-grades="${lms_url_to_email_grades}"
+     data-graded=${"1" if graded else "0"}
+     data-show-summary-info-after-quiz=${"1" if show_summary_info_after_quiz else "0"}
+     data-correct-icon="${summary_info_imgs['correct_icon']}"
+     data-incorrect-icon="${summary_info_imgs['incorrect_icon']}">
+
+  % if graded and show_summary_info_after_quiz:
+  <div id="get-score-modal" class="modal scores-modal" tabindex="-1" role="dialog">
+    <div class="inner-wrapper">
+      <button class="close-modal">
+        <span class="icon fa fa-remove" aria-hidden="true"></span>
+        <span class="sr">${_("Close")}</span>
+      </button>
+        <div class="seq-grade-block" id="seq-grade-block">
+            <div class="seq-main-block">
+              <div class="seq-left-panel">
+                <div class="seq-lesson-completion">
+                  <div class="seq-finish-icon">
+                    <img src="${summary_info_imgs['assessment_done_img']}" />
+                  </div>
+                  <div class="seq-finish-text">
+                    <div class="seq-finish-text-header">LESSON COMPLETION</div>
+                    <div class="seq-finish-text-congratulations"><strong>Congratulations, </strong>you have now completed the assessment. You may return to the assessment to answer any un-submitted questions and obtain your score again.</div>
+                    <div class="seq-finish-text-congratulations">To email your results to yourself or your instructor, please enter the email address(es) of the recipient(s) in the box below. If there are multiple addresses please separate them with a comma.</div>
+                    <div class="seq-email">
+                      <div class="email-box">
+                        <i class="email-icon fa fa-envelope-o" aria-hidden="true"></i>
+                        <input type="text" maxlength="255" class="email-assessment"
+                               name="email-assessment" id="email-assessment" value="">
+                      </div>
+                      <div class="email-box-button"><button class="send-email-btn btn btn-pl-primary">Email My Results</button></div>
+                    </div>
+                    <div class="email-error"></div>
+                    <div class="email-success">Email was successfully sent</div>
+                  </div>
+                </div>
+                <div class="seq-grade-comment">
+                  <div class="seq-grade-description">Some instructors may require this step for you to receive credit for your work. If you are not sure, email your results to yourself, and check with your instructor.</div>
+                  <div class="seq-grade-description">Make sure to complete this step before navigating away from the quiz in your browser. If you try to re-open this page, you will not be able to return to this screen.</div>
+                  <div class="seq-grade-description">By providing these email addresses, you are granting Credo permission to share your score results on this assessment with the recipients listed.</div>
+                </div>
+                <div class="seq-grade-details">
+                  <div class="seq-grade-details-summary">
+                    <div class="seq-grade-details-total-score">
+                      <div class="seq-grade-details-total-score-num"></div>
+                      <div class="seq-grade-details-total-score-text">TOTAL SCORE</div>
+                    </div>
+                    <div class="seq-grade-details-total-points">
+                      <div class="seq-grade-details-total-points-num"></div>
+                      <div class="seq-grade-details-total-points-text">POINTS</div>
+                    </div>
+                  </div>
+                  <div class="seq-grade-details-questions">
+                    <div class="seq-grade-details-questions-title seq-grade-details-quiz-name"></div>
+                    <div class="seq-grade-details-questions-title seq-grade-details-last-answer-timestamp"></div>
+                    <div class="seq-grade-details-items"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="seq-right-panel">
+                <div class="seq-grade-description seq-grade-description-active">Some instructors may require this step for you to receive credit for your work. If you are not sure, email your results to yourself, and check with your instructor.</div>
+                <div class="seq-grade-description">Make sure to complete this step before navigating away from the quiz in your browser. If you try to re-open this page, you will not be able to return to this screen.</div>
+                <div class="seq-grade-description">By providing these email addresses, you are granting Credo permission to share your score results on this assessment with the recipients listed.</div>
+              </div>
+            </div>
+        </div>
+    </div>
+  </div>
+  % endif
+
   % if banner_text:
     <div class="pattern-library-shim alert alert-information subsection-header" tabindex="-1">
       <span class="pattern-library-shim icon alert-icon fa fa-info-circle" aria-hidden="true"></span>
@@ -19,6 +92,55 @@
     </div>
   % endif
 
+  % if enable_new_carousel_view:
+  <div class="sequence-nav sequence-nav-carousel">
+    <button class="sequence-nav-button-carousel button-previous-carousel" aria-label="Previous">
+      <span class="icon fa fa-chevron-prev" aria-hidden="true"></span>
+    </button>
+    <nav class="sequence-list-wrapper" aria-label="${_('Sequence')}">
+      <ol id="sequence-list" role="tablist">
+        % if gated_content['gated']:
+        <li>
+          <button class="active nav-item tab" title="${_('Content Locked')}" id="tab_0" role="tab" tabindex="-1" aria-selected="true" aria-expanded="true" aria-controls="content_locked" disabled>
+            <span class="icon fa fa-lock" aria-hidden="true"></span>
+          </button>
+        </li>
+        % else:
+        % for idx, item in enumerate(items):
+        <li role="presentation">
+          <div class="seq-item ${"completed" if 'complete' in item and item['complete'] else ""}"
+               aria-selected="false"
+               aria-expanded="false"
+               aria-controls="seq_content"
+               data-index="${idx}"
+               data-id="${item['id']}"
+               data-element="${idx+1}"
+               data-page-title="${item['page_title']}"
+               data-path="${item['path']}"
+               data-graded="${item['graded']}"
+               data-support-completion=${"1" if 'complete' in item else "0"}>
+            <div class="circle"><%
+              item_icon = 'fa-book'
+              if item['type'] == 'video':
+                  item_icon = 'fa-film'
+              elif item['type'] == 'problem':
+                  item_icon = 'fa-pencil-square-o'
+              elif item['type'] == 'vertical':
+                  item_icon = 'fa-tasks'
+              %><span class="icon fa ${item_icon}" aria-hidden="true"></span>
+            </div>
+            <div class="item-title">${wrap(item['page_title'], 18).replace('\n', '<br />') | n}</div>
+          </div>
+        </li>
+        % endfor
+        % endif
+      </ol>
+    </nav>
+    <button class="sequence-nav-button-carousel button-next-carousel" aria-label="Next">
+      <span class="icon fa fa-chevron-next" aria-hidden="true"></span>
+    </button>
+  </div>
+  % else:
   <div class="sequence-nav">
     <button class="sequence-nav-button button-previous">
       <span class="icon fa fa-chevron-prev" aria-hidden="true"></span>
@@ -54,8 +176,8 @@
             id="tab_${idx}">
             <span class="icon fa seq_${item['type']}" aria-hidden="true"></span>
             % if 'complete' in item:
-              <span 
-                class="fa fa-check-circle check-circle ${"is-hidden" if not item['complete'] else ""}" 
+              <span
+                class="fa fa-check-circle check-circle ${"is-hidden" if not item['complete'] else ""}"
                 style="color:green"
                 aria-hidden="true"
               ></span>
@@ -69,6 +191,8 @@
       </ol>
     </nav>
   </div>
+  % endif
+
   % if gated_content['gated']:
     <%include file="_gated_content.html" args="prereq_url=gated_content['prereq_url'], prereq_section_name=gated_content['prereq_section_name'], gated_section_name=gated_content['gated_section_name']"/>
   % else:

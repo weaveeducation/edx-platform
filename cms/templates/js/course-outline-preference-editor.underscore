@@ -1,0 +1,52 @@
+<form>
+    <h3 class="modal-section-title"><%- gettext('Extended settings') %></h3>
+    <div class="modal-section-content has-actions">
+        <div class="list-fields list-input" style="width: 100%" role="group" aria-label="<%- gettext('Extended settings') %>">
+            <label class="label">
+                <input type="checkbox" name="after_finish_return_to_course_outline" value="1" class="input input-checkbox" />
+                <%- gettext('When the section is completed return the user to the course outline') %>
+            </label>
+        </div>
+    </div>
+    <br />
+    <h3 class="modal-section-title"><%- gettext('Configure Course Outline') %></h3>
+    <div class="modal-section-content has-actions">
+        <div class="list-fields list-input" style="width: 100%" role="group" aria-label="<%- gettext('Configure Course Outline') %>">
+            <label class="label no-descriptive-text">
+                <input type="radio" name="attach_at_the_top" value="no" class="input input-radio attach_at_the_top" />
+                <%- gettext('Disable') %>
+            </label>
+            <label class="label">
+                <input type="radio" name="attach_at_the_top" value="yes" class="input input-radio attach_at_the_top" />
+                <%- gettext('Enable') %>
+            </label>
+            <br />
+            <br />
+            <div class="attach_at_the_top_settings" style="display: none">
+                <div class="field field-text" style="width: 100%">
+                    <label class="label">
+                        <%- gettext('Description:') %>
+                        <textarea name="course_outline_description" class="input input-text" value="" rows="7"></textarea>
+                    </label>
+                </div>
+                <br />
+                <div class="field field-text" style="width: 100%">
+                    <label class="label">
+                        <%- gettext('Button title:') %>
+                        <input type="text" name="course_outline_button_title" value="" class="input input-text" autocomplete="off" />
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <br />
+    <h3 class="modal-section-title"><%- gettext('Course Outline settings') %></h3>
+    <div class="modal-section-content has-actions">
+        <div class="list-fields list-input" style="width: 100%" role="group" aria-label="<%- gettext('Display settings') %>">
+            <label class="label">
+                <input type="checkbox" name="do_not_display_in_course_outline" value="1" class="input input-checkbox" />
+                <%- gettext('Do not display in course outline') %>
+            </label>
+        </div>
+    </div>
+</form>
