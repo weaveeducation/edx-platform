@@ -190,7 +190,7 @@ class LoncapaProblem(object):
             tree_first_elem_children = tree_first_elem.getchildren()
             if len(tree_first_elem_children) > 0:
                 partial_credit = tree_first_elem_children[0].get('partial_credit')
-                if partial_credit == 'no':
+                if partial_credit == 'false':
                     self.disable_partial_credit = True
 
         # handle any <include file="foo"> tags
