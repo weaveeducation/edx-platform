@@ -2,6 +2,17 @@
   /* top menu */
 
   margin-top: 0 !important;
+  padding-left: 0px !important;
+  padding-right: 0px !important;
+
+  .page-content {
+    padding-top: 0px !important;
+
+    .page-content-main {
+      width: 100%;
+    }
+
+  }
 
   .wrapper-course-material {
     .course-material {
@@ -748,6 +759,10 @@
     }
   }
 
+}
+
+.welcome-message {
+  flex-grow: 0 !important;
 }
 
 .outline-main-title {

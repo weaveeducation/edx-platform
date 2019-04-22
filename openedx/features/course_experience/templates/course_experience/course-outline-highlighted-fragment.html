@@ -7,36 +7,6 @@
 from django.utils.translation import ugettext as _
 %>
 
-<style>
-   .page-content-main, .welcome-message {
-      flex-grow: 0 !important;
-    }
-
-   .page-content-main {
-       width: 100%;
-   }
-
-   .page-content {
-       padding-top: 0px !important;
-   }
-
-    a.course-tool-link {
-      height: 49px;
-      width: 16px;
-      color: #85C9C3;
-      font-size: 18px;
-      line-height: 32px;
-    }
-
-    .content-wrapper {
-        padding-left: 0px !important;
-        padding-right: 0px !important;
-    }
-
-</style>
-
-<script type="text/javascript" src="/static/bundles/CourseOutline.js" ></script>
-
 <div id="course_outline" class="course-outline-container new-course-outline">
     <div class="center-content">
         % for block in highlighted_blocks:
