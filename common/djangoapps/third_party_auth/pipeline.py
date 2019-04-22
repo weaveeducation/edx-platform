@@ -673,18 +673,17 @@ def associate_by_email_if_login_api(auth_entry, backend, details, user, current_
 
     This association is done ONLY if the user entered the pipeline through a LOGIN API.
     """
-    if auth_entry == AUTH_ENTRY_LOGIN_API:
-        association_response = associate_by_email(backend, details, user, *args, **kwargs)
-        if (
-            association_response and
-            association_response.get('user') and
-            association_response['user'].is_active
-        ):
-            # Only return the user matched by email if their email has been activated.
-            # Otherwise, an illegitimate user can create an account with another user's
-            # email address and the legitimate user would now login to the illegitimate
-            # account.
-            return association_response
+    association_response = associate_by_email(backend, details, user, *args, **kwargs)
+    if (
+        association_response and
+        association_response.get('user') and
+        association_response['user'].is_active
+    ):
+        # Only return the user matched by email if their email has been activated.
+        # Otherwise, an illegitimate user can create an account with another user's
+        # email address and the legitimate user would now login to the illegitimate
+        # account.
+        return association_response
 
 
 def user_details_force_sync(auth_entry, strategy, details, user=None, *args, **kwargs):
