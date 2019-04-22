@@ -1576,3 +1576,4 @@ plugin_settings.add_plugins(__name__, plugin_constants.ProjectType.CMS, plugin_c
 COURSE_EXPORT_DOWNLOAD_CHUNK_SIZE = 8192
 
 XQUEUE_WAITTIME_BETWEEN_REQUESTS = 5  # seconds
+GENERATE_PROFILE_SCORES = False
