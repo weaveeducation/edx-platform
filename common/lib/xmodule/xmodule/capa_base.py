@@ -782,6 +782,10 @@ class CapaMixin(ScorableXBlockMixin, CapaFields):
                         # Correct and incorrect, Correct and partially correct, or Incorrect and partially correct
                         # which all should have a message type of Partially Correct
                         answer_notification_type = 'partially-correct'
+                        if self.lcp.disable_partial_credit:
+                            answer_notification_type = 'incorrect'
+                        else:
+                            answer_notification_type = 'partially-correct'
                         break
 
             # Build the notification message based on the notification type and translate it.
@@ -1679,4 +1683,7 @@ class CapaMixin(ScorableXBlockMixin, CapaFields):
         currently stored by the LCP.
         """
         lcp_score = self.lcp.calculate_score()
-        return Score(raw_earned=lcp_score['score'], raw_possible=lcp_score['total'])
+        if self.lcp.disable_partial_credit and lcp_score['score'] != lcp_score['total']:
+            return Score(raw_earned=0, raw_possible=lcp_score['total'])
+        else:
+            return Score(raw_earned=lcp_score['score'], raw_possible=lcp_score['total'])

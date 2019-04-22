@@ -183,6 +183,16 @@ class LoncapaProblem(object):
 
         self.make_xml_compatible(self.tree)
 
+        self.disable_partial_credit = False
+        tree_elems = self.tree.xpath('.')
+        if len(tree_elems) > 0:
+            tree_first_elem = self.tree.xpath('.')[0]
+            tree_first_elem_children = tree_first_elem.getchildren()
+            if len(tree_first_elem_children) > 0:
+                partial_credit = tree_first_elem_children[0].get('partial_credit')
+                if partial_credit == 'no':
+                    self.disable_partial_credit = True
+
         # handle any <include file="foo"> tags
         self._process_includes()
 
