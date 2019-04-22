@@ -2152,8 +2152,8 @@ class CustomResponse(LoncapaResponse):
 
         if not self.code:
             if answer is None:
-                log.error("[courseware.capa.responsetypes.customresponse] missing"
-                          " code checking script! id=%s", self.id)
+                #log.error("[courseware.capa.responsetypes.customresponse] missing"
+                #          " code checking script! id=%s", self.id)
                 self.code = ''
             else:
                 answer_src = answer.get('src')
