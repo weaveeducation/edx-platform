@@ -29,6 +29,10 @@ from openedx.core.djangolib.markup import HTML, Text
                     email=Text(static.get_tech_support_email_address())
                     )
                     )}
+                    <p>
+                        ${Text(_('If you are a student user, please screencap this error and share it with your instructor. '
+                        'If you are an admin, please see our help site or contact our support team for help.'))}
+                    </p>
                 % endif
             </%block>
         </p>
