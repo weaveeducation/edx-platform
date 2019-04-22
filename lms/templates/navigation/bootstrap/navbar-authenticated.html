@@ -7,6 +7,7 @@
 <%!
 from django.urls import reverse
 from django.utils.translation import ugettext as _
+from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous
 %>
 
 <div class="collapse navbar-collapse" id="navbarSupportedContent">
@@ -56,12 +57,15 @@ from django.utils.translation import ugettext as _
       <%
         self.real_user = getattr(user, 'real_user', user)
         is_on_profile_page = data and data.get('profile_user_id') is not None
+        credo_anonymous_user = is_user_credo_anonymous(self.real_user)
       %>
+      % if not credo_anonymous_user:
       <li class="nav-item mt-2 nav-item-open-collapsed">
         <a class="${'active ' if is_on_profile_page else ''}tab-nav-link" href="${reverse('learner_profile', args=[self.real_user.username])}">
           ${_("Profile")}
         </a>
       </li>
+      % endif
     % endif
 
     % if settings.FEATURES.get('ENABLE_SYSADMIN_DASHBOARD','') and user.is_staff:
