@@ -64,7 +64,7 @@ class SSOAuthMiddleware(object):
 
     def _check_sso_cookie_and_enroll(self, request):
         course_key = request.COOKIES.get(self.sso_auto_enroll_cookie, None)
-        if course_key and request.user.is_authenticated():
+        if course_key and request.user.is_authenticated:
             course_key_to_enroll = CourseKey.from_string(course_key)
             course_key_from_url = course_id_from_url(request.path)
             if course_key_to_enroll == course_key_from_url:
@@ -75,7 +75,7 @@ class SSOAuthMiddleware(object):
     def _remove_sso_cookie(self, request, response):
         course_key = request.COOKIES.get(self.sso_auto_enroll_cookie, None)
         course_key_from_url = course_id_from_url(request.path)
-        if course_key and course_key_from_url and request.user.is_authenticated():
+        if course_key and course_key_from_url and request.user.is_authenticated:
             response.delete_cookie(self.sso_auto_enroll_cookie)
 
     def process_request(self, request):
@@ -83,7 +83,7 @@ class SSOAuthMiddleware(object):
             return None
 
         sso_login_as = request.GET.get('sso-login-as', None)
-        if sso_login_as and not request.user.is_authenticated():
+        if sso_login_as and not request.user.is_authenticated:
             for enabled in third_party_auth.provider.Registry.displayed_for_login():
                 if enabled.provider_id == sso_login_as:
                     login_url = pipeline.get_login_url(

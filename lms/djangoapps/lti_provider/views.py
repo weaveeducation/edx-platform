@@ -148,7 +148,7 @@ def lti_launch(request, course_id, usage_id):
             lti_params[lti_keys[key]] = params[key]
     authenticate_lti_user(request, params['user_id'], lti_consumer, lti_params)
 
-    if request.user.is_authenticated():
+    if request.user.is_authenticated:
         roles = params.get('roles', None) if lti_consumer.allow_to_add_instructors_via_lti else None
         enroll_result = enroll_user_to_course(request.user, course_key, roles)
         if enroll_result:

@@ -52,7 +52,7 @@ class CourseUsageMiddleware(object):
         path = request.path
         path_data = path.split('/')
 
-        if hasattr(request, 'user') and request.user.is_authenticated() and len(path_data) > 2:
+        if hasattr(request, 'user') and request.user.is_authenticated and len(path_data) > 2:
             course_id = None
             if path_data[1] == 'lti_provider':
                 if len(path_data) > 3:

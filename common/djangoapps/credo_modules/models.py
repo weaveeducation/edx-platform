@@ -277,7 +277,7 @@ class CourseUsage(models.Model):
     @classmethod
     def update_block_usage(cls, request, course_key, block_id):
         unique_user_id = get_unique_user_id(request)
-        if unique_user_id and hasattr(request, 'user') and request.user.is_authenticated():
+        if unique_user_id and hasattr(request, 'user') and request.user.is_authenticated:
             if not isinstance(course_key, CourseKey):
                 course_key = CourseKey.from_string(course_key)
             if not isinstance(block_id, UsageKey):
@@ -551,7 +551,7 @@ def generate_new_user_id_cookie(request, user_id):
 
 def update_unique_user_id_cookie(request):
     user_id = 'anon'
-    if hasattr(request, 'user') and request.user.is_authenticated():
+    if hasattr(request, 'user') and request.user.is_authenticated:
         user_id = str(request.user.id)
 
     course_usage_cookie_id = get_unique_user_id(request)

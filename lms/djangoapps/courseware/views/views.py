@@ -1869,7 +1869,7 @@ def render_xblock_course(request, course_id, usage_key_string):
         }))
         return HttpResponse(template.render())
 
-    if not request.user.is_authenticated():
+    if not request.user.is_authenticated:
         if course.credo_authentication:
             credo_auth = validate_credo_access(request)
             if not credo_auth:
@@ -1901,7 +1901,7 @@ def cookie_check(request):
 
 @require_http_methods(["GET"])
 def launch_new_tab(request, course_id, usage_id):
-    if not request.user.is_authenticated():
+    if not request.user.is_authenticated:
         return HttpResponseForbidden('Unauthorized')
     try:
         course_key = CourseKey.from_string(course_id)
