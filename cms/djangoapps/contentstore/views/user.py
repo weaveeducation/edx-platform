@@ -8,6 +8,8 @@ from django.views.decorators.http import require_http_methods, require_POST
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import LibraryLocator
 
+from credo_modules.models import get_org_roles_types, get_all_course_staff_extended_roles,\
+    CourseStaffExtended, CustomUserRole
 from course_creators.views import user_requested_access
 from edxmako.shortcuts import render_to_response
 from student import auth
@@ -86,11 +88,37 @@ def _manage_users(request, course_key):
     for user in staff - instructors:
         formatted_users.append(user_with_role(user, 'staff'))
 
+    custom_roles = get_org_roles_types(course_key.org)
+    custom_roles_dict = {}
+    for cr in custom_roles:
+        custom_roles_dict[cr['id']] = cr['title']
+
+    extended_roles = get_all_course_staff_extended_roles(course_key)
+    for num, user in enumerate(formatted_users):
+        if user['id'] in extended_roles:
+            extended_role_id = extended_roles[user['id']]
+            formatted_users[num]['extended_role'] = extended_roles[user['id']]
+        else:
+            extended_role_id = formatted_users[num]['role']
+            formatted_users[num]['extended_role'] = formatted_users[num]['role']
+        if extended_role_id in custom_roles_dict:
+            formatted_users[num]['extended_role_title'] = custom_roles_dict[extended_role_id]
+        else:
+            CourseStaffExtended.objects.filter(
+                user_id=user['id'],
+                role_id=extended_role_id,
+                course_id=course_key
+            ).delete()
+            formatted_users[num]['extended_role_title'] = 'Staff'
+            formatted_users[num]['extended_role'] = 'staff'
+
     return render_to_response('manage_users.html', {
         'context_course': course_module,
         'show_transfer_ownership_hint': request.user in instructors and len(instructors) == 1,
         'users': formatted_users,
         'allow_actions': bool(user_perms & STUDIO_EDIT_ROLES),
+        'custom_roles': get_org_roles_types(course_key.org),
+        'is_library': '1' if isinstance(course_key, LibraryLocator) else '0'
     })
 
 
@@ -108,6 +136,8 @@ def _course_team_user(request, course_key, email):
     else:
         # This user is not even allowed to know who the authorized users are.
         return permissions_error_response
+
+    extended_role_id = None
 
     try:
         user = User.objects.get(email=email)
@@ -151,6 +181,11 @@ def _course_team_user(request, course_key, email):
         # Check that the new role was specified:
         if "role" in request.json or "role" in request.POST:
             new_role = request.json.get("role", request.POST.get("role"))
+            try:
+                extended_role_id = int(new_role)
+                new_role = 'staff'
+            except ValueError:
+                pass
         else:
             return JsonResponse({"error": _("No `role` specified.")}, 400)
 
@@ -190,5 +225,16 @@ def _course_team_user(request, course_key, email):
         # The user may be newly added to this course.
         # auto-enroll the user in the course so that "View Live" will work.
         CourseEnrollment.enroll(user, course_key)
+
+    CourseStaffExtended.objects.filter(course_id=course_key, user_id=user.id).delete()
+    if extended_role_id:
+        extended_roles = [r['id'] for r in get_org_roles_types(course_key.org)]
+        if extended_role_id in extended_roles:
+            extended_role = CustomUserRole.objects.get(id=extended_role_id)
+            CourseStaffExtended(
+                user=user,
+                course_id=course_key,
+                role=extended_role
+            ).save()
 
     return JsonResponse()

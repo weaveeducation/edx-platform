@@ -599,7 +599,16 @@ def get_custom_user_role(course_id, user, check_enrollment=True):
 
     try:
         staff_extended = CourseStaffExtended.objects.get(user=user, course_id=course_id)
-        return staff_extended.role
+        try:
+            org = Organization.objects.get(org=course_id.org)
+            if org.org_type is not None:
+                available_roles = [r.id for r in org.org_type.available_roles.all()]
+                if staff_extended.role.id in available_roles:
+                    return staff_extended.role
+        except Organization.DoesNotExist:
+            pass
+        staff_extended.delete()
+        return None
     except CourseStaffExtended.DoesNotExist:
         return None
 

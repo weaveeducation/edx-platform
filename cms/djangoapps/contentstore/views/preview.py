@@ -142,13 +142,15 @@ class PreviewModuleSystem(ModuleSystem):  # pylint: disable=abstract-method
         result.add_fragment_resources(frag)
 
         for aside, aside_fn in aside_frag_fns:
-            aside_frag = aside_fn(block, context)
-            if aside_frag.content != u'':
-                aside_frag_wrapped = self.wrap_aside(block, aside, view_name, aside_frag, context)
-                aside.save()
-                result.add_fragment_resources(aside_frag_wrapped)
-                replacement = position_for_asides + aside_frag_wrapped.content
-                frag.content = frag.content.replace(position_for_asides, replacement)
+            if not hasattr(aside, 'saved_tags') \
+                    or (hasattr(aside, 'saved_tags') and context['role_features']['view_tags']):
+                aside_frag = aside_fn(block, context)
+                if aside_frag.content != u'':
+                    aside_frag_wrapped = self.wrap_aside(block, aside, view_name, aside_frag, context)
+                    aside.save()
+                    result.add_fragment_resources(aside_frag_wrapped)
+                    replacement = position_for_asides + aside_frag_wrapped.content
+                    frag.content = frag.content.replace(position_for_asides, replacement)
 
         result.add_content(frag.content)
         return result

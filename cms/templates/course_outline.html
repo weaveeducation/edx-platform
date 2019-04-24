@@ -31,6 +31,9 @@ from django.core.urlresolvers import reverse
     <%static:include path="js/${template_name}.underscore" />
 </script>
 % endfor
+<script type="text/javascript">
+window.courseOutlineInitialState = ${initial_state | n, dump_js_escaped_json};
+</script>
 <%static:optional_include_mako file="course_outline_header_extras_post.html" />
 
 % if not settings.STUDIO_FRONTEND_CONTAINER_URL:
@@ -126,11 +129,13 @@ from django.core.urlresolvers import reverse
         <nav class="nav-actions" aria-label="${_('Page Actions')}">
             <h3 class="sr">${_("Page Actions")}</h3>
             <ul>
+                %if initial_state['user_permissions']['course_outline_create_new_section']:
                 <li class="nav-item">
                     <a href="#" class="button button-new" data-category="chapter" data-parent="${context_course.location}" data-default-name="${_('Section')}" title="${_('Click to add a new section')}">
                         <span class="icon fa fa-plus" aria-hidden="true"></span>${_('New Section')}
                     </a>
                 </li>
+                %endif
                 %if reindex_link:
                     <li class="nav-item">
                         <a href="${reindex_link}" class="button button-reindex" data-category="reindex" title="${_('Reindex current course')}">

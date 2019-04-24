@@ -150,6 +150,7 @@ define(['jquery', 'underscore', 'js/views/xblock_outline', 'common/js/components
             createNewItemViewState: function(locator, scrollOffset) {
                 this.expandedLocators.add(locator);
                 return {
+                    user_permissions: (window.courseOutlineInitialState && window.courseOutlineInitialState.user_permissions) ? window.courseOutlineInitialState.user_permissions : {},
                     locator_to_show: locator,
                     edit_display_name: true,
                     scroll_offset: scrollOffset || 0

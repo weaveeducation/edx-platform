@@ -121,7 +121,9 @@ from openedx.core.djangolib.js_utils import (
         ${users | n, dump_js_escaped_json},
         "${reverse('course_team_handler', kwargs={'course_key_string': unicode(context_course.id), 'email': '@@EMAIL@@'}) | n, js_escaped_string}",
         ${request.user.id | n, dump_js_escaped_json},
-        ${allow_actions | n, dump_js_escaped_json}
+        ${allow_actions | n, dump_js_escaped_json},
+        ${custom_roles | n, dump_js_escaped_json},
+        ${is_library}
       );
   });
 </%block>

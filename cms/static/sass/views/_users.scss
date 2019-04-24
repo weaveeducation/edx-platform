@@ -213,6 +213,10 @@
           @extend %ui-btn-non;
         }
 
+        .save-change {
+          @extend %ui-btn-non;
+        }
+
         // HACK: nasty reset needed due to base.scss
         .delete-button {
           margin-right: 0;
