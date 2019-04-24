@@ -27,6 +27,9 @@ from ..exceptions import UpdateProblemModuleStateError
 from .runner import TaskProgress
 from .utils import UNKNOWN_TASK_ID, UPDATE_STATUS_FAILED, UPDATE_STATUS_SKIPPED, UPDATE_STATUS_SUCCEEDED
 
+from completion import waffle as completion_waffle
+from completion.models import BlockCompletion
+
 TASK_LOG = logging.getLogger('edx.celery.task')
 
 USERNAME_DB_FIELD_SIZE = 30
@@ -492,6 +495,8 @@ def reset_progress_student(_xmodule_instance_args, _entry_id, course_id, _task_i
     CourseEnrollment.enroll(new_user, course_id)
     StudentModule.objects.filter(course_id=course_id, student=user).update(student=new_user)
 
+    if completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
+        BlockCompletion.objects.clear_completion(user, course_id)
     curr_step = {'step': 'Finalizing reseting report'}
     return task_progress.update_task_state(extra_meta=curr_step)
 
