@@ -37,7 +37,8 @@ from contentstore.utils import (
     get_visibility_partition_info,
     has_children_visible_to_specific_partition_groups,
     is_currently_visible_to_students,
-    is_self_paced
+    is_self_paced,
+    get_role_features
 )
 from contentstore.views.helpers import (
     create_xblock,
@@ -411,6 +412,7 @@ def xblock_view_handler(request, usage_key_string, view_name):
                 'paging': paging,
                 'force_render': force_render,
                 'item_url': '/container/{usage_key}',
+                'role_features': get_role_features(usage_key.course_key, request.user)
             })
             fragment = get_preview_fragment(request, xblock, context)
 

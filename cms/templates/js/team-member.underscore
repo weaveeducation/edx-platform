@@ -3,7 +3,11 @@
     <span class="flag flag-role flag-role-<%= user.role %> is-hanging">
       <span class="label sr"><%= gettext("Current Role:") %></span>
       <span class="value">
+        <% if (user.extended_role) { %>
+        <%= user.extended_role_title %>
+        <% } else { %>
         <%= roles[user.role] %>
+        <% } %>
         <% if (is_current_user) { %>
             <span class="msg-you"><%= gettext("You!") %></span>
         <% } %>
@@ -31,10 +35,18 @@
                 <% if (action.notoggle) { %>
                     <span class="admin-role notoggleforyou"><%= gettext("Promote another member to Admin to remove your admin rights") %></span>
                 <% } else { %>
-                    <a href="#" class="make-<%= action.to_role %> admin-role <%= action.direction %>-admin-role">
-                        <% var template = (action.direction === 'add') ? gettext("Add {role} Access") : gettext("Remove {role} Access"); %>
-                        <%= viewHelpers.format(template, {role: action.label}) %></span>
-                    </a>
+                       <% if ((user.role == 'staff') && (is_library == 0)) { %>
+                           <select class="change-user-role-selector-<%= user.id %>">
+                           <% for (var i=0; i < custom_roles.length; i++) { %>
+                               <option value="<%= custom_roles[i].id %>" <% if (custom_roles[i].id == user.extended_role) { %>selected="selected"<% } %>><%= custom_roles[i].title %></option>
+                           <% } %>
+                           </select><a href="#" class="save-change change-custom-role" data-userid="<%= user.id %>" data-email="<%= user.email %>"><i class="fa fa-floppy-o" aria-hidden="true"></i></a>
+                       <% } else { %>
+                           <a href="#" class="make-<%= action.to_role %> admin-role <%= action.direction %>-admin-role">
+                               <% var template = (action.direction === 'add') ? gettext("Add {role} Access") : gettext("Remove {role} Access"); %>
+                               <%= viewHelpers.format(template, {role: action.label}) %></span>
+                           </a>
+                       <% } %>
                 <% } %>
         <% } %>
         </li>

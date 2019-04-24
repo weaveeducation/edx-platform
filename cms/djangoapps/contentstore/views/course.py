@@ -50,7 +50,8 @@ from contentstore.utils import (
     reverse_course_url,
     reverse_library_url,
     reverse_url,
-    reverse_usage_url
+    reverse_usage_url,
+    get_role_features
 )
 from contentstore.views.entrance_exam import create_entrance_exam, delete_entrance_exam, update_entrance_exam
 from course_action_state.managers import CourseActionStateItemNotFoundError
@@ -755,6 +756,10 @@ def course_index(request, course_key):
             'FRONTEND_APP_PUBLISHER_URL',
             settings.FEATURES.get('FRONTEND_APP_PUBLISHER_URL', False)
         )
+        initial_state = course_outline_initial_state(locator_to_show, course_structure) if locator_to_show else None
+        if not initial_state:
+            initial_state = {}
+        initial_state['user_permissions'] = get_role_features(course_key, request.user)
 
         return render_to_response('course_outline.html', {
             'language_code': request.LANGUAGE_CODE,
@@ -762,7 +767,7 @@ def course_index(request, course_key):
             'lms_link': lms_link,
             'sections': sections,
             'course_structure': course_structure,
-            'initial_state': course_outline_initial_state(locator_to_show, course_structure) if locator_to_show else None,
+            'initial_state': initial_state,
             'rerun_notification_id': current_action.id if current_action else None,
             'course_release_date': course_release_date,
             'settings_url': settings_url,
