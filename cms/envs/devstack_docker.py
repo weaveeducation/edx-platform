@@ -28,3 +28,6 @@ JWT_AUTH.update({
     'JWT_ISSUER': OAUTH_OIDC_ISSUER,
     'JWT_AUDIENCE': 'lms-key',
 })
+
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
