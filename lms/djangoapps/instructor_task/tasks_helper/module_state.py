@@ -6,6 +6,7 @@ import logging
 from time import time
 
 from django.utils.translation import ugettext_noop
+from django.contrib.auth.models import User
 from opaque_keys.edx.keys import UsageKey
 
 from capa.responsetypes import LoncapaProblemError, ResponseError, StudentInputError
