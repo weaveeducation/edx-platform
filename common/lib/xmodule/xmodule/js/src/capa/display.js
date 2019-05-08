@@ -625,6 +625,7 @@
 
         Problem.prototype.submit_internal = function() {
             var that = this;
+            this.ajax_error(false);
             Logger.log('problem_check', this.answers);
             return $.postWithPrefix('' + this.url + '/problem_check', this.answers, function(response) {
                 switch (response.success) {
@@ -641,6 +642,8 @@
                     that.gentle_alert(response.success);
                 }
                 return Logger.log('problem_graded', [that.answers, response.contents], that.id);
+            }).fail(function() {
+                that.ajax_error(true);
             });
         };
 
@@ -780,6 +783,14 @@
             this.clear_all_notifications();
             this.gentleAlertNotification.show();
             this.gentleAlertNotification.focus();
+        };
+
+        Problem.prototype.ajax_error = function(showError) {
+            var errMsg = '';
+            if (showError) {
+                errMsg = '<span style="color: red;">Your response was not received. Please try again.</span>';
+            }
+            this.el.find('.ajax-error').html(errMsg);
         };
 
         Problem.prototype.save = function() {
