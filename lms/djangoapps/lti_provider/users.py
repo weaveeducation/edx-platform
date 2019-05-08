@@ -15,6 +15,7 @@ from django.db.models import Q
 from django.db import transaction
 from django.db.utils import IntegrityError
 
+from lms.djangoapps.utils import _create_edx_user
 from lti_provider.models import LtiUser
 from student.models import UserProfile
 from credo_modules.models import update_unique_user_id_cookie
@@ -60,58 +61,6 @@ def cut_to_max_len(text, max_len):
         return text
     else:
         return text[:max_len]
-
-
-def get_new_email_and_username(existing_email, existing_username):
-    i = 1
-    existing_username = existing_username[0:USERNAME_DB_FIELD_SIZE-3]
-    existing_email = existing_email[0:EMAIL_DB_FIELD_SIZE-3]
-    while True:
-        new_username = existing_username + str(i)
-        new_email = existing_email + str(i)
-        try:
-            _ = User.objects.get(Q(username=new_username)|Q(email=new_email))
-            i = i + 1
-        except User.DoesNotExist:
-            return new_username, new_email
-
-
-def _get_new_email_and_username(ex_user, new_email, new_username, num):
-    if ex_user.email == new_email:
-        if len(ex_user.email) > (EMAIL_DB_FIELD_SIZE - 3):
-            new_email = ex_user.email[0:EMAIL_DB_FIELD_SIZE - 3] + str(num)
-        else:
-            new_email = ex_user.email + str(num)
-    if ex_user.username.lower() == new_username.lower():
-        if len(ex_user.username) > (USERNAME_DB_FIELD_SIZE - 3):
-            new_username = new_username[0:USERNAME_DB_FIELD_SIZE - 3] + str(num)
-        else:
-            new_username = new_username + str(num)
-
-    return new_email, new_username
-
-
-def _create_edx_user(email, username, password, user=None):
-    i = 1
-    new_email = email
-    new_username = username
-
-    if user is not None:
-        new_email, new_username = _get_new_email_and_username(user, new_email, new_username, i)
-        i = i + 1
-
-    while True:
-        try:
-            with transaction.atomic():
-                return User.objects.create_user(
-                    email=new_email,
-                    username=new_username,
-                    password=password
-                )
-        except IntegrityError:
-            ex_user = User.objects.get(Q(email=new_email) | Q(username=new_username))
-            new_email, new_username = _get_new_email_and_username(ex_user, new_email, new_username, i)
-            i = i + 1
 
 
 def create_lti_user(lti_user_id, lti_consumer, lti_params=None):

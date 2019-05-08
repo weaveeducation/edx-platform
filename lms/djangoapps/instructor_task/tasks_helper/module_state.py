@@ -15,6 +15,7 @@ from courseware.model_data import DjangoKeyValueStore, FieldDataCache
 from courseware.models import StudentModule
 from courseware.module_render import get_module_for_descriptor_internal
 from lms.djangoapps.grades.events import GRADES_OVERRIDE_EVENT_TYPE, GRADES_RESCORE_EVENT_TYPE
+from lms.djangoapps.utils import _create_edx_user
 from student.models import get_user_by_username_or_email
 from track.event_transaction_utils import create_new_event_transaction_id, set_event_transaction_type
 from track.views import task_track
@@ -32,9 +33,6 @@ from completion import waffle as completion_waffle
 from completion.models import BlockCompletion
 
 TASK_LOG = logging.getLogger('edx.celery.task')
-
-USERNAME_DB_FIELD_SIZE = 30
-EMAIL_DB_FIELD_SIZE = 254
 
 
 def perform_module_state_update(update_fcn, filter_fcn, _entry_id, course_id, task_input, action_name):
@@ -467,17 +465,7 @@ def reset_progress_student(_xmodule_instance_args, _entry_id, course_id, _task_i
     )
 
     user = User.objects.get(id=_task_input['student'])
-
-    backup_username = "{}.{}".format(user.email, start_time)
-    if len(backup_username) > USERNAME_DB_FIELD_SIZE:
-        backup_username = backup_username[-USERNAME_DB_FIELD_SIZE:]
-
-    backup_email = "{}.{}".format(user.email, start_time)
-    if len(backup_username) > EMAIL_DB_FIELD_SIZE:
-        backup_username = backup_username[-EMAIL_DB_FIELD_SIZE:]
-
-    new_user = User.objects.create(email=backup_email,
-                                   username=backup_username)
+    new_user = _create_edx_user(user.email, user.username, user.password, user)
     new_profile = user.profile
     new_profile.pk, new_profile.user = None, new_user
     new_profile.save()
