@@ -2,6 +2,7 @@
 Utilities for dealing with Javascript and JSON.
 """
 import json
+from urlparse import urlparse
 
 from django.utils.html import escapejs
 from mako.filters import decode
@@ -107,3 +108,11 @@ def js_escaped_string(string_for_js):
     string_for_js = decode.utf8(string_for_js)
     string_for_js = escapejs(string_for_js)
     return string_for_js
+
+
+def get_raven_dsn(settings):
+    raven_dsn = ''
+    if 'dsn' in settings.RAVEN_CONFIG and settings.RAVEN_CONFIG['dsn']:
+        dsn = urlparse(settings.RAVEN_CONFIG['dsn'])
+        raven_dsn = dsn.scheme + '://' + dsn.username + '@' + dsn.hostname + dsn.path
+    return raven_dsn
