@@ -81,11 +81,11 @@ def login_and_registration_form(request, initial_mode="login"):
             except InvalidKeyError:
                 return HttpResponseBadRequest(_("Invalid course id."))
             course = modulestore().get_course(course_key)
-            if course.credo_authentication:
+            if course and course.credo_authentication:
                 credo_auth = validate_credo_access(request, redirect_to)
                 if not credo_auth:
                     return HttpResponseForbidden(render_to_string('static_templates/invalid_credo_auth.html', {}))
-            if course.allow_anonymous_access:
+            if course and course.allow_anonymous_access:
                 return register_login_and_enroll_anonymous_user(request, course_key, redirect_to)
 
     # Our ?next= URL may itself contain a parameter 'tpa_hint=x' that we need to check.
