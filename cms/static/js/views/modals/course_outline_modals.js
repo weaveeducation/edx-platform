@@ -281,6 +281,7 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             }
             if (this.done) {
                 this.hide();
+                return;
             }
             var requestData = this.getRequestData();
             if (requestData.copy_to_courses.length === 0) {
