@@ -92,7 +92,7 @@ class CredentialsApiConfig(ConfigurationModel):
         Publicly-accessible Records URL root.
         """
         # Not every site wants the Learner Records feature, so we allow opting out.
-        if not helpers.get_value('ENABLE_LEARNER_RECORDS', True):
+        if not helpers.get_value('ENABLE_LEARNER_RECORDS', False):
             return None
         root = helpers.get_value('CREDENTIALS_PUBLIC_SERVICE_URL', settings.CREDENTIALS_PUBLIC_SERVICE_URL)
         return urljoin(root, '/records/')
