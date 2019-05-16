@@ -18,7 +18,7 @@ from django.utils.timezone import utc
 from model_utils.models import TimeStampedModel
 
 from credo_modules.utils import additional_profile_fields_hash
-from student.models import CourseEnrollment, CourseAccessRole, ENROLL_STATUS_CHANGE, EnrollStatusChange
+from student.models import CourseEnrollment, CourseAccessRole, ENROLL_STATUS_CHANGE, EnrollStatusChange, UserProfile
 
 
 log = logging.getLogger("course_usage")
@@ -474,6 +474,16 @@ class CopySectionTask(TimeStampedModel, models.Model):
         unique_together = (('task_id', 'block_id', 'dst_course_id'),)
 
 
+class SequentialViewedTask(TimeStampedModel, models.Model):
+    user = models.ForeignKey(User)
+    course_id = CourseKeyField(max_length=255, db_index=True)
+    block_id = models.CharField(max_length=255, db_index=True)
+    data = models.TextField(blank=True)
+
+    class Meta(object):
+        db_table = "sequential_viewed_task"
+
+
 class CustomUserRole(models.Model):
     title = models.CharField(max_length=255, verbose_name='Title', unique=True)
     alias = models.SlugField(max_length=255, verbose_name='Slug', unique=True)
@@ -620,3 +630,30 @@ def get_all_course_staff_extended_roles(course_id):
 
 def get_extended_role_default_permissions():
     return CustomUserRole().to_dict()
+
+
+def get_student_properties_event_data(user, course_id, is_ora=False):
+    result = {'registration': {}, 'enrollment': {}}
+    profile = UserProfile.objects.get(user=user)
+    if profile.gender:
+        result['registration']['gender'] = profile.gender
+
+    properties = CredoStudentProperties.objects.filter(user=user)
+    for prop in properties:
+        if not prop.course_id:
+            result['registration'][prop.name] = prop.value
+        elif prop.course_id and str(course_id) == str(prop.course_id):
+            result['enrollment'][prop.name] = prop.value
+
+    try:
+        profile = CredoModulesUserProfile.objects.get(user=user, course_id=course_id)
+        result['enrollment'].update(profile.converted_meta())
+    except CredoModulesUserProfile.DoesNotExist:
+        pass
+
+    if 'term' not in result['enrollment']:
+        result['enrollment']['term'] = get_custom_term()
+    if is_ora:
+        return {'student_properties': result, 'student_id': user.id, 'month_terms_format': '1'}
+    else:
+        return {'student_properties': result, 'month_terms_format': '1'}

@@ -4,9 +4,9 @@ XBlockAside to add student properties to the problem_check event
 """
 
 from submissions import api as sub_api
-from credo_modules.models import CredoStudentProperties, CredoModulesUserProfile, get_custom_term
+from credo_modules.models import get_student_properties_event_data
 from django.core.exceptions import ObjectDoesNotExist
-from student.models import User, UserProfile, AnonymousUserId
+from student.models import User, AnonymousUserId
 from xblock.core import XBlockAside
 
 
@@ -40,28 +40,5 @@ class StudentPropertiesAside(XBlockAside):
                 pass
 
         if user:
-            result = {'registration': {}, 'enrollment': {}}
-            profile = UserProfile.objects.get(user=user)
-            if profile.gender:
-                result['registration']['gender'] = profile.gender
-
-            properties = CredoStudentProperties.objects.filter(user=user)
-            for prop in properties:
-                if not prop.course_id:
-                    result['registration'][prop.name] = prop.value
-                elif prop.course_id and str(self.runtime.course_id) == str(prop.course_id):
-                    result['enrollment'][prop.name] = prop.value
-
-            try:
-                profile = CredoModulesUserProfile.objects.get(user=user, course_id=self.runtime.course_id)
-                result['enrollment'].update(profile.converted_meta())
-            except CredoModulesUserProfile.DoesNotExist:
-                pass
-
-            if 'term' not in result['enrollment']:
-                result['enrollment']['term'] = get_custom_term()
-            if is_ora:
-                return {'student_properties': result, 'student_id': user.id, 'month_terms_format': '1'}
-            else:
-                return {'student_properties': result, 'month_terms_format': '1'}
+            return get_student_properties_event_data(user, self.runtime.course_id, is_ora)
         return None
