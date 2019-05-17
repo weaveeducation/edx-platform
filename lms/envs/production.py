@@ -335,10 +335,20 @@ local_loglevel = ENV_TOKENS.get('LOCAL_LOGLEVEL', 'INFO')
 LOG_DIR = ENV_TOKENS['LOG_DIR']
 DATA_DIR = path(ENV_TOKENS.get('DATA_DIR', DATA_DIR))
 
+############## Syslog settings ############################
+SYSLOG_USE_TCP = ENV_TOKENS.get('SYSLOG_USE_TCP', False)
+SYSLOG_HOST = ENV_TOKENS.get('SYSLOG_HOST', '')
+SYSLOG_PORT = ENV_TOKENS.get('SYSLOG_PORT', 0)
+
 LOGGING = get_logger_config(LOG_DIR,
                             logging_env=ENV_TOKENS['LOGGING_ENV'],
                             local_loglevel=local_loglevel,
-                            service_variant=SERVICE_VARIANT)
+                            service_variant=SERVICE_VARIANT,
+                            syslog_settings={
+                                'SYSLOG_USE_TCP': SYSLOG_USE_TCP,
+                                'SYSLOG_HOST': SYSLOG_HOST,
+                                'SYSLOG_PORT': SYSLOG_PORT
+                            })
 
 COURSE_LISTINGS = ENV_TOKENS.get('COURSE_LISTINGS', {})
 COMMENTS_SERVICE_URL = ENV_TOKENS.get("COMMENTS_SERVICE_URL", '')
@@ -1108,11 +1118,6 @@ RAVEN_CONFIG = ENV_TOKENS.get('RAVEN_CONFIG', {})
 
 ############## Credo API config ############################
 CREDO_API_CONFIG = ENV_TOKENS.get('CREDO_API_CONFIG', {})
-
-############## Syslog settings ############################
-SYSLOG_USE_TCP = ENV_TOKENS.get('SYSLOG_USE_TCP', False)
-SYSLOG_HOST = ENV_TOKENS.get('SYSLOG_HOST', '')
-SYSLOG_PORT = ENV_TOKENS.get('SYSLOG_PORT', 0)
 
 ############## LTI Constructor ############################
 CONSTRUCTOR_LINK = ENV_TOKENS.get('CONSTRUCTOR_LINK', 'http://127.0.0.1:9015')

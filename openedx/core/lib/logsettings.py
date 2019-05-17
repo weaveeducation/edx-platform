@@ -14,7 +14,8 @@ LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
 def get_logger_config(log_dir,
                       logging_env="no_env",
                       local_loglevel='INFO',
-                      service_variant=""):
+                      service_variant="",
+                      syslog_settings=None):
 
     """
 
@@ -28,6 +29,13 @@ def get_logger_config(log_dir,
     if local_loglevel not in LOG_LEVELS:
         local_loglevel = 'INFO'
 
+    if syslog_settings is None:
+        syslog_settings = {
+            'SYSLOG_USE_TCP': False,
+            'SYSLOG_HOST': '',
+            'SYSLOG_PORT': 0
+        }
+
     hostname = platform.node().split(".")[0]
     syslog_format = ("[service_variant={service_variant}]"
                      "[%(name)s][env:{logging_env}] %(levelname)s "
@@ -36,17 +44,9 @@ def get_logger_config(log_dir,
                                              logging_env=logging_env,
                                              hostname=hostname)
 
-    syslog_use_tcp = False
-    syslog_host = ''
-    syslog_port = 0
-
-    if hasattr(settings, 'SYSLOG_USE_TCP'):
-        syslog_use_tcp = getattr(settings, 'SYSLOG_USE_TCP')
-    if hasattr(settings, 'SYSLOG_HOST'):
-        syslog_host = getattr(settings, 'SYSLOG_HOST')
-    if hasattr(settings, 'SYSLOG_PORT'):
-        syslog_port = int(getattr(settings, 'SYSLOG_PORT'))
-    syslog_port = syslog_port if syslog_port > 0 else SYSLOG_UDP_PORT
+    syslog_use_tcp = syslog_settings.get('SYSLOG_USE_TCP', False)
+    syslog_host = syslog_settings.get('SYSLOG_HOST', '')
+    syslog_port = syslog_settings.get('SYSLOG_PORT', SYSLOG_UDP_PORT)
 
     logger_config = {
         'version': 1,

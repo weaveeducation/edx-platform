@@ -256,9 +256,19 @@ for app in ENV_TOKENS.get('ADDL_INSTALLED_APPS', []):
 
 WIKI_ENABLED = ENV_TOKENS.get('WIKI_ENABLED', WIKI_ENABLED)
 
+############## Syslog settings ############################
+SYSLOG_USE_TCP = ENV_TOKENS.get('SYSLOG_USE_TCP', False)
+SYSLOG_HOST = ENV_TOKENS.get('SYSLOG_HOST', '')
+SYSLOG_PORT = ENV_TOKENS.get('SYSLOG_PORT', 0)
+
 LOGGING = get_logger_config(LOG_DIR,
                             logging_env=ENV_TOKENS['LOGGING_ENV'],
-                            service_variant=SERVICE_VARIANT)
+                            service_variant=SERVICE_VARIANT,
+                            syslog_settings={
+                                'SYSLOG_USE_TCP': SYSLOG_USE_TCP,
+                                'SYSLOG_HOST': SYSLOG_HOST,
+                                'SYSLOG_PORT': SYSLOG_PORT
+                            })
 
 #theming start:
 
@@ -610,11 +620,6 @@ RAVEN_CONFIG = ENV_TOKENS.get('RAVEN_CONFIG', {})
 
 ############## Credo API config ############################
 CREDO_API_CONFIG = ENV_TOKENS.get('CREDO_API_CONFIG', {})
-
-############## Syslog settings ############################
-SYSLOG_USE_TCP = ENV_TOKENS.get('SYSLOG_USE_TCP', False)
-SYSLOG_HOST = ENV_TOKENS.get('SYSLOG_HOST', '')
-SYSLOG_PORT = ENV_TOKENS.get('SYSLOG_PORT', 0)
 
 ############## LTI Constructor ############################
 CONSTRUCTOR_LINK = ENV_TOKENS.get('CONSTRUCTOR_LINK', 'http://127.0.0.1:9015')
