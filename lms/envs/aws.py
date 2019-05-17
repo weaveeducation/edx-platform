@@ -1060,6 +1060,11 @@ RAVEN_CONFIG = ENV_TOKENS.get('RAVEN_CONFIG', {})
 ############## Credo API config ############################
 CREDO_API_CONFIG = ENV_TOKENS.get('CREDO_API_CONFIG', {})
 
+############## Syslog settings ############################
+SYSLOG_USE_TCP = ENV_TOKENS.get('SYSLOG_USE_TCP', False)
+SYSLOG_HOST = ENV_TOKENS.get('SYSLOG_HOST', '')
+SYSLOG_PORT = ENV_TOKENS.get('SYSLOG_PORT', 0)
+
 ########################## Parental controls config  #######################
 
 # The age at which a learner no longer requires parental consent, or None

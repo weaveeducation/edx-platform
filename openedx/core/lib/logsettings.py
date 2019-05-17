@@ -2,9 +2,11 @@
 
 import logging
 import platform
+import socket
 import sys
 import warnings
-from logging.handlers import SysLogHandler
+from logging.handlers import SysLogHandler, SYSLOG_UDP_PORT
+from django.conf import settings
 
 LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
 
@@ -33,6 +35,18 @@ def get_logger_config(log_dir,
                      "- %(message)s").format(service_variant=service_variant,
                                              logging_env=logging_env,
                                              hostname=hostname)
+
+    syslog_use_tcp = False
+    syslog_host = ''
+    syslog_port = 0
+
+    if hasattr(settings, 'SYSLOG_USE_TCP'):
+        syslog_use_tcp = getattr(settings, 'SYSLOG_USE_TCP')
+    if hasattr(settings, 'SYSLOG_HOST'):
+        syslog_host = getattr(settings, 'SYSLOG_HOST')
+    if hasattr(settings, 'SYSLOG_PORT'):
+        syslog_port = int(getattr(settings, 'SYSLOG_PORT'))
+    syslog_port = syslog_port if syslog_port > 0 else SYSLOG_UDP_PORT
 
     logger_config = {
         'version': 1,
@@ -65,14 +79,16 @@ def get_logger_config(log_dir,
             'local': {
                 'level': local_loglevel,
                 'class': 'logging.handlers.SysLogHandler',
-                'address': '/dev/log',
+                'address': (syslog_host, syslog_port) if syslog_host else '/dev/log',
+                'socktype': socket.SOCK_STREAM if syslog_use_tcp else socket.SOCK_DGRAM,
                 'formatter': 'syslog_format',
                 'facility': SysLogHandler.LOG_LOCAL0,
             },
             'tracking': {
                 'level': 'DEBUG',
                 'class': 'logging.handlers.SysLogHandler',
-                'address': '/dev/log',
+                'address': (syslog_host, syslog_port) if syslog_host else '/dev/log',
+                'socktype': socket.SOCK_STREAM if syslog_use_tcp else socket.SOCK_DGRAM,
                 'facility': SysLogHandler.LOG_LOCAL1,
                 'formatter': 'raw',
             },
@@ -122,7 +138,8 @@ def get_logger_config(log_dir,
             'credo_json': {
                 'level': 'DEBUG',
                 'class': 'logging.handlers.SysLogHandler',
-                'address': '/dev/log',
+                'address': (syslog_host, syslog_port) if syslog_host else '/dev/log',
+                'socktype': socket.SOCK_STREAM if syslog_use_tcp else socket.SOCK_DGRAM,
                 'facility': SysLogHandler.LOG_LOCAL2,
                 'formatter': 'raw',
             },
