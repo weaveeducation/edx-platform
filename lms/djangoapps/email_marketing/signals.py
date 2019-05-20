@@ -20,6 +20,7 @@ from openedx.core.djangoapps.user_authn.cookies import CREATE_LOGON_COOKIE
 from openedx.core.djangoapps.lang_pref import LANGUAGE_KEY
 from openedx.core.djangoapps.user_authn.views.register import REGISTER_USER
 from openedx.core.djangoapps.waffle_utils import WaffleSwitchNamespace
+from openedx.core.djangoapps.site_configuration.helpers import get_value
 from student.signals import SAILTHRU_AUDIT_PURCHASE
 from util.model_utils import USER_FIELD_CHANGED
 
@@ -112,7 +113,7 @@ def add_email_marketing_cookies(sender, response=None, user=None,
             'sailthru_hid',
             cookie,
             max_age=365 * 24 * 60 * 60,  # set for 1 year
-            domain=settings.SESSION_COOKIE_DOMAIN,
+            domain=get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN),
             path='/',
         )
         log.info("sailthru_hid cookie:%s successfully retrieved for user %s", cookie, user.email)

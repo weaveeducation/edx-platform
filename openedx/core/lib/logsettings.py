@@ -6,7 +6,7 @@ import socket
 import sys
 import warnings
 from logging.handlers import SysLogHandler, SYSLOG_UDP_PORT
-from django.conf import settings
+
 
 LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
 

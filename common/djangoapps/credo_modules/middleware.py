@@ -5,6 +5,7 @@ from credo_modules.models import CourseUsage, get_unique_user_id, UNIQUE_USER_ID
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import F
+from openedx.core.djangoapps.site_configuration.helpers import get_value
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from xmodule.modulestore.django import modulestore
@@ -66,7 +67,8 @@ class CourseUsageMiddleware(object):
             course_usage_cookie_dict = {}
             course_usage_cookie = request.COOKIES.get(self.course_usage_cookie, '{}')
 
-            cookie_domain = settings.SESSION_COOKIE_DOMAIN if settings.SESSION_COOKIE_DOMAIN else None
+            sess_cookie_domain = get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN)
+            cookie_domain = sess_cookie_domain if sess_cookie_domain else None
 
             unique_user_id = get_unique_user_id(request)
             if unique_user_id and getattr(request, '_update_unique_user_id', False):
