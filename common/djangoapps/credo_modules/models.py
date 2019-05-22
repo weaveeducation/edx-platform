@@ -544,6 +544,18 @@ class CourseStaffExtended(models.Model):
         verbose_name_plural = "extended user roles"
 
 
+class DBLogEntry(models.Model):
+    event_name = models.CharField(max_length=255)
+    user_id = models.IntegerField(db_index=True)
+    course_id = models.CharField(max_length=255, db_index=True)
+    block_id = models.CharField(max_length=255, null=True, blank=True)
+    time = models.DateTimeField(auto_now_add=True, db_index=True)
+    message = models.TextField()
+
+    class Meta(object):
+        db_table = "credo_tracking_logs"
+
+
 UNIQUE_USER_ID_COOKIE = 'credo-course-usage-id'
 
 

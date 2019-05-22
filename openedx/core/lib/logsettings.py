@@ -1,14 +1,64 @@
 """Get log settings."""
 
 import logging
+import json
 import platform
 import socket
 import sys
 import warnings
 from logging.handlers import SysLogHandler, SYSLOG_UDP_PORT
+from logging import Handler
+from django.db import transaction
 
 
 LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+
+
+class DBHandler(Handler):
+
+    model = None
+    allowed_events = [
+        'problem_check',
+        'edx.drag_and_drop_v2.item.dropped',
+        'openassessmentblock.create_submission',
+        'openassessmentblock.staff_assess',
+        'openassessmentblock.self_assess',
+        'openassessmentblock.peer_assess',
+        'sequential_block.viewed'
+    ]
+
+    def emit(self, record):
+        if not self.model:
+            from credo_modules.models import DBLogEntry
+            self.model = DBLogEntry
+        msg = record.getMessage()
+        try:
+            data = json.loads(msg)
+        except ValueError:
+            return
+        event_type = data.get('event_type')
+        event_source = data.get('event_source')
+
+        if event_type not in self.allowed_events or event_source != 'server':
+            return
+
+        user_id = data.get('context', {}).get('user_id', None)
+        course_id = data.get('context', {}).get('course_id', None)
+        if event_type == 'sequential_block.viewed':
+            block_id = data.get('event', {}).get('usage_key', None)
+        else:
+            block_id = data.get('context', {}).get('module', {}).get('usage_key', None)
+
+        if user_id and course_id and block_id:
+            with transaction.atomic():
+                item = self.model(
+                    event_name=event_type,
+                    user_id=user_id,
+                    course_id=course_id,
+                    block_id=block_id,
+                    message=msg
+                )
+                item.save()
 
 
 def get_logger_config(log_dir,
@@ -92,6 +142,11 @@ def get_logger_config(log_dir,
                 'facility': SysLogHandler.LOG_LOCAL1,
                 'formatter': 'syslog_format',
             },
+            'log_db': {
+                'level': 'INFO',
+                'class': 'openedx.core.lib.logsettings.DBHandler',
+                'formatter': 'raw',
+            }
         },
         'loggers': {
             'credo_json': {
@@ -100,7 +155,7 @@ def get_logger_config(log_dir,
                 'propagate': False,
             },
             'tracking': {
-                'handlers': ['tracking'],
+                'handlers': ['tracking', 'log_db'],
                 'level': 'DEBUG',
                 'propagate': False,
             },
