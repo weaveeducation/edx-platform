@@ -61,6 +61,44 @@ class DBHandler(Handler):
                 item.save()
 
 
+class ExtendedSysLogHandler(SysLogHandler):
+
+    def emit(self, record):
+        """
+        Emit a record.
+
+        The record is formatted, and then sent to the syslog server. If
+        exception information is present, it is NOT sent to the server.
+        """
+        try:
+            msg = self.format(record)
+            """
+            We need to convert record level to lowercase, maybe this will
+            change in the future.
+            """
+            prio = '<%d>' % self.encodePriority(self.facility,
+                                                self.mapPriority(record.levelname))
+            # Message is a string. Convert to bytes as required by RFC 5424
+            if type(msg) is unicode:
+                msg = msg.encode('utf-8')
+            msg = prio + msg
+            if self.unixsocket:
+                try:
+                    self.socket.send(msg)
+                except socket.error:
+                    self.socket.close() # See issue 17981
+                    self._connect_unixsocket(self.address)
+                    self.socket.send(msg)
+            elif self.socktype == socket.SOCK_DGRAM:
+                self.socket.sendto(msg, self.address)
+            else:
+                self.socket.sendall(msg)
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            self.handleError(record)
+
+
 def get_logger_config(log_dir,
                       logging_env="no_env",
                       local_loglevel='INFO',
@@ -128,7 +166,7 @@ def get_logger_config(log_dir,
             },
             'local': {
                 'level': local_loglevel,
-                'class': 'logging.handlers.SysLogHandler',
+                'class': 'openedx.core.lib.logsettings.ExtendedSysLogHandler',
                 'address': (syslog_host, syslog_port) if syslog_host else '/dev/log',
                 'socktype': socket.SOCK_STREAM if syslog_use_tcp else socket.SOCK_DGRAM,
                 'formatter': 'syslog_format',
@@ -136,7 +174,7 @@ def get_logger_config(log_dir,
             },
             'tracking': {
                 'level': 'DEBUG',
-                'class': 'logging.handlers.SysLogHandler',
+                'class': 'openedx.core.lib.logsettings.ExtendedSysLogHandler',
                 'address': (syslog_host, syslog_port) if syslog_host else '/dev/log',
                 'socktype': socket.SOCK_STREAM if syslog_use_tcp else socket.SOCK_DGRAM,
                 'facility': SysLogHandler.LOG_LOCAL1,
@@ -192,7 +230,7 @@ def get_logger_config(log_dir,
         logger_config['handlers'].update({
             'credo_json': {
                 'level': 'DEBUG',
-                'class': 'logging.handlers.SysLogHandler',
+                'class': 'openedx.core.lib.logsettings.ExtendedSysLogHandler',
                 'address': (syslog_host, syslog_port) if syslog_host else '/dev/log',
                 'socktype': socket.SOCK_STREAM if syslog_use_tcp else socket.SOCK_DGRAM,
                 'facility': SysLogHandler.LOG_LOCAL2,
