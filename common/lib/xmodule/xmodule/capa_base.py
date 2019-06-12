@@ -399,6 +399,14 @@ class CapaMixin(ScorableXBlockMixin, CapaFields):
             except (TypeError, ValueError):
                 log.exception("Got bad progress")
                 return None
+        elif self.weight is None:
+            is_studio = getattr(self.runtime, "is_author_mode", False)
+            if is_studio:
+                score_lcp = self.score_from_lcp()
+                upd_raw_earned = score_lcp.raw_earned
+                upd_raw_possible = score_lcp.raw_possible
+                if upd_raw_possible > 0:
+                    return Progress(upd_raw_earned, upd_raw_possible)
         return None
 
     def get_display_progress(self):
