@@ -407,12 +407,13 @@ class Organization(models.Model):
 
 
 class CourseExcludeInsights(models.Model):
+    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     course_id = CourseKeyField(max_length=255, db_index=True, null=True, blank=True)
 
     class Meta(object):
         db_table = "credo_course_exclude_insights"
-        verbose_name = "course"
-        verbose_name_plural = "exclude insights"
+        verbose_name = "item exclude"
+        verbose_name_plural = "items exclude insights"
 
 
 class SendScores(models.Model):
