@@ -2,10 +2,14 @@ import json
 
 from collections import OrderedDict
 from courseware.courses import get_course_by_id
+from django.conf import settings
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect
 from django.core.urlresolvers import resolve, reverse, NoReverseMatch
+from django.contrib.auth import login
+from django.contrib.auth.models import User
+from django.db.models import Q
 from django.views.generic.base import View
 from django.contrib.auth.decorators import login_required
 from django.utils.http import urlunquote
@@ -158,3 +162,40 @@ class StudentProfileView(View):
                                                       meta=to_save_fields_json, fields_version=fields_version)
                     profile.save()
                 return JsonResponse({"success": True})
+
+
+@login_required
+def login_as_user(request):
+    if not request.user.is_superuser:
+        return JsonResponse({
+            "success": False,
+            "errorMessage": "Invalid request"
+        })
+
+    word = request.GET.get('user', '')
+    word = word.strip()
+    if not word:
+        return JsonResponse({
+            "success": False,
+            "errorMessage": "Invalid request"
+        })
+
+    edx_user = None
+    if word.isdigit():
+        try:
+            edx_user = User.objects.get(id=int(word))
+        except User.DoesNotExist:
+            pass
+
+    if not edx_user:
+        try:
+            edx_user = User.objects.get(Q(username=word) | Q(email=word))
+        except User.DoesNotExist:
+            return JsonResponse({
+                "success": False,
+                "userid": None,
+                "errorMessage": "User not found"
+            })
+
+    login(request, edx_user, backend=settings.AUTHENTICATION_BACKENDS[0])
+    return redirect(reverse('dashboard'))
