@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django import forms
 from .models import RegistrationPropertiesPerMicrosite, EnrollmentPropertiesPerCourse,\
     Organization, OrganizationType, CourseExcludeInsights, CourseUsage, CustomUserRole
 
@@ -19,13 +20,38 @@ class OrganizationTypeForm(admin.ModelAdmin):
     list_display = ('id', 'title')
 
 
-class CourseExcludeInsightsForm(admin.ModelAdmin):
-    list_display = ('id', 'course_id')
+class CourseExcludeInsightsForm(forms.ModelForm):
+    """ Form for creating custom course entitlement policies. """
+    def __init__(self, *args, **kwargs):
+        super(CourseExcludeInsightsForm, self).__init__(*args, **kwargs)
+        self.fields['user'].required = False
+
+    class Meta:
+        fields = '__all__'
+        model = CourseExcludeInsights
+
+
+class CourseExcludeInsightsAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user_id', 'get_username', 'get_email', 'course_id')
+    raw_id_fields = ('user',)
+    form = CourseExcludeInsightsForm
 
     def get_actions(self, request):
-        actions = super(CourseExcludeInsightsForm, self).get_actions(request)
+        actions = super(CourseExcludeInsightsAdmin, self).get_actions(request)
         actions['delete_selected'][0].short_description = "Delete Selected"
         return actions
+
+    def get_username(self, obj):
+        if obj.user:
+            return obj.user.username
+        else:
+            return '-'
+
+    def get_email(self, obj):
+        if obj.user:
+            return obj.user.email
+        else:
+            return '-'
 
 
 class CourseUsageForm(admin.ModelAdmin):
@@ -52,7 +78,7 @@ admin.site.register(RegistrationPropertiesPerMicrosite, RegistrationPropertiesPe
 admin.site.register(EnrollmentPropertiesPerCourse, EnrollmentPropertiesPerCourseForm)
 admin.site.register(Organization, OrganizationForm)
 admin.site.register(OrganizationType, OrganizationTypeForm)
-admin.site.register(CourseExcludeInsights, CourseExcludeInsightsForm)
+admin.site.register(CourseExcludeInsights, CourseExcludeInsightsAdmin)
 admin.site.register(CourseUsage, CourseUsageForm)
 admin.site.register(CustomUserRole, CustomUserRoleForm)
 
