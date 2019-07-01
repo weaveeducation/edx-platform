@@ -778,7 +778,7 @@ class DraftModuleStore(MongoModuleStore):
         course_key = location.course_key
         self._flag_publish_event(course_key)
 
-    def revert_to_published(self, location, user_id=None):
+    def revert_to_published(self, location, user_id=None, version_id=None):
         """
         Reverts an item to its last published version (recursively traversing all of its descendants).
         If no published version exists, an InvalidVersionError is thrown.

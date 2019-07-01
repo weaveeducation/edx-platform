@@ -2042,7 +2042,7 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
     def publish(self, location, user_id):
         raise NotImplementedError()
 
-    def revert_to_published(self, location, user_id):
+    def revert_to_published(self, location, user_id, version_id=None):
         raise NotImplementedError()
 
     def unpublish(self, location, user_id):

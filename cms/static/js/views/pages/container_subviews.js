@@ -106,7 +106,9 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
             events: {
                 'click .action-publish': 'publish',
                 'click .action-discard': 'discardChanges',
-                'click .action-staff-lock': 'toggleStaffLock'
+                'click .action-staff-lock': 'toggleStaffLock',
+                'click .action-list-versions': 'getListVersions',
+                'click .version-to-restore-link': 'restoreVersion'
             },
 
             // takes XBlockInfo as a model
@@ -116,6 +118,9 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
                 this.template = this.loadTemplate('publish-xblock');
                 this.model.on('sync', this.onSync, this);
                 this.renderPage = this.options.renderPage;
+                this.versionsListProgress = false;
+                this.versionsRestoreInProgress = false;
+                this.versionsData = {};
             },
 
             onSync: function(model) {
@@ -251,6 +256,64 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
                             revertCheckBox();
                         }
                     );
+                }
+            },
+
+            getListVersions: function(e) {
+                var self = this;
+                if (this.versionsListProgress) {
+                    return;
+                }
+                this.versionsListProgress = true;
+                this.$el.find('.versions-list').html('Loading...');
+                $.ajax({
+                    url: '/get_versions_list/' + this.model.get('id'),
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        self.versionsListProgress = false;
+                        if (data.versions.length > 0) {
+                            var versionsHtml = '';
+                            $.each(data.versions, function(idx, val) {
+                                self.versionsData[val.id] = val;
+                                versionsHtml += '<div class="version-to-restore">' +
+                                  '<div>' + val.datetime + '</div>' +
+                                  '<div>by ' + val.user + ' | <a href="javascript: void(0);" class="version-to-restore-link" data-version-id="' + val.id + '">Restore</a></div>' +
+                                  '</div>';
+                            });
+                            self.$el.find('.versions-list').html(versionsHtml);
+                        } else {
+                            self.$el.find('.versions-list').html('Previous versions not found');
+                        }
+                    }
+                });
+            },
+
+            restoreVersion: function(e) {
+                var self = this;
+                if (this.versionsRestoreInProgress) {
+                    return;
+                }
+                var versionId = $(e.target).data('version-id');
+                var version = this.versionsData[versionId];
+                if (window.confirm("Do you wish to revert to this previously published version (" + (version.datetime + ' - ' + version.user) + ")?")) {
+                    this.versionsRestoreInProgress = true;
+                    ViewUtils.runOperationShowingMessage(gettext('Restore in progress. Please wait'),
+                        function() {
+                            return $.ajax({
+                                url: '/restore_block_version/' + self.model.get('id'),
+                                type: 'POST',
+                                data: {versionId: versionId},
+                                dataType: 'json',
+                                success: function(data) {
+                                    if (data.success) {
+                                        location.reload();
+                                    }
+                                }
+                            });
+                        }).always(function() {
+                        }).done(function() {
+                        });
                 }
             },
 
