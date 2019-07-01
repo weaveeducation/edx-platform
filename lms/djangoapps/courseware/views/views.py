@@ -1945,8 +1945,11 @@ def track_sequential_viewed(user, course, block):
 
     for chapter in courseware_summary:
         for section in chapter['sections']:
-            if str(section.location) == str(block.location):
-                problem_locations = [str(key) for key, score in section.problem_scores.items()
+            section_location = str(section.location.replace(branch=None, version_guid=None))
+            block_location = str(block.location)
+            if section_location == block_location:
+                problem_locations = [str(key.replace(branch=None, version_guid=None))
+                                     for key, score in section.problem_scores.items()
                                      if key.block_type in CREDO_GRADED_ITEM_CATEGORIES]
                 problem_locations_data = json.dumps(problem_locations)
                 with transaction.atomic():
