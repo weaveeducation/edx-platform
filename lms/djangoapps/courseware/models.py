@@ -18,7 +18,7 @@ import logging
 from config_models.models import ConfigurationModel
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.db import models
+from django.db import models, transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
@@ -466,4 +466,4 @@ def set_viewed(sender, instance, created, **kwargs):
         user_id = int(instance.student.id)
         logging.info("Try to create task to send sequential_viewed event: course_key=%s, usage_key=%s, user_id=%d"
                      % (course_key_str, usage_key_str, user_id))
-        track_sequential_viewed_task.delay(course_key_str, usage_key_str, user_id)
+        transaction.on_commit(lambda: track_sequential_viewed_task.delay(course_key_str, usage_key_str, user_id))
