@@ -61,7 +61,7 @@ from courseware.courses import (
     update_lms_course_usage
 )
 from courseware.extended_progress import progress_main_page, progress_skills_page
-from courseware.utils import get_problem_detailed_info, get_answer_and_correctness, get_score_points,\
+from courseware.utils import get_answer_and_correctness, get_score_points, get_block_children,\
     CREDO_GRADED_ITEM_CATEGORIES
 from courseware.masquerade import setup_masquerade
 from courseware.model_data import FieldDataCache
@@ -132,11 +132,9 @@ from util.views import add_p3p_header
 from openedx.core.djangoapps.user_authn.views.login import register_login_and_enroll_anonymous_user,\
     validate_credo_access
 from credo_modules.models import user_must_fill_additional_profile_fields, additional_profile_fields_hash,\
-    get_student_properties_event_data, Organization, CredoModulesUserProfile, SendScores, SendScoresMailing,\
-    SequentialViewedTask
+    Organization, CredoModulesUserProfile, SendScores, SendScoresMailing
 from credo_modules.views import show_student_profile_form
 from mako.template import Template
-from eventtracking import tracker
 from lms import CELERY_APP
 try:
     from premailer import transform
@@ -1560,8 +1558,6 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True):
             request, text_type(course_key), text_type(usage_key), disable_staff_debug_info=True, course=course
         )
 
-        need_track = need_track_sequential_viewed(request.user, course, block)
-
         student_view_context = request.GET.dict()
         student_view_context['show_bookmark_button'] = False
         student_view_context['enable_new_carousel_view'] = False
@@ -1602,8 +1598,6 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True):
             'staff_access': bool(has_access(request.user, 'staff', course)),
             'xqa_server': settings.FEATURES.get('XQA_SERVER', 'http://your_xqa_server.com'),
         }
-        if need_track:
-            track_sequential_viewed(request.user, course, block)
         return render_to_response('courseware/courseware-chromeless.html', context)
 
 
@@ -1925,55 +1919,6 @@ def launch_new_tab(request, course_id, usage_id):
     return render_xblock(request, unicode(usage_key), check_if_enrolled=False)
 
 
-def need_track_sequential_viewed(user, course, block):
-    need_track = False
-    if block.category == 'sequential' and user.is_authenticated:
-        try:
-            StudentModule.objects.get(
-                student_id=user.id,
-                module_state_key=block.location,
-                course_id=course.id,
-            )
-        except StudentModule.DoesNotExist:
-            need_track = True
-    return need_track
-
-
-def track_sequential_viewed(user, course, block):
-    course_grade = CourseGradeFactory().read(user, course)
-    courseware_summary = course_grade.chapter_grades.values()
-
-    for chapter in courseware_summary:
-        for section in chapter['sections']:
-            section_location = str(section.location.replace(branch=None, version_guid=None))
-            block_location = str(block.location)
-            if section_location == block_location:
-                problem_locations = [str(key.replace(branch=None, version_guid=None))
-                                     for key, score in section.problem_scores.items()
-                                     if key.block_type in CREDO_GRADED_ITEM_CATEGORIES]
-                problem_locations_data = json.dumps(problem_locations)
-                with transaction.atomic():
-                    task = SequentialViewedTask(
-                        user=user,
-                        course_id=course.id,
-                        block_id=str(block.location),
-                        data=problem_locations_data
-                    )
-                    task.save()
-                track_sequential_viewed_task.delay(task.id)
-                return
-
-
-def _get_block_children(block, parent_name, add_correctness=True):
-    data = OrderedDict()
-    for item in block.get_children():
-        loc_id = str(item.location)
-        data[loc_id] = get_problem_detailed_info(item, parent_name, add_correctness)
-        if item.has_children:
-            data.update(_get_block_children(item, item.display_name, add_correctness))
-    return data
-
-
 def _get_browser_datetime(last_answer_datetime, timezone_offset=None, dt_format=None):
     if dt_format is None:
         dt_format = '%Y-%m-%d %H:%M'
@@ -2036,7 +1981,7 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
             seq_item, _ = get_module_by_usage_id(
                 request, text_type(course_key), text_type(usage_key), disable_staff_debug_info=True, course=course
             )
-            children_dict = _get_block_children(seq_item, seq_item.display_name)
+            children_dict = get_block_children(seq_item, seq_item.display_name)
 
             user_state_client = DjangoXBlockUserStateClient(request.user)
             user_state_dict = {}
@@ -2274,56 +2219,3 @@ def send_email_with_scores(course_id, usage_id, mailing_id, emails):
         log.info(u"Task to send scores successfully finished. Mailing id: %s", str(mailing_id))
     except SendScoresMailing.DoesNotExist:
         log.info(u"Task to send scores finished with error. Mailing id: %s", str(mailing_id))
-
-
-@CELERY_APP.task
-def track_sequential_viewed_task(task_id):
-    log.info(u"Task send sequential_viewed event was started. Task id: %s", str(task_id))
-
-    try:
-        task = SequentialViewedTask.objects.get(id=task_id)
-        course_key = task.course_id
-        usage_key = UsageKey.from_string(task.block_id)
-
-        problem_locations = json.loads(task.data)
-        student_properties_data = get_student_properties_event_data(task.user, course_key)
-
-        with modulestore().bulk_operations(course_key):
-            block = modulestore().get_item(usage_key)
-            block_children = _get_block_children(block, '', add_correctness=False)
-
-        for problem_loc in problem_locations:
-            problem_details = block_children[problem_loc]
-            descriptor = problem_details['data']
-            category = problem_details['category']
-            item_dict = {
-                'student_properties_aside': student_properties_data,
-                'sequential_block_id': str(block.location),
-                'usage_key': problem_loc,
-                'display_name': descriptor.display_name,
-                'question_text': problem_details['question_text'],
-                'category': category
-            }
-
-            tagging_aside_name = 'tagging_aside'
-            if category == 'openassessment':
-                tagging_aside_name = 'tagging_ora_aside'
-                item_dict['rubrics'] = descriptor.rubric_criteria
-                item_dict['rubric_count'] = len(descriptor.rubric_criteria)
-
-            for aside in descriptor.runtime.get_asides(descriptor):
-                if aside.scope_ids.block_type == tagging_aside_name:
-                    item_dict[tagging_aside_name] = aside.saved_tags
-
-            context = {
-                'user_id': task.user.id,
-                'org_id': course_key.org,
-                'course_id': str(course_key)
-            }
-
-            with tracker.get_tracker().context('sequential_block.viewed', context):
-                tracker.emit('sequential_block.viewed', item_dict)
-
-        log.info(u"Task send sequential_viewed event was finished. Task id: %s", str(task_id))
-    except SequentialViewedTask.DoesNotExist:
-        log.info(u"Task send sequential_viewed event was finished with error. Task id: %s", str(task_id))

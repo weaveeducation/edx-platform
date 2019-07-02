@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from django.utils.html import strip_tags
 from submissions import api as sub_data_api
 
@@ -26,6 +27,16 @@ def _get_item_correctness(item):
                     answer_notification_type = 'partially correct'
                 break
     return answer_notification_type
+
+
+def get_block_children(block, parent_name, add_correctness=True):
+    data = OrderedDict()
+    for item in block.get_children():
+        loc_id = str(item.location)
+        data[loc_id] = get_problem_detailed_info(item, parent_name, add_correctness)
+        if item.has_children:
+            data.update(get_block_children(item, item.display_name, add_correctness))
+    return data
 
 
 def get_problem_detailed_info(item, parent_name, add_correctness=True):

@@ -20,6 +20,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
 from model_utils.models import TimeStampedModel
 from six import text_type
@@ -454,3 +455,15 @@ class OrgDynamicUpgradeDeadlineConfiguration(OptOutDynamicUpgradeDeadlineMixin, 
         default=False,
         help_text=_('Disable the dynamic upgrade deadline for this organization.')
     )
+
+
+@receiver(post_save, sender=StudentModule)
+def set_viewed(sender, instance, created, **kwargs):
+    if created and instance.module_type == 'sequential':
+        from courseware.tasks import track_sequential_viewed_task
+        course_key_str = str(instance.course_id)
+        usage_key_str = str(instance.module_state_key)
+        user_id = int(instance.student.id)
+        logging.info("Try to create task to send sequential_viewed event: course_key=%s, usage_key=%s, user_id=%d"
+                     % (course_key_str, usage_key_str, user_id))
+        track_sequential_viewed_task.delay(course_key_str, usage_key_str, user_id)
