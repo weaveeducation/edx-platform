@@ -47,7 +47,7 @@ from util.views import ensure_valid_course_key
 from xmodule.modulestore.django import modulestore
 from xmodule.course_module import COURSE_VISIBILITY_PUBLIC
 from xmodule.x_module import PUBLIC_VIEW, STUDENT_VIEW
-from .views import CourseTabView, get_student_progress_images, need_track_sequential_viewed, track_sequential_viewed
+from .views import CourseTabView, get_student_progress_images
 from ..access import has_access
 from ..courses import check_course_access, get_course_with_access, get_current_child, get_studio_url
 from ..entrance_exams import (
@@ -448,8 +448,6 @@ class CoursewareIndex(View):
         # entrance exam data
         self._add_entrance_exam_to_context(courseware_context)
 
-        need_track = need_track_sequential_viewed(request.user, self.course, self.section)
-
         if self.section:
             # chromeless data
             if self.section.chrome:
@@ -490,9 +488,6 @@ class CoursewareIndex(View):
 
             if self.section.position and self.section.has_children:
                 self._add_sequence_title_to_context(courseware_context)
-
-        if need_track:
-            track_sequential_viewed(request.user, self.course, self.section)
 
         return courseware_context
 
