@@ -1284,6 +1284,13 @@ class CapaMixin(ScorableXBlockMixin, CapaFields):
         event_info['success'] = success
         event_info['attempts'] = self.attempts
         event_info['submission'] = self.get_submission_metadata_safe(answers_without_files, correct_map)
+
+        question_text = ''
+        dt = self.descriptor.index_dictionary(remove_variants=True)
+        if dt and 'content' in dt and 'capa_content' in dt['content']:
+            question_text = dt['content']['capa_content'].strip()
+        event_info['question_text'] = question_text
+
         self.track_function_unmask('problem_check', event_info)
 
         # render problem into HTML
