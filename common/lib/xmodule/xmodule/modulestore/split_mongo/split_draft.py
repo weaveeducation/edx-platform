@@ -398,7 +398,7 @@ class DraftVersioningModuleStore(SplitMongoModuleStore, ModuleStoreDraftAndPubli
             self.delete_item(location, user_id, revision=ModuleStoreEnum.RevisionOption.published_only)
             return self.get_item(location.for_branch(ModuleStoreEnum.BranchName.draft), **kwargs)
 
-    def revert_to_published(self, location, user_id):
+    def revert_to_published(self, location, user_id, version_id=None):
         """
         Reverts an item to its last published version (recursively traversing all of its descendants).
         If no published version exists, a VersionConflictError is thrown.
@@ -415,9 +415,14 @@ class DraftVersioningModuleStore(SplitMongoModuleStore, ModuleStoreDraftAndPubli
         with self.bulk_operations(draft_course_key):
 
             # get head version of Published branch
-            published_course_structure = self._lookup_course(
-                location.course_key.for_branch(ModuleStoreEnum.BranchName.published)
-            ).structure
+            if version_id is None:
+                published_course_structure = self._lookup_course(
+                    location.course_key.for_branch(ModuleStoreEnum.BranchName.published)
+                ).structure
+            else:
+                published_course_structure = self._lookup_course(
+                    location.course_key.for_version(version_id), head_validation=False
+                ).structure
             published_block = self._get_block_from_structure(
                 published_course_structure,
                 BlockKey.from_usage_key(location)

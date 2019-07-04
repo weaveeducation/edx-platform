@@ -227,7 +227,8 @@
           padding: ($baseline/4) ($baseline/2) ($baseline/3) ($baseline/2);
         }
 
-        .action-discard {
+        .action-discard,
+        .action-list-versions {
           @extend %t-copy-sub1;
 
           display: block;
@@ -237,6 +238,21 @@
           &.is-disabled {
             pointer-events: none;
             color: $gray-l1;
+          }
+        }
+
+        .versions-list {
+          max-height: 200px;
+          padding-right: 15px;
+          overflow-y: scroll;
+          margin-top: 6px;
+          text-align: right;
+          @extend %status-value-base;
+
+          .version-to-restore {
+            border-bottom: 1px solid #CCC;
+            padding-top: 5px;
+            padding-bottom: 5px;
           }
         }
       }
