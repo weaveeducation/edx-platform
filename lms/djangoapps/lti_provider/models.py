@@ -180,7 +180,16 @@ class GradedAssignmentLock(models.Model):
         GradedAssignmentLock.objects.filter(graded_assignment_id=graded_assignment_id).delete()
 
 
-class SendScoresLock():
+class LtiContextId(models.Model):
+    user = models.ForeignKey(User, db_index=True)
+    course_key = CourseKeyField(max_length=255, db_index=True)
+    usage_key = UsageKeyField(max_length=255, db_index=True)
+    value = models.TextField()
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+
+class SendScoresLock(object):
 
     def __init__(self, graded_assignment_id):
         self.graded_assignment_id = graded_assignment_id

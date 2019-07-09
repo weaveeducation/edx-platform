@@ -465,10 +465,7 @@ def reset_progress_student(_xmodule_instance_args, _entry_id, course_id, _task_i
     )
 
     user = User.objects.get(id=_task_input['student'])
-    new_user = _create_edx_user(user.email, user.username, user.password, user)
-    new_profile = user.profile
-    new_profile.pk, new_profile.user = None, new_user
-    new_profile.save()
+    new_user = create_reset_user(user)
 
     task_progress.succeeded = 1
 
@@ -481,11 +478,23 @@ def reset_progress_student(_xmodule_instance_args, _entry_id, course_id, _task_i
     )
     task_progress.update_task_state(extra_meta=curr_step)
 
-    CourseEnrollment.enroll(new_user, course_id)
-    StudentModule.objects.filter(course_id=course_id, student=user).update(student=new_user)
+    update_reset_progress(user, new_user, course_id)
 
-    if completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
-        BlockCompletion.objects.clear_completion(user, course_id)
     curr_step = {'step': 'Finalizing reseting report'}
     return task_progress.update_task_state(extra_meta=curr_step)
 
+
+def create_reset_user(user):
+    new_user = _create_edx_user(user.email, user.username, user.password, user)
+    new_profile = user.profile
+    new_profile.pk, new_profile.user = None, new_user
+    new_profile.save()
+    return new_user
+
+
+def update_reset_progress(user, new_user, course_key):
+    CourseEnrollment.enroll(new_user, course_key)
+    StudentModule.objects.filter(course_id=course_key, student=user).update(student=new_user)
+
+    if completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
+        BlockCompletion.objects.clear_completion(user, course_key)

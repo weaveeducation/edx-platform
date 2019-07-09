@@ -14,7 +14,8 @@ from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.cache import caches
 from django.core.urlresolvers import reverse
 
-from lti_provider.models import LtiConsumer
+from lms.djangoapps.instructor_task.tasks_helper.module_state import create_reset_user, update_reset_progress
+from lti_provider.models import LtiConsumer, LtiContextId
 from lti_provider.outcomes import store_outcome_parameters
 from lti_provider.signature_validator import SignatureValidator
 from lti_provider.users import authenticate_lti_user, update_lti_user_data
@@ -75,6 +76,7 @@ def lti_launch(request, course_id, usage_id):
     request_params, is_cached = get_params(request)
     params = get_required_parameters(request_params)
     return_url = request_params.get('launch_presentation_return_url', None)
+    context_id = request_params.get('context_id', None)
 
     if not params:
         return render_bad_request(return_url)
@@ -155,6 +157,10 @@ def lti_launch(request, course_id, usage_id):
             check_and_save_enrollment_attributes(request_params, request.user, course_key)
         if lti_params and 'email' in lti_params:
             update_lti_user_data(request.user, lti_params['email'])
+
+    # Reset attempts based on new context_ID:
+    # https://credoeducation.atlassian.net/browse/DEV-209
+    check_and_reset_lti_user_progress(context_id, request.user, course_key, usage_key)
 
     # Store any parameters required by the outcome service in order to report
     # scores back later. We know that the consumer exists, since the record was
@@ -377,3 +383,26 @@ def set_user_roles(edx_user, course_key, roles):
     external_roles = ['Administrator', 'Instructor', 'Staff']
     if any(role in roles for role in external_roles):
         CourseStaffRole(course_key).add_users(edx_user)
+
+
+def check_and_reset_lti_user_progress(context_id, user, course_key, usage_key):
+    if context_id:
+        try:
+            context = LtiContextId.objects.get(
+                course_key=course_key,
+                usage_key=usage_key,
+                user=user,
+            )
+            if context.value != context_id:
+                context.value = context_id
+                context.save()
+                new_user = create_reset_user(user)
+                update_reset_progress(user, new_user, course_key)
+        except LtiContextId.DoesNotExist:
+            context = LtiContextId(
+                user=user,
+                course_key=course_key,
+                usage_key=usage_key,
+                value=context_id
+            )
+            context.save()
