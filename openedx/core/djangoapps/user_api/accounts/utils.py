@@ -16,6 +16,7 @@ from six import text_type
 from completion import waffle as completion_waffle
 from completion.models import BlockCompletion
 from openedx.core.djangoapps.site_configuration.models import SiteConfiguration
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.theming.helpers import get_config_value_from_site_or_settings, get_current_site
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
@@ -227,3 +228,7 @@ def is_user_credo_anonymous(user):
     if user.email.endswith('@credomodules.com'):
         return True
     return False
+
+
+def get_hide_profile_setting():
+    return configuration_helpers.get_value('HIDE_PROFILE', settings.HIDE_PROFILE)

@@ -3419,6 +3419,10 @@ EDX_PLATFORM_REVISION = 'unknown'
 EMBEDDED_CODE_CACHE_TIMEOUT = 60 * 60
 EMBEDDED_CODE_CACHE_PREFIX = "embedded_code"
 
+############## Additional settings ############################
+
+HIDE_PROFILE = False
+
 ############## Settings for Completion API #########################
 
 # Once a user has watched this percentage of a video, mark it as complete:
