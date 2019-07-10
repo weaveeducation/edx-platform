@@ -16,7 +16,7 @@ lms_root_url = configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT
 
     <div class="footer-content-primary">
       <div class="colophon">
-        <p>&copy; ${datetime.now(pytz.timezone(settings.TIME_ZONE)).year} <a data-rel="edx.org" href="${marketing_link('ROOT')}" rel="external">${platform_name}</a>.</p>
+        <p>&copy; ${datetime.now(pytz.timezone(settings.TIME_ZONE)).year} <a data-rel="edx.org" href="${lms_root_url}" rel="external">${platform_name}</a>.</p>
       </div>
 
         <nav class="nav-peripheral" aria-label="${_("Policies")}">
