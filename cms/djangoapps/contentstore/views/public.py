@@ -57,11 +57,13 @@ def login_page(request):
         # If CAS is enabled, redirect auth handling to there
         return redirect(reverse('cas-login'))
 
+    lms_base = configuration_helpers.get_value('LMS_BASE', settings.LMS_BASE)
+
     return render_to_response(
         'login.html',
         {
             'csrf': csrf_token,
-            'forgot_password_link': "//{base}/login#forgot-password-modal".format(base=settings.LMS_BASE),
+            'forgot_password_link': "//{base}/login#forgot-password-modal".format(base=lms_base),
             'platform_name': configuration_helpers.get_value('platform_name', settings.PLATFORM_NAME),
         }
     )

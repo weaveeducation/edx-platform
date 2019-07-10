@@ -4,8 +4,12 @@
 <%namespace name='static' file='static_content.html'/>
 <%!
   from django.urls import reverse
+  from django.conf import settings
   from django.utils.translation import ugettext as _
   from openedx.core.djangolib.markup import HTML, Text
+  from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+
+  platform_name = configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
 %>
 
 <%block name="title">${_("Welcome")}</%block>
@@ -161,7 +165,7 @@
 
     <ul class="list-actions">
       <li class="action-item">
-        <a href="${reverse('signup')}" class="action action-primary">${_("Sign Up & Start Making Your {platform_name} Course").format(platform_name=settings.PLATFORM_NAME)}</a>
+        <a href="${reverse('signup')}" class="action action-primary">${_("Sign Up & Start Making Your {platform_name} Course").format(platform_name=platform_name)}</a>
       </li>
       <li class="action-item">
         <a href="${reverse('login')}" class="action action-secondary">${_("Already have a {studio_name} Account? Sign In").format(studio_name=settings.STUDIO_SHORT_NAME)}</a>

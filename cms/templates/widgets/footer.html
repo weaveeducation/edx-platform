@@ -5,6 +5,10 @@ from datetime import datetime
 from django.conf import settings
 import pytz
 from cms.djangoapps.contentstore.config.waffle import waffle, ENABLE_ACCESSIBILITY_POLICY_PAGE
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+
+platform_name = configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
+lms_root_url = configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL)
 %>
 
 <div class="wrapper-footer wrapper">
@@ -12,7 +16,7 @@ from cms.djangoapps.contentstore.config.waffle import waffle, ENABLE_ACCESSIBILI
 
     <div class="footer-content-primary">
       <div class="colophon">
-        <p>&copy; ${datetime.now(pytz.timezone(settings.TIME_ZONE)).year} <a data-rel="edx.org" href="${marketing_link('ROOT')}" rel="external">${settings.PLATFORM_NAME}</a>.</p>
+        <p>&copy; ${datetime.now(pytz.timezone(settings.TIME_ZONE)).year} <a data-rel="edx.org" href="${marketing_link('ROOT')}" rel="external">${platform_name}</a>.</p>
       </div>
 
         <nav class="nav-peripheral" aria-label="${_("Policies")}">
@@ -33,7 +37,7 @@ from cms.djangoapps.contentstore.config.waffle import waffle, ENABLE_ACCESSIBILI
               </li>
             %endif
             <li class="nav-item">
-              <a data-rel="edx.org" id="lms-link" href="${settings.LMS_ROOT_URL}">${_("LMS")}</a>
+              <a data-rel="edx.org" id="lms-link" href="${lms_root_url}">${_("LMS")}</a>
             </li>
           </ol>
         </nav>

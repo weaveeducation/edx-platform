@@ -5,7 +5,10 @@
   from django.urls import reverse
   from django.utils.translation import ugettext as _
   from openedx.core.djangoapps.lang_pref.api import header_language_selector_is_enabled, released_languages
+  from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
   from cms.djangoapps.contentstore.utils import feature_is_available
+
+  lms_root_url = configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL)
 %>
 <div class="wrapper-header wrapper" id="view-top">
   <header class="primary" role="banner">
@@ -237,7 +240,7 @@
 
     % else:
       <%
-        register_url = settings.LMS_ROOT_URL + '/register'
+        register_url = lms_root_url + '/register'
       %>
       <nav class="nav-not-signedin nav-pitch" aria-label="${_('Account')}">
         <h2 class="sr-only">${_("Account Navigation")}</h2>
