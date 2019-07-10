@@ -7,7 +7,7 @@
 <%!
 from django.urls import reverse
 from django.utils.translation import ugettext as _
-from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous
+from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous, get_hide_profile_setting
 %>
 
 <ol class="left nav-global list-inline authenticated">
@@ -41,8 +41,9 @@ from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonym
         self.real_user = getattr(user, 'real_user', user)
         is_on_profile_page = data and data.get('profile_user_id') is not None
         credo_anonymous_user = is_user_credo_anonymous(self.real_user)
+        hide_profile = get_hide_profile_setting()
       %>
-      % if not credo_anonymous_user:
+      % if not credo_anonymous_user and not hide_profile:
       <li class="tab-nav-item">
         <a class="${'active ' if is_on_profile_page else ''}tab-nav-link" href="${reverse('learner_profile', args=[self.real_user.username])}">
           ${_("Profile")}
