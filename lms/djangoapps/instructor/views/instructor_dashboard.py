@@ -110,6 +110,16 @@ def instructor_dashboard_2(request, course_id):
     except InvalidKeyError:
         log.error(u"Unable to find course with course key %s while loading the Instructor Dashboard.", course_id)
         return HttpResponseServerError()
+    with modulestore().bulk_operations(course_key):
+        return _get_instructor_dashboard_2(request, course_id)
+
+
+def _get_instructor_dashboard_2(request, course_id):
+    try:
+        course_key = CourseKey.from_string(course_id)
+    except InvalidKeyError:
+        log.error(u"Unable to find course with course key %s while loading the Instructor Dashboard.", course_id)
+        return HttpResponseServerError()
 
     course = get_course_by_id(course_key, depth=0)
 
