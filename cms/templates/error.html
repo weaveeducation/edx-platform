@@ -4,6 +4,9 @@
 from django.utils.translation import ugettext as _
 from django.urls import reverse
 from django.conf import settings
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+from openedx.core.djangolib.markup import HTML, Text
+
 %>
 <%block name="bodyclass">error</%block>
 <%block name="title">
@@ -15,7 +18,8 @@ from django.conf import settings
 </%block>
 
 <%!
-help_link_start = '<a href="mailto:{email}">'.format(email=settings.TECH_SUPPORT_EMAIL)
+tech_support_email = configuration_helpers.get_value('TECH_SUPPORT_EMAIL', settings.TECH_SUPPORT_EMAIL)
+help_link_start = '<a href="mailto:{email}">'.format(email=tech_support_email)
 help_link_end = '</a>'
 %>
 

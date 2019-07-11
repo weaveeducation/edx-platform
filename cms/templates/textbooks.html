@@ -2,8 +2,12 @@
 <%def name="online_help_token()"><% return "textbooks" %></%def>
 <%namespace name='static' file='static_content.html'/>
 <%!
+from django.conf import settings
 from django.utils.translation import ugettext as _
 from openedx.core.djangolib.js_utils import dump_js_escaped_json
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+
+lms_base = configuration_helpers.get_value('LMS_BASE', settings.LMS_BASE)
 %>
 
 <%block name="title">${_("Textbooks")}</%block>
@@ -23,7 +27,7 @@ window.CMS = window.CMS || {};
 CMS.URL = CMS.URL || {};
 CMS.URL.UPLOAD_ASSET = "${upload_asset_url}"
 CMS.URL.TEXTBOOKS = "${textbook_url}"
-CMS.URL.LMS_BASE = "${settings.LMS_BASE}"
+CMS.URL.LMS_BASE = "${lms_base}"
 </script>
 </%block>
 

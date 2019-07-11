@@ -994,17 +994,17 @@ class CourseFields(object):
         scope=Scope.settings
     )
     credo_authentication = Boolean(
-        display_name=_("Credo Authentication"),
+        display_name=_("IP Authentication"),
         help=_(
-            "Credo Authentication."
+            "IP Authentication."
         ),
         default=False,
         scope=Scope.settings
     )
     credo_additional_profile_fields = Dict(
-        display_name=_("Credo Modules Additional Profile Fields"),
+        display_name=_("IP Auth Profile Fields"),
         help=_(
-            'Credo Modules Additional Student Profile Fields.'
+            'IP Auth Profile Fields.'
         ),
         scope=Scope.settings
     )

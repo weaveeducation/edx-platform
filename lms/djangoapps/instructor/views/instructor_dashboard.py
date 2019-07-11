@@ -110,6 +110,16 @@ def instructor_dashboard_2(request, course_id):
     except InvalidKeyError:
         log.error(u"Unable to find course with course key %s while loading the Instructor Dashboard.", course_id)
         return HttpResponseServerError()
+    with modulestore().bulk_operations(course_key):
+        return _get_instructor_dashboard_2(request, course_id)
+
+
+def _get_instructor_dashboard_2(request, course_id):
+    try:
+        course_key = CourseKey.from_string(course_id)
+    except InvalidKeyError:
+        log.error(u"Unable to find course with course key %s while loading the Instructor Dashboard.", course_id)
+        return HttpResponseServerError()
 
     course = get_course_by_id(course_key, depth=0)
 
@@ -842,11 +852,12 @@ def _section_lti_constructor(request, course):
 
 def _section_credo_insights(request, course):
     current_platform_name = configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
+    insights_url = configuration_helpers.get_value('INSIGHTS_LINK', settings.CREDO_INSIGHTS_LINK)
     section_data = {
         'section_key': 'credo_insights',
         'section_display_name': current_platform_name + ' Insights',
         'course_id': unicode(course.id),
-        'credo_insights_url': settings.CREDO_INSIGHTS_LINK,
+        'credo_insights_url': insights_url,
         'current_platform_name': current_platform_name
     }
     return section_data

@@ -185,12 +185,13 @@ class SafeCookieData(object):
                 return True
             log.error("SafeCookieData '%r' is not bound to user '%s'.", unicode(self), user_id)
         except signing.BadSignature as sig_error:
-            log.error(
-                "SafeCookieData signature error for cookie data {0!r}: {1}".format(  # pylint: disable=logging-format-interpolation
-                    unicode(self),
-                    text_type(sig_error),
-                )
-            )
+            pass
+            #log.error(
+            #    "SafeCookieData signature error for cookie data {0!r}: {1}".format(  # pylint: disable=logging-format-interpolation
+            #        unicode(self),
+            #        text_type(sig_error),
+            #    )
+            #)
         return False
 
     def _compute_digest(self, user_id):
