@@ -127,7 +127,7 @@ var visibleToStaffOnly = visibilityState === 'staff_only';
                 </a>
             </li>
             <li class="action-item">
-                <a class="action-list-versions action-secondary" href="javascript: void(0);">List of Previously Published Versions</a>
+                <a class="action-list-versions action-secondary" href="javascript: void(0);">List of Versions</a>
                 <div class="versions-list">
                 </div>
             </li>

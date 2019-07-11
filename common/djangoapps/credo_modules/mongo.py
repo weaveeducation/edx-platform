@@ -23,6 +23,7 @@ def get_block_versions(block_id):
     block_version = structures.find_one({'_id': course['versions']['published-branch']})
 
     result = OrderedDict()
+    last_published = True
 
     while block_version:
         block_found = False
@@ -41,8 +42,10 @@ def get_block_versions(block_id):
                     result[edited_on] = {
                         'id': str(block_version['_id']),
                         'user': username,
-                        'datetime': block['edit_info']['edited_on'].strftime("%B %d, %Y - %H:%M UTC")
+                        'datetime': block['edit_info']['edited_on'].strftime("%B %d, %Y - %H:%M UTC"),
+                        'can_restore': not last_published
                     }
+                    last_published = False
         if block_found:
             if block_version['previous_version']:
                 block_version = structures.find_one({'_id': block_version['previous_version']})
