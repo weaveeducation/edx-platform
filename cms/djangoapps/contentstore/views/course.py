@@ -1817,7 +1817,7 @@ def group_configurations_detail_handler(request, course_key_string, group_config
 @ensure_csrf_cookie
 def get_versions_list(request, usage_key_string):
     block_versions = get_block_versions(usage_key_string)
-    return JsonResponse({'versions': block_versions[1:]})
+    return JsonResponse({'versions': block_versions})
 
 
 @login_required
