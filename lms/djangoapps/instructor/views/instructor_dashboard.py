@@ -852,11 +852,12 @@ def _section_lti_constructor(request, course):
 
 def _section_credo_insights(request, course):
     current_platform_name = configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
+    insights_url = configuration_helpers.get_value('INSIGHTS_LINK', settings.CREDO_INSIGHTS_LINK)
     section_data = {
         'section_key': 'credo_insights',
         'section_display_name': current_platform_name + ' Insights',
         'course_id': unicode(course.id),
-        'credo_insights_url': settings.CREDO_INSIGHTS_LINK,
+        'credo_insights_url': insights_url,
         'current_platform_name': current_platform_name
     }
     return section_data
