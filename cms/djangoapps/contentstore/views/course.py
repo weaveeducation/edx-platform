@@ -97,6 +97,7 @@ from xmodule.modulestore.exceptions import DuplicateCourseError, ItemNotFoundErr
 from xmodule.partitions.partitions import UserPartition
 from xmodule.tabs import CourseTab, CourseTabList, InvalidTabsException
 from credo_modules.models import CopySectionTask
+from credo_modules.mongo import get_block_versions
 
 from .component import ADVANCED_COMPONENT_TYPES
 from .item import create_xblock_info, copy_to_other_course
@@ -113,7 +114,8 @@ __all__ = ['course_info_handler', 'course_handler', 'course_listing', 'course_li
            'advanced_settings_handler',
            'course_notifications_handler',
            'textbooks_list_handler', 'textbooks_detail_handler',
-           'group_configurations_list_handler', 'group_configurations_detail_handler']
+           'group_configurations_list_handler', 'group_configurations_detail_handler',
+           'get_versions_list', 'restore_block_version']
 
 WAFFLE_NAMESPACE = 'studio_home'
 
@@ -1809,6 +1811,23 @@ def group_configurations_detail_handler(request, course_key_string, group_config
                 group_configuration_id=group_configuration_id,
                 group_id=group_id
             )
+
+
+@login_required
+@ensure_csrf_cookie
+def get_versions_list(request, usage_key_string):
+    block_versions = get_block_versions(usage_key_string)
+    return JsonResponse({'versions': block_versions})
+
+
+@login_required
+@ensure_csrf_cookie
+@require_http_methods(["POST"])
+def restore_block_version(request, usage_key_string):
+    version_guid = request.POST.get('versionId')
+    usage_key = UsageKey.from_string(usage_key_string)
+    modulestore().revert_to_published(usage_key, request.user.id, version_guid)
+    return JsonResponse({'success': True})
 
 
 def are_content_experiments_enabled(course):
