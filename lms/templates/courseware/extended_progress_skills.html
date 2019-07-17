@@ -97,7 +97,10 @@ username = get_enterprise_learner_generic_name(request) or student.username
                                             <tbody>
                                             <tr>
                                             <td class="seq-grade-details-item-block-icon">
-                                                % if problem['correctness'] == 'Not Answered' or problem['correctness'] == 'Incorrect':
+                                                % if problem['correctness'] == 'Not Answered':
+                                                <img src="${static.url('images/credo/question_unanswered.png')}" width="24" height="24"
+                                                     alt="${problem['correctness']}" title="${problem['correctness']}">
+                                                % elif problem['correctness'] == 'Incorrect':
                                                 <img src="${static.url('images/credo/question_incorrect.png')}" width="25" height="25"
                                                      alt="${problem['correctness']}" title="${problem['correctness']}">
                                                 % else:

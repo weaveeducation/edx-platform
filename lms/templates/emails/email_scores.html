@@ -221,7 +221,13 @@ ${scores['common']['browser_datetime_short']}\
                             <table class="seq-table" cellpadding="0" cellspacing="0">
                             <tr>
                             <td class="seq-grade-details-item-block-icon">
-                                % if item['correctness'] == 'Not Answered' or item['correctness'] == 'Incorrect':
+                                % if item['correctness'] == 'Not Answered':
+                                % if use_static:
+                                <img src="${lms_url}${static.url('images/credo/question_unanswered.png')}" width="24" height="24">
+                                % else:
+                                <img src="cid:question_unanswered.png" width="25" height="25">
+                                % endif
+                                % elif item['correctness'] == 'Incorrect':
                                 % if use_static:
                                 <img src="${lms_url}${static.url('images/credo/question_incorrect.png')}" width="25" height="25">
                                 % else:
