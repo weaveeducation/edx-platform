@@ -2062,6 +2062,7 @@ def get_student_progress_images():
     return {
         'correct_icon': settings.STATIC_URL + 'images/credo/question_correct.png',
         'incorrect_icon': settings.STATIC_URL + 'images/credo/question_incorrect.png',
+        'unanswered_icon': settings.STATIC_URL + 'images/credo/question_unanswered.png',
         'assessment_done_img': settings.STATIC_URL + 'images/credo/assessment_done.png'
     }
 

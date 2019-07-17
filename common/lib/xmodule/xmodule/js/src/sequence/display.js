@@ -89,6 +89,7 @@
             this.resizeId = null;
             this.correctIcon = this.el.data('correct-icon');
             this.incorrectIcon = this.el.data('incorrect-icon');
+            this.unansweredIcon = this.el.data('unanswered-icon');
 
             this.sequenceList = $(element).find('#sequence-list');
             this.widthElem = 170;
@@ -265,11 +266,17 @@
             var html = '';
             $.each(this.scores.items, function(idx, value) {
                 var iconSrc = self.correctIcon;
-                if ((value.correctness === 'Not Answered') || (value.correctness === 'Incorrect')) {
+                var iconWidth = 25;
+                var iconHeight = 25;
+                if (value.correctness === 'Not Answered') {
+                    iconSrc = self.unansweredIcon;
+                    iconWidth = 24;
+                    iconHeight = 24;
+                } else if (value.correctness === 'Incorrect') {
                     iconSrc = self.incorrectIcon;
                 }
                 html += '<div class="seq-grade-details-item-block"><table class="seq-grade-details-item-table"><tr>' +
-                        '<td class="seq-grade-details-item-block-icon"><img src="' + iconSrc + '" alt="' + value.correctness + '" title="' + value.correctness + '" width="25" height="25" /></td>' +
+                        '<td class="seq-grade-details-item-block-icon"><img src="' + iconSrc + '" alt="' + value.correctness + '" title="' + value.correctness + '" width="' + iconWidth + '" height="' + iconHeight + '" /></td>' +
                         '<td class="seq-grade-details-item-block-content">' +
                           '<div class="seq-grade-details-item-block-content-header">' + value.parent_name + ' <span class="icon fa fa-angle-right" aria-hidden="true"></span> ' + value.display_name + '</div>';
                 if (value.last_answer_timestamp) {

@@ -14,7 +14,8 @@
      data-graded=${"1" if graded else "0"}
      data-show-summary-info-after-quiz=${"1" if show_summary_info_after_quiz else "0"}
      data-correct-icon="${summary_info_imgs['correct_icon']}"
-     data-incorrect-icon="${summary_info_imgs['incorrect_icon']}">
+     data-incorrect-icon="${summary_info_imgs['incorrect_icon']}"
+     data-unanswered-icon="${summary_info_imgs['unanswered_icon']}">
 
   % if graded and show_summary_info_after_quiz:
   <div id="get-score-modal" class="modal scores-modal" tabindex="-1" role="dialog">

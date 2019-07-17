@@ -5,10 +5,7 @@ from datetime import datetime
 from django.conf import settings
 import pytz
 from cms.djangoapps.contentstore.config.waffle import waffle, ENABLE_ACCESSIBILITY_POLICY_PAGE
-from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
-platform_name = configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
-lms_root_url = configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL)
 %>
 
 <div class="wrapper-footer wrapper">

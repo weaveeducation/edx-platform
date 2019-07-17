@@ -87,8 +87,10 @@ def in_preview_mode():
     """
     Returns whether the user is in preview mode or not.
     """
+    from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
     hostname = get_current_request_hostname()
-    preview_lms_base = settings.FEATURES.get('PREVIEW_LMS_BASE', None)
+    preview_lms_base = configuration_helpers.get_value('PREVIEW_LMS_BASE',
+                                                       settings.FEATURES.get('PREVIEW_LMS_BASE', None))
     return bool(preview_lms_base and hostname and hostname.split(':')[0] == preview_lms_base.split(':')[0])
 
 
