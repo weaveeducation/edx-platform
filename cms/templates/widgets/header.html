@@ -5,10 +5,7 @@
   from django.urls import reverse
   from django.utils.translation import ugettext as _
   from openedx.core.djangoapps.lang_pref.api import header_language_selector_is_enabled, released_languages
-  from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
   from cms.djangoapps.contentstore.utils import feature_is_available
-
-  lms_root_url = configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL)
 %>
 <div class="wrapper-header wrapper" id="view-top">
   <header class="primary" role="banner">
@@ -239,9 +236,6 @@
       </nav>
 
     % else:
-      <%
-        register_url = lms_root_url + '/register'
-      %>
       <nav class="nav-not-signedin nav-pitch" aria-label="${_('Account')}">
         <h2 class="sr-only">${_("Account Navigation")}</h2>
         <ol>
@@ -250,7 +244,7 @@
           </li>
           % if static.get_value('ALLOW_PUBLIC_ACCOUNT_CREATION', settings.FEATURES.get('ALLOW_PUBLIC_ACCOUNT_CREATION')):
               <li class="nav-item nav-not-signedin-signup">
-                <a class="action action-signup" href="${register_url}?next=${current_url}">${_("Sign Up")}</a>
+                <a class="action action-signup" href="${lms_root_url}/register?next=${current_url}">${_("Sign Up")}</a>
               </li>
           % endif
           <li class="nav-item nav-not-signedin-signin">

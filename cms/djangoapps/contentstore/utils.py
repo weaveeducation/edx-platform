@@ -133,7 +133,7 @@ def get_lms_link_for_item(location, preview=False):
         lms_base = SiteConfiguration.get_value_for_org(
             location.org,
             "PREVIEW_LMS_BASE",
-            settings.FEATURES.get('PREVIEW_LMS_BASE')
+            configuration_helpers.get_value('PREVIEW_LMS_BASE', settings.FEATURES.get('PREVIEW_LMS_BASE'))
         )
 
     return u"//{lms_base}/courses/{course_key}/jump_to/{location}".format(
