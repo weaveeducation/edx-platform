@@ -81,7 +81,7 @@ class SafeCookieError(Exception):
     """
     def __init__(self, error_message):
         super(SafeCookieError, self).__init__(error_message)
-        log.error(error_message)
+        log.info(error_message)
 
 
 class SafeCookieData(object):
@@ -183,15 +183,14 @@ class SafeCookieData(object):
             unsigned_data = signing.loads(self.signature, salt=self.key_salt, max_age=settings.SESSION_COOKIE_AGE)
             if unsigned_data == self._compute_digest(user_id):
                 return True
-            log.error("SafeCookieData '%r' is not bound to user '%s'.", unicode(self), user_id)
+            log.info("SafeCookieData '%r' is not bound to user '%s'.", unicode(self), user_id)
         except signing.BadSignature as sig_error:
-            pass
-            #log.error(
-            #    "SafeCookieData signature error for cookie data {0!r}: {1}".format(  # pylint: disable=logging-format-interpolation
-            #        unicode(self),
-            #        text_type(sig_error),
-            #    )
-            #)
+            log.info(
+                "SafeCookieData signature error for cookie data {0!r}: {1}".format(  # pylint: disable=logging-format-interpolation
+                    unicode(self),
+                    text_type(sig_error),
+                )
+            )
         return False
 
     def _compute_digest(self, user_id):
