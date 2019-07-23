@@ -53,16 +53,16 @@ username = get_enterprise_learner_generic_name(request) or student.username
                     <div class="progress-tags-assessments-main-block">
                     <div class="progress-assessments-header">
                         <div class="progress-assessments-cell progress-assessments-cell-head-title skill">
-                            <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-title" data-order-by="title" href="javascript: void(0);">Skill</a>
+                            <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-title" data-order-by="title" data-order-by-type="str" href="javascript: void(0);">Skill</a>
                         </div>
                         <div class="progress-assessments-cell progress-assessments-cell-head-title answers-submitted">
-                            <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-answers" data-order-by="answers" href="javascript: void(0);">Answers Submitted</a>
+                            <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-answers" data-order-by="answers" data-order-by-type="int" href="javascript: void(0);">Answers Submitted</a>
                         </div>
                         <div class="progress-assessments-cell progress-assessments-cell-head-title average-performance">
-                            <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-percent-correct" data-order-by="percent-correct" href="javascript: void(0);">Average Performance<i class="fa fa-chevron-down header-icon progress-assessments-cell-head-icon" aria-hidden="true"></i></a>
+                            <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-percent-correct" data-order-by="percent-correct" data-order-by-type="int" href="javascript: void(0);">Average Performance<i class="fa fa-chevron-down header-icon progress-assessments-cell-head-icon" aria-hidden="true"></i></a>
                         </div>
                     </div>
-                    <div class="progress-assessments-body">
+                    <div class="progress-assessments-body" data-current-order-by="percent-correct">
                         % for tag in tags:
                         <div class="progress-tags-assessments-item"
                              data-title="${tag['tag_title']}"

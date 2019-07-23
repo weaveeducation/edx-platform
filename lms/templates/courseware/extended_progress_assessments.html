@@ -1,0 +1,169 @@
+<%page expression_filter="h"/>
+<%inherit file="/main.html" />
+<%namespace name='static' file='/static_content.html'/>
+<%def name="online_help_token()"><% return "progress" %></%def>
+<%!
+from course_modes.models import CourseMode
+from lms.djangoapps.certificates.models import CertificateStatuses
+from django.utils.translation import ugettext as _
+from openedx.core.djangolib.markup import HTML, Text
+from django.urls import reverse
+from django.conf import settings
+from django.utils.http import urlquote_plus
+from six import text_type
+
+from openedx.features.enterprise_support.utils import get_enterprise_learner_generic_name
+%>
+
+<%
+username = get_enterprise_learner_generic_name(request) or student.username
+%>
+
+<%block name="bodyclass">view-in-course view-progress</%block>
+
+<%block name="headextra">
+<%static:css group='style-course-vendor'/>
+<%static:css group='style-course'/>
+</%block>
+
+<%block name="pagetitle">${_("{course_number} Progress").format(course_number=course.display_number_with_default)}</%block>
+
+<%block name="js_extra">
+<script type="text/javascript">
+window.extendedProgressChart = {
+    data: ${assessments['data_str'] | n},
+    passValue: 50
+};
+</script>
+<script type="text/javascript" src="${static.url('js/vendor/tooltipsy.min.js')}"></script>
+<script type="text/javascript" src="${static.url('js/vendor/chartjs.min.js')}"></script>
+<script type="text/javascript" src="${static.url('js/vendor/chartjs-plugin-annotation.min.js')}"></script>
+<script type="text/javascript" src="${static.url('js/courseware/extended_progress.js')}"></script>
+</%block>
+
+<%include file="/courseware/course_navigation.html" args="active_page='progress'" />
+
+<main id="main" aria-label="Content" tabindex="-1">
+    <div class="container">
+        <div class="profile-wrapper">
+            <section class="course-progress-extended" id="course-info-progress">
+                <div class="progress-header">
+                    <div class="progress-header-text"><a href="${reverse('progress', kwargs={'course_id': course.id})}">Course Progress</a> &rsaquo; Grades</div>
+                    <div class="progress-header-btn"></div>
+                </div>
+                <div class="progress-block">
+                    <div class="progress-assessments">
+                        <%include file="/courseware/extended_progress_chart.html" args="assessments=assessments,course_id=None" />
+                    </div>
+                    <div class="progress-assessments-details">
+                        <div class="progress-assessments-main-block">
+                            <div class="progress-assessments-header">
+                                <div class="progress-assessments-cell progress-assessments-cell-head-title grades-section">
+                                    <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-title" data-order-by="title" data-order-by-type="str" href="javascript: void(0);">Course Section</a>
+                                </div>
+                                <div class="progress-assessments-cell progress-assessments-cell-head-title grades-assessment">
+                                    <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-assessment" data-order-by="assessment" data-order-by-type="str" href="javascript: void(0);">Assessment</a>
+                                </div>
+                                <div class="progress-assessments-cell progress-assessments-cell-head-title grades-correct">
+                                    <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-correct" data-order-by="correct" data-order-by-type="int" href="javascript: void(0);">Correct</a>
+                                </div>
+                                <div class="progress-assessments-cell progress-assessments-cell-head-title grades-incorrect">
+                                    <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-incorrect" data-order-by="incorrect" data-order-by-type="int" href="javascript: void(0);">Incorrect</a>
+                                </div>
+                                <div class="progress-assessments-cell progress-assessments-cell-head-title grades-unanswered">
+                                    <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-unanswered" data-order-by="unanswered" data-order-by-type="int" href="javascript: void(0);">Unanswered</a>
+                                </div>
+                                <div class="progress-assessments-cell progress-assessments-cell-head-title grades-total">
+                                    <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-total" data-order-by="total" data-order-by-type="int" href="javascript: void(0);">Total</a>
+                                </div>
+                                <div class="progress-assessments-cell progress-assessments-cell-head-title grades-total-grade">
+                                    <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-total-grade" data-order-by="total-grade" data-order-by-type="int" href="javascript: void(0);">Total Grade</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="progress-assessments-body" data-current-order-by="">
+                            % for chapter in assessments['course_tree']:
+                                % for sequential_block in chapter['sequential_blocks']:
+                                <div class="progress-tags-assessments-item"
+                                     data-title="${chapter['display_name']}"
+                                     data-assessment="${sequential_block['display_name']}"
+                                     data-correct="${sequential_block['correct']}"
+                                     data-incorrect="${sequential_block['incorrect']}"
+                                     data-unanswered="${sequential_block['unanswered']}"
+                                     data-total="${sequential_block['total']}"
+                                     data-total-grade="${sequential_block['percent_correct']}"
+                                     >
+                                    <div class="progress-tags-assessments-item-header">
+                                        <div class="progress-assessments-cell grades-section">
+                                            <table>
+                                                <tr>
+                                                    <td>
+                                                        % if sequential_block['percent_completed'] == 100:
+                                                        <div class="circle circle-100">
+                                                        <div class="circle-text">${sequential_block['percent_completed']}%</div>
+                                                        </div>
+                                                        % elif sequential_block['percent_completed'] == 0:
+                                                        <div class="circle circle-0">
+                                                        <div class="circle-text">${sequential_block['percent_completed']}%</div>
+                                                        </div>
+                                                        % else:
+                                                        <div class="circle circle-1-99">
+                                                        <div class="circle-text">${sequential_block['percent_completed']}%</div>
+                                                        </div>
+                                                        % endif
+                                                    </td>
+                                                    <td class="progress-assessments-cell-chapter">
+                                                        <a href="javascript: void(0);" data-block-type="assessments" class="progress-assessments-expand-link"><i class="fa fa-chevron-right header-icon" aria-hidden="true"></i>${chapter['display_name']}</a>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                        <div class="progress-assessments-cell grades-assessment">${sequential_block['display_name']}</div>
+                                        <div class="progress-assessments-cell grades-correct">${sequential_block['correct']}</div>
+                                        <div class="progress-assessments-cell grades-incorrect">${sequential_block['incorrect']}</div>
+                                        <div class="progress-assessments-cell grades-unanswered">${sequential_block['unanswered']}</div>
+                                        <div class="progress-assessments-cell grades-total">${sequential_block['total']}</div>
+                                        % if sequential_block['percent_correct'] > 50:
+                                            <div class="progress-assessments-cell grades-total-grade-pass">${sequential_block['percent_correct']}%</div>
+                                        % else:
+                                            <div class="progress-assessments-cell grades-total-grade-fail">${sequential_block['percent_correct']}%</div>
+                                        % endif
+                                    </div>
+                                    % for vertical_block in sequential_block['vertical_blocks']:
+                                    <div class="progress-tags-assessments-item-assessments closed">
+                                        <div class="progress-tags-assessments-item-title">
+                                            <div class="assessments-vertical-title">${vertical_block['display_name']}</div>
+                                        </div>
+                                        <div class="progress-tags-assessments-item-data">
+                                            <div class="progress-tags-assessments-grades">
+                                                % for problem in vertical_block['elements']:
+                                                <div class="progress-tags-assessments-grade">
+                                                    <div>
+                                                        % if problem['not_started']:
+                                                        <img src="${static.url('images/credo/question_unanswered.png')}" width="24" height="24"
+                                                             alt="${problem['display_name']}" title="${problem['display_name']}">
+                                                        % elif problem['is_correct']:
+                                                        <img src="${static.url('images/credo/question_correct.png')}" width="25" height="25"
+                                                             alt="${problem['display_name']}" title="${problem['display_name']}">
+                                                        % else:
+                                                        <img src="${static.url('images/credo/question_incorrect.png')}" width="25" height="25"
+                                                             alt="${problem['display_name']}" title="${problem['display_name']}">
+                                                        % endif
+                                                    </div>
+                                                    <div class="progress-tags-assessments-grade-num">${problem['num']}</div>
+                                                </div>
+                                                % endfor
+                                            </div>
+                                        </div>
+                                    </div>
+                                    % endfor
+                                </div>
+                                % endfor
+                            % endfor
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</main>

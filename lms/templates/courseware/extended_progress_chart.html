@@ -1,11 +1,16 @@
 ## mako
 
-<%page args="assessments" expression_filter="h" />
+<%page args="assessments, course_id" expression_filter="h" />
 <%namespace name='static' file='/static_content.html'/>
+<%!
+from django.urls import reverse
+%>
 
 <div class="progress-assessments-header">
     <div class="progress-assessments-title">Overall Grades by Assessment</div>
-    <div class="progress-assessments-see-all"><a href="javascript: void(0);">See Grade Breakdown</a></div>
+    % if course_id:
+    <div class="progress-assessments-see-all"><a href="${reverse('progress', kwargs={'course_id': course_id})}?page=grades">See Grade Breakdown</a></div>
+    % endif
     <div class="clear"></div>
 </div>
 <div class="progress-assessments-summary">

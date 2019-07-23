@@ -461,6 +461,201 @@
       }
     }
   }
+
+  .progress-assessments-details {
+    padding: 25px 0px 15px 0px;
+    overflow-x: auto;
+
+    .progress-assessments-main-block,
+    .progress-assessments-body {
+      min-width: 1280px;
+    }
+
+    .grades-section, .grades-assessment {
+      width: 29%;
+      line-height: 1.5;
+    }
+
+    .grades-correct, .grades-incorrect, .grades-total {
+      width: 6%;
+    }
+
+    .grades-unanswered {
+      width: 7%;
+    }
+
+    .grades-total-grade {
+      width: 9%;
+    }
+
+    @media all and (max-width: 1680px) {
+      .grades-section {
+        width: 27%;
+        line-height: 1.5;
+      }
+
+      .grades-assessment {
+        width: 26%;
+        line-height: 1.5;
+      }
+
+      .grades-unanswered {
+         width: 8%;
+      }
+    }
+
+    .progress-assessments-cell {
+      display: inline-block;
+      padding-left: 15px;
+      vertical-align: middle;
+    }
+
+    .progress-assessments-header {
+      padding-top: 25px;
+      padding-bottom: 25px;
+      background-color: #F2F2F2;
+      font-weight: bold;
+      font-size: 16px;
+
+      .progress-assessments-cell-head-title {
+        .header-icon {
+          padding-left: 5px;
+        }
+
+        a, a.active, a:hover, a:focus, a:visited {
+          text-decoration: none;
+          color: #000000;
+        }
+      }
+    }
+
+    .progress-tags-assessments-item {
+      margin-top: 10px;
+      border: #c8c8c8 1px solid;
+
+      .header-icon {
+        padding-right: 5px;
+      }
+
+      .progress-tags-assessments-item-header {
+        font-size: 16px;
+        padding-top: 20px;
+        padding-bottom: 20px;
+
+        .progress-assessments-cell-chapter {
+          padding-left: 10px;
+          vertical-align: middle;
+        }
+
+        .circle {
+          margin: 0 auto;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          font-size: 13px;
+          display: inline-block;
+          float: left;
+
+          .circle-text {
+            position: relative;
+            top: 10px;
+            text-align: center;
+          }
+        }
+
+        .circle-100 {
+          background-color: #85C9C3;
+        }
+
+        .circle-1-99 {
+          background-color: #FCE195;
+        }
+
+        .circle-0 {
+          background-color: #D2D3DC;
+        }
+
+        .chapter-title {
+          height: 40px;
+          position: relative;
+          top: 8px;
+        }
+
+        .grades-section {
+          font-size: 22px;
+          font-weight: 600;
+        }
+
+        .grades-total-grade-pass {
+          font-size: 22px;
+          color: #00DCFF;
+        }
+
+        .grades-total-grade-fail {
+          font-size: 22px;
+          color: #046DB4;
+        }
+      }
+
+      .progress-tags-assessments-item-assessments.closed {
+        display: none;
+      }
+
+      .progress-tags-assessments-item-assessments {
+        border-top: #c8c8c8 1px solid;
+
+        .progress-tags-assessments-item-title {
+          padding-top: 15px;
+          padding-bottom: 15px;
+        }
+
+        .progress-tags-assessments-item-data {
+          padding-top: 15px;
+          padding-bottom: 10px;
+        }
+
+        .progress-tags-assessments-item-title, .progress-tags-assessments-item-data {
+          padding-left: 15px;
+          display: inline-block;
+          vertical-align: middle;
+        }
+
+        .progress-tags-assessments-item-data {
+          max-width: 1100px;
+        }
+
+        .progress-tags-assessments-item-title {
+          width: 29%;
+
+          .assessments-vertical-title {
+            padding-left: 60px;
+            line-height: 1.5;
+          }
+        }
+
+        @media all and (max-width: 1680px) {
+          .progress-tags-assessments-item-title {
+            width: 27%;
+          }
+
+          .progress-tags-assessments-item-data {
+            max-width: 850px;
+          }
+        }
+
+        .progress-tags-assessments-grade {
+          padding-right: 20px;
+          float: left;
+
+          .progress-tags-assessments-grade-num {
+            padding-top: 5px;
+            padding-bottom: 5px;
+            text-align: center;
+          }
+        }
+      }
+    }
+  }
 }
 
 .tags-tooltip-block {

@@ -210,7 +210,7 @@ function displayAssessmentsChart(chartEl, passValue, data) {
 }
 
 function displayAssessmentsTree() {
-    var currentOrderBy = 'percent-correct';
+    var currentOrderBy = $('.progress-assessments-body').data('current-order-by');
     var currentSort = -1;
 
     $('.progress-assessments-expand-link').click(function() {
@@ -245,6 +245,7 @@ function displayAssessmentsTree() {
 
     $('.progress-assessments-cell-head-link').click(function() {
         var itemOrderBy = $(this).data('order-by');
+        var itemOrderByType = $(this).data('order-by-type');
         if (itemOrderBy === currentOrderBy) {
             currentSort = currentSort * (-1);
         } else {
@@ -266,10 +267,12 @@ function displayAssessmentsTree() {
         var items = mainDiv.find('.progress-tags-assessments-item').get();
 
         items.sort(function (a, b) {
-            var titleA = $(a).data('title');
-            var valA = $(a).data(currentOrderBy) + titleA;
-            var titleB = $(b).data('title');
-            var valB = $(b).data(currentOrderBy) + titleB;
+            var valA = $(a).data(currentOrderBy);
+            var valB = $(b).data(currentOrderBy);
+            if (itemOrderByType === 'int') {
+                valA = parseInt(valA);
+                valB = parseInt(valB);
+            }
 
             if (currentSort === -1) {
                 return (valA > valB) ? -1 : (valA < valB) ? 1 : 0;
