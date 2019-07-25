@@ -24,6 +24,11 @@ username = get_enterprise_learner_generic_name(request) or student.username
 <%block name="headextra">
 <%static:css group='style-course-vendor'/>
 <%static:css group='style-course'/>
+<style type="text/css" media="print">
+  @page {
+      size: landscape;
+  }
+</style>
 </%block>
 
 <%block name="pagetitle">${_("{course_number} Progress").format(course_number=course.display_number_with_default)}</%block>
@@ -49,7 +54,9 @@ window.extendedProgressChart = {
             <section class="course-progress-extended" id="course-info-progress">
                 <div class="progress-header">
                     <div class="progress-header-text">Course Progress</div>
-                    <div class="progress-header-btn"></div>
+                    <div class="progress-header-btn">
+                        <a class="btn btn-primary print-progress-page" href="javascript: void(0);"><i class="fa fa-print" aria-hidden="true"></i> Print Progress Report</a>
+                    </div>
                 </div>
                 <div class="progress-block">
                     <div class="progress-tags-summary">
@@ -66,7 +73,7 @@ window.extendedProgressChart = {
                         <div class="clear"></div>
                     </div>
                     <div class="progress-assessments">
-                        <%include file="/courseware/extended_progress_chart.html" args="assessments=assessments" />
+                        <%include file="/courseware/extended_progress_chart.html" args="assessments=assessments,course_id=course.id" />
                     </div>
                 </div>
             </section>

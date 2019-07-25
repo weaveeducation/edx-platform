@@ -24,6 +24,14 @@ username = get_enterprise_learner_generic_name(request) or student.username
 <%block name="headextra">
 <%static:css group='style-course-vendor'/>
 <%static:css group='style-course'/>
+<style type="text/css" media="print">
+  body {
+      width: 1400px;
+  }
+  @page {
+      size: landscape;
+  }
+</style>
 </%block>
 
 <%block name="pagetitle">${_("{course_number} Progress").format(course_number=course.display_number_with_default)}</%block>
@@ -41,7 +49,9 @@ username = get_enterprise_learner_generic_name(request) or student.username
             <section class="course-progress-extended" id="course-info-progress">
                 <div class="progress-header">
                     <div class="progress-header-text"><a href="${reverse('progress', kwargs={'course_id': course.id})}">Course Progress</a> &rsaquo; Skill</div>
-                    <div class="progress-header-btn"></div>
+                    <div class="progress-header-btn">
+                        <a class="btn btn-primary print-progress-page" href="javascript: void(0);"><i class="fa fa-print" aria-hidden="true"></i> Print Progress Report</a>
+                    </div>
                 </div>
                 <div class="progress-block">
                     <div class="progress-tags-summary">
@@ -53,16 +63,16 @@ username = get_enterprise_learner_generic_name(request) or student.username
                     <div class="progress-tags-assessments-main-block">
                     <div class="progress-assessments-header">
                         <div class="progress-assessments-cell progress-assessments-cell-head-title skill">
-                            <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-title" data-order-by="title" href="javascript: void(0);">Skill</a>
+                            <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-title" data-order-by="title" data-order-by-type="str" href="javascript: void(0);">Skill</a>
                         </div>
                         <div class="progress-assessments-cell progress-assessments-cell-head-title answers-submitted">
-                            <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-answers" data-order-by="answers" href="javascript: void(0);">Answers Submitted</a>
+                            <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-answers" data-order-by="answers" data-order-by-type="int" href="javascript: void(0);">Answers Submitted</a>
                         </div>
                         <div class="progress-assessments-cell progress-assessments-cell-head-title average-performance">
-                            <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-percent-correct" data-order-by="percent-correct" href="javascript: void(0);">Average Performance<i class="fa fa-chevron-down header-icon progress-assessments-cell-head-icon" aria-hidden="true"></i></a>
+                            <a class="progress-assessments-cell-head-link progress-assessments-cell-head-link-percent-correct" data-order-by="percent-correct" data-order-by-type="int" href="javascript: void(0);">Average Performance<i class="fa fa-chevron-down header-icon progress-assessments-cell-head-icon" aria-hidden="true"></i></a>
                         </div>
                     </div>
-                    <div class="progress-assessments-body">
+                    <div class="progress-assessments-body" data-current-order-by="percent-correct">
                         % for tag in tags:
                         <div class="progress-tags-assessments-item"
                              data-title="${tag['tag_title']}"

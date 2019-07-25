@@ -60,7 +60,7 @@ from courseware.courses import (
     sort_by_start_date,
     update_lms_course_usage
 )
-from courseware.extended_progress import progress_main_page, progress_skills_page
+from courseware.extended_progress import progress_main_page, progress_skills_page, progress_grades_page
 from courseware.utils import get_answer_and_correctness, get_score_points, get_block_children,\
     CREDO_GRADED_ITEM_CATEGORIES
 from courseware.masquerade import setup_masquerade
@@ -1065,14 +1065,19 @@ def _progress(request, course_key, student_id):
 
 def _extended_progress_page(request, course, student):
     page = request.GET.get('page')
-    if page is None:
-        page_context = progress_main_page(request, course, student)
-        tpl_name = 'extended_progress.html'
-    elif page == 'skills':
-        page_context = progress_skills_page(request, course, student)
-        tpl_name = 'extended_progress_skills.html'
-    else:
-        raise Http404
+
+    with modulestore().bulk_operations(course.id):
+        if page is None:
+            page_context = progress_main_page(request, course, student)
+            tpl_name = 'extended_progress.html'
+        elif page == 'skills':
+            page_context = progress_skills_page(request, course, student)
+            tpl_name = 'extended_progress_skills.html'
+        elif page == 'grades':
+            page_context = progress_grades_page(request, course, student)
+            tpl_name = 'extended_progress_assessments.html'
+        else:
+            raise Http404
 
     context = {
         'course': course,
