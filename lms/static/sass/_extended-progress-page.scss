@@ -4,14 +4,21 @@
     border-bottom: #c8c8c8 1px solid;
     padding: 20px;
 
-    a, a.active, a:hover, a:focus, a:visited {
-      text-decoration: none;
-      color: #000000;
+    .progress-header-text {
+      a, a.active, a:hover, a:focus, a:visited {
+        text-decoration: none;
+        color: #000000;
+      }
+
+      a:hover {
+        text-decoration: underline !important;
+        color: #000000 !important;
+      }
     }
 
-    a:hover {
-      text-decoration: underline !important;
-      color: #000000 !important;
+    .btn-primary {
+      position: relative;
+      top: -10px;
     }
   }
 
@@ -73,6 +80,8 @@
       display: none;
       position: absolute;
       background-color: #ffffff;
+      -webkit-print-color-adjust: exact;
+      color-adjust: exact;
       min-width: 160px;
       z-index: 1;
       right: 30px;
@@ -146,6 +155,8 @@
   .tags-block-progress {
     height: 18px;
     background-color: #CCCCCC;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
     width: 100%;
   }
 
@@ -157,10 +168,14 @@
   .tags-block-info-data {
     .tags-block-progress-bar-more50 {
       background-color: #00DCFF;
+      -webkit-print-color-adjust: exact;
+      color-adjust: exact;
     }
 
     .tags-block-progress-bar-less50 {
       background-color: #046DB4;
+      -webkit-print-color-adjust: exact;
+      color-adjust: exact;
     }
   }
 
@@ -277,7 +292,7 @@
     .progress-tags-summary-block {
       border: #c8c8c8 1px solid;
       display: block;
-      width: 90% !important;
+      width: 90%;
     }
 
     .progress-tags-summary-top5 {
@@ -336,6 +351,8 @@
       padding-top: 25px;
       padding-bottom: 25px;
       background-color: #F2F2F2;
+      -webkit-print-color-adjust: exact;
+      color-adjust: exact;
       font-weight: bold;
       font-size: 16px;
 
@@ -514,6 +531,8 @@
       padding-top: 25px;
       padding-bottom: 25px;
       background-color: #F2F2F2;
+      -webkit-print-color-adjust: exact;
+      color-adjust: exact;
       font-weight: bold;
       font-size: 16px;
 
@@ -565,14 +584,20 @@
 
         .circle-100 {
           background-color: #85C9C3;
+          -webkit-print-color-adjust: exact;
+          color-adjust: exact;
         }
 
         .circle-1-99 {
           background-color: #FCE195;
+          -webkit-print-color-adjust: exact;
+          color-adjust: exact;
         }
 
         .circle-0 {
           background-color: #D2D3DC;
+          -webkit-print-color-adjust: exact;
+          color-adjust: exact;
         }
 
         .chapter-title {
@@ -688,5 +713,25 @@
   .tags-help {
     color: #47BBEA;
     font-size: 13px;
+  }
+}
+
+@media print {
+  .course-progress-extended {
+    a {
+      text-decoration: none !important;
+    }
+  }
+
+  .tags-block-see-all, .progress-assessments-see-all, .print-progress-page {
+    display: none !important;
+  }
+
+  .progress-tags-summary-block {
+    width: 47% !important;
+  }
+
+  .closed {
+    display: block !important;
   }
 }

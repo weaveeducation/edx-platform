@@ -352,4 +352,8 @@ $(document).ready(function() {
     if (chartEl && window.extendedProgressChart) {
         displayAssessmentsChart(chartEl, window.extendedProgressChart.passValue, window.extendedProgressChart.data);
     }
+
+    $('.print-progress-page').click(function() {
+        window.print();
+    });
 });
