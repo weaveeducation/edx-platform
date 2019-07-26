@@ -14,6 +14,7 @@ from courseware.courses import get_course_by_id, get_problems_in_section
 from courseware.model_data import DjangoKeyValueStore, FieldDataCache
 from courseware.models import StudentModule
 from courseware.module_render import get_module_for_descriptor_internal
+from courseware.utils import get_block_children
 from lms.djangoapps.grades.events import GRADES_OVERRIDE_EVENT_TYPE, GRADES_RESCORE_EVENT_TYPE
 from lms.djangoapps.utils import _create_edx_user
 from student.models import get_user_by_username_or_email
@@ -492,9 +493,19 @@ def create_reset_user(user):
     return new_user
 
 
-def update_reset_progress(user, new_user, course_key):
+def update_reset_progress(user, new_user, course_key, block=None):
     CourseEnrollment.enroll(new_user, course_key)
-    StudentModule.objects.filter(course_id=course_key, student=user).update(student=new_user)
+    if not block:
+        StudentModule.objects.filter(course_id=course_key, student=user).update(student=new_user)
 
-    if completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
-        BlockCompletion.objects.clear_completion(user, course_key)
+        if completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
+            BlockCompletion.objects.clear_completion(user, course_key)
+    else:
+        children_dict = get_block_children(block, block.display_name, add_correctness=False)
+        items = [block.location]
+        for k, v in children_dict.items():
+            items.append(UsageKey.from_string(k))
+        StudentModule.objects.filter(course_id=course_key, module_state_key__in=items, student=user)\
+            .update(student=new_user)
+        if completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
+            BlockCompletion.objects.filter(user=user, course_key=course_key, block_key__in=items).delete()

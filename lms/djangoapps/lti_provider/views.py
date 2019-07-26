@@ -397,7 +397,9 @@ def check_and_reset_lti_user_progress(context_id, user, course_key, usage_key):
                 context.value = context_id
                 context.save()
                 new_user = create_reset_user(user)
-                update_reset_progress(user, new_user, course_key)
+                with modulestore().bulk_operations(course_key):
+                    block = modulestore().get_item(usage_key)
+                    update_reset_progress(user, new_user, course_key, block)
         except LtiContextId.DoesNotExist:
             context = LtiContextId(
                 user=user,
