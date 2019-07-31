@@ -4,10 +4,14 @@ LTI Provider view functions
 import json
 import logging
 import hashlib
+import requests
+from urllib import urlencode
+from urlparse import urlparse
 
 from collections import OrderedDict
 from django.conf import settings
-from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, HttpResponseRedirect
+from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, HttpResponseRedirect,\
+    JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
@@ -90,6 +94,7 @@ def lti_launch(request, course_id, usage_id):
     except LtiConsumer.DoesNotExist:
         return render_response_forbidden(return_url)
 
+    params_strict = {}
     if lti_consumer.lti_strict_mode:
         params_strict = get_required_strict_parameters(request_params)
         if not params_strict or params_strict['lti_version'] != 'LTI-1p0' \
@@ -100,6 +105,27 @@ def lti_launch(request, course_id, usage_id):
     # Check the OAuth signature on the message
     if not is_cached and not SignatureValidator(lti_consumer).verify(request):
         return render_response_forbidden(return_url)
+
+    tc_profile_url = request_params.get('tc_profile_url', request_params.get('custom_tc_profile_url', None))
+    display_profile_info = request_params.get('display_profile_info',
+                                              request_params.get('custom_display_profile_info', None))
+    if display_profile_info:
+        display_profile_info = display_profile_info.lower()
+        display_profile_info = True if display_profile_info in ('1', 'true') else False
+
+    if display_profile_info and tc_profile_url:
+        tc_profile_url += ('&' if urlparse(tc_profile_url).query else '?')\
+                          + urlencode({'lti_version': params_strict['lti_version']})
+
+        tc_profile_resp = requests.get(tc_profile_url,
+                                       headers={'Accept': 'application/vnd.ims.lti.v2.toolconsumerprofile+json'})
+        if tc_profile_resp.status_code == 200:
+            try:
+                return JsonResponse(json.loads(tc_profile_resp.text))
+            except ValueError:
+                return HttpResponse("Tool Consumer json decode error: " + tc_profile_resp.text)
+        else:
+            return HttpResponse("Tool Consumer invalid HTTP response: " + str(tc_profile_resp.status_code))
 
     # Add the course and usage keys to the parameters array
     try:
