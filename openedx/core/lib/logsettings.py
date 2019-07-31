@@ -188,7 +188,7 @@ def get_logger_config(log_dir,
         },
         'loggers': {
             'credo_json': {
-                'handlers': ['console', 'local', 'credo_json'],
+                'handlers': ['console', 'credo_json'],
                 'level': 'DEBUG',
                 'propagate': False,
             },
