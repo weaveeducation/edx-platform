@@ -246,23 +246,39 @@ def assessments_progress(courseware_summary, problems_dict=None):
                     'vertical_blocks': []
                 }
                 total_assessments = total_assessments + 1
-                num_questions = len(section.problem_scores)
+                num_questions = 0
+                num_questions_calculate = 0
+                num_questions_answered = 0
                 percent_correct_tmp_lst = []
                 completed_lst = []
                 not_started_lst = []
                 num_correct_lst = []
+                num_incorrect_lst = []
                 verticals = OrderedDict()
 
                 for key, score in section.problem_scores.items():
-                    percent_correct_tmp_lst.append((1.0 * score.earned) / (1.0 * score.possible))
+                    if score.possible > 0:
+                        percent_correct_tmp_lst.append((1.0 * score.earned) / (1.0 * score.possible))
+                        num_questions_calculate = num_questions_calculate + 1
+                    num_questions = num_questions + 1
+
                     completed_lst.append(score.first_attempted is not None)
                     not_started_lst.append(score.first_attempted is None)
-                    num_correct_lst.append(1 if score.possible == score.earned else 0)
+                    if score.first_attempted is not None:
+                        num_questions_answered = num_questions_answered + 1
+                        if score.possible == score.earned:
+                            num_correct_lst.append(1)
+                        else:
+                            num_incorrect_lst.append(1)
+
                     total_grade_lst.append({
                         'earned': get_score_points(score.earned),
                         'possible': get_score_points(score.possible)
                     })
-                    total_num_questions = total_num_questions + 1
+
+                    if score.possible > 0:
+                        total_num_questions = total_num_questions + 1
+
                     if problems_dict is not None:
                         key_str = str(key)
                         if key_str in problems_dict:
@@ -278,7 +294,7 @@ def assessments_progress(courseware_summary, problems_dict=None):
                             current_elements_num = len(verticals[vertical_id]['elements'])
                             verticals[vertical_id]['elements'].append({
                                 'not_started': score.first_attempted is None,
-                                'is_correct': 1 if score.possible == score.earned else 0,
+                                'is_correct': 1 if score.possible == score.earned and score.first_attempted is not None else 0,
                                 'problem_id': key_str,
                                 'num': str(current_elements_num + 1),
                                 'display_name': problem_display_name
@@ -287,18 +303,19 @@ def assessments_progress(courseware_summary, problems_dict=None):
                             raise Exception("Can't find block " + key_str + " in course structure")
 
                 percent_correct = 0
-                if num_questions:
-                    percent_correct = int((sum(percent_correct_tmp_lst) / (num_questions * 1.0)) * 100)
+                if num_questions_calculate:
+                    percent_correct = int((sum(percent_correct_tmp_lst) / (num_questions_calculate * 1.0)) * 100)
                 percent_correct_sections_lst.append(percent_correct)
 
                 is_completed = all(completed_lst)
                 is_not_started = all(not_started_lst)
                 num_correct = sum(num_correct_lst)
+                num_incorrect = sum(num_incorrect_lst)
                 num_not_started_lst = sum(not_started_lst)
 
                 percent_completed = 0
-                if num_questions:
-                    percent_completed = int(((num_questions - num_not_started_lst) / (num_questions * 1.0)) * 100)
+                if num_questions_calculate:
+                    percent_completed = int((num_questions_answered / (num_questions * 1.0)) * 100)
 
                 if is_completed:
                     completed_assessments = completed_assessments + 1
@@ -317,7 +334,7 @@ def assessments_progress(courseware_summary, problems_dict=None):
                 sequential_block.update({
                     'total': num_questions,
                     'correct': num_correct,
-                    'incorrect': num_questions - num_correct - num_not_started_lst,
+                    'incorrect': num_incorrect,
                     'unanswered': num_not_started_lst,
                     'percent_correct': percent_correct,
                     'percent_completed': percent_completed
