@@ -224,7 +224,7 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary):
     return tags.values()
 
 
-def assessments_progress(courseware_summary):
+def assessments_progress(courseware_summary, problems_dict=None):
     data = []
     percent_correct_sections_lst = []
     total_grade_lst = []
@@ -232,34 +232,90 @@ def assessments_progress(courseware_summary):
     total_assessments = 0
     completed_assessments = 0
     not_started_assessments = 0
+    course_tree = []
 
     for chapter in courseware_summary:
+        chapter_data = {
+            'display_name': chapter['display_name'],
+            'sequential_blocks': []
+        }
         for section in chapter['sections']:
             if section.graded:
+                sequential_block = {
+                    'display_name': section.display_name,
+                    'vertical_blocks': []
+                }
                 total_assessments = total_assessments + 1
-                num_questions = len(section.problem_scores)
+                num_questions = 0
+                num_questions_calculate = 0
+                num_questions_answered = 0
                 percent_correct_tmp_lst = []
                 completed_lst = []
                 not_started_lst = []
                 num_correct_lst = []
+                num_incorrect_lst = []
+                verticals = OrderedDict()
 
                 for key, score in section.problem_scores.items():
-                    percent_correct_tmp_lst.append((1.0 * score.earned) / (1.0 * score.possible))
+                    if score.possible > 0:
+                        percent_correct_tmp_lst.append((1.0 * score.earned) / (1.0 * score.possible))
+                        num_questions_calculate = num_questions_calculate + 1
+                    num_questions = num_questions + 1
+
                     completed_lst.append(score.first_attempted is not None)
                     not_started_lst.append(score.first_attempted is None)
-                    num_correct_lst.append(1 if score.possible == score.earned else 0)
+                    if score.first_attempted is not None:
+                        num_questions_answered = num_questions_answered + 1
+                        if score.possible == score.earned:
+                            num_correct_lst.append(1)
+                        else:
+                            num_incorrect_lst.append(1)
+
                     total_grade_lst.append({
                         'earned': get_score_points(score.earned),
                         'possible': get_score_points(score.possible)
                     })
-                    total_num_questions = total_num_questions + 1
 
-                percent_correct = int((sum(percent_correct_tmp_lst) / num_questions) * 100)
+                    if score.possible > 0:
+                        total_num_questions = total_num_questions + 1
+
+                    if problems_dict is not None:
+                        key_str = str(key)
+                        if key_str in problems_dict:
+                            vertical_id = problems_dict[key_str]['vertical_id']
+                            vertical_name = problems_dict[key_str]['vertical_name']
+                            problem_display_name = problems_dict[key_str]['display_name']
+                            if vertical_id not in verticals:
+                                verticals[vertical_id] = {
+                                    'display_name': vertical_name,
+                                    'vertical_id': vertical_id,
+                                    'elements': []
+                                }
+                            current_elements_num = len(verticals[vertical_id]['elements'])
+                            verticals[vertical_id]['elements'].append({
+                                'not_started': score.first_attempted is None,
+                                'is_correct': 1 if score.possible == score.earned and score.first_attempted is not None else 0,
+                                'problem_id': key_str,
+                                'num': str(current_elements_num + 1),
+                                'display_name': problem_display_name
+                            })
+                        else:
+                            raise Exception("Can't find block " + key_str + " in course structure")
+
+                percent_correct = 0
+                if num_questions_calculate:
+                    percent_correct = int((sum(percent_correct_tmp_lst) / (num_questions_calculate * 1.0)) * 100)
                 percent_correct_sections_lst.append(percent_correct)
 
                 is_completed = all(completed_lst)
                 is_not_started = all(not_started_lst)
                 num_correct = sum(num_correct_lst)
+                num_incorrect = sum(num_incorrect_lst)
+                num_not_started_lst = sum(not_started_lst)
+
+                percent_completed = 0
+                if num_questions_calculate:
+                    percent_completed = int((num_questions_answered / (num_questions * 1.0)) * 100)
 
                 if is_completed:
                     completed_assessments = completed_assessments + 1
@@ -275,6 +331,19 @@ def assessments_progress(courseware_summary):
                     'is_not_started': is_not_started
                 })
 
+                sequential_block.update({
+                    'total': num_questions,
+                    'correct': num_correct,
+                    'incorrect': num_incorrect,
+                    'unanswered': num_not_started_lst,
+                    'percent_correct': percent_correct,
+                    'percent_completed': percent_completed
+                })
+
+                sequential_block['vertical_blocks'] = list(verticals.values())
+                chapter_data['sequential_blocks'].append(sequential_block)
+        course_tree.append(chapter_data)
+
     total_grade = 0
     if total_num_questions > 0:
         total_grade = int((sum([(val['earned'] * 1.0) / (val['possible'] * 1.0) for val in total_grade_lst if val['possible'] > 0]) / total_num_questions) * 100)
@@ -287,7 +356,8 @@ def assessments_progress(courseware_summary):
         'lowest_grade': min(percent_correct_sections_lst) if percent_correct_sections_lst else 0,
         'total_assessments': total_assessments,
         'completed_assessments': completed_assessments,
-        'not_started_assessments': not_started_assessments
+        'not_started_assessments': not_started_assessments,
+        'course_tree': course_tree
     }
 
 
@@ -322,5 +392,37 @@ def progress_skills_page(request, course, student):
 
     context = {
         'tags': tags
+    }
+    return context
+
+
+def progress_grades_page(request, course, student):
+    problems_dict = {}
+    problem_blocks = modulestore().get_items(course.id, qualifiers={'category': {'$in': CREDO_GRADED_ITEM_CATEGORIES}})
+    for pr in problem_blocks:
+        problems_dict[str(pr.location)] = {
+            'display_name': pr.display_name,
+            'vertical_id': None,
+            'vertical_name': ''
+        }
+        parent = pr.get_parent()
+        if parent.category == 'vertical':
+            problems_dict[str(pr.location)]['vertical_id'] = str(parent.location)
+            problems_dict[str(pr.location)]['vertical_name'] = parent.display_name
+        else:
+            parent = parent.get_parent()
+            if parent.category == 'vertical':
+                problems_dict[str(pr.location)]['vertical_id'] = str(parent.location)
+                problems_dict[str(pr.location)]['vertical_name'] = parent.display_name
+            else:
+                raise Exception("Can't find vertical block for element: " + str(pr.location))
+
+    course_grade = CourseGradeFactory().read(student, course)
+    courseware_summary = course_grade.chapter_grades.values()
+
+    assessments = assessments_progress(courseware_summary, problems_dict)
+
+    context = {
+        'assessments': assessments
     }
     return context
