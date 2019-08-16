@@ -25,6 +25,14 @@ from openedx.core.djangolib.fields import CharNullField
 log = logging.getLogger("edx.lti_provider")
 log_json = logging.getLogger("credo_json")
 
+LTI1p1 = '1.1'
+LTI1p3 = '1.3'
+
+LTI_VERSIONS = (
+    (LTI1p1, 'LTI 1.1'),
+    (LTI1p3, 'LTI 1.3'),
+)
+
 
 class LtiConsumer(models.Model):
     """
@@ -154,19 +162,28 @@ class LtiUser(models.Model):
 
 
 class GradedAssignmentLock(models.Model):
-    graded_assignment_id = models.IntegerField(null=False, unique=True)
+    graded_assignment_id = models.IntegerField(null=False)
     created = models.DateTimeField()
+    lti_version = models.CharField(max_length=10, choices=LTI_VERSIONS, default=LTI1p1)
+
+    class Meta(object):
+        unique_together = ('graded_assignment_id', 'lti_version')
 
     @classmethod
-    def create(cls, graded_assignment_id):
+    def create(cls, graded_assignment_id, lti_version=None):
+        if not lti_version:
+            lti_version = LTI1p1
         try:
             with transaction.atomic():
-                lock = GradedAssignmentLock(graded_assignment_id=graded_assignment_id, created=timezone.now())
+                lock = GradedAssignmentLock(graded_assignment_id=graded_assignment_id,
+                                            created=timezone.now(),
+                                            lti_version=lti_version)
                 lock.save()
                 return lock
         except IntegrityError:
             try:
-                lock = GradedAssignmentLock.objects.get(graded_assignment_id=graded_assignment_id)
+                lock = GradedAssignmentLock.objects.get(graded_assignment_id=graded_assignment_id,
+                                                        lti_version=lti_version)
                 if lock:
                     time_diff = timezone.now() - lock.created
                     if time_diff.total_seconds() > 60:  # 1 min
@@ -176,35 +193,43 @@ class GradedAssignmentLock(models.Model):
             return False
 
     @classmethod
-    def remove(cls, graded_assignment_id):
-        GradedAssignmentLock.objects.filter(graded_assignment_id=graded_assignment_id).delete()
+    def remove(cls, graded_assignment_id, lti_version=None):
+        if not lti_version:
+            lti_version = LTI1p1
+        GradedAssignmentLock.objects.filter(graded_assignment_id=graded_assignment_id,
+                                            lti_version=lti_version).delete()
 
 
 class LtiContextId(models.Model):
     user = models.ForeignKey(User, db_index=True)
     course_key = CourseKeyField(max_length=255, db_index=True)
     usage_key = UsageKeyField(max_length=255, db_index=True)
+    lti_version = models.CharField(max_length=10, choices=LTI_VERSIONS, default=LTI1p1)
     value = models.TextField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
+    class Meta(object):
+        unique_together = ('course_key', 'usage_key', 'user', 'lti_version')
+
 
 class SendScoresLock(object):
 
-    def __init__(self, graded_assignment_id):
+    def __init__(self, graded_assignment_id, lti_version=None):
         self.graded_assignment_id = graded_assignment_id
+        self.lti_version = lti_version if lti_version else LTI1p1
         self.lock = False
 
     def __enter__(self):
         while True:
-            self.lock = GradedAssignmentLock.create(self.graded_assignment_id)
+            self.lock = GradedAssignmentLock.create(self.graded_assignment_id, self.lti_version)
             if self.lock:
                 return self.lock
             else:
                 time.sleep(2)  # 2 seconds
 
     def __exit__(self, *args):
-        GradedAssignmentLock.remove(self.graded_assignment_id)
+        GradedAssignmentLock.remove(self.graded_assignment_id, self.lti_version)
 
 
 def log_lti(action, user_id, message, course_id, is_error,
