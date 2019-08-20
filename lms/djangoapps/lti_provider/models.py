@@ -234,7 +234,7 @@ class SendScoresLock(object):
 
 def log_lti(action, user_id, message, course_id, is_error,
             assignment=None, grade=None, task_id=None, response_body=None, request_body=None,
-            lis_outcome_service_url=None, **kwargs):
+            lis_outcome_service_url=None, lti_version='1.1', **kwargs):
     hostname = platform.node().split(".")[0]
     data = {
         'type': 'lti_task',
@@ -253,7 +253,8 @@ def log_lti(action, user_id, message, course_id, is_error,
         'grade': grade,
         'request_body': request_body,
         'response_body': response_body,
-        'lis_outcome_service_url': lis_outcome_service_url
+        'lis_outcome_service_url': lis_outcome_service_url,
+        'lti_version': lti_version
     }
     data.update(kwargs)
     log_json.info(json.dumps(data))

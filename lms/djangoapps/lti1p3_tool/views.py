@@ -13,6 +13,7 @@ from django.views.decorators.http import require_POST
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import UsageKey
 
+from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
 from lti_provider.models import LTI1p3
 from lti_provider.users import update_lti_user_data
 from lti_provider.reset_progress import check_and_reset_lti_user_progress
@@ -251,12 +252,16 @@ def update_graded_assignment(lti_tool, message_launch, block, course_key, usage_
         try:
             GradedAssignment.objects.get(
                 lti_jwt_sub=external_user_id,
-                ti_lineitem_tag=lti_lineitem_tag
+                lti_lineitem_tag=lti_lineitem_tag
             )
         except GradedAssignment.DoesNotExist:
+            course = modulestore().get_course(course_key, depth=0)
+            course_grade = CourseGradeFactory().read(user, course)
+            earned, possible = course_grade.score_for_module(usage_key)
+
             line_item = LineItem()
             line_item.set_tag(lti_lineitem_tag) \
-                .set_score_maximum(1) \
+                .set_score_maximum(possible) \
                 .set_label(block.display_name)
             line_item = ags.find_or_create_lineitem(line_item)
             gr = GradedAssignment(

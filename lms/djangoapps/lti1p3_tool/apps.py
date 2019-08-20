@@ -13,5 +13,4 @@ class Lti1p3ToolConfig(AppConfig):
 
     def ready(self):
         # Import the tasks module to ensure that signal handlers are registered.
-        #from . import signals  # pylint: disable=unused-variable
-        pass
+        from . import signals  # pylint: disable=unused-variable
