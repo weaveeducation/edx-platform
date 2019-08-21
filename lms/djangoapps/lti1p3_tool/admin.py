@@ -29,10 +29,11 @@ class LtiToolKeyAdmin(admin.ModelAdmin):
             return self.add_fieldsets
         else:
             return self.change_fieldsets
-#        return super(LtiToolKeyAdmin, self).get_fieldsets(request, obj)
 
     def private_key_hidden(self, obj):
         return '<hidden>'
+
+    private_key_hidden.short_description = 'Private key'
 
     def public_key_jwk_json(self, obj):
         return json.dumps(obj.public_jwk)
