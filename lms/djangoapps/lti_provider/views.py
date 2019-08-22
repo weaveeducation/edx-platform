@@ -408,6 +408,6 @@ def get_params(request):
 def set_user_roles(edx_user, course_key, roles):
     # LIS vocabulary for System Role
     # https://www.imsglobal.org/specs/ltiv1p0/implementation-guide#toc-9
-    external_roles = ['Administrator', 'Instructor', 'Staff']
+    external_roles = ['SysAdmin', 'Administrator', 'Instructor', 'Staff']
     if any(role in roles for role in external_roles):
         CourseStaffRole(course_key).add_users(edx_user)

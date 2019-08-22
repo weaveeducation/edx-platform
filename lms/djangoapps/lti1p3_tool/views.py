@@ -138,6 +138,8 @@ def launch(request, usage_id=None):
     except LtiException as e:
         return render_lti_error(str(e), 403)
 
+    log.info("LTI 1.3 JWT body: %s for block: %s" % (json.dumps(message_launch_data), usage_id))
+
     is_iframe = state_params.get('is_iframe') if state_params else True
     context_id = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/context', {}).get('id')
     external_user_id = message_launch_data.get('sub')
@@ -161,7 +163,16 @@ def launch(request, usage_id=None):
     usage_key = block.location
 
     if request.user.is_authenticated:
-        enroll_result = enroll_user_to_course(request.user, course_key)
+        roles = None
+        lti_roles = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/roles', None)\
+            if lti_tool.allow_to_add_instructors_via_lti else None
+        if lti_roles:
+            roles = []
+            for role in lti_roles:
+                roles_lst = role.split('#')
+                if len(roles_lst) > 1:
+                    roles.append(roles_lst[1])
+        enroll_result = enroll_user_to_course(request.user, course_key, roles)
         if enroll_result:
             request_params = message_launch_data.copy()
             request_params.update(message_launch_custom_data)

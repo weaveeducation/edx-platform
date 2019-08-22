@@ -39,8 +39,7 @@ class LtiToolKey(models.Model):
 class LtiTool(models.Model):
     issuer = models.CharField(max_length=255, unique=True,
                               help_text=_("This will usually look something like 'http://example.com'. "
-                                          "Value provided by LTI 1.3 Platform"),
-                              validators=[URLValidator()])
+                                          "Value provided by LTI 1.3 Platform"))
     client_id = models.CharField(max_length=255, null=False, blank=False,
                                  help_text=_("Value provided by LTI 1.3 Platform"))
     auth_login_url = models.CharField(max_length=1024, null=False, blank=False,
@@ -68,6 +67,13 @@ class LtiTool(models.Model):
                                                 help_text=_("Forcibly post grades if Platform's assignments grades "
                                                             "service is available but lineitem wasn't passed during "
                                                             "LTI communication"))
+    allow_to_add_instructors_via_lti = models.NullBooleanField(blank=True, help_text="Automatically adds "
+                                                                                     "instructor role to the user "
+                                                                                     "who came through the LTI if "
+                                                                                     "some of these parameters: "
+                                                                                     "'Administrator', 'Instructor', "
+                                                                                     "'Staff' was passed. Choose 'Yes' "
+                                                                                     "to enable this feature. ")
 
     def clean(self):
         if not self.key_set_url and not self.key_set:
