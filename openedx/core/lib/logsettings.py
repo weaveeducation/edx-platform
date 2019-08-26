@@ -198,7 +198,7 @@ def get_logger_config(log_dir,
                 'propagate': False,
             },
             '': {
-                'handlers': ['console', 'local', 'sentry'],
+                'handlers': ['console', 'local'],
                 'level': 'INFO',
                 'propagate': False
             },
@@ -221,10 +221,6 @@ def get_logger_config(log_dir,
                 'level': 'DEBUG',
                 'class': 'logging.NullHandler',
             },
-            'sentry': {
-                'level': 'ERROR',
-                'class': 'logging.NullHandler',
-            },
         })
     else:
         logger_config['handlers'].update({
@@ -235,10 +231,6 @@ def get_logger_config(log_dir,
                 'socktype': socket.SOCK_STREAM if syslog_use_tcp else socket.SOCK_DGRAM,
                 'facility': SysLogHandler.LOG_LOCAL2,
                 'formatter': 'syslog_format',
-            },
-            'sentry': {
-                'level': 'ERROR',
-                'class': 'raven.contrib.django.raven_compat.handlers.SentryHandler'
             },
         })
 
