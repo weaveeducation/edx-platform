@@ -22,6 +22,10 @@ import json
 import os
 import logging
 import dateutil
+import sentry_sdk
+from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 from corsheaders.defaults import default_headers as corsheaders_default_headers
 from path import Path as path
@@ -1140,5 +1144,15 @@ plugin_settings.add_plugins(__name__, plugin_constants.ProjectType.LMS, plugin_c
 ########################## Derive Any Derived Settings  #######################
 
 derive_settings(__name__)
+
+raven_dsn = RAVEN_CONFIG.get('dsn')
+if raven_dsn:
+    sentry_sdk.init(
+        dsn=raven_dsn,
+        integrations=[CeleryIntegration(), DjangoIntegration(), LoggingIntegration(
+            level=logging.INFO,        # Capture info and above as breadcrumbs
+            event_level=logging.ERROR  # Send errors as events
+        )]
+    )
 
 logging.warn('DEPRECATION WARNING: aws.py has been deprecated, you should use production.py instead.')

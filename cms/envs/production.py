@@ -8,6 +8,11 @@ This is the default template for our main set of AWS servers.
 
 import json
 import os
+import logging
+import sentry_sdk
+from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 from path import Path as path
 from xmodule.modulestore.modulestore_settings import convert_module_store_setting_if_needed
@@ -647,3 +652,13 @@ plugin_settings.add_plugins(__name__, plugin_constants.ProjectType.CMS, plugin_c
 ########################## Derive Any Derived Settings  #######################
 
 derive_settings(__name__)
+
+raven_dsn = RAVEN_CONFIG.get('dsn')
+if raven_dsn:
+    sentry_sdk.init(
+        dsn=raven_dsn,
+        integrations=[CeleryIntegration(), DjangoIntegration(), LoggingIntegration(
+            level=logging.INFO,        # Capture info and above as breadcrumbs
+            event_level=logging.ERROR  # Send errors as events
+        )]
+    )
