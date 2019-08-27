@@ -18,7 +18,7 @@ from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.cache import caches
 from django.core.urlresolvers import reverse
 
-from lms.djangoapps.instructor_task.tasks_helper.module_state import create_reset_user, update_reset_progress
+from lms.djangoapps.instructor_task.tasks_helper.module_state import update_reset_progress
 from lti_provider.models import LtiConsumer, LtiContextId
 from lti_provider.outcomes import store_outcome_parameters
 from lti_provider.signature_validator import SignatureValidator
@@ -422,10 +422,9 @@ def check_and_reset_lti_user_progress(context_id, user, course_key, usage_key):
             if context.value != context_id:
                 context.value = context_id
                 context.save()
-                new_user = create_reset_user(user)
                 with modulestore().bulk_operations(course_key):
                     block = modulestore().get_item(usage_key)
-                    update_reset_progress(user, new_user, course_key, block)
+                    update_reset_progress(user, course_key, block)
         except LtiContextId.DoesNotExist:
             context = LtiContextId(
                 user=user,
