@@ -219,6 +219,13 @@ class CapaFields(object):
                "or to report an issue, please contact moocsupport@mathworks.com"),
         scope=Scope.settings
     )
+    hidden = Boolean(
+        display_name=_("Hidden"),
+        help=_("Hide from Learners. Hidden questions will no longer appear for students who take an assessment "
+               "from this library. "),
+        default=False,
+        scope=Scope.settings
+    )
 
 
 class CapaMixin(ScorableXBlockMixin, CapaFields):

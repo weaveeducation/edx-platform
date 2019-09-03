@@ -38,6 +38,7 @@ class SupportedFieldType(object):
 SUPPORTED_FIELDS = [
     SupportedFieldType('category', requested_field_name='type'),
     SupportedFieldType('display_name', default_value=''),
+    SupportedFieldType('hidden', default_value=False),
     SupportedFieldType('graded'),
     SupportedFieldType('format'),
     SupportedFieldType('due'),

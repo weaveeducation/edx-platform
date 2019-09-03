@@ -44,6 +44,7 @@ class ContentLibraryTransformer(FilteringTransformerMixin, BlockStructureTransfo
         block_structure.request_xblock_fields('mode')
         block_structure.request_xblock_fields('max_count')
         block_structure.request_xblock_fields('category')
+        block_structure.request_xblock_fields('hidden')
         store = modulestore()
 
         # needed for analytics purposes
@@ -73,10 +74,10 @@ class ContentLibraryTransformer(FilteringTransformerMixin, BlockStructureTransfo
         for block_key in block_structure:
             if block_key.block_type != 'library_content':
                 continue
-            library_children = block_structure.get_children(block_key)
-            if library_children:
-                all_library_children.update(library_children)
+            library_children_tmp = block_structure.get_children(block_key)
+            if library_children_tmp:
                 selected = []
+                selected_block_ids = []
                 mode = block_structure.get_xblock_field(block_key, 'mode')
                 max_count = block_structure.get_xblock_field(block_key, 'max_count')
 
@@ -87,8 +88,15 @@ class ContentLibraryTransformer(FilteringTransformerMixin, BlockStructureTransfo
                     # library module to the selected list.
                     block_type, block_id = selected_block
                     usage_key = usage_info.course_key.make_usage_key(block_type, block_id)
-                    if usage_key in library_children:
+                    if usage_key in library_children_tmp:
                         selected.append(selected_block)
+                    selected_block_ids.append(str(block_id))
+
+                library_children = [l_key for l_key in library_children_tmp
+                                    if not block_structure.get_xblock_field(l_key, 'hidden')
+                                    or l_key.block_id in selected_block_ids]
+
+                all_library_children.update(library_children)
 
                 # Update selected
                 previous_count = len(selected)
