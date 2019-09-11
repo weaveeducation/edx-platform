@@ -277,7 +277,12 @@ class LibraryContentModule(LibraryContentFields, XModule, StudioEditableModule):
             # Already done:
             return self._selected_set  # pylint: disable=access-member-before-definition
 
-        block_keys = self.make_selection(self.selected, self.children, self.max_count, "random")  # pylint: disable=no-member
+        selected_block_ids = [selected_block_item[1] for selected_block_item in self.selected]
+        source_children = [self.runtime.get_block(child_key) for child_key in self.children]
+        children = [block.location for block in source_children
+                    if not getattr(block, 'hidden', False) or block.location.block_id in selected_block_ids]
+
+        block_keys = self.make_selection(self.selected, children, self.max_count, "random")  # pylint: disable=no-member
 
         # Publish events for analytics purposes:
         lib_tools = self.runtime.service(self, 'library_tools')

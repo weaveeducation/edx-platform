@@ -209,6 +209,9 @@ class CapaDescriptor(CapaFields, RawDescriptor):
             CapaDescriptor.use_latex_compiler,
             CapaDescriptor.show_correctness,
         ])
+        library_key = getattr(self.location, 'library_key', None)
+        if library_key is None:
+            non_editable_fields.append(CapaDescriptor.hidden)
         return non_editable_fields
 
     @property
