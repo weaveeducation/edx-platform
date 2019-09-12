@@ -1,6 +1,6 @@
 <div class='course-listing is-hidden'>
     <div class="message modal-introduction">
-        <p>Please choose the course where to copy the selected item</p>
+        <p>Please choose the location where to copy the selected item</p>
     </div>
     <div class='course-listing-data'></div>
     <br />
