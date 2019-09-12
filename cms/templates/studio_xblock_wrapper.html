@@ -113,6 +113,8 @@ block_is_unit = is_unit(xblock)
                                         <span class="sr">${_("Move")}</span>
                                     </button>
                                 </li>
+                            % endif
+                            % if can_copy:
                                 <li class="action-item action-copy">
                                     <button data-tooltip="${_("Copy")}" class="btn-default copy-button action-button">
                                         <span class="stack-move-icon fa-stack fa-lg ">

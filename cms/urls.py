@@ -94,6 +94,8 @@ urlpatterns = [
         ),
     url(r'^course_listing/?$', contentstore.views.course_listing_short,
         name='course_listing_short'),
+    url(r'^libraries_listing/?$', contentstore.views.libraries_listing_short,
+        name='libraries_listing_short'),
 
     url(r'^get_versions_list/{}?$'.format(settings.USAGE_KEY_PATTERN),
         contentstore.views.get_versions_list,

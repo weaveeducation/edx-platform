@@ -81,6 +81,7 @@ class LibraryRoot(XBlock):
 
         force_render = context.get('force_render', None)
         context['can_move'] = False
+        context['can_copy'] = True
 
         for child_key in children_to_show:
             # Children must have a separate context from the library itself. Make a copy.

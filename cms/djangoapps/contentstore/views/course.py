@@ -105,7 +105,8 @@ from .library import LIBRARIES_ENABLED, get_library_creator_status
 
 log = logging.getLogger(__name__)
 
-__all__ = ['course_info_handler', 'course_handler', 'course_listing', 'course_listing_short',
+__all__ = ['course_info_handler', 'course_handler', 'course_listing',
+           'course_listing_short', 'libraries_listing_short',
            'copy_section_to_other_courses', 'copy_section_to_other_courses_result',
            'course_info_update_handler', 'course_search_index_handler',
            'course_rerun_handler',
@@ -578,6 +579,23 @@ def course_listing_short(request):
     split_archived = settings.FEATURES.get(u'ENABLE_SEPARATE_ARCHIVED_COURSES', False)
     active_courses, _ = _process_courses_list(courses_iter, in_process_course_actions, split_archived)
     return JsonResponse([course for course in active_courses])
+
+
+@login_required
+@ensure_csrf_cookie
+def libraries_listing_short(request):
+    optimization_enabled = GlobalStaff().has_user(request.user) and \
+                           WaffleSwitchNamespace(name=WAFFLE_NAMESPACE).is_enabled(u'enable_global_staff_optimization')
+    org = request.GET.get('org', '') if optimization_enabled else None
+    libraries = _accessible_libraries_iter(request.user, org) if LIBRARIES_ENABLED else []
+    return JsonResponse([{
+        'display_name': l.display_name,
+        'course_key': str(l.id),
+        'url': reverse_library_url('library_handler', l.id),
+        'course': l.id.course,
+        'org': l.id.org,
+        'location': str(l.location)
+    } for l in libraries])
 
 
 @login_required
