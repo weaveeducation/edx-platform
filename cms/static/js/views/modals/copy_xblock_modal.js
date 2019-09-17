@@ -50,6 +50,8 @@ function($, Backbone, _, gettext, BaseView, XBlockViewUtils, CopyXBlockUtils, Ht
             this.outlineURL = this.options.outlineURL;
             this.options.title = this.getTitle();
             this.isLib = (this.sourceXBlockInfo.get('id').indexOf('lib-block-v1') === 0);
+            this.xblockCategory = this.sourceXBlockInfo.get('category');
+            this.allowedToCopyToLib = (['problem', 'html', 'video'].indexOf(this.xblockCategory) !== -1);
             this.courses = {};
             this.copyToOtherItemType = 'course';
             this.firstRender = true;
@@ -67,7 +69,8 @@ function($, Backbone, _, gettext, BaseView, XBlockViewUtils, CopyXBlockUtils, Ht
             this.copyToOtherCourseTpl = this.loadTemplate('copy-to-other-course');
             this.$('.course-listing-data').html(this.copyToOtherCourseTpl({
                 isLib: this.isLib,
-                selectedRadio: this.copyToOtherItemType
+                selectedRadio: this.copyToOtherItemType,
+                allowedToCopyToLib: this.allowedToCopyToLib
             }));
 
             this.$('input:radio[name="copy-to-other-item"]').change(function() {
