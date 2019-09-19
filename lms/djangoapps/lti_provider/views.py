@@ -18,7 +18,7 @@ from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.cache import caches
 from django.core.urlresolvers import reverse
 
-from lti_provider.models import LtiConsumer
+from lti_provider.models import LtiConsumer, log_lti_launch
 from lti_provider.outcomes import store_outcome_parameters
 from lti_provider.signature_validator import SignatureValidator
 from lti_provider.users import UserService, update_lti_user_data
@@ -84,6 +84,7 @@ def lti_launch(request, course_id, usage_id):
     context_id = request_params.get('context_id', None)
 
     if not params:
+        log_lti_launch(course_id, usage_id, 400, params=request_params)
         return render_bad_request(return_url)
     params.update(get_optional_parameters(request_params))
 
@@ -95,6 +96,7 @@ def lti_launch(request, course_id, usage_id):
             params['oauth_consumer_key']
         )
     except LtiConsumer.DoesNotExist:
+        log_lti_launch(course_id, usage_id, 403, params=request_params)
         return render_response_forbidden(return_url)
 
     params_strict = {}
@@ -102,11 +104,13 @@ def lti_launch(request, course_id, usage_id):
         params_strict = get_required_strict_parameters(request_params)
         if not params_strict or params_strict['lti_version'] != 'LTI-1p0' \
                 or params_strict['lti_message_type'] != 'basic-lti-launch-request':
+            log_lti_launch(course_id, usage_id, 400, params=request_params)
             return render_bad_request(return_url)
         params.update(params_strict)
 
     # Check the OAuth signature on the message
     if not is_cached and not SignatureValidator(lti_consumer).verify(request):
+        log_lti_launch(course_id, usage_id, 403, params=request_params)
         return render_response_forbidden(return_url)
 
     tc_profile_url = request_params.get('tc_profile_url', request_params.get('custom_tc_profile_url', None))
@@ -147,6 +151,7 @@ def lti_launch(request, course_id, usage_id):
     try:
         block = modulestore().get_item(usage_key)
     except ItemNotFoundError:
+        log_lti_launch(course_id, usage_id, 404, params=request_params)
         raise Http404()
     is_time_exam = getattr(block, 'is_proctored_exam', False) or getattr(block, 'is_time_limited', False)
 
@@ -166,6 +171,7 @@ def lti_launch(request, course_id, usage_id):
             'additional_url_params': '',
             'time_exam': 1 if is_time_exam else 0,
         }))
+        log_lti_launch(course_id, usage_id, 200, new_tab_check=True, params=request_params)
         return HttpResponse(template.render())
 
     # Create an edX account if the user identifed by the LTI launch doesn't have
@@ -193,7 +199,7 @@ def lti_launch(request, course_id, usage_id):
     # Store any parameters required by the outcome service in order to report
     # scores back later. We know that the consumer exists, since the record was
     # used earlier to verify the oauth signature.
-    store_outcome_parameters(params, request.user, lti_consumer)
+    assignment, outcomes = store_outcome_parameters(params, request.user, lti_consumer)
 
     if not request_params.get('iframe'):
         return HttpResponseRedirect(reverse('launch_new_tab', kwargs={
@@ -203,6 +209,7 @@ def lti_launch(request, course_id, usage_id):
 
     update_lms_course_usage(request, usage_key, course_key)
     result = render_courseware(request, params['usage_key'])
+    log_lti_launch(course_id, usage_id, 200, request.user.id, assignment=assignment, params=request_params)
     return result
 
 

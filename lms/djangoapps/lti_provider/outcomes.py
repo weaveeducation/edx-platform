@@ -64,13 +64,15 @@ def store_outcome_parameters(request_params, user, lti_consumer):
             lti_consumer=lti_consumer
         )
 
-        GradedAssignment.objects.get_or_create(
+        assignment, created = GradedAssignment.objects.get_or_create(
             lis_result_sourcedid=result_id,
             course_key=course_key,
             usage_key=usage_key,
             user=user,
             outcome_service=outcomes
         )
+        return assignment, outcomes
+    return None, None
 
 
 def generate_replace_result_xml(result_sourcedid, score):
