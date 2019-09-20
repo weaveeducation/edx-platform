@@ -243,7 +243,7 @@ def log_lti_launch(course_id, usage_id, http_response, user_id=None, assignment=
         'timestamp': time.time(),
         'course_id': str(course_id),
         'usage_id': usage_id,
-        'user_id': int(user_id) if user_id else None,
+        'edx_user_id': int(user_id) if user_id else None,
         'new_tab_check': new_tab_check,
         'assignment_id': int(assignment.id) if assignment else None,
         'assignment_version_number': int(assignment.version_number) if assignment else None,
@@ -251,5 +251,7 @@ def log_lti_launch(course_id, usage_id, http_response, user_id=None, assignment=
         'http_response': int(http_response)
     }
     if params:
-        data.update(params)
+        for k, v in params.items():
+            pk = 'lti_user_id' if k == 'user_id' else k
+            data[pk] = '%s' % v
     log_json.info(json.dumps(data))
