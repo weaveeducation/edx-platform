@@ -25,10 +25,6 @@ from django.utils.translation import ugettext as _
         toggleSubmitButton(false);
       });
 
-      $('#credo-additional-fields-form').on('ajax:error', function() {
-        toggleSubmitButton(true);
-      });
-
       $('#credo-additional-fields-form').on('ajax:success', function(event, json, xhr) {
           updatePage();
       });
@@ -49,21 +45,31 @@ from django.utils.translation import ugettext as _
         $(".submission-error").removeClass('hidden');
         $(".message-copy").html(errorMessage);
       });
+
+      $('form select').change(function() {
+          var allowNonSuggested = parseInt($(this).data('allow-non-suggested'));
+          var currVal = $(this).val();
+          var alias = '';
+          var relatedItem = null;
+          if (allowNonSuggested === 1) {
+              alias = $(this).parent().data('alias');
+              relatedItem = $('form .credo-modules-field-' + alias + '__custom');
+              if ((currVal === 'Other') && $(relatedItem).hasClass('hidden')) {
+                  $(relatedItem).removeClass('hidden');
+              } else if ((currVal !== 'Other') && !$(relatedItem).hasClass('hidden')) {
+                  $(relatedItem).addClass('hidden');
+              }
+          }
+      });
     })(this);
 
     function toggleSubmitButton(enable) {
       var $submitButton = $('form .form-actions #submit');
 
-      if(enable) {
-        $submitButton.
-          removeClass('is-disabled').
-          attr('aria-disabled', false).
-          removeProp('disabled');
-      }
-      else {
-        $submitButton.
-          addClass('is-disabled').
-          prop('disabled', true);
+      if (enable) {
+        $submitButton.removeClass('is-disabled').attr('aria-disabled', false).prop('disabled', false);
+      } else {
+        $submitButton.addClass('is-disabled').prop('disabled', true);
       }
     }
   </script>
@@ -100,13 +106,15 @@ from django.utils.translation import ugettext as _
 
                 <ol class="list-input">
                   % for field in fields:
-                  <li class="field ${'required' if field.required else ''} text">
+                  <li data-alias="${field.alias}" class="credo-modules-field-${field.alias} field ${'required' if field.required else ''} text ${'hidden' if field.hidden else ''}">
                     % if field.info:
                         <p class="credo-modules-information"> ${field.title} </p>
                     % else:
-                        <label for="${field.alias}">${field.title}</label>
+                        <label for="credo-modules-${field.alias}">${field.title}</label>
                         % if field.options:
-                            <select id="credo-modules-${field.alias}" name="${field.alias}" ${'required aria-required="true"' if field.required else ''}>
+                            <select id="credo-modules-${field.alias}"
+                                    name="${field.alias}"
+                                    data-allow-non-suggested="${'1' if field.allow_non_suggested else '0'}" ${'required aria-required="true"' if field.required else ''}>
                                 <option value="" ${'' if field.default else 'selected=""'}>Not selected</option>
                                 % for option in field.options:
                                     <%
@@ -118,7 +126,17 @@ from django.utils.translation import ugettext as _
                                 % endfor
                             </select>
                         % else:
-                            <input class="" id="credo-modules-${field.alias}" type="text" name="${field.alias}" value="${field.default}" ${'required aria-required="true"' if field.required else ''} />
+                            <input class=""
+                                   id="credo-modules-${field.alias}"
+                                   type="${'number' if field.isnumber else 'text'}"
+                                   name="${field.alias}"
+                                   value="${field.default}"
+                                   ${'required aria-required="true"' if field.required else ''}
+                                   ${'min="' + field.minnumber + '"' if field.minnumber else ''}
+                                   ${'max="' + field.maxnumber + '"' if field.maxnumber else ''}
+                                   ${'minlength="' + field.minlength + '"' if field.minlength else ''}
+                                   ${'maxlength="' + field.maxlength + '"' if field.maxlength else ''}
+                                   />
                         % endif
                     % endif
                   </li>
