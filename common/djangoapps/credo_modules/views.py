@@ -37,16 +37,16 @@ class StudentProfileField(object):
         self.alias = alias
         self.required = required
         self.title = title
-        self.default = default
+        self.default = str(default) if default is not None else None
         self.options = options
         self.allow_non_suggested = allow_non_suggested
         self.order = order
         self.info = info
         self.hidden = hidden
-        self.minnumber = minnumber
-        self.maxnumber = maxnumber
-        self.minlength = minlength
-        self.maxlength = maxlength
+        self.minnumber = str(minnumber) if minnumber is not None else None
+        self.maxnumber = str(maxnumber) if maxnumber is not None else None
+        self.minlength = str(minlength) if minlength is not None else None
+        self.maxlength = str(maxlength) if maxlength is not None else None
         self.isnumber = isnumber
         self.isalnum = isalnum
 
@@ -82,7 +82,7 @@ class StudentProfileField(object):
                 else:
                     default = 'Other'
             else:
-                default = str(default_tmp)
+                default = default_tmp
 
                 validation = v.get('validation', {})
                 minlength = validation.get('string', {}).get('min', None)
@@ -91,10 +91,30 @@ class StudentProfileField(object):
                 minnumber = validation.get('number', {}).get('min', None)
                 maxnumber = validation.get('number', {}).get('max', None)
 
-                minlength = str(minlength) if minlength is not None else None
-                maxlength = str(maxlength) if maxlength is not None else None
-                minnumber = str(minnumber) if minnumber is not None else None
-                maxnumber = str(maxnumber) if maxnumber is not None else None
+                if minlength:
+                    try:
+                        minlength = int(minlength)
+                    except ValueError:
+                        minlength = None
+
+                if maxlength:
+                    try:
+                        maxlength = int(maxlength)
+                    except ValueError:
+                        maxlength = None
+
+                if minnumber:
+                    try:
+                        minnumber = int(minnumber)
+                    except ValueError:
+                        minnumber = None
+
+                if maxnumber:
+                    try:
+                        maxnumber = int(maxnumber)
+                    except ValueError:
+                        maxnumber = None
+
                 isalnum = True if isalnum else False
 
                 isnumber = 'number' in validation
@@ -103,13 +123,13 @@ class StudentProfileField(object):
                     maxlength = None
                     isalnum = False
                     try:
-                        int(default)
+                        default = int(default)
                     except ValueError:
                         default = None
 
-                    if minnumber is not None and int(default) < int(minnumber):
+                    if minnumber is not None and default is not None and default < minnumber:
                         default = None
-                    elif maxnumber is not None and int(default) > int(maxnumber):
+                    elif maxnumber is not None and default is not None and default > maxnumber:
                         default = None
 
             kwargs = {
