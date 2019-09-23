@@ -27,29 +27,128 @@ LAST_NAME_DB_FIELD_SIZE = 30
 EMAIL_DB_FIELD_SIZE = 254
 
 
-def authenticate_lti_user(request, lti_user_id, lti_consumer, lti_params=None):
-    """
-    Determine whether the user specified by the LTI launch has an existing
-    account. If not, create a new Django User model and associate it with an
-    LtiUser object.
+class UserService(object):
 
-    If the currently logged-in user does not match the user specified by the LTI
-    launch, log out the old user and log in the LTI identity.
-    """
-    try:
-        lti_user = LtiUser.objects.get(
+    def get_lti_user_by_external_id(self, lti_user_id, lti_consumer):
+        try:
+            return LtiUser.objects.get(
+                lti_user_id=lti_user_id,
+                lti_consumer=lti_consumer
+            )
+        except LtiUser.DoesNotExist:
+            pass
+        return None
+
+    def get_lti_user_by_edx_user_id(self, edx_user_id):
+        try:
+            return LtiUser.objects.get(edx_user_id=edx_user_id)
+        except LtiUser.DoesNotExist:
+            pass
+        return None
+
+    def save_lti_user(self, lti_consumer, lti_user_id, edx_user):
+        lti_user = LtiUser(
+            lti_consumer=lti_consumer,
             lti_user_id=lti_user_id,
+            edx_user=edx_user
+        )
+        lti_user.save()
+        return lti_user
+
+    def _authenticate(self, lti_user, lti_consumer):
+        return authenticate(
+            username=lti_user.edx_user.username,
+            lti_user_id=lti_user.lti_user_id,
             lti_consumer=lti_consumer
         )
-    except LtiUser.DoesNotExist:
-        # This is the first time that the user has been here. Create an account.
-        lti_user = create_lti_user(lti_user_id, lti_consumer, lti_params)
 
-    if not (request.user.is_authenticated and
-            request.user == lti_user.edx_user):
-        # The user is not authenticated, or is logged in as somebody else.
-        # Switch them to the LTI user
-        switch_user(request, lti_user, lti_consumer)
+    def authenticate_lti_user(self, request, lti_user_id, lti_consumer, lti_params=None):
+        """
+        Determine whether the user specified by the LTI launch has an existing
+        account. If not, create a new Django User model and associate it with an
+        LtiUser object.
+
+        If the currently logged-in user does not match the user specified by the LTI
+        launch, log out the old user and log in the LTI identity.
+        """
+        lti_user = self.get_lti_user_by_external_id(lti_user_id, lti_consumer)
+        if not lti_user:
+            # This is the first time that the user has been here. Create an account.
+            lti_user = self.create_lti_user(lti_user_id, lti_consumer, lti_params)
+
+        if not (request.user.is_authenticated and
+                request.user == lti_user.edx_user):
+            # The user is not authenticated, or is logged in as somebody else.
+            # Switch them to the LTI user
+            self.switch_user(request, lti_user, lti_consumer)
+
+    def create_lti_user(self, lti_user_id, lti_consumer, lti_params=None):
+        """
+        Generate a new user on the edX platform with a random username and password,
+        and associates that account with the LTI identity.
+        """
+        if lti_params is None:
+            lti_params = {}
+        edx_password = str(uuid.uuid4())
+        new_user_created = False
+
+        with transaction.atomic():
+            if 'email' in lti_params and lti_params['email'].strip():
+                lti_params_email = lti_params['email'].strip()
+                edx_email = lti_params_email[0:EMAIL_DB_FIELD_SIZE]
+                edx_username = lti_params_email.split('@')[0][0:USERNAME_DB_FIELD_SIZE].strip()
+                try:
+                    edx_user = User.objects.get(email=edx_email)
+                    lti_user_found = self.get_lti_user_by_edx_user_id(edx_user.id)
+                    if lti_user_found:
+                        edx_user = _create_edx_user(edx_user.email, edx_user.username, edx_password, edx_user)
+                        new_user_created = True
+                except User.DoesNotExist:
+                    edx_user = _create_edx_user(edx_email, edx_username, edx_password)
+                    new_user_created = True
+            else:
+                new_username = generate_random_edx_username()
+                new_email = "{}@{}".format(new_username, settings.LTI_USER_EMAIL_DOMAIN)
+                edx_user = _create_edx_user(new_email, new_username, edx_password)
+                new_user_created = True
+
+            if new_user_created and edx_user is not None:
+                upd = False
+                if 'first_name' in lti_params:
+                    edx_user.first_name = cut_to_max_len(lti_params['first_name'].strip(), FIRST_NAME_DB_FIELD_SIZE)
+                    upd = True
+                if 'last_name' in lti_params:
+                    edx_user.last_name = cut_to_max_len(lti_params['last_name'].strip(), LAST_NAME_DB_FIELD_SIZE)
+                    upd = True
+                if upd:
+                    edx_user.save()
+
+                # A profile is required if PREVENT_CONCURRENT_LOGINS flag is set.
+                # TODO: We could populate user information from the LTI launch here,
+                # but it's not necessary for our current uses.
+                edx_user_profile = UserProfile(user=edx_user)
+                edx_user_profile.save()
+
+            try:
+                with transaction.atomic():
+                    lti_user = self.save_lti_user(lti_consumer, lti_user_id, edx_user)
+            except IntegrityError:
+                lti_user = self.get_lti_user_by_external_id(lti_user_id, lti_consumer)
+
+        return lti_user
+
+    def switch_user(self, request, lti_user, lti_consumer):
+        """
+        Log out the current user, and log in using the edX identity associated with
+        the LTI ID.
+        """
+        edx_user = self._authenticate(lti_user, lti_consumer)
+        if not edx_user:
+            # This shouldn't happen, since we've created edX accounts for any LTI
+            # users by this point, but just in case we can return a 403.
+            raise PermissionDenied()
+        login(request, edx_user)
+        update_unique_user_id_cookie(request)
 
 
 def cut_to_max_len(text, max_len):
@@ -61,90 +160,6 @@ def cut_to_max_len(text, max_len):
         return text
     else:
         return text[:max_len]
-
-
-def create_lti_user(lti_user_id, lti_consumer, lti_params=None):
-    """
-    Generate a new user on the edX platform with a random username and password,
-    and associates that account with the LTI identity.
-    """
-    if lti_params is None:
-        lti_params = {}
-    edx_password = str(uuid.uuid4())
-    new_user_created = False
-
-    with transaction.atomic():
-        if 'email' in lti_params and lti_params['email'].strip():
-            lti_params_email = lti_params['email'].strip()
-            edx_email = lti_params_email[0:EMAIL_DB_FIELD_SIZE]
-            edx_username = lti_params_email.split('@')[0][0:USERNAME_DB_FIELD_SIZE].strip()
-            try:
-                edx_user = User.objects.get(email=edx_email)
-                try:
-                    _ = LtiUser.objects.get(edx_user_id=edx_user.id)
-                    edx_user = _create_edx_user(edx_user.email, edx_user.username, edx_password, edx_user)
-                    new_user_created = True
-                except LtiUser.DoesNotExist:
-                    pass
-            except User.DoesNotExist:
-                edx_user = _create_edx_user(edx_email, edx_username, edx_password)
-                new_user_created = True
-        else:
-            new_username = generate_random_edx_username()
-            new_email = "{}@{}".format(new_username, settings.LTI_USER_EMAIL_DOMAIN)
-            edx_user = _create_edx_user(new_email, new_username, edx_password)
-            new_user_created = True
-
-        if new_user_created and edx_user is not None:
-            upd = False
-            if 'first_name' in lti_params:
-                edx_user.first_name = cut_to_max_len(lti_params['first_name'].strip(), FIRST_NAME_DB_FIELD_SIZE)
-                upd = True
-            if 'last_name' in lti_params:
-                edx_user.last_name = cut_to_max_len(lti_params['last_name'].strip(), LAST_NAME_DB_FIELD_SIZE)
-                upd = True
-            if upd:
-                edx_user.save()
-
-            # A profile is required if PREVENT_CONCURRENT_LOGINS flag is set.
-            # TODO: We could populate user information from the LTI launch here,
-            # but it's not necessary for our current uses.
-            edx_user_profile = UserProfile(user=edx_user)
-            edx_user_profile.save()
-
-        try:
-            with transaction.atomic():
-                lti_user = LtiUser(
-                    lti_consumer=lti_consumer,
-                    lti_user_id=lti_user_id,
-                    edx_user=edx_user
-                )
-                lti_user.save()
-        except IntegrityError:
-            lti_user = LtiUser.objects.get(
-                lti_user_id=lti_user_id,
-                lti_consumer=lti_consumer
-            )
-
-    return lti_user
-
-
-def switch_user(request, lti_user, lti_consumer):
-    """
-    Log out the current user, and log in using the edX identity associated with
-    the LTI ID.
-    """
-    edx_user = authenticate(
-        username=lti_user.edx_user.username,
-        lti_user_id=lti_user.lti_user_id,
-        lti_consumer=lti_consumer
-    )
-    if not edx_user:
-        # This shouldn't happen, since we've created edX accounts for any LTI
-        # users by this point, but just in case we can return a 403.
-        raise PermissionDenied()
-    login(request, edx_user)
-    update_unique_user_id_cookie(request)
 
 
 def generate_random_edx_username():

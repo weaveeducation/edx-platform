@@ -18,11 +18,11 @@ from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.cache import caches
 from django.core.urlresolvers import reverse
 
-from lms.djangoapps.instructor_task.tasks_helper.module_state import update_reset_progress
-from lti_provider.models import LtiConsumer, LtiContextId, log_lti_launch
+from lti_provider.models import LtiConsumer, log_lti_launch
 from lti_provider.outcomes import store_outcome_parameters
 from lti_provider.signature_validator import SignatureValidator
-from lti_provider.users import authenticate_lti_user, update_lti_user_data
+from lti_provider.users import UserService, update_lti_user_data
+from lti_provider.reset_progress import check_and_reset_lti_user_progress
 from openedx.core.lib.url_utils import unquote_slashes
 from student.models import CourseEnrollment
 from student.roles import CourseStaffRole
@@ -57,6 +57,7 @@ OPTIONAL_PARAMETERS = [
     LTI_PARAM_EMAIL, LTI_PARAM_FIRST_NAME, LTI_PARAM_LAST_NAME,
     'tool_consumer_instance_guid'
 ]
+
 
 @csrf_exempt
 @add_p3p_header
@@ -180,7 +181,8 @@ def lti_launch(request, course_id, usage_id):
     for key in lti_keys:
         if key in params:
             lti_params[lti_keys[key]] = params[key]
-    authenticate_lti_user(request, params['user_id'], lti_consumer, lti_params)
+    us = UserService()
+    us.authenticate_lti_user(request, params['user_id'], lti_consumer, lti_params)
 
     if request.user.is_authenticated:
         roles = params.get('roles', None) if lti_consumer.allow_to_add_instructors_via_lti else None
@@ -413,30 +415,6 @@ def get_params(request):
 def set_user_roles(edx_user, course_key, roles):
     # LIS vocabulary for System Role
     # https://www.imsglobal.org/specs/ltiv1p0/implementation-guide#toc-9
-    external_roles = ['Administrator', 'Instructor', 'Staff']
+    external_roles = ['SysAdmin', 'Administrator', 'Instructor', 'Staff']
     if any(role in roles for role in external_roles):
         CourseStaffRole(course_key).add_users(edx_user)
-
-
-def check_and_reset_lti_user_progress(context_id, user, course_key, usage_key):
-    if context_id:
-        try:
-            context = LtiContextId.objects.get(
-                course_key=course_key,
-                usage_key=usage_key,
-                user=user,
-            )
-            if context.value != context_id:
-                context.value = context_id
-                context.save()
-                with modulestore().bulk_operations(course_key):
-                    block = modulestore().get_item(usage_key)
-                    update_reset_progress(user, course_key, block)
-        except LtiContextId.DoesNotExist:
-            context = LtiContextId(
-                user=user,
-                course_key=course_key,
-                usage_key=usage_key,
-                value=context_id
-            )
-            context.save()

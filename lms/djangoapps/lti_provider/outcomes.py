@@ -18,7 +18,8 @@ log = logging.getLogger("edx.lti_provider")
 
 
 class OutcomeServiceSendScoreError(Exception):
-    def __init__(self, message, response_body, request_body, lis_outcome_service_url, request_error=None):
+    def __init__(self, message, response_body=None, request_body=None,
+                 lis_outcome_service_url=None, request_error=None):
         super(OutcomeServiceSendScoreError, self).__init__(message)
         self.response_body = response_body
         self.request_body = request_body
