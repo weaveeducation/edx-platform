@@ -4,6 +4,7 @@ in LTI v1.1.
 """
 
 import logging
+import hashlib
 import uuid
 
 import requests
@@ -64,12 +65,16 @@ def store_outcome_parameters(request_params, user, lti_consumer):
             lti_consumer=lti_consumer
         )
 
+        result_id_hash = hashlib.md5(str(result_id)).hexdigest()
         assignment, created = GradedAssignment.objects.get_or_create(
-            lis_result_sourcedid=result_id,
+            lis_result_sourcedid=result_id_hash,
             course_key=course_key,
             usage_key=usage_key,
             user=user,
-            outcome_service=outcomes
+            outcome_service=outcomes,
+            defaults={
+                'lis_result_sourcedid_value': result_id
+            }
         )
         return assignment, outcomes
     return None, None
@@ -137,7 +142,7 @@ def send_score_update(assignment, score, attempt_num=0, countdown=0):
     for a single graded assignment.
     """
     xml = generate_replace_result_xml(
-        assignment.lis_result_sourcedid, score
+        assignment.lis_result_sourcedid_value, score
     )
     request_error = None
     try:
