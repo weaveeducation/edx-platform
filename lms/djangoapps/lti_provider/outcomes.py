@@ -66,24 +66,16 @@ def store_outcome_parameters(request_params, user, lti_consumer):
         )
 
         result_id_hash = hashlib.md5(str(result_id)).hexdigest()
-        try:
-            assignment = GradedAssignment.objects.get(
-                lis_result_sourcedid=result_id,
-                course_key=course_key,
-                usage_key=usage_key,
-                user=user,
-                outcome_service=outcomes)
-        except GradedAssignment.DoesNotExist:
-            assignment, created = GradedAssignment.objects.get_or_create(
-                lis_result_sourcedid=result_id_hash,
-                course_key=course_key,
-                usage_key=usage_key,
-                user=user,
-                outcome_service=outcomes,
-                defaults={
-                    'lis_result_sourcedid_value': result_id
-                }
-            )
+        assignment, created = GradedAssignment.objects.get_or_create(
+            lis_result_sourcedid=result_id_hash,
+            course_key=course_key,
+            usage_key=usage_key,
+            user=user,
+            outcome_service=outcomes,
+            defaults={
+                'lis_result_sourcedid_value': result_id
+            }
+        )
         return assignment, outcomes
     return None, None
 
@@ -150,7 +142,7 @@ def send_score_update(assignment, score, attempt_num=0, countdown=0):
     for a single graded assignment.
     """
     xml = generate_replace_result_xml(
-        assignment.lis_result_sourcedid_value if assignment.lis_result_sourcedid_value else assignment.lis_result_sourcedid, score
+        assignment.lis_result_sourcedid_value, score
     )
     request_error = None
     try:
