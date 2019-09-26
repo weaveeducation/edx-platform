@@ -105,6 +105,14 @@ from openedx.core.djangolib.markup import HTML, Text
                             <span class="action-button-text">${_("Edit")}</span>
                         </a>
                     </li>
+                    % if is_library_content:
+                    <li class="action-item action-copy-to-library nav-item">
+                        <a href="#" class="button button-copy-to-library action-button">
+                            <span class="icon fa fa-share-square-o" aria-hidden="true"></span>
+                            <span class="action-button-text">${_("Copy to Library")}</span>
+                        </a>
+                    </li>
+                    % endif
                 % endif
             </ul>
         </nav>

@@ -128,6 +128,7 @@ def container_handler(request, usage_key_string):
             action = request.GET.get('action', 'view')
 
             is_unit_page = is_unit(xblock)
+            is_library_content = (xblock.category == 'library_content')
             unit = xblock if is_unit_page else None
 
             while parent and parent.category != 'course':
@@ -166,6 +167,7 @@ def container_handler(request, usage_key_string):
                 'xblock_locator': xblock.location,
                 'unit': unit,
                 'is_unit_page': is_unit_page,
+                'is_library_content': is_library_content,
                 'subsection': subsection,
                 'section': section,
                 'new_unit_category': 'vertical',

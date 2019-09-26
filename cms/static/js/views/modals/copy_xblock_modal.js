@@ -39,6 +39,7 @@ function($, Backbone, _, gettext, BaseView, XBlockViewUtils, CopyXBlockUtils, Ht
 
         initialize: function() {
             BaseModal.prototype.initialize.call(this);
+            this.copyLibToLib = this.options.copyLibToLib || false;
             this.sourceXBlockInfo = this.options.sourceXBlockInfo;
             this.sourceParentXBlockInfo = this.options.sourceParentXBlockInfo;
             this.targetParentXBlockInfo = null;
@@ -54,6 +55,9 @@ function($, Backbone, _, gettext, BaseView, XBlockViewUtils, CopyXBlockUtils, Ht
             this.allowedToCopyToLib = (['problem', 'html', 'video'].indexOf(this.xblockCategory) !== -1);
             this.courses = {};
             this.copyToOtherItemType = 'course';
+            if (this.copyLibToLib) {
+                this.copyToOtherItemType = 'library';
+            }
             this.firstRender = true;
             this.isLoading = true;
 
@@ -70,7 +74,8 @@ function($, Backbone, _, gettext, BaseView, XBlockViewUtils, CopyXBlockUtils, Ht
             this.$('.course-listing-data').html(this.copyToOtherCourseTpl({
                 isLib: this.isLib,
                 selectedRadio: this.copyToOtherItemType,
-                allowedToCopyToLib: this.allowedToCopyToLib
+                allowedToCopyToLib: this.allowedToCopyToLib,
+                copyLibToLib: this.copyLibToLib
             }));
 
             this.$('input:radio[name="copy-to-other-item"]').change(function() {
@@ -358,7 +363,8 @@ function($, Backbone, _, gettext, BaseView, XBlockViewUtils, CopyXBlockUtils, Ht
                     sourceDisplayName: this.sourceXBlockInfo.get('display_name'),
                     sourceLocator: this.sourceXBlockInfo.id,
                     sourceParentLocator: this.sourceParentXBlockInfo.id,
-                    targetParentLocator: this.targetParentXBlockInfo.id
+                    targetParentLocator: this.targetParentXBlockInfo.id,
+                    copyLibToLib: this.copyLibToLib
                 }
             );
         }

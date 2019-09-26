@@ -257,6 +257,8 @@ def xblock_handler(request, usage_key_string):
                     not has_studio_read_access(request.user, target_parent_usage_key.course_key)
             ):
                 raise PermissionDenied()
+            if copy_source_usage_key.category == 'library_content' and target_parent_usage_key.category == 'library':
+                return _copy_library_content_to_library(copy_source_usage_key, target_parent_usage_key, request.user)
             return _copy_item(copy_source_usage_key, target_parent_usage_key, request.user)
 
         return JsonResponse({'error': 'Patch request did not recognise any parameters to handle.'}, status=400)
@@ -1657,9 +1659,33 @@ def _copy_item(source_usage_key, target_parent_usage_key, user):
             unicode(source_parent.location),
             unicode(target_parent_usage_key))
 
+        target_is_library = (target_parent_usage_key.category == 'library')
+
         context = {
             'copy_source_locator': unicode(source_usage_key),
-            'parent_locator': unicode(target_parent_usage_key),
-            'source_index': 0
+            'parent_locator': unicode(target_parent_usage_key.course_key) if target_is_library else unicode(target_parent_usage_key),
+            'source_index': 0,
+            'target_is_library': target_is_library
         }
         return JsonResponse(context)
+
+
+def _copy_library_content_to_library(copy_source_usage_key, target_parent_usage_key, user):
+    store = modulestore()
+
+    with store.bulk_operations(copy_source_usage_key.course_key):
+        lib_content_block = store.get_item(copy_source_usage_key)
+        for lib_child in lib_content_block.get_children():
+            _duplicate_item(target_parent_usage_key, lib_child.location, user=user, is_child=True,
+                            course_key=target_parent_usage_key.course_key)
+
+    target_is_library = (target_parent_usage_key.category == 'library')
+
+    context = {
+        'copy_source_locator': unicode(copy_source_usage_key),
+        'parent_locator': unicode(target_parent_usage_key.course_key) if target_is_library else unicode(target_parent_usage_key),
+        'source_index': 0,
+        'target_is_library': target_is_library
+    }
+    return JsonResponse(context)
+
