@@ -315,6 +315,8 @@ class OrganizationType(models.Model):
                                                                                    'Statistic in Insights')
     enable_extended_progress_page = models.BooleanField(default=False, verbose_name='Enable Extended Progress Page')
 
+    enable_item_analysis_reports = models.BooleanField(default=False, verbose_name='Enable Item Analysis Reports')
+
     available_roles = models.ManyToManyField('CustomUserRole', blank=True)
 
     class Meta:
@@ -383,6 +385,12 @@ class Organization(models.Model):
         else:
             return OrganizationType.get_all_insights_reports()
 
+    def get_item_analysis_reports(self):
+        if self.org_type:
+            return self.org_type.enable_item_analysis_reports
+        else:
+            return False
+
     def get_page_level_engagement(self):
         if self.org_type:
             return self.org_type.enable_page_level_engagement
@@ -396,6 +404,7 @@ class Organization(models.Model):
             'constructor_fields': self.get_constructor_fields(),
             'insights_reports': self.get_insights_reports(),
             'page_level_engagement': self.get_page_level_engagement(),
+            'item_analysis_reports': self.get_item_analysis_reports(),
         }
 
     @property
