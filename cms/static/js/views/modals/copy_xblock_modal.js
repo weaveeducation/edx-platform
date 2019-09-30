@@ -38,8 +38,8 @@ function($, Backbone, _, gettext, BaseView, XBlockViewUtils, CopyXBlockUtils, Ht
         }),
 
         initialize: function() {
-            var self = this;
             BaseModal.prototype.initialize.call(this);
+            this.copyLibToLib = this.options.copyLibToLib || false;
             this.sourceXBlockInfo = this.options.sourceXBlockInfo;
             this.sourceParentXBlockInfo = this.options.sourceParentXBlockInfo;
             this.targetParentXBlockInfo = null;
@@ -50,50 +50,169 @@ function($, Backbone, _, gettext, BaseView, XBlockViewUtils, CopyXBlockUtils, Ht
             );
             this.outlineURL = this.options.outlineURL;
             this.options.title = this.getTitle();
+            this.isLib = (this.sourceXBlockInfo.get('id').indexOf('lib-block-v1') === 0);
+            this.xblockCategory = this.sourceXBlockInfo.get('category');
+            this.allowedToCopyToLib = (['problem', 'html', 'video'].indexOf(this.xblockCategory) !== -1);
             this.courses = {};
-            this.fetchCourseListing().done(function(data) {
-                data.sort(function(a, b) {
-                    if(a.display_name < b.display_name) return -1;
-                    if(a.display_name > b.display_name) return 1;
-                    return 0;
-                });
-                for (var i in data) {
-                    self.courses[data[i].course_key] = data[i];
-                }
-                self.outlineURL = data[0].url + '?format=concise';
-
-                self.copyToOtherCourseTpl = self.loadTemplate('copy-to-other-course');
-                self.$('.course-listing').removeClass('is-hidden');
-                self.$('.course-listing-data').html(self.copyToOtherCourseTpl({courses: data}));
-
-                self.fetchCourseOutline().done(function(courseOutlineInfo, ancestorInfo) {
-                    self.$('.copy-to-course').change(function() {
-                        self.$('.copy-to-course').attr('disabled', 'disabled');
-                        self.outlineURL = self.courses[$(this).val()].url + '?format=concise';
-
-                        if (self.moveXBlockListView) {
-                            self.moveXBlockListView.remove();
-                        }
-                        if (self.moveXBlockBreadcrumbView) {
-                            self.moveXBlockBreadcrumbView.remove();
-                        }
-
-                        self.$('.ui-loading').removeClass('is-hidden').parent()
-                            .append("<div class='breadcrumb-container is-hidden'></div>")
-                            .append("<div class='xblock-list-container'></div>");
-
-                        self.fetchCourseOutline().done(function(courseOutlineInfo2, ancestorInfo2) {
-                            self.$('.copy-to-course').removeAttr('disabled');
-                            self.renderViewsAndUI(courseOutlineInfo2, ancestorInfo2);
-                        });
-                    });
-                    self.renderViewsAndUI(courseOutlineInfo, ancestorInfo);
-                });
-            });
+            this.copyToOtherItemType = 'course';
+            if (this.copyLibToLib) {
+                this.copyToOtherItemType = 'library';
+            }
+            this.firstRender = true;
+            this.isLoading = true;
 
             this.listenTo(Backbone, 'move:breadcrumbRendered', this.focusModal);
             this.listenTo(Backbone, 'move:enableMoveOperation', this.enableMoveOperation);
             this.listenTo(Backbone, 'move:hideMoveModal', this.hide);
+        },
+
+        render: function() {
+            var self = this;
+            BaseModal.prototype.render.apply(this);
+
+            this.copyToOtherCourseTpl = this.loadTemplate('copy-to-other-course');
+            this.$('.course-listing-data').html(this.copyToOtherCourseTpl({
+                isLib: this.isLib,
+                selectedRadio: this.copyToOtherItemType,
+                allowedToCopyToLib: this.allowedToCopyToLib,
+                copyLibToLib: this.copyLibToLib
+            }));
+
+            this.$('input:radio[name="copy-to-other-item"]').change(function() {
+                self.changeCopyRadio($(this).val());
+            });
+
+            this.$('.copy-to-course').change(function() {
+                if (self.copyToOtherItemType === 'course') {
+                    self.changeCopyToCourseSelector($(this).val());
+                } else {
+                    self.changeCopyToLibrarySelector($(this).val());
+                }
+            });
+
+            this.changeCopyRadio(this.copyToOtherItemType);
+        },
+
+        changeCopyRadio: function(copyToOtherItemType) {
+            var self = this;
+            this.copyToOtherItemType = copyToOtherItemType;
+            this.$('.copy-to-course').attr('disabled', 'disabled');
+            this.$('input:radio[name="copy-to-other-item"]').attr('disabled', 'disabled');
+            this.updateMoveState(false);
+            this.showLoadingMsg();
+
+            var fetchListing = null;
+            if (this.copyToOtherItemType === 'course') {
+                fetchListing = this.fetchCourseListing();
+            } else {
+                fetchListing = this.fetchLibraryListing();
+            }
+
+            fetchListing.done(function(items) {
+                if (self.$('.course-listing').hasClass('is-hidden')) {
+                    self.$('.course-listing').removeClass('is-hidden');
+                }
+
+                items.sort(function(a, b) {
+                    if(a.display_name < b.display_name) return -1;
+                    if(a.display_name > b.display_name) return 1;
+                    return 0;
+                });
+
+                var optionText = '';
+                var copyToCourseSelector = self.$('.copy-to-course');
+                copyToCourseSelector.empty();
+                for (var j in items) {
+                    if (self.copyToOtherItemType === 'course') {
+                        optionText = items[j].display_name + ' [ ' + items[j].number + ' / ' + items[j].run + ' ]';
+                    } else {
+                        optionText = items[j].display_name + ' [ ' + items[j].org + ' / ' + items[j].course + ' ]';
+                    }
+                    self.courses[items[j].course_key] = items[j];
+                    copyToCourseSelector.append($("<option></option>")
+                        .attr("value", items[j].course_key).text(optionText));
+                }
+
+                if (self.copyToOtherItemType === 'course') {
+                    self.changeCopyToCourseSelector(items[0].course_key);
+                } else {
+                    self.$('input:radio[name="copy-to-other-item"]').removeAttr('disabled');
+                    self.hideLoadingMsg();
+                    self.changeCopyToLibrarySelector(items[0].course_key);
+                }
+            });
+        },
+
+        showLoadingMsg: function() {
+            if (this.isLoading) {
+                return;
+            } else {
+                this.isLoading = true;
+            }
+
+            if (this.moveXBlockListView) {
+                this.moveXBlockListView.remove();
+            }
+            if (this.moveXBlockBreadcrumbView) {
+                this.moveXBlockBreadcrumbView.remove();
+            }
+
+            if (this.$('.ui-loading').hasClass('is-hidden')) {
+                this.$('.ui-loading').removeClass('is-hidden');
+            }
+        },
+
+        hideLoadingMsg: function() {
+            this.isLoading = false;
+        },
+
+        changeCopyToCourseSelector: function(courseKeyVal) {
+            var self = this;
+            this.outlineURL = this.courses[courseKeyVal].url + '?format=concise';
+            this.$('.copy-to-course').attr('disabled', 'disabled');
+            this.$('input:radio[name="copy-to-other-item"]').attr('disabled', 'disabled');
+            this.updateMoveState(false);
+            this.showLoadingMsg();
+
+            if (this.moveXBlockListView) {
+                this.moveXBlockListView.remove();
+            }
+            if (this.moveXBlockBreadcrumbView) {
+                this.moveXBlockBreadcrumbView.remove();
+            }
+
+            if (this.firstRender) {
+                this.firstRender = false;
+                this.$('.course-listing').removeClass('is-hidden');
+            } else {
+              this.$('.ui-loading').parent()
+                   .append("<div class='breadcrumb-container is-hidden'></div>")
+                   .append("<div class='xblock-list-container'></div>");
+            }
+
+            this.fetchCourseOutline().done(function(courseOutlineInfo2, ancestorInfo2) {
+                self.$('.copy-to-course').removeAttr('disabled');
+                self.$('input:radio[name="copy-to-other-item"]').removeAttr('disabled');
+                self.renderViewsAndUI(courseOutlineInfo2, ancestorInfo2);
+                self.hideLoadingMsg();
+            });
+        },
+
+        changeCopyToLibrarySelector: function(libraryKeyVal) {
+            this.outlineURL = this.courses[libraryKeyVal].url + '?format=concise';
+            this.targetParentXBlockInfo = {
+                id: this.courses[libraryKeyVal].location
+            };
+
+            var selDisabled = this.$('.copy-to-course').attr('disabled');
+            if ((typeof selDisabled !== typeof undefined) && (selDisabled !== false)) {
+                this.$('.copy-to-course').removeAttr('disabled');
+            }
+            this.renderLibViewsAndUI();
+            this.updateMoveState(true);
+            if (this.firstRender) {
+                this.firstRender = false;
+            }
         },
 
         getTitle: function() {
@@ -138,6 +257,10 @@ function($, Backbone, _, gettext, BaseView, XBlockViewUtils, CopyXBlockUtils, Ht
             return $.when(this.fetchData('/course_listing'));
         },
 
+        fetchLibraryListing: function() {
+            return $.when(this.fetchData('/libraries_listing'));
+        },
+
         fetchCourseOutline: function() {
             return $.when(
                 this.fetchData(this.outlineURL),
@@ -164,6 +287,18 @@ function($, Backbone, _, gettext, BaseView, XBlockViewUtils, CopyXBlockUtils, Ht
             $('.ui-loading').addClass('is-hidden');
             $('.breadcrumb-container').removeClass('is-hidden');
             this.renderViews(courseOutlineInfo, ancestorInfo);
+        },
+
+        renderLibViewsAndUI: function() {
+            if (!this.$('.ui-loading').hasClass('is-hidden')) {
+                this.$('.ui-loading').addClass('is-hidden');
+            }
+            if (!this.$('.breadcrumb-container').hasClass('is-hidden')) {
+                this.$('.breadcrumb-container').addClass('is-hidden');
+            }
+            if (this.$('.xblock-list-container').length && !this.$('.xblock-list-container').hasClass('is-hidden')) {
+                this.$('.xblock-list-container').addClass('is-hidden');
+            }
         },
 
         renderViews: function(courseOutlineInfo, ancestorInfo) {
@@ -228,7 +363,8 @@ function($, Backbone, _, gettext, BaseView, XBlockViewUtils, CopyXBlockUtils, Ht
                     sourceDisplayName: this.sourceXBlockInfo.get('display_name'),
                     sourceLocator: this.sourceXBlockInfo.id,
                     sourceParentLocator: this.sourceParentXBlockInfo.id,
-                    targetParentLocator: this.targetParentXBlockInfo.id
+                    targetParentLocator: this.targetParentXBlockInfo.id,
+                    copyLibToLib: this.copyLibToLib
                 }
             );
         }

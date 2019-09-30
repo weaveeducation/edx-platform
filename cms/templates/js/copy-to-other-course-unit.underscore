@@ -1,5 +1,10 @@
+<% if (!copyLibToLib && (isLib || allowedToCopyToLib)) { %>
+<div style="padding-bottom: 10px;">
+    <input type="radio" name="copy-to-other-item" class="copy-to-other-item" id="copyToOtherItem1" <% if (selectedRadio == 'course') { %>checked="checked"<% } %> value="course">
+    <label for="copyToOtherItem1">Course</label>
+    <input type="radio" name="copy-to-other-item" class="copy-to-other-item" id="copyToOtherItem2" <% if (selectedRadio == 'library') { %>checked="checked"<% } %> value="library">
+    <label for="copyToOtherItem2">Library</label>
+</div>
+<% } %>
 <select name="copy-to-course" class="copy-to-course" style="width: 600px; text-overflow: ellipsis;">
-    <% _.each(courses, function(course) { %>
-    <option value="<%- course.course_key %>"><%- course.display_name %> [ <%- course.number %> / <%- course.run %> ]</option>
-    <% }); %>
 </select>

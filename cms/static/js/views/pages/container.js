@@ -22,7 +22,8 @@ define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page
                 'click .move-button': 'showMoveXBlockModal',
                 'click .copy-button': 'showCopyXBlockModal',
                 'click .delete-button': 'deleteXBlock',
-                'click .new-component-button': 'scrollToNewComponentButtons'
+                'click .new-component-button': 'scrollToNewComponentButtons',
+                'click .button-copy-to-library': 'copyToLibrary'
             },
 
             options: {
@@ -232,6 +233,21 @@ define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page
                         sourceParentXBlockInfo: XBlockUtils.findXBlockInfo(parentXBlockElement, this.model),
                         XBlockURLRoot: this.getURLRoot(),
                         outlineURL: this.options.outlineURL
+                    });
+
+                event.preventDefault();
+                modal.show();
+            },
+
+            copyToLibrary: function(event) {
+                var xblockElement = this.findXBlockElement(event.target),
+                    parentXBlockElement = xblockElement.parents('.studio-xblock-wrapper'),
+                    modal = new CopyXBlockModal({
+                        sourceXBlockInfo: XBlockUtils.findXBlockInfo(parentXBlockElement, this.model),
+                        sourceParentXBlockInfo: XBlockUtils.findXBlockInfo(parentXBlockElement, this.model),
+                        XBlockURLRoot: this.getURLRoot(),
+                        outlineURL: this.options.outlineURL,
+                        copyLibToLib: true
                     });
 
                 event.preventDefault();

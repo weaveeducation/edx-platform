@@ -36,6 +36,8 @@ function($, _, Backbone, Feedback, AlertView, XBlockViewUtils, StringUtils) {
                     sourceLocator: data.sourceLocator,
                     sourceParentLocator: data.sourceParentLocator,
                     targetParentLocator: data.targetParentLocator,
+                    targetFromResponse: response.parent_locator,
+                    targetIsLibrary: response.target_is_library,
                     targetIndex: response.source_index
                 }
             );
@@ -72,7 +74,11 @@ function($, _, Backbone, Feedback, AlertView, XBlockViewUtils, StringUtils) {
                             text: gettext('Take me to the new location'),
                             class: 'action-cancel',
                             click: function() {
-                                redirectLink('/container/' + data.targetParentLocator);
+                                if (data.targetIsLibrary) {
+                                    redirectLink('/library/' + data.targetFromResponse);
+                                } else {
+                                    redirectLink('/container/' + data.targetParentLocator);
+                                }
                             }
                         }
                     ]
