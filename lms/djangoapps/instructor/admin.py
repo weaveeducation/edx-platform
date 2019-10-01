@@ -24,6 +24,7 @@ class InstructorAvailableSectionsAdmin(ForeignKeyAutocompleteAdmin):
                          'show_data_download', 'show_email', 'show_analytics', 'show_studio_link',
                          'show_open_responses', 'show_lti_constructor', 'show_insights_link',
                          'show_discussions_management']
+    search_fields = ('user__id', 'user__username', 'user__email',)
 
     list_display = ['user'] + bulk_fields_names
     list_display_links = None
