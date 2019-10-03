@@ -28,6 +28,7 @@ class OraStructuredTagsAside(StructuredTagsAside):
         depending on the context.
         """
         from student.models import User
+        from credo_modules.models import Organization
 
         if block.category == 'openassessment':
             if len(block.rubric_criteria) == 0:
@@ -38,7 +39,15 @@ class OraStructuredTagsAside(StructuredTagsAside):
 
             rubrics = [rubric['label'].strip() for rubric in block.rubric_criteria]
 
-            for tag in self.get_available_tags():
+            org_type_id = None
+            try:
+                cr_org = Organization.objects.get(org=self.scope_ids.usage_id.course_key.org)
+                if cr_org.org_type is not None:
+                    org_type_id = cr_org.org_type.id
+            except Organization.DoesNotExist:
+                pass
+
+            for tag in self.get_available_tags(org_type_id=org_type_id):
                 course_id = None
                 org = None
 
