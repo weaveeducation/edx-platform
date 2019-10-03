@@ -23,13 +23,24 @@ class TagCategoriesForm(forms.ModelForm):
 
     role = forms.ChoiceField(choices=COURSE_ACCESS_ROLES, label=_("Access role"))
     scoped_by = forms.ChoiceField(choices=SCOPED_BY, label=_("Scoped by"))
+    org_type = forms.ChoiceField(choices=[], label=_("Applicable for organization type"), required=False)
 
     def __init__(self, *args, **kwargs):
         super(TagCategoriesForm, self).__init__(*args, **kwargs)
+        from credo_modules.models import OrganizationType
+
+        org_type_values = [(None, '-')]
+        for o in OrganizationType.objects.all().order_by('title'):
+            org_type_values.append((o.id, o.title))
+        self.fields.get('org_type').choices = org_type_values
+
         if not self.instance.role:
             self.initial['role'] = 'any'
         if not self.instance.scoped_by:
             self.initial['scoped_by'] = 'global'
+
+    def clean_org_type(self):
+        return self.cleaned_data['org_type'] if self.cleaned_data['org_type'] else None
 
     def clean_role(self):
         """

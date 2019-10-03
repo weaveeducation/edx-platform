@@ -12,6 +12,7 @@ from xmodule.capa_module import CapaModule
 from edxmako.shortcuts import render_to_string
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.core.exceptions import ObjectDoesNotExist
 from webob import Response
 
@@ -27,12 +28,14 @@ class StructuredTagsAside(XBlockAside):
                       scope=Scope.content,
                       default={},)
 
-    def get_available_tags(self):
+    def get_available_tags(self, org_type_id=None):
         """
         Return available tags
         """
         from .models import TagCategories
-        return TagCategories.objects.all()
+        if org_type_id:
+            return TagCategories.objects.filter(Q(org_type=None) | Q(org_type=org_type_id))
+        return TagCategories.objects.filter(org_type=None)
 
     def _get_studio_resource_url(self, relative_url):
         """
@@ -64,6 +67,7 @@ class StructuredTagsAside(XBlockAside):
         depending on the context.
         """
         from student.models import User
+        from credo_modules.models import Organization
 
         if isinstance(block, CapaModule) or block.category in ['html', 'video', 'drag-and-drop-v2'] or \
                 (block.category == 'openassessment' and len(block.rubric_criteria) == 0):
@@ -71,7 +75,15 @@ class StructuredTagsAside(XBlockAside):
             user = None
             has_access_any_tag = False
 
-            for tag in self.get_available_tags():
+            org_type_id = None
+            try:
+                cr_org = Organization.objects.get(org=self.scope_ids.usage_id.course_key.org)
+                if cr_org.org_type is not None:
+                    org_type_id = cr_org.org_type.id
+            except Organization.DoesNotExist:
+                pass
+
+            for tag in self.get_available_tags(org_type_id=org_type_id):
                 course_id = None
                 org = None
 

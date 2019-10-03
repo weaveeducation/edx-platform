@@ -13,6 +13,7 @@ class TagCategories(models.Model):
     title = models.CharField(max_length=255)
     editable_in_studio = models.BooleanField(default=False, verbose_name=_("Editable in studio"))
     scoped_by = models.CharField(max_length=255, null=True, blank=True, verbose_name=_("Scoped by"))
+    org_type = models.IntegerField(null=True, verbose_name=_("Applicable for organization type"))
     role = models.CharField(max_length=64, null=True, blank=True, verbose_name=_("Access role"))
 
     class Meta(object):
