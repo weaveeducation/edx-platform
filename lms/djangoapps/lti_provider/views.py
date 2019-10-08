@@ -194,7 +194,9 @@ def lti_launch(request, course_id, usage_id):
 
     # Reset attempts based on new context_ID:
     # https://credoeducation.atlassian.net/browse/DEV-209
-    check_and_reset_lti_user_progress(context_id, request.user, course_key, usage_key)
+    lis_result_sourcedid = request_params.get('lis_result_sourcedid', None)
+    check_and_reset_lti_user_progress(context_id, request.user, course_key, usage_key,
+                                      lis_result_sourcedid=lis_result_sourcedid)
 
     # Store any parameters required by the outcome service in order to report
     # scores back later. We know that the consumer exists, since the record was
