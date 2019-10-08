@@ -51,12 +51,13 @@ class DBHandler(Handler):
 
         if user_id and course_id and block_id:
             with transaction.atomic():
+                formatted_msg = msg.replace('||', ';')
                 item = self.model(
                     event_name=event_type,
                     user_id=user_id,
                     course_id=course_id,
                     block_id=block_id,
-                    message=msg
+                    message=formatted_msg
                 )
                 item.save()
 
