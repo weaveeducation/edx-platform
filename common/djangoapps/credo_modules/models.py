@@ -514,6 +514,7 @@ class CustomUserRole(models.Model):
     unit_add_discussion_component = models.BooleanField(default=True,
                                                         verbose_name='Unit: Can add discussion components to a unit')
     view_tags = models.BooleanField(default=True, verbose_name='Unit: Can view tags')
+    edit_library_content = models.BooleanField(default=True, verbose_name='Unit: Can edit library content')
 #    rerun_course = models.BooleanField(default=True, verbose_name='Studio Home Page: Can re-run a course')
 #    create_new_course = models.BooleanField(default=True, verbose_name='Studio Home Page: Can create new course')
 #    view_archived_courses = models.BooleanField(default=True,
@@ -539,7 +540,8 @@ class CustomUserRole(models.Model):
             'top_menu_tools': self.top_menu_tools,
             'unit_add_advanced_component': self.unit_add_advanced_component,
             'unit_add_discussion_component': self.unit_add_discussion_component,
-            'view_tags': self.view_tags
+            'view_tags': self.view_tags,
+            'edit_library_content': self.edit_library_content
         }
 
 
