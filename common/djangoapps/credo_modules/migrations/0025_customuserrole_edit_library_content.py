@@ -15,6 +15,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='customuserrole',
             name='edit_library_content',
-            field=models.BooleanField(default=True, verbose_name=b'Unit: Can edit library content'),
+            field=models.BooleanField(default=True, verbose_name=b'Unit: Can Edit Library Content in Course'),
         ),
     ]
