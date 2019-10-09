@@ -1,6 +1,8 @@
 """
 Django Models for tags
 """
+import re
+
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.core.exceptions import ValidationError
@@ -28,8 +30,9 @@ class TagCategories(models.Model):
         if self.name == "":
             raise ValidationError(_("Name field is required"))
 
-        if not all(ord(char) < 128 for char in self.name):
-            raise ValidationError(_("Name field contains unacceptable characters"))
+        pattern = re.compile("^[a-zA-Z0-9_]+$")
+        if not pattern.match(self.name):
+            raise ValidationError(_("Name field contains unacceptable characters or spaces"))
 
     def __unicode__(self):
         return u"[TagCategories] {}: {}".format(self.name, self.title)
