@@ -309,7 +309,7 @@ def _studio_wrap_xblock(xblock, view, frag, context, display_name_only=False):
             'can_copy': context.get('can_copy', True),
             'language': getattr(course, 'language', None),
             'ability_edit_library_content': context.get('role_features', {}).get('edit_library_content', True),
-            'root_xblock_is_library': root_xblock.category == 'library_content'
+            'root_xblock_is_library': root_xblock and (getattr(root_xblock, 'category', None) == 'library_content')
         }
 
         if isinstance(xblock, (XModule, XModuleDescriptor)):
