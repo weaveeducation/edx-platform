@@ -81,12 +81,16 @@ block_is_unit = is_unit(xblock)
                 % if not is_root:
                     % if can_edit:
                         % if not show_inline:
+                            % if root_xblock_is_library and not ability_edit_library_content:
+                            &nbsp;
+                            % else:
                             <li class="action-item action-edit">
                                 <button class="btn-default edit-button action-button">
                                     <span class="icon fa fa-pencil" aria-hidden="true"></span>
                                     <span class="action-button-text">${_("Edit")}</span>
                                 </button>
                             </li>
+                            % endif
                             % if can_edit_visibility:
                                 <li class="action-item action-visibility">
                                     <button data-tooltip="${_("Access Settings")}" class="btn-default access-button action-button">
