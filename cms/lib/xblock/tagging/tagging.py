@@ -28,11 +28,21 @@ class StructuredTagsAside(XBlockAside):
                       scope=Scope.content,
                       default={},)
 
-    def get_available_tags(self, org_type_id=None):
+    def get_available_tags(self):
         """
         Return available tags
         """
         from .models import TagCategories
+        from credo_modules.models import Organization
+
+        org_type_id = None
+        try:
+            cr_org = Organization.objects.get(org=self.scope_ids.usage_id.course_key.org)
+            if cr_org.org_type is not None:
+                org_type_id = cr_org.org_type.id
+        except Organization.DoesNotExist:
+            pass
+
         if org_type_id:
             return TagCategories.objects.filter(Q(org_type=None) | Q(org_type=org_type_id))
         return TagCategories.objects.filter(org_type=None)
@@ -67,7 +77,6 @@ class StructuredTagsAside(XBlockAside):
         depending on the context.
         """
         from student.models import User
-        from credo_modules.models import Organization
 
         if isinstance(block, CapaModule) or block.category in ['html', 'video', 'drag-and-drop-v2'] or \
                 (block.category == 'openassessment' and len(block.rubric_criteria) == 0):
@@ -75,15 +84,7 @@ class StructuredTagsAside(XBlockAside):
             user = None
             has_access_any_tag = False
 
-            org_type_id = None
-            try:
-                cr_org = Organization.objects.get(org=self.scope_ids.usage_id.course_key.org)
-                if cr_org.org_type is not None:
-                    org_type_id = cr_org.org_type.id
-            except Organization.DoesNotExist:
-                pass
-
-            for tag in self.get_available_tags(org_type_id=org_type_id):
+            for tag in self.get_available_tags():
                 course_id = None
                 org = None
 
