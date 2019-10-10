@@ -280,7 +280,7 @@ class LibraryContentModule(LibraryContentFields, XModule, StudioEditableModule):
         selected_block_ids = [selected_block_item[1] for selected_block_item in self.selected]
         source_children = [self.runtime.get_block(child_key) for child_key in self.children]
         children = [block.location for block in source_children
-                    if not getattr(block, 'hidden', False) or block.location.block_id in selected_block_ids]
+                    if not getattr(block, 'hidden', False) or (block and block.location.block_id in selected_block_ids)]
 
         block_keys = self.make_selection(self.selected, children, self.max_count, "random")  # pylint: disable=no-member
 
