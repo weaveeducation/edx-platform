@@ -204,6 +204,7 @@ def lti_launch(request, course_id, usage_id):
     assignment, outcomes = store_outcome_parameters(params, request.user, lti_consumer)
 
     if not request_params.get('iframe'):
+        log_lti_launch(course_id, usage_id, 301, request.user.id, assignment=assignment, params=request_params)
         return HttpResponseRedirect(reverse('launch_new_tab', kwargs={
             'course_id': course_id,
             'usage_id': usage_id
