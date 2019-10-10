@@ -265,6 +265,7 @@ class StudentProfileView(View):
             return JsonResponse({}, status=404)
         else:
             data = request.POST.copy()
+            fields_version = additional_profile_fields_hash(course.credo_additional_profile_fields)
 
             to_save_fields = {}
             errors = {}
@@ -297,7 +298,6 @@ class StudentProfileView(View):
                 return JsonResponse(errors, status=400)
             else:
                 to_save_fields_json = json.dumps(to_save_fields, sort_keys=True)
-                fields_version = additional_profile_fields_hash(course.credo_additional_profile_fields)
                 profiles = CredoModulesUserProfile.objects.filter(user=request.user, course_id=course_key)
 
                 if len(profiles) > 0:
