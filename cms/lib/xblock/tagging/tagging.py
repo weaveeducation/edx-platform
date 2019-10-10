@@ -12,6 +12,7 @@ from xmodule.capa_module import CapaModule
 from edxmako.shortcuts import render_to_string
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.core.exceptions import ObjectDoesNotExist
 from webob import Response
 
@@ -32,7 +33,19 @@ class StructuredTagsAside(XBlockAside):
         Return available tags
         """
         from .models import TagCategories
-        return TagCategories.objects.all()
+        from credo_modules.models import Organization
+
+        org_type_id = None
+        try:
+            cr_org = Organization.objects.get(org=self.scope_ids.usage_id.course_key.org)
+            if cr_org.org_type is not None:
+                org_type_id = cr_org.org_type.id
+        except Organization.DoesNotExist:
+            pass
+
+        if org_type_id:
+            return TagCategories.objects.filter(Q(org_type=None) | Q(org_type=org_type_id))
+        return TagCategories.objects.filter(org_type=None)
 
     def _get_studio_resource_url(self, relative_url):
         """
