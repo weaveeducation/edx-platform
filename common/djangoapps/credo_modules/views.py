@@ -31,14 +31,24 @@ class StudentProfileField(object):
     options = []
     order = None
 
-    def __init__(self, alias="", required=False, title="", default="", options=None, order=None, info=False):
+    def __init__(self, alias="", required=False, title="", default="", options=None, allow_non_suggested=False,
+                 order=None, info=False, hidden=False, minlength=None, maxlength=None,
+                 minnumber=None, maxnumber=None, isnumber=None, isalnum=False):
         self.alias = alias
         self.required = required
         self.title = title
-        self.default = default
+        self.default = str(default) if default is not None else None
         self.options = options
+        self.allow_non_suggested = allow_non_suggested
         self.order = order
         self.info = info
+        self.hidden = hidden
+        self.minnumber = str(minnumber) if minnumber is not None else None
+        self.maxnumber = str(maxnumber) if maxnumber is not None else None
+        self.minlength = str(minlength) if minlength is not None else None
+        self.maxlength = str(maxlength) if maxlength is not None else None
+        self.isnumber = isnumber
+        self.isalnum = isalnum
 
     @classmethod
     def init_from_course(cls, course, default_fields=None):
@@ -50,16 +60,117 @@ class StudentProfileField(object):
             except ValueError:
                 pass
 
+            allow_non_suggested = None
+            options = v['options'] if 'options' in v and v['options'] else None
+            if options:
+                allow_non_suggested = v['allow_non_suggested'] if 'allow_non_suggested' in v else None
+                if allow_non_suggested:
+                    options.append('Other')
+
+            minlength = None
+            maxlength = None
+            minnumber = None
+            maxnumber = None
+            isnumber = None
+            isalnum = False
+
+            default_tmp = default_fields[k].encode('utf-8')\
+                if default_fields and (k in default_fields) else v.get('default')
+            if options:
+                if not default_tmp or default_tmp in options:
+                    default = default_tmp
+                else:
+                    default = 'Other'
+            else:
+                default = default_tmp
+
+                validation = v.get('validation', {})
+                minlength = validation.get('string', {}).get('min', None)
+                maxlength = validation.get('string', {}).get('max', None)
+                isalnum = validation.get('string', {}).get('alnum', False)
+                minnumber = validation.get('number', {}).get('min', None)
+                maxnumber = validation.get('number', {}).get('max', None)
+
+                if minlength:
+                    try:
+                        minlength = int(minlength)
+                    except ValueError:
+                        minlength = None
+
+                if maxlength:
+                    try:
+                        maxlength = int(maxlength)
+                    except ValueError:
+                        maxlength = None
+
+                if minnumber:
+                    try:
+                        minnumber = int(minnumber)
+                    except ValueError:
+                        minnumber = None
+
+                if maxnumber:
+                    try:
+                        maxnumber = int(maxnumber)
+                    except ValueError:
+                        maxnumber = None
+
+                isalnum = True if isalnum else False
+
+                isnumber = 'number' in validation
+                if isnumber:
+                    minlength = None
+                    maxlength = None
+                    isalnum = False
+                    try:
+                        default = int(default)
+                    except ValueError:
+                        default = None
+
+                    if minnumber is not None and default is not None and default < minnumber:
+                        default = None
+                    elif maxnumber is not None and default is not None and default > maxnumber:
+                        default = None
+
             kwargs = {
                 'alias': k,
                 'required': v['required'] if 'required' in v and v['required'] else False,
                 'title': v['title'] if 'title' in v and v['title'] else k,
-                'default': default_fields[k] if default_fields and (k in default_fields) else v.get('default'),
-                'options': v['options'] if 'options' in v and v['options'] else None,
+                'default': default,
+                'options': options,
+                'allow_non_suggested': allow_non_suggested,
                 'order': order,
-                'info': bool(v.get('info'))
+                'info': bool(v.get('info')),
+                'hidden': False,
+                'minlength': minlength,
+                'maxlength': maxlength,
+                'minnumber': minnumber,
+                'maxnumber': maxnumber,
+                'isnumber': isnumber,
+                'isalnum': isalnum
             }
             res_unsorted[k] = StudentProfileField(**kwargs)
+
+            if options and allow_non_suggested:
+                kk = k + '__custom'
+                kwargs = {
+                    'alias': kk,
+                    'required': False,
+                    'title': 'Please describe',
+                    'default': default_tmp if default == 'Other' and default_tmp else '',
+                    'options': None,
+                    'allow_non_suggested': None,
+                    'order': order + 0.5,
+                    'info': False,
+                    'hidden': False if default == 'Other' and default_tmp else True,
+                    'minlength': None,
+                    'maxlength': None,
+                    'minnumber': None,
+                    'maxnumber': None,
+                    'isnumber': None,
+                    'isalnum': None
+                }
+                res_unsorted[kk] = StudentProfileField(**kwargs)
         return OrderedDict(sorted(res_unsorted.items(), key=lambda t: t[1].order if t[1].order is not None else t[0]))
 
 
@@ -123,6 +234,27 @@ class StudentProfileView(View):
 
         return show_student_profile_form(request, course, simple_layout=simple_layout, redirect_to=redirect_to)
 
+    def _is_valid(self, value, field):
+        if field.isnumber:
+            try:
+                value = int(value)
+            except ValueError:
+                return False, ''.join([field.title, " field must be digit"])
+            if field.minnumber is not None and value < int(field.minnumber):
+                return False, ''.join([field.title, " field must be greater or equal than ", str(field.minnumber)])
+            if field.maxnumber is not None and value > int(field.maxnumber):
+                return False, ''.join([field.title, " field must be less or equal than ", str(field.maxnumber)])
+        else:
+            if field.minlength is not None and len(value) < int(field.minlength):
+                return False, ''.join([field.title, " field must contains at least %s characters"
+                                       % str(field.minlength)])
+            if field.maxlength is not None and len(value) > int(field.maxlength):
+                return False, ''.join([field.title, " field must contains at most %s characters"
+                                       % str(field.maxlength)])
+            if field.isalnum and not value.isalnum():
+                return False, ''.join([field.title, " field must contains only letters and digits"])
+        return True, None
+
     @method_decorator(login_required)
     @method_decorator(transaction.atomic)
     def post(self, request, course_id):
@@ -133,23 +265,39 @@ class StudentProfileView(View):
             return JsonResponse({}, status=404)
         else:
             data = request.POST.copy()
+            fields_version = additional_profile_fields_hash(course.credo_additional_profile_fields)
 
             to_save_fields = {}
             errors = {}
             form_fields = StudentProfileField.init_from_course(course)
+
+            fields_to_replace = []
 
             for field_alias, field in form_fields.iteritems():
                 passed_field = data.get(field_alias, '')
                 if not passed_field and field.required:
                     errors[field_alias] = ''.join([field.title, " field is required"])
                 else:
-                    to_save_fields[field_alias] = passed_field
+                    is_valid, err_msg = self._is_valid(data.get(field_alias, ''), field)
+                    if is_valid:
+                        to_save_fields[field_alias] = passed_field
+                        if field_alias.endswith('__custom'):
+                            fields_to_replace.append(field_alias)
+                    else:
+                        errors[field_alias] = err_msg
+
+            for field_to_replace in fields_to_replace:
+                original_field_name = field_to_replace[0:-len('__custom')]
+                if data[original_field_name] == 'Other':
+                    to_save_fields[original_field_name] = data[field_to_replace]
+                else:
+                    to_save_fields[original_field_name] = data[original_field_name]
+                to_save_fields.pop(field_to_replace)
 
             if errors:
                 return JsonResponse(errors, status=400)
             else:
                 to_save_fields_json = json.dumps(to_save_fields, sort_keys=True)
-                fields_version = additional_profile_fields_hash(course.credo_additional_profile_fields)
                 profiles = CredoModulesUserProfile.objects.filter(user=request.user, course_id=course_key)
 
                 if len(profiles) > 0:

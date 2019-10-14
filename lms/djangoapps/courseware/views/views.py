@@ -131,7 +131,7 @@ from ..module_render import get_module, get_module_by_usage_id, get_module_for_d
 from util.views import add_p3p_header
 from openedx.core.djangoapps.user_authn.views.login import register_login_and_enroll_anonymous_user,\
     validate_credo_access
-from credo_modules.models import user_must_fill_additional_profile_fields, additional_profile_fields_hash,\
+from credo_modules.models import user_must_fill_additional_profile_fields,\
     Organization, CredoModulesUserProfile, SendScores, SendScoresMailing
 from credo_modules.views import show_student_profile_form
 from mako.template import Template
@@ -1962,10 +1962,7 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
             is_credo_anonymous = is_user_credo_anonymous(request.user)
 
             if is_credo_anonymous and course.credo_additional_profile_fields:
-                fields_version = additional_profile_fields_hash(course.credo_additional_profile_fields)
-
-                profile = CredoModulesUserProfile.objects.filter(course_id=course_key, user=request.user,
-                                                                 fields_version=fields_version).first()
+                profile = CredoModulesUserProfile.objects.filter(course_id=course_key, user=request.user).first()
                 if profile:
                     profile_fileds = json.loads(profile.meta)
                     if 'name' in profile_fileds:
