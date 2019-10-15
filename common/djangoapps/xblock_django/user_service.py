@@ -9,6 +9,7 @@ from openedx.core.djangoapps.user_api.preferences.api import get_user_preference
 from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous
 from student.models import anonymous_id_for_user, get_user_by_username_or_email
 from student.roles import CourseStaffRole, CourseInstructorRole
+from credo_modules.models import get_custom_user_role, get_extended_role_default_permissions
 
 ATTR_KEY_IS_AUTHENTICATED = 'edx-platform.is_authenticated'
 ATTR_KEY_USER_ID = 'edx-platform.user_id'
@@ -72,6 +73,14 @@ class DjangoXBlockUserService(UserService):
 
     def is_superadmin_user(self):
         return self._django_user.is_superuser
+
+    def staff_feature_is_available(self, course_id, feature):
+        role = get_custom_user_role(course_id, self._django_user, check_enrollment=False)
+        if role:
+            return getattr(role, feature)
+        else:
+            default_tole = get_extended_role_default_permissions()
+            return getattr(default_tole, feature)
 
     def _convert_django_user_to_xblock_user(self, django_user):
         """
