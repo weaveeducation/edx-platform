@@ -80,7 +80,7 @@ class DjangoXBlockUserService(UserService):
             return getattr(role, feature)
         else:
             default_role = get_extended_role_default_permissions()
-            return default_role[feature]
+            return default_role.get(feature, False)
 
     def _convert_django_user_to_xblock_user(self, django_user):
         """
