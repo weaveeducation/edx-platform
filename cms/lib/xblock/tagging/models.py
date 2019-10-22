@@ -15,8 +15,9 @@ class TagCategories(models.Model):
     title = models.CharField(max_length=255)
     editable_in_studio = models.BooleanField(default=False, verbose_name=_("Editable in studio"))
     scoped_by = models.CharField(max_length=255, null=True, blank=True, verbose_name=_("Scoped by"))
-    org_type = models.IntegerField(null=True, verbose_name=_("Applicable for organization type"))
     role = models.CharField(max_length=64, null=True, blank=True, verbose_name=_("Access role"))
+
+    _org_types = []
 
     class Meta(object):
         app_label = "tagging"
@@ -46,6 +47,24 @@ class TagCategories(models.Model):
         if course_id:
             kwargs['course_id'] = course_id
         return [t.value for t in TagAvailableValues.objects.filter(**kwargs).order_by('value')]
+
+    def set_org_types(self, org_types):
+        self._org_types = org_types
+
+    def save(self, *args, **kwargs):
+        super(TagCategories, self).save(*args, **kwargs)
+        if self._org_types:
+            TagOrgTypes.objects.filter(org=self).delete()
+            for org_type_id in self._org_types:
+                TagOrgTypes(
+                    org=self,
+                    org_type=int(org_type_id)
+                ).save()
+
+
+class TagOrgTypes(models.Model):
+    org = models.ForeignKey(TagCategories, db_index=True, related_name='org_types')
+    org_type = models.IntegerField(null=False, blank=False, verbose_name=_("Organization type ID"))
 
 
 class TagAvailableValues(models.Model):
