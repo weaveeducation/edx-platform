@@ -110,8 +110,9 @@ def get_answer_and_correctness(user_state_dict, score, category, block, key,
         if answer_state:
             state_gen = block.generate_report_data([answer_state])
             for state_username, state_item in state_gen:
-                answer[state_item.get('Answer ID')] = state_item.get('Answer') \
-                    .strip().replace('\n', ' ')
+                tmp_answer = state_item.get('Answer')
+                answer[state_item.get('Answer ID')] = tmp_answer.strip().replace('\n', ' ') \
+                    if tmp_answer is not None else ''
     elif category == 'openassessment':
         submission_dict = None
         if submission:

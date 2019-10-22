@@ -44,8 +44,8 @@ class StructuredTagsAside(XBlockAside):
             pass
 
         if org_type_id:
-            return TagCategories.objects.filter(Q(org_type=None) | Q(org_type=org_type_id))
-        return TagCategories.objects.filter(org_type=None)
+            return TagCategories.objects.filter(Q(org_types__org_type=None) | Q(org_types__org_type=org_type_id))
+        return TagCategories.objects.filter(org_types__org_type=None)
 
     def _get_studio_resource_url(self, relative_url):
         """
