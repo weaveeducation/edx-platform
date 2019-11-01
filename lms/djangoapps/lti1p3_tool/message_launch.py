@@ -21,3 +21,7 @@ class ExtendedDjangoMessageLaunch(DjangoMessageLaunch):
             public_key_set = super(ExtendedDjangoMessageLaunch, self).fetch_public_key(key_set_url)
             cache.set(lti_hash, json.dumps(public_key_set), self._timeout)
             return public_key_set
+
+    def jwt_body_is_empty(self):
+        jwt_body = self._get_jwt_body()
+        return False if jwt_body else True

@@ -1,17 +1,19 @@
 import json
 import logging
 import hashlib
+import urllib
 from urlparse import urlparse
 
 from django.conf import settings
 from django.http import HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound,\
     HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.models import AnonymousUser
 from django.core.cache import caches
 from django.core.urlresolvers import reverse
 from django.views.decorators.http import require_POST
 from opaque_keys import InvalidKeyError
-from opaque_keys.edx.keys import UsageKey
+from opaque_keys.edx.keys import CourseKey, UsageKey
 
 from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
 from lti_provider.models import LTI1p3
@@ -25,6 +27,7 @@ from mako.template import Template
 from courseware.courses import update_lms_course_usage
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
+from pylti1p3.deep_link_resource import DeepLinkResource
 from pylti1p3.exception import OIDCException, LtiException
 from pylti1p3.lineitem import LineItem
 from .oidc_login import ExtendedDjangoOIDCLogin
@@ -41,7 +44,7 @@ log = logging.getLogger("edx.lti1p3_tool")
 def get_block_by_id(block_id):
     try:
         if block_id:
-            block_id = UsageKey.from_string(block_id)
+            block_id = UsageKey.from_string(urllib.unquote(block_id))
     except InvalidKeyError:
         block_id = None
 
@@ -53,6 +56,48 @@ def get_block_by_id(block_id):
             return block, False
         except ItemNotFoundError:
             return False, render_lti_error('Block not found', 404)
+
+
+def get_course_by_id(course_id):
+    course_key = CourseKey.from_string(course_id)
+    course = modulestore().get_course(course_key)
+    if not course:
+        return False, render_lti_error('Course not found', 404)
+    return course, False
+
+
+def get_course_tree(course):
+    course_tree = []
+    for chapter in course.get_children():
+        if not chapter.visible_to_staff_only:
+            item = {
+                'id': str(chapter.location),
+                'display_name': chapter.display_name,
+                'children': []
+            }
+            for sequential in chapter.get_children():
+                if len(sequential.get_children()) > 0 and sequential.graded:
+                    item['children'].append({
+                        'id': str(sequential.location),
+                        'display_name': str(sequential.display_name),
+                        'children': []
+                    })
+            if len(item['children']) > 0:
+                course_tree.append(item)
+    return course_tree
+
+
+def get_course_sequential_blocks(course):
+    items = {}
+    for chapter in course.get_children():
+        for sequential in chapter.get_children():
+            if len(sequential.get_children()) > 0 and sequential.graded:
+                items[str(sequential.location)] = {
+                    'id': str(sequential.location),
+                    'display_name': sequential.display_name,
+                    'graded': sequential.graded
+                }
+    return items
 
 
 @csrf_exempt
@@ -72,13 +117,25 @@ def login(request):
     expected_launch_url = reverse('lti1p3_tool_launch')
     if expected_launch_url[-1] != '/':
         expected_launch_url += '/'
-    if not passed_launch_url_obj.path.startswith(expected_launch_url):
+
+    passed_launch_url_path = passed_launch_url_obj.path
+    if passed_launch_url_path[-1] != '/':
+        passed_launch_url_path += '/'
+
+    if not passed_launch_url_path.startswith(expected_launch_url):
         return render_lti_error('Invalid URL', 400)
 
+    block = None
     block_id = None
+    course_id = None
     passed_launch_url_path_items = [x for x in passed_launch_url_obj.path.split('/') if x]
+
     if len(passed_launch_url_path_items) > 2:
         block_id = passed_launch_url_path_items[2]
+        if block_id == 'course':
+            block_id = None
+            if len(passed_launch_url_path_items) > 3:
+                course_id = passed_launch_url_path_items[3]
     else:
         for url_param in passed_launch_url_obj.query.split('&'):
             url_param_key, url_param_val = url_param.split('=')
@@ -86,11 +143,19 @@ def login(request):
                 block_id = url_param_val
                 break
 
-    block, err_tpl = get_block_by_id(block_id)
-    if not block:
-        return err_tpl
+    if course_id:
+        course, err_tpl = get_course_by_id(course_id)
+        if not course:
+            return err_tpl
+    else:
+        block, err_tpl = get_block_by_id(block_id)
+        if not block:
+            return err_tpl
 
-    is_time_exam = getattr(block, 'is_proctored_exam', False) or getattr(block, 'is_time_limited', False)
+    is_time_exam = False
+    if block:
+        is_time_exam = getattr(block, 'is_proctored_exam', False) or getattr(block, 'is_time_limited', False)
+
     if not is_cached:
         cache = caches['default']
         json_params = json.dumps(request.POST)
@@ -115,6 +180,8 @@ def login(request):
     try:
         return oidc_login.redirect(target_link_uri)
     except OIDCException as e:
+        return render_lti_error(str(e), 403)
+    except LtiException as e:
         return render_lti_error(str(e), 403)
 
 
@@ -155,6 +222,22 @@ def launch(request, usage_id=None):
     lti_last_name = message_launch_data.get('family_name')
     if lti_last_name:
         lti_params['last_name'] = lti_last_name
+
+    if lti_tool.use_names_and_role_provisioning_service and message_launch.has_nrps():
+        members = message_launch.get_nrps().get_members()
+        log.info("LTI 1.3 names and role provisioning service response: %s for block: %s"
+                 % (json.dumps(members), usage_id))
+        for member in members:
+            if str(member.get('user_id')) == str(external_user_id):
+                member_email = member.get('email')
+                if member_email and not lti_email:
+                    lti_params['email'] = member_email
+                member_given_name = member.get('given_name')
+                if member_given_name and not lti_first_name:
+                    lti_params['first_name'] = member_given_name
+                member_family_name = member.get('family_name')
+                if member_family_name and not lti_last_name:
+                    lti_params['last_name'] = member_family_name
 
     us = Lti1p3UserService()
     us.authenticate_lti_user(request, external_user_id, lti_tool, lti_params)
@@ -198,6 +281,144 @@ def launch(request, usage_id=None):
     update_lms_course_usage(request, usage_key, course_key)
     result = render_courseware(request, usage_key)
     return result
+
+
+@csrf_exempt
+@add_p3p_header
+@require_POST
+def launch_deep_link(request, course_id):
+    course_key = CourseKey.from_string(course_id)
+    with modulestore().bulk_operations(course_key):
+        course, err_tpl = get_course_by_id(course_id)
+        if not course:
+            return err_tpl
+
+        tool_conf = ToolConfDb()
+        try:
+            message_launch = ExtendedDjangoMessageLaunch(request, tool_conf)
+            message_launch_data = message_launch.get_launch_data()
+        except LtiException as e:
+            return render_lti_error(str(e), 403)
+
+        log.info("LTI 1.3 JWT body: %s for course: %s [deep link usage]"
+                 % (json.dumps(message_launch_data), str(course_id)))
+
+        is_deep_link_launch = message_launch.is_deep_link_launch()
+        if not is_deep_link_launch:
+            return render_lti_error('Must be Deep Link Launch', 400)
+
+        deep_linking_settings = message_launch_data\
+            .get('https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings', {})
+        accept_types = deep_linking_settings.get('accept_types', [])
+        if 'ltiResourceLink' not in accept_types:
+            return render_lti_error("LTI Platform doesn't support ltiResourceLink type", 400)
+
+        accept_multiple = deep_linking_settings.get('accept_multiple', False)
+
+        course_tree = get_course_tree(course)
+        if len(course_tree) == 0:
+            return render_lti_error("There is no available content in the chosen course", 400)
+
+        template = Template(render_to_string('static_templates/lti1p3_deep_link.html', {
+            'disable_accordion': True,
+            'allow_iframing': True,
+            'disable_header': True,
+            'disable_footer': True,
+            'disable_window_wrap': True,
+            'course_tree': course_tree,
+            'section_title': course.display_name,
+            'accept_multiple': accept_multiple,
+            'launch_id': message_launch.get_launch_id(),
+            'submit_url': reverse('lti1p3_tool_launch_deep_link_submit', kwargs={
+                'course_id': course_id
+            })
+        }))
+        return HttpResponse(template.render())
+
+
+@csrf_exempt
+@add_p3p_header
+@require_POST
+def launch_deep_link_submit(request, course_id):
+    course_key = CourseKey.from_string(course_id)
+    launch_id = request.POST.get('launch_id', '')
+    auto_create_lineitem = request.POST.get('auto_create_lineitem') == '1'
+    if not launch_id:
+        return render_lti_error('Invalid launch id', 400)
+
+    with modulestore().bulk_operations(course_key):
+        course, err_tpl = get_course_by_id(course_id)
+        if not course:
+            return err_tpl
+
+        course_items = get_course_sequential_blocks(course)
+
+        tool_conf = ToolConfDb()
+        message_launch = ExtendedDjangoMessageLaunch.from_cache(launch_id, request, tool_conf)
+        if message_launch.jwt_body_is_empty():
+            return render_lti_error('Session has expired. Please repeat request one more time.', 403)
+
+        if not message_launch.is_deep_link_launch():
+            return render_lti_error('Must be Deep Link Launch', 400)
+
+        lti_tool = message_launch.get_lti_tool()
+        message_launch_data = message_launch.get_launch_data()
+        deep_linking_settings = message_launch_data \
+            .get('https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings', {})
+        accept_types = deep_linking_settings.get('accept_types', [])
+        if 'ltiResourceLink' not in accept_types:
+            return render_lti_error("LTI Platform doesn't support ltiResourceLink type", 400)
+
+        accept_multiple = deep_linking_settings.get('accept_multiple', False)
+
+        block_ids = []
+        if accept_multiple:
+            block_ids = request.POST.getlist('block_ids[]')
+        else:
+            passed_block_id = request.POST.get('block_id')
+            if passed_block_id:
+                block_ids.append(passed_block_id)
+
+        course_grade = None
+        if auto_create_lineitem:
+            course_grade = CourseGradeFactory().read(AnonymousUser(), course)
+
+        resources = []
+        for block_id in block_ids:
+            if block_id not in course_items:
+                return render_lti_error('Invalid %s link' % block_id, 400)
+            launch_url = reverse('lti1p3_tool_launch')
+            if launch_url[-1] != '/':
+                launch_url += '/'
+
+            launch_url = request.build_absolute_uri(launch_url + '?block_id=' + urllib.quote(block_id))
+            resource = DeepLinkResource()
+            resource.set_url(launch_url) \
+                .set_title(course_items[block_id]['display_name'])
+
+            if auto_create_lineitem and course_items[block_id]['graded']:
+                earned, possible = course_grade.score_for_module(UsageKey.from_string(block_id))
+                line_item = LineItem()
+                line_item.set_tag(get_lineitem_tag(block_id)) \
+                    .set_score_maximum(possible) \
+                    .set_label(course_items[block_id]['display_name'])
+                resource.set_lineitem(line_item)
+
+            resources.append(resource)
+
+        if len(resources) == 0:
+            return render_lti_error('There are no resources to submit', 400)
+
+        deep_linking_service = message_launch.get_deep_link()
+        message_jwt = deep_linking_service.get_message_jwt(resources)
+        response_jwt = deep_linking_service.encode_jwt(message_jwt)
+
+        log.info("LTI1.3 platform deep link jwt source message [issuer=%s, course_key=%s]: %s"
+                 % (lti_tool.issuer, str(course_key), str(json.dumps(message_jwt))))
+        log.info("LTI1.3 platform deep link jwt encoded response [issuer=%s, course_key=%s]: %s"
+                 % (lti_tool.issuer, str(course_key), str(response_jwt)))
+        html = deep_linking_service.get_response_form_html(response_jwt)
+        return HttpResponse(html)
 
 
 def get_params(request):

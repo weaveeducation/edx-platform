@@ -14,7 +14,7 @@ from openedx.core.djangolib.js_utils import js_escaped_string
 </%def>
 
 <%block name="bodyclass">view-in-course view-courseware courseware ${course.css_class or ''}</%block>
-<%block name="title"><title>
+<%block name="title"><title data-base-title="${static.get_platform_name()}">
     % if section_title:
 ${static.get_page_title_breadcrumbs(section_title, course_name())}
     % else:
