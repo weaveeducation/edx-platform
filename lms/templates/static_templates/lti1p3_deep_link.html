@@ -1,0 +1,82 @@
+<%! from django.utils.translation import ugettext as _ %>
+<%inherit file="../main.html" />
+<%namespace name='static' file='/static_content.html'/>
+
+<%block name="title">
+% if accept_multiple:
+<title>Choose sections | ${static.get_platform_name()}</title>
+% else:
+<title>Choose section | ${static.get_platform_name()}</title>
+% endif
+</%block>
+
+<%block name="js_extra">
+<script type="text/javascript">
+$(document).ready(function() {
+    $('.block-checkbox').click(function() {
+        var n = $('.block-checkbox:checked').length;
+        if (n > 0) {
+            $('.submit-btn').prop('disabled', false);
+        } else {
+            $('.submit-btn').prop('disabled', true);
+        }
+    });
+    $('.submit-btn').click(function() {
+        $('.submit-btn').prop('disabled', true);
+        $('.submit-btn').prop('value', 'Loading...');
+        $('#deep-link-form').submit();
+    });
+    if ($('.block-checkbox:checked').length === 0) {
+        $('.submit-btn').prop('disabled', true);
+    }
+});
+</script>
+</%block>
+
+<%block name="headextra">
+<style>
+.course-tree {
+    font-family: "Open Sans",Verdana,Geneva,sans-serif,sans-serif !important;
+}
+ul {
+    list-style-type: none;
+}
+label {
+    font-family: "Open Sans",Verdana,Geneva,sans-serif,sans-serif !important;
+    font-style: normal;
+    font-weight: 500;
+}
+.submit-btn {
+    margin-top: 10px;
+}
+</style>
+</%block>
+
+<main id="main" aria-label="Content" tabindex="-1">
+    <div class="course-tree">
+        <form action="${submit_url}" method="POST" class="deep-link-form" id="deep-link-form">
+            <input type="hidden" name="launch_id" value="${launch_id}">
+            <ul>
+            % for node in course_tree:
+                <li><strong>${node['display_name']}:</strong></li>
+                <ul class="nested">
+                    % for subnode in node['children']:
+                    <li>
+                        % if accept_multiple:
+                        <input type="checkbox" class="block-checkbox" name="block_ids[]" id="li-${subnode['id']}" value="${subnode['id']}" /> <label for="li-${subnode['id']}">${subnode['display_name']}</label>
+                        % else:
+                        <input type="radio" class="block-checkbox" name="block_id" id="li-${subnode['id']}" value="${subnode['id']}" /> <label for="li-${subnode['id']}">${subnode['display_name']}</label>
+                        % endif
+                    </li>
+                    % endfor
+                </ul>
+            % endfor
+            </ul>
+            <ul>
+                <li>
+                    <input type="button" name="submit-btn" class="submit-btn" value="Submit">
+                </li>
+            </ul>
+        </form>
+    </div>
+</main>

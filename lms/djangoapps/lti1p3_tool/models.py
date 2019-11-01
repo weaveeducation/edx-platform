@@ -74,6 +74,13 @@ class LtiTool(models.Model):
                                                                                      "'Administrator', 'Instructor', "
                                                                                      "'Staff' was passed. Choose 'Yes' "
                                                                                      "to enable this feature. ")
+    use_names_and_role_provisioning_service = models.BooleanField(
+                                                  default=False,
+                                                  help_text=_("Use LTI 1.3 advantage names and role provisioning "
+                                                              "service to get first name/last name/email about "
+                                                              "student (not recommended for usage because "
+                                                              "of performance reasons, may be needed for LTI 1.3 "
+                                                              "certification)"))
 
     def clean(self):
         if not self.key_set_url and not self.key_set:
