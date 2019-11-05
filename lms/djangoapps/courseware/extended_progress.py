@@ -12,7 +12,11 @@ from xmodule.modulestore.django import modulestore
 
 
 def _tag_title(tag):
-    return tag.replace(' - ', ' > ').replace('"', '')
+    tag_parts = tag.split(' - ')
+    if len(tag_parts) > 1:
+        return ' > '.join(tag_parts[1:]).replace('"', '')
+    else:
+        return tag.replace('"', '')
 
 
 def get_ora_submission_id(course_id, anonymous_user_id, block_id):
