@@ -62,8 +62,17 @@
 
     td {
       line-height: normal;
-      vertical-align: middle;
+      vertical-align: top;
     }
+  }
+
+  .tags-table-nested {
+    margin-top: 15px;
+    display: none;
+  }
+
+  .tags-block-clickable {
+    cursor: pointer;
   }
 
   .tags-percentage {
@@ -84,7 +93,8 @@
       color-adjust: exact;
       min-width: 160px;
       z-index: 1;
-      right: 30px;
+      margin-left: -90px;
+      margin-top: 5px;
       border: 1px solid black;
     }
 

@@ -19,6 +19,14 @@ def _tag_title(tag):
         return tag.replace('"', '')
 
 
+def _tag_title_short(tag):
+    tag_parts = tag.split(' - ')
+    if len(tag_parts) > 1:
+        return tag_parts[-1].replace('"', '')
+    else:
+        return tag.replace('"', '')
+
+
 def get_ora_submission_id(course_id, anonymous_user_id, block_id):
     student_item_dict = dict(
         course_id=str(course_id),
@@ -33,7 +41,63 @@ def get_ora_submission_id(course_id, anonymous_user_id, block_id):
     return None
 
 
-def tags_student_progress(course, student, problem_blocks, courseware_summary):
+def get_tag_values(data, group_tags=False):
+    res = []
+    tags_used = []
+    if group_tags:
+        for v in data:
+            tag_split_lst = v.split(' - ')
+            if len(tag_split_lst) > 1:
+                for idx, tag_part in enumerate(tag_split_lst):
+                    if idx > 0:
+                        tag_new_val = ' - '.join(tag_split_lst[0:idx + 1])
+                        if tag_new_val not in tags_used:
+                            res.append({
+                                'value': tag_new_val,
+                                'num': idx - 1,
+                                'is_last': (idx == (len(tag_split_lst) - 1)),
+                                'id': tag_new_val,
+                                'parent_id': ' - '.join(tag_split_lst[0:idx]) if idx > 1 else None
+                            })
+                            tags_used.append(tag_new_val)
+            else:
+                res.append({
+                    'value': v,
+                    'num': 0,
+                    'is_last': True,
+                    'id': v,
+                    'parent_id': None
+                })
+        return res
+    else:
+        return [{
+            'value': v,
+            'num': 0,
+            'is_last': True,
+            'id': v,
+            'parent_id': None
+        } for v in data]
+
+
+def _convert_into_tree_filter(_d):
+    return {a: b for a, b in _d.items() if a != 'parent_id'}
+
+
+def _sort_tree_node(tags):
+    return sorted(tags, key=lambda k: "%03d_%s" % (100 - k['percent_correct'], k['tag_title_short']))
+
+
+def convert_into_tree(_d, _start=None):
+    res = []
+    for i in _d:
+        if i['parent_id'] == _start:
+            p = i.copy()
+            p['children'] = convert_into_tree(_d, i['id'])
+            res.append(_convert_into_tree_filter(p))
+    return _sort_tree_node(res)
+
+
+def tags_student_progress(course, student, problem_blocks, courseware_summary, group_tags=False):
     anonymous_user_id = anonymous_id_for_user(student, course.id, save=False)
 
     items = OrderedDict()
@@ -84,18 +148,25 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary):
                     (aside.scope_ids.block_type == 'tagging_ora_aside'
                      and problem_block.category == 'openassessment'
                      and len(problem_block.rubric_criteria) == 0)):
-                    for tag_key, tag_values in aside.saved_tags.items():
-                        if tag_key in tag_categories:
-                            for tag in tag_values:
-                                tag_key = tag.strip()
+                    for tag_cat, tag_values in aside.saved_tags.items():
+                        if tag_cat in tag_categories:
+                            tmp_tag_values = get_tag_values(tag_values, group_tags=group_tags)
+                            for tag in tmp_tag_values:
+                                tag_key = tag['value'].strip()
                                 if tag_key not in tags:
                                     tags[tag_key] = {
                                         'tag': tag_key.strip(),
                                         'tag_title': _tag_title(tag_key),
+                                        'tag_title_short': _tag_title_short(tag_key),
                                         'problems': [],
                                         'problems_answered': [],
                                         'sections': {},
-                                        'answers': 0
+                                        'answers': 0,
+                                        'tag_num': tag['num'],
+                                        'tag_is_last': tag['is_last'],
+                                        'id': tag['id'],
+                                        'parent_id': tag['parent_id'],
+                                        'children': []
                                     }
                                 if section_id not in tags[tag_key]['sections']:
                                     tags[tag_key]['sections'][section_id] = {
@@ -147,18 +218,25 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary):
 
                     for criterion, tags_dict in aside.saved_tags.items():
                         if criterion in criterions:
-                            for tag_key, tag_values in tags_dict.items():
-                                if tag_key in tag_categories:
-                                    for tag in tag_values:
-                                        tag_k = tag.strip()
+                            for tag_cat, tag_values in tags_dict.items():
+                                if tag_cat in tag_categories:
+                                    tmp_tag_values = get_tag_values(tag_values, group_tags=group_tags)
+                                    for tag in tmp_tag_values:
+                                        tag_k = tag['value'].strip()
                                         if tag_k not in tags:
                                             tags[tag_k] = {
                                                 'tag': tag_k,
                                                 'tag_title': _tag_title(tag_k),
+                                                'tag_title_short': _tag_title_short(tag_k),
                                                 'problems': [],
                                                 'problems_answered': [],
                                                 'sections': {},
-                                                'answers': 0
+                                                'answers': 0,
+                                                'tag_num': tag['num'],
+                                                'tag_is_last': tag['is_last'],
+                                                'id': tag['id'],
+                                                'parent_id': tag['parent_id'],
+                                                'children': []
                                             }
                                         if section_id not in tags[tag_k]['sections']:
                                             tags[tag_k]['sections'][section_id] = {
@@ -391,11 +469,15 @@ def progress_skills_page(request, course, student):
     course_grade = CourseGradeFactory().read(student, course)
     courseware_summary = course_grade.chapter_grades.values()
 
-    tags = tags_student_progress(course, student, problem_blocks, courseware_summary)
-    tags = sorted(tags, key=lambda k: "%03d_%s" % (100 - k['percent_correct'], k['tag']))
+    tags = tags_student_progress(course, student, problem_blocks, courseware_summary, group_tags=True)
+    tags_assessments = [v.copy() for v in tags if v['tag_is_last']]
+
+    tags = convert_into_tree(tags)
+    tags_assessments = sorted(tags_assessments, key=lambda k: "%03d_%s" % (100 - k['percent_correct'], k['tag']))
 
     context = {
-        'tags': tags
+        'tags': tags,
+        'tags_assessments': tags_assessments
     }
     return context
 

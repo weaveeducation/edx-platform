@@ -62,12 +62,12 @@ window.extendedProgressChart = {
                     <div class="progress-tags-summary">
                         % if len(top5tags) > 0:
                         <div class="progress-tags-summary-block progress-tags-summary-top5">
-                            <%include file="/courseware/extended_progress_tags_block.html" args="tags=top5tags,icon='top5',course_id=course.id" />
+                            <%include file="/courseware/extended_progress_tags_block.html" args="tags=top5tags,icon='top5',display_sort_block='n',short_title='n',nested_block='n',course_id=course.id" />
                         </div>
                         % endif
                         % if len(lowest5tags) > 0:
                         <div class="progress-tags-summary-block progress-tags-summary-lowest5">
-                            <%include file="/courseware/extended_progress_tags_block.html" args="tags=lowest5tags,icon='lowest5',course_id=course.id" />
+                            <%include file="/courseware/extended_progress_tags_block.html" args="tags=lowest5tags,icon='lowest5',display_sort_block='n',short_title='n',nested_block='n',course_id=course.id" />
                         </div>
                         % endif
                         <div class="clear"></div>
