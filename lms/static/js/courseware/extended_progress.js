@@ -297,7 +297,7 @@ $(document).ready(function() {
         $(this).tooltipsy({
             alignTo: 'cursor',
             offset: [0, 1],
-            delay: 0,
+            delay: 200,
             content: getTooltipHtml(label, percentCorrect, answers, null),
             css: {
                 'padding': '20px',
@@ -309,15 +309,32 @@ $(document).ready(function() {
         });
     });
 
+    $(".tags-block-clickable").click(function() {
+        var tableNested = $(this).parent().find('.tags-table-nested').first();
+        if (tableNested.length > 0) {
+            if ($(this).hasClass('opened')) {
+                tableNested.hide();
+                $(this).removeClass('opened');
+                $(this).find('.fa-chevron-down').removeClass('fa-chevron-down').addClass('fa-chevron-right');
+            } else {
+                tableNested.show();
+                $(this).addClass('opened');
+                $(this).find('.fa-chevron-right').removeClass('fa-chevron-right').addClass('fa-chevron-down');
+            }
+        }
+    });
+
     $(".tags-block-see-all-link").click(function() {
         $(".tags-all-skills-menu").addClass('tags-all-skills-menu-show');
     });
 
-    $(".tags-sort-link").on("click", function() {
-        var sortBy = $(this).data('sort-by');
-        var table = $('.tags-table-main');
-        var rows = table.find('tr').get();
+    function sortRows(elem, sortBy) {
+        var rows;
+        elem.find('> tbody > tr > td > .tags-table-main').each(function() {
+            sortRows($(this), sortBy);
+        });
 
+        rows = elem.find('> tbody > tr').get();
         rows.sort(function (a, b) {
             var contentApc = parseInt($(a).data('percent-correct'));
             var contentAl = $(a).data('label');
@@ -336,8 +353,14 @@ $(document).ready(function() {
         });
 
         $.each(rows, function(index, row) {
-            table.append(row);
+            elem.append(row);
         });
+    }
+
+    $(".tags-sort-link").on("click", function() {
+        var sortBy = $(this).data('sort-by');
+        var table = $('.tags-table-main').first();
+        sortRows(table, sortBy);
     });
 
     if ($(".tags-sort-link").length > 0) {

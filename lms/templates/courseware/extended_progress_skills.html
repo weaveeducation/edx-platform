@@ -55,7 +55,7 @@ username = get_enterprise_learner_generic_name(request) or student.username
                 </div>
                 <div class="progress-block">
                     <div class="progress-tags-summary">
-                        <%include file="/courseware/extended_progress_tags_block.html" args="tags=tags,icon='',course_id=course.id" />
+                        <%include file="/courseware/extended_progress_tags_block.html" args="tags=tags,icon='',display_sort_block='y',short_title='y',nested_block='n',course_id=course.id" />
                         <div class="clear"></div>
                     </div>
                 </div>
@@ -73,7 +73,7 @@ username = get_enterprise_learner_generic_name(request) or student.username
                         </div>
                     </div>
                     <div class="progress-assessments-body" data-current-order-by="percent-correct">
-                        % for tag in tags:
+                        % for tag in tags_assessments:
                         <div class="progress-tags-assessments-item"
                              data-title="${tag['tag_title']}"
                              data-answers="${tag['answers']}"
