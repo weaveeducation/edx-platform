@@ -63,7 +63,7 @@
     <h4 class="hd hd-4">${_("Reset a specific learner's progress")}</h4>
     <div class="request-response-error"></div>
     <label for="student-reset-progress">
-        ${_("Learner's {platform_name} email address or username *").format(platform_name=settings.PLATFORM_NAME)}
+        ${_("Learner's {platform_name} email address or username *").format(platform_name=section_data['current_platform_name'])}
     </label>
     <br>
     <input type="text" name="student-reset-progress" placeholder="${_('Learner email address or username')}" >
