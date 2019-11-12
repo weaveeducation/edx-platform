@@ -1022,7 +1022,7 @@ def _progress(request, course_key, student_id):
         pass
 
     if enable_extended_progress_page:
-        return _extended_progress_page(request, course, student)
+        return _extended_progress_page(request, course, student, student_id)
 
     # NOTE: To make sure impersonation by instructor works, use
     # student instead of request.user in the rest of the function.
@@ -1063,7 +1063,7 @@ def _progress(request, course_key, student_id):
     return response
 
 
-def _extended_progress_page(request, course, student):
+def _extended_progress_page(request, course, student, student_id=None):
     page = request.GET.get('page')
 
     with modulestore().bulk_operations(course.id):
@@ -1082,7 +1082,9 @@ def _extended_progress_page(request, course, student):
     context = {
         'course': course,
         'student_id': student.id,
-        'student': student
+        'student': student,
+        'current_url': reverse('progress', kwargs={'course_id': course.id}) if student_id is None else reverse(
+            'student_progress', kwargs={'course_id': course.id, 'student_id': student_id})
     }
     context.update(page_context)
     context.update(
@@ -1594,6 +1596,7 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True):
         context = {
             'fragment': block.render('student_view', context=student_view_context),
             'course': course,
+            'block_type': usage_key.block_type,
             'disable_accordion': True,
             'allow_iframing': True,
             'disable_header': True,
