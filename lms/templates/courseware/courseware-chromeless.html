@@ -67,6 +67,7 @@ if course is not None:
 <script type="text/javascript">
     window.chromlessView = true;
     var $$course_id = "${course.id | n, js_escaped_string}";
+    var $$lastSentPostMessageValue = null;
 
     function inIframe() {
         try {
@@ -76,20 +77,43 @@ if course is not None:
         }
     }
 
+    function allVideosReady() {
+        var ready = true;
+
+        $('.xmodule_VideoModule').each(function() {
+             var cId = $(this).data('usage-id').split('@')[2];
+             if ((window.videoReady === undefined) || (window.videoReady.indexOf(cId) === -1)) {
+                 ready = false;
+             }
+        });
+
+        return ready;
+    }
+
     function postMessageResize() {
         if (inIframe()) {
-            var height = document.body.offsetHeight;
-            var width = document.body.offsetWidth;
-            window.parent.postMessage("resize::" + height + ":" + width, "*");
+            // 15 - additional "magic" offset for height
+            var height = document.getElementById('content').offsetHeight + 15;
+            var width = document.getElementById('content').offsetWidth;
+            var newValue = "resize::" + height + ":" + width;
+            if (newValue !== $$lastSentPostMessageValue) {
+                $$lastSentPostMessageValue = newValue;
+                window.parent.postMessage($$lastSentPostMessageValue, "*");
+            }
+
+            // re-render parent window one more time later
+            // in case if not all ajax queries are finished or not all videos are rendered
+            if (($.active !== 0) || !allVideosReady()) {
+                window.setTimeout(postMessageResize, 300);
+            }
         }
     }
 
-    $(".sequence-nav").click(function(event){
-        postMessageResize();
-    });
-
     $(document).ready(function() {
-        postMessageResize();
+        var blockType = "${block_type}";
+        if (blockType !== 'sequential') {
+            postMessageResize();
+        }
     });
 </script>
 
