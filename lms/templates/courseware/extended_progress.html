@@ -31,7 +31,7 @@ username = get_enterprise_learner_generic_name(request) or student.username
 </style>
 </%block>
 
-<%block name="pagetitle">${_("{course_number} Progress").format(course_number=course.display_number_with_default)}</%block>
+<%block name="pagetitle">${_("{course_number} | My Skills").format(course_number=course.display_number_with_default)}</%block>
 
 <%block name="js_extra">
 <script type="text/javascript">
@@ -53,9 +53,9 @@ window.extendedProgressChart = {
         <div class="profile-wrapper">
             <section class="course-progress-extended" id="course-info-progress">
                 <div class="progress-header">
-                    <div class="progress-header-text">Course Progress</div>
+                    <div class="progress-header-text">My Skills <div class="student-name">${student_name}</div></div>
                     <div class="progress-header-btn">
-                        <a class="btn btn-primary print-progress-page" href="javascript: void(0);"><i class="fa fa-print" aria-hidden="true"></i> Print Progress Report</a>
+                        <a class="btn btn-primary print-progress-page" href="javascript: void(0);"><i class="fa fa-print" aria-hidden="true"></i> Print My Skills Report</a>
                     </div>
                 </div>
                 <div class="progress-block">

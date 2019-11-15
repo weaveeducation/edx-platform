@@ -18,10 +18,10 @@
                         if (isInIframe === 1) {
                             showNewTabMsg(true);
                         } else {
-                            window.location.href = window.location.href + $('#embedded-link').val() + '&iframe=0';
+                            window.location.href = window.location.protocol + '//' + window.location.host + window.location.pathname + $('#embedded-link').val() + '&iframe=0';
                         }
                     } else {
-                        window.location.href = window.location.href + $('#embedded-link').val() + '&iframe=' + isInIframe;
+                        window.location.href = window.location.protocol + '//' + window.location.host + window.location.pathname + $('#embedded-link').val() + '&iframe=' + isInIframe;
                     }
                 } else {
                     showNewTabMsg(false);

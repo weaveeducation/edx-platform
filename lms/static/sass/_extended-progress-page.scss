@@ -4,6 +4,20 @@
     border-bottom: #c8c8c8 1px solid;
     padding: 20px;
 
+    .student-name {
+      display: inline-block;
+      font-size: 16px;
+      padding-left: 20px;
+    }
+
+    @media all and (max-width: 900px) {
+      .student-name {
+        display: block;
+        padding-left: 0px;
+        padding-top: 20px;
+      }
+    }
+
     .progress-header-text {
       a, a.active, a:hover, a:focus, a:visited {
         text-decoration: none;
@@ -35,6 +49,12 @@
     margin-right: 10px;
     float: right;
     display: inline-block;
+  }
+
+  @media all and (max-width: 700px) {
+    .progress-header-btn {
+      display: none;
+    }
   }
 
   .progress-tags-summary-block {
