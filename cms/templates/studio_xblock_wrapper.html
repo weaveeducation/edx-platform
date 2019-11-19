@@ -16,6 +16,7 @@ collapsible_class = "is-collapsible" if xblock.has_children else ""
 label = xblock.display_name_with_default or xblock.scope_ids.block_type
 messages = xblock.validate().to_json()
 block_is_unit = is_unit(xblock)
+library_block_is_hidden = str(xblock.location).startswith('lib-block-v1') and getattr(xblock, 'hidden', False)
 %>
 
 <%namespace name='static' file='static_content.html'/>
@@ -53,7 +54,11 @@ block_is_unit = is_unit(xblock)
     % if is_visible_to_specific_partition_groups(xblock):
         has-group-visibility-set
     % endif
-    ">
+    "
+    % if library_block_is_hidden:
+    style="border-left: 5px solid #000;"
+    % endif
+    >
 % endif
 
 <header class="xblock-header xblock-header-${xblock.category}">
@@ -79,6 +84,11 @@ block_is_unit = is_unit(xblock)
         <div class="header-actions">
             <ul class="actions-list">
                 % if not is_root:
+                    % if library_block_is_hidden:
+                    <li class="action-item">
+                        <span class="icon fa fa-lock" aria-hidden="true"></span> Content is hidden
+                    </li>
+                    % endif
                     % if can_edit:
                         % if not show_inline:
                             % if root_xblock_is_library and not ability_edit_library_content:
