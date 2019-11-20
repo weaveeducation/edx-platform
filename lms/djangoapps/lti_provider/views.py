@@ -272,7 +272,7 @@ def test_launch(request):
 
     post = OrderedDict()
     for post_key, post_value in request.POST.items():
-        post[str(post_key)] = str(post_value)
+        post[unicode(post_key)] = unicode(post_value)
 
     template = Template(render_to_string('static_templates/debug.html', {
         'disable_accordion': True,
