@@ -799,7 +799,10 @@ def _section_open_response_assessment(request, course, openassessment_blocks, ac
         result_item_id = unicode(block.location)
         if result_item_id not in parents:
             vert, seq, chapter = _get_full_path_names(block)
-            parents[result_item_id] = (vert, seq, chapter)
+            if vert and seq and chapter:
+                parents[result_item_id] = (vert, seq, chapter)
+            else:
+                continue
 
         ora_items.append({
             'id': result_item_id,
@@ -864,9 +867,13 @@ def _section_credo_insights(request, course):
 
 
 def _get_full_path_names(block):
-    vert = modulestore().get_item(block.parent)
-    seq = modulestore().get_item(vert.parent)
-    chapter = modulestore().get_item(seq.parent)
+    vert, seq, chapter = None, None, None
+    if block.parent:
+        vert = modulestore().get_item(block.parent)
+    if vert.parent:
+        seq = modulestore().get_item(vert.parent)
+    if seq.parent:
+        chapter = modulestore().get_item(seq.parent)
     return vert, seq, chapter
 
 
