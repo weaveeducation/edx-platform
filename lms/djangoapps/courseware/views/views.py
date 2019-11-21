@@ -1846,6 +1846,39 @@ def get_financial_aid_courses(user):
 
 @ensure_valid_course_key
 @add_p3p_header
+def check_credo_access(request, course_id):
+    course_key = CourseKey.from_string(course_id)
+    course = modulestore().get_course(course_key, depth=0)
+
+    if not course:
+        raise Http404("Course not found")
+
+    if not request.user.is_authenticated:
+        if course.credo_authentication:
+            credo_auth = validate_credo_access(request)
+            if not credo_auth:
+                return HttpResponseForbidden('Invalid Credo authentication. '
+                                             'You have no permissions to access the content'
+                                             'If you are a student user, please screencap this error and share it '
+                                             'with your instructor. If you are an admin, please see our help site '
+                                             'or contact our support team for help.')
+        if course.allow_anonymous_access:
+            register_login_and_enroll_anonymous_user(request, course_key)
+        else:
+            return HttpResponseForbidden('Unauthorized')
+    elif is_user_credo_anonymous(request.user) and course.allow_anonymous_access \
+            and not CourseEnrollment.is_enrolled(request.user, course_key):
+        CourseEnrollment.enroll(request.user, course_key)
+
+    redirect_to = request.GET.get('next')
+    if redirect_to:
+        return redirect(redirect_to)
+    else:
+        return HttpResponse('OK')
+
+
+@ensure_valid_course_key
+@add_p3p_header
 def render_xblock_course(request, course_id, usage_key_string):
     course_key = CourseKey.from_string(course_id)
     course = modulestore().get_course(course_key, depth=2)
