@@ -1,13 +1,13 @@
 """
 Models used by the block structure framework.
 """
-
 from contextlib import contextmanager
 from datetime import datetime
 from django.conf import settings
 from django.core.exceptions import SuspiciousOperation
 from django.core.files.base import ContentFile
-from django.db import models, transaction
+from django.db import models, transaction, IntegrityError
+from django.utils import timezone
 from logging import getLogger
 
 from model_utils.models import TimeStampedModel
@@ -282,3 +282,79 @@ class BlockStructureModel(TimeStampedModel):
             bs_model,
             len(serialized_data),
         )
+
+
+class ApiCourseStructure(models.Model):
+    block_id = models.CharField(max_length=255, null=False, blank=False, db_index=True, unique=True)
+    block_type = models.CharField(max_length=255, null=False, blank=False)
+    parent_id = models.CharField(max_length=255, null=True)
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    display_name = models.TextField(null=True, blank=True)
+    graded = models.SmallIntegerField(null=False)
+    section_path = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'api_course_structure'
+
+    def to_dict(self):
+        return {
+            'block_id': self.block_id,
+            'block_type': self.block_type,
+            'parent_id': self.parent_id,
+            'course_id': self.course_id,
+            'display_name': self.display_name,
+            'graded': bool(self.graded)
+        }
+
+
+class ApiCourseStructureTags(models.Model):
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    block = models.ForeignKey(ApiCourseStructure, on_delete=models.CASCADE, to_field='block_id')
+    rubric = models.CharField(max_length=255, null=True, blank=False,
+                              help_text="Should be filled in only for ORA blocks")
+    tag_name = models.CharField(max_length=255, null=False, blank=False)
+    tag_value = models.CharField(max_length=255, null=False, blank=False, db_index=True)
+
+    class Meta:
+        db_table = 'api_course_structure_tags'
+
+
+class ApiCourseStructureLock(models.Model):
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False, unique=True)
+    created = models.DateTimeField()
+
+    class Meta(object):
+        db_table = 'api_course_structure_lock'
+
+    @classmethod
+    def create(cls, course_id):
+        try:
+            with transaction.atomic():
+                lock = ApiCourseStructureLock(course_id=course_id, created=timezone.now())
+                lock.save()
+                return lock
+        except IntegrityError:
+            try:
+                lock = ApiCourseStructureLock.objects.get(course_id=course_id)
+                if lock:
+                    time_diff = timezone.now() - lock.created
+                    if time_diff.total_seconds() > 600:  # 10 min
+                        return lock
+            except ApiCourseStructureLock.DoesNotExist:
+                pass
+            return False
+
+    @classmethod
+    def remove(cls, course_id):
+        ApiCourseStructureLock.objects.filter(course_id=course_id).delete()
+
+
+class BlockToSequential(models.Model):
+    block_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    sequential_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    sequential_name = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    graded = models.SmallIntegerField(null=False)
+
+    class Meta:
+        db_table = 'block_to_sequential'
