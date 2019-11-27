@@ -156,7 +156,7 @@ def _update_course_structure(course_id, published_on):
         with modulestore().bulk_operations(course_key):
             try:
                 course = modulestore().get_course(course_key, depth=0)
-                if unicode(course.published_on) != published_on:
+                if published_on is not None and unicode(course.published_on) != published_on:
                     log.info("Skip outdated task for course %s. Course.published_on %s != passed published_on %s"
                              % (str(course_id), unicode(course.published_on), published_on))
                     return
@@ -262,38 +262,42 @@ def _update_course_structure(course_id, published_on):
                 if item.category in ('problem', 'drag-and-drop-v2', 'html', 'video')\
                     or (item.category == 'openassessment' and len(item.rubric_criteria) == 0):
                     aside = item.runtime.get_aside_of_type(item, 'tagging_aside')
-                    for tag_name, tag_values in aside.saved_tags.items():
-                        for tag_value in tag_values:
-                            t_name = tag_name.strip()
-                            t_value = tag_value.strip()
-                            tag_id = block_id + '|__|' + t_name + '|' + t_value
-                            structure_tags.append(tag_id)
-                            if tag_id not in existing_structure_tags_dict:
-                                tags_to_insert.append(ApiCourseStructureTags(
-                                    course_id=course_id,
-                                    block=block_item,
-                                    rubric=None,
-                                    tag_name=t_name,
-                                    tag_value=t_value
-                                ))
+                    if isinstance(aside.saved_tags, dict):
+                        for tag_name, tag_values in aside.saved_tags.items():
+                            if isinstance(tag_values, list):
+                                for tag_value in tag_values:
+                                    t_name = tag_name.strip()
+                                    t_value = tag_value.strip()
+                                    tag_id = block_id + '|__|' + t_name + '|' + t_value
+                                    structure_tags.append(tag_id)
+                                    if tag_id not in existing_structure_tags_dict:
+                                        tags_to_insert.append(ApiCourseStructureTags(
+                                            course_id=course_id,
+                                            block=block_item,
+                                            rubric=None,
+                                            tag_name=t_name,
+                                            tag_value=t_value
+                                        ))
                 elif item.category == 'openassessment' and len(item.rubric_criteria) > 0:
                     aside = item.runtime.get_aside_of_type(item, 'tagging_ora_aside')
                     for rubric, saved_tags in aside.saved_tags.items():
-                        for tag_name, tag_values in saved_tags.items():
-                            for tag_value in tag_values:
-                                r_name = rubric.strip()
-                                t_name = tag_name.strip()
-                                t_value = tag_value.strip()
-                                tag_id = block_id + '|' + r_name + '|' + t_name + '|' + t_value
-                                structure_tags.append(tag_id)
-                                if tag_id not in existing_structure_tags_dict:
-                                    tags_to_insert.append(ApiCourseStructureTags(
-                                        course_id=course_id,
-                                        block=block_item,
-                                        rubric=r_name,
-                                        tag_name=t_name,
-                                        tag_value=t_value
-                                    ))
+                        if isinstance(saved_tags, dict):
+                            for tag_name, tag_values in saved_tags.items():
+                                if isinstance(tag_values, list):
+                                    for tag_value in tag_values:
+                                        r_name = rubric.strip()
+                                        t_name = tag_name.strip()
+                                        t_value = tag_value.strip()
+                                        tag_id = block_id + '|' + r_name + '|' + t_name + '|' + t_value
+                                        structure_tags.append(tag_id)
+                                        if tag_id not in existing_structure_tags_dict:
+                                            tags_to_insert.append(ApiCourseStructureTags(
+                                                course_id=course_id,
+                                                block=block_item,
+                                                rubric=r_name,
+                                                tag_name=t_name,
+                                                tag_value=t_value
+                                            ))
 
         items_to_remove = []
         for block_id, block_item in existing_structure_items_dict.items():
