@@ -1079,10 +1079,18 @@ def _extended_progress_page(request, course, student, student_id=None):
         else:
             raise Http404
 
+    student_name = student.first_name + ' ' + student.last_name
+    student_name = student_name.strip()
+    if student_name:
+        student_name = student_name + ' (' + student.email + ')'
+    else:
+        student_name = student.email
+
     context = {
         'course': course,
         'student_id': student.id,
         'student': student,
+        'student_name': student_name,
         'current_url': reverse('progress', kwargs={'course_id': course.id}) if student_id is None else reverse(
             'student_progress', kwargs={'course_id': course.id, 'student_id': student_id})
     }
