@@ -46,7 +46,7 @@ from util.json_request import JsonResponse
 from util.password_policy_validators import normalize_password
 from credo.auth_helper import CredoIpHelper
 from credo.api_client import ApiRequestError
-from credo_modules.models import update_unique_user_id_cookie
+
 
 log = logging.getLogger("edx.student")
 log_json = logging.getLogger("credo_json")
@@ -447,8 +447,6 @@ def register_login_and_enroll_anonymous_user(request, course_key, redirect_to=No
 
     if redirect_to:
         return redirect(redirect_to)
-    else:
-        update_unique_user_id_cookie(request)
 
 
 def validate_credo_access(request, redirect_to=None):

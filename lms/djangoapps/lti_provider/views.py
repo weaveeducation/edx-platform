@@ -27,7 +27,7 @@ from openedx.core.lib.url_utils import unquote_slashes
 from student.models import CourseEnrollment
 from student.roles import CourseStaffRole
 from util.views import add_p3p_header
-from credo_modules.models import check_and_save_enrollment_attributes
+from credo_modules.models import check_and_save_enrollment_attributes, get_enrollment_attributes
 from edxmako.shortcuts import render_to_string
 from mako.template import Template
 from courseware.courses import update_lms_course_usage
@@ -82,6 +82,7 @@ def lti_launch(request, course_id, usage_id):
     params = get_required_parameters(request_params)
     return_url = request_params.get('launch_presentation_return_url', None)
     context_id = request_params.get('context_id', None)
+    context_label = request_params.get('context_label', None)
 
     if not params:
         log_lti_launch(course_id, usage_id, 400, params=request_params)
@@ -184,18 +185,20 @@ def lti_launch(request, course_id, usage_id):
     us = UserService()
     us.authenticate_lti_user(request, params['user_id'], lti_consumer, lti_params)
 
+    enrollment_attributes = get_enrollment_attributes(request_params, course_key, context_label=context_label)
+
     if request.user.is_authenticated:
         roles = params.get('roles', None) if lti_consumer.allow_to_add_instructors_via_lti else None
         enroll_result = enroll_user_to_course(request.user, course_key, roles)
         if enroll_result:
-            check_and_save_enrollment_attributes(request_params, request.user, course_key)
+            check_and_save_enrollment_attributes(enrollment_attributes, request.user, course_key)
         if lti_params and 'email' in lti_params:
             update_lti_user_data(request.user, lti_params['email'])
 
     # Reset attempts based on new context_ID:
     # https://credoeducation.atlassian.net/browse/DEV-209
     lis_result_sourcedid = request_params.get('lis_result_sourcedid', None)
-    check_and_reset_lti_user_progress(context_id, request.user, course_key, usage_key,
+    check_and_reset_lti_user_progress(context_id, enrollment_attributes, request.user, course_key, usage_key,
                                       lis_result_sourcedid=lis_result_sourcedid)
 
     # Store any parameters required by the outcome service in order to report

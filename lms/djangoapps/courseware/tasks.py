@@ -21,7 +21,7 @@ def track_sequential_viewed_task(course_key_str, usage_key_str, user_id):
 
     user = User.objects.get(id=user_id)
 
-    student_properties_data = get_student_properties_event_data(user, course_key)
+    student_properties_data = get_student_properties_event_data(user, course_key, parent_id=usage_key_str)
 
     with modulestore().bulk_operations(course_key):
         block = modulestore().get_item(usage_key)

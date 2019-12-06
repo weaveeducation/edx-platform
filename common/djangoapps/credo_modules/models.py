@@ -3,13 +3,11 @@ import time
 import datetime
 import json
 import re
-import uuid
 from urlparse import urlparse
 from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.db import models, IntegrityError, OperationalError, transaction
-from django.db.models import F, Value
-from django.db.models.functions import Concat
+from django.db.models import F
 from opaque_keys.edx.django.models import CourseKeyField
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.exceptions import ValidationError
@@ -18,6 +16,7 @@ from django.utils.timezone import utc
 from model_utils.models import TimeStampedModel
 
 from student.models import CourseEnrollment, CourseAccessRole, ENROLL_STATUS_CHANGE, EnrollStatusChange, UserProfile
+from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
 
 
 log = logging.getLogger("course_usage")
@@ -70,7 +69,9 @@ class StudentAttributesRegistrationModel(object):
                 CredoStudentProperties(**values).save()
 
 
-def check_and_save_enrollment_attributes(post_data, user, course_id):
+def get_enrollment_attributes(post_data, course_id, **kwargs):
+    result = {}
+    exclude_lti_properties = ['context_id', 'context_label']
     try:
         properties = EnrollmentPropertiesPerCourse.objects.get(course_id=course_id)
         try:
@@ -78,21 +79,34 @@ def check_and_save_enrollment_attributes(post_data, user, course_id):
         except ValueError:
             return
         if enrollment_properties:
-            CredoStudentProperties.objects.filter(course_id=course_id, user=user).delete()
             for k, v in enrollment_properties.iteritems():
                 lti_key = v['lti'] if 'lti' in v else False
                 default = v['default'] if 'default' in v and v['default'] else None
-                if lti_key:
+                if lti_key and lti_key not in exclude_lti_properties:
                     if lti_key in post_data:
-                        CredoStudentProperties(user=user, course_id=course_id,
-                                               name=k, value=post_data[lti_key]).save()
+                        result[k] = post_data[lti_key]
                     elif default:
-                        CredoStudentProperties(user=user, course_id=course_id,
-                                               name=k, value=default).save()
-            set_custom_term(course_id, user)
-
+                        result[k] = default
     except EnrollmentPropertiesPerCourse.DoesNotExist:
-        return
+        pass
+
+    for k, v in kwargs.items():
+        if v:
+            result[k] = v
+    return result
+
+
+ENROLLMENT_PROPERTIES_MAP = {
+    'context_label': 'course'
+}
+
+
+def check_and_save_enrollment_attributes(properties, user, course_id):
+    CredoStudentProperties.objects.filter(course_id=course_id, user=user).delete()
+    for k, v in properties.items():
+        prop_name = ENROLLMENT_PROPERTIES_MAP[k] if k in ENROLLMENT_PROPERTIES_MAP else k
+        CredoStudentProperties(user=user, course_id=course_id, name=prop_name, value=v).save()
+    set_custom_term(course_id, user)
 
 
 def get_custom_term():
@@ -217,6 +231,9 @@ def deadlock_db_retry(func):
 
 
 class CourseUsage(models.Model):
+    """
+    Deprecated model
+    """
     MODULE_TYPES = (('problem', 'problem'),
                     ('video', 'video'),
                     ('html', 'html'),
@@ -239,24 +256,36 @@ class CourseUsage(models.Model):
         unique_together = (('user', 'course_id', 'block_id'),)
 
     @classmethod
+    def is_viewed(cls, request, block_id):
+        if 'course_usage' not in request.session or not isinstance(request.session['course_usage'], list):
+            request.session['course_usage'] = []
+            request.session.modified = True
+        return str(block_id) in request.session['course_usage']
+
+    @classmethod
+    def mark_viewed(cls, request, block_id):
+        if 'course_usage' not in request.session or not isinstance(request.session['course_usage'], list):
+            request.session['course_usage'] = []
+        request.session['course_usage'].append(str(block_id))
+        request.session.modified = True
+
+    @classmethod
     @deadlock_db_retry
-    def _update_block_usage(cls, course_key, user_id, block_type, block_id, unique_user_id):
-        course_usage = CourseUsage.objects.get(
+    def _update_block_usage(cls, course_key, user_id, block_type, block_id):
+        CourseUsage.objects.get(
             course_id=course_key,
             user_id=user_id,
             block_type=block_type,
             block_id=block_id
         )
-        if unique_user_id not in course_usage.session_ids:
-            with transaction.atomic():
-                CourseUsage.objects.filter(course_id=course_key, user_id=user_id,
-                                           block_id=block_id, block_type=block_type) \
-                    .update(last_usage_time=usage_dt_now(), usage_count=F('usage_count') + 1,
-                            session_ids=Concat('session_ids', Value('|'), Value(unique_user_id)))
+        with transaction.atomic():
+            CourseUsage.objects.filter(course_id=course_key, user_id=user_id,
+                                       block_id=block_id, block_type=block_type) \
+                    .update(last_usage_time=usage_dt_now(), usage_count=F('usage_count') + 1)
 
     @classmethod
     @deadlock_db_retry
-    def _add_block_usage(cls, course_key, user_id, block_type, block_id, unique_user_id):
+    def _add_block_usage(cls, course_key, user_id, block_type, block_id):
         datetime_now = usage_dt_now()
         with transaction.atomic():
             cu = CourseUsage(
@@ -266,16 +295,14 @@ class CourseUsage(models.Model):
                 block_type=block_type,
                 block_id=block_id,
                 first_usage_time=datetime_now,
-                last_usage_time=datetime_now,
-                session_ids=unique_user_id
+                last_usage_time=datetime_now
             )
             cu.save()
             return
 
     @classmethod
-    def update_block_usage(cls, request, course_key, block_id):
-        unique_user_id = get_unique_user_id(request)
-        if unique_user_id and hasattr(request, 'user') and request.user.is_authenticated:
+    def update_block_usage(cls, request, course_key, block_id, student_properties=None):
+        if not cls.is_viewed(request, block_id) and hasattr(request, 'user') and request.user.is_authenticated:
             if not isinstance(course_key, CourseKey):
                 course_key = CourseKey.from_string(course_key)
             if not isinstance(block_id, UsageKey):
@@ -284,16 +311,43 @@ class CourseUsage(models.Model):
             block_id = str(block_id)
 
             try:
-                cls._update_block_usage(course_key, request.user.id,
-                                        block_type, block_id, unique_user_id)
+                cls._update_block_usage(course_key, request.user.id, block_type, block_id)
+                CourseUsageLogEntry.add_new_log(request.user.id, str(course_key), str(block_id), str(block_type),
+                                                student_properties)
             except CourseUsage.DoesNotExist:
                 try:
-                    cls._add_block_usage(course_key, request.user.id, block_type, block_id, unique_user_id)
-                    return
+                    cls._add_block_usage(course_key, request.user.id, block_type, block_id)
+                    CourseUsageLogEntry.add_new_log(request.user.id, str(course_key), str(block_id), str(block_type),
+                                                    student_properties)
                 except IntegrityError:
                     #cls._update_block_usage(course_key, request.user.id,
                     #                        block_type, block_id, unique_user_id)
-                    return
+                    pass
+            cls.mark_viewed(request, block_id)
+
+
+class CourseUsageLogEntry(models.Model):
+    user_id = models.IntegerField(db_index=True)
+    course_id = models.CharField(max_length=255, db_index=True)
+    block_id = models.CharField(max_length=255, null=True, blank=True)
+    block_type = models.CharField(max_length=32, null=True, blank=True)
+    time = models.DateTimeField(auto_now_add=True, db_index=True)
+    message = models.TextField()
+
+    class Meta(object):
+        db_table = "credo_usage_logs"
+
+    @classmethod
+    def add_new_log(cls, user_id, course_id, block_id, block_type, student_properties=None):
+        message = json.dumps(student_properties if student_properties else {})
+        new_item = cls(
+            user_id=user_id,
+            course_id=course_id,
+            block_id=block_id,
+            block_type=block_type,
+            message=message
+        )
+        new_item.save()
 
 
 class OrganizationType(models.Model):
@@ -569,35 +623,6 @@ class DBLogEntry(models.Model):
         db_table = "credo_tracking_logs"
 
 
-UNIQUE_USER_ID_COOKIE = 'credo-course-usage-id'
-
-
-def get_unique_user_id(request):
-    uid = request.COOKIES.get(UNIQUE_USER_ID_COOKIE, None)
-    if uid:
-        return unicode(uid)
-    return None
-
-
-def generate_new_user_id_cookie(request, user_id):
-    request._update_unique_user_id = True
-    request.COOKIES[UNIQUE_USER_ID_COOKIE] = unicode(uuid.uuid4()) + '_' + user_id
-
-
-def update_unique_user_id_cookie(request):
-    user_id = 'anon'
-    if hasattr(request, 'user') and request.user.is_authenticated:
-        user_id = str(request.user.id)
-
-    course_usage_cookie_id = get_unique_user_id(request)
-    if not course_usage_cookie_id:
-        generate_new_user_id_cookie(request, user_id)
-    else:
-        cookie_arr = course_usage_cookie_id.split('_')
-        if len(cookie_arr) < 2 or cookie_arr[1] != user_id:
-            generate_new_user_id_cookie(request, user_id)
-
-
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values
@@ -657,7 +682,49 @@ def get_extended_role_default_permissions():
     return CustomUserRole().to_dict()
 
 
-def get_student_properties_event_data(user, course_id, is_ora=False):
+def _get_sequential_parent_block(course_id, item):
+    block = BlockToSequential.objects.filter(course_id=str(course_id), block_id=str(item.location)).first()
+    if block:
+        return block.sequential_id
+    else:
+        max_attempts = 10
+        num_attempt = 0
+        parent = item.get_parent()
+        while parent and num_attempt < max_attempts:
+            if parent.category == 'sequential':
+                return str(parent.location)
+            parent = item.get_parent()
+            num_attempt = num_attempt + 1
+        return None
+
+
+def get_student_properties(request, course_key, item=None):
+    _student_properties = getattr(request, '_student_properties', False)
+    if _student_properties:
+        return _student_properties
+
+    user = request.user
+    student_properties = None
+    if item is None or item.category in ['course', 'chapter']:
+        student_properties = get_student_properties_event_data(user, course_key)
+    elif item.category == 'sequential':
+        student_properties = get_student_properties_event_data(user, course_key, parent_id=str(item.location))
+    else:
+        seq_parent_id = _get_sequential_parent_block(str(course_key), item)
+        if seq_parent_id:
+            student_properties = get_student_properties_event_data(user, course_key, parent_id=seq_parent_id)
+
+    if student_properties:
+        request._student_properties = student_properties
+    return student_properties
+
+
+def get_student_properties_event_data(user, course_id, is_ora=False, parent_id=None):
+    try:
+        from lti_provider.models import LtiContextId
+    except ImportError:
+        LtiContextId = None
+
     result = {'registration': {}, 'enrollment': {}}
     profile = UserProfile.objects.get(user=user)
     if profile.gender:
@@ -676,9 +743,25 @@ def get_student_properties_event_data(user, course_id, is_ora=False):
     except CredoModulesUserProfile.DoesNotExist:
         pass
 
-    if 'term' not in result['enrollment']:
-        result['enrollment']['term'] = get_custom_term()
+    result['enrollment']['term'] = get_custom_term()
+
+    if parent_id and LtiContextId:
+        parent_usage_key = UsageKey.from_string(parent_id)
+        context = LtiContextId.objects.filter(
+            course_key=course_id,
+            usage_key=parent_usage_key,
+            user=user).first()
+        if context and context.has_properties():
+            result['enrollment'].update(context.get_properties())
+
+    if 'context_id' in result['enrollment']:
+        result['enrollment'].pop('context_id', None)
+
+    for prop_original_name, prop_updated_name in ENROLLMENT_PROPERTIES_MAP.items():
+        if prop_original_name in result['enrollment']:
+            result['enrollment'][prop_updated_name] = result['enrollment'].pop(prop_original_name)
+
     if is_ora:
-        return {'student_properties': result, 'student_id': user.id, 'month_terms_format': '1'}
+        return {'student_properties': result, 'student_id': user.id}
     else:
-        return {'student_properties': result, 'month_terms_format': '1'}
+        return {'student_properties': result}

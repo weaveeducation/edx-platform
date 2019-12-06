@@ -23,10 +23,13 @@ import logging
 
 import os
 import dateutil
-import sentry_sdk
-from sentry_sdk.integrations.celery import CeleryIntegration
-from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.integrations.logging import LoggingIntegration
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+except ImportError:
+    pass
 
 from corsheaders.defaults import default_headers as corsheaders_default_headers
 from path import Path as path

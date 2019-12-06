@@ -207,8 +207,20 @@ class LtiContextId(models.Model):
     usage_key = UsageKeyField(max_length=255, db_index=True)
     lti_version = models.CharField(max_length=10, choices=LTI_VERSIONS, default=LTI1p1)
     value = models.TextField()
+    properties = models.TextField(null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+
+    def has_properties(self):
+        return True if self.properties else False
+
+    def set_properties(self, value):
+        self.properties = json.dumps(value)
+
+    def get_properties(self):
+        if self.properties:
+            return json.loads(self.properties)
+        return {}
 
     class Meta(object):
         unique_together = ('course_key', 'usage_key', 'user', 'lti_version')

@@ -21,7 +21,7 @@ from lti_provider.users import update_lti_user_data
 from lti_provider.reset_progress import check_and_reset_lti_user_progress
 from lti_provider.views import enroll_user_to_course, render_courseware
 from util.views import add_p3p_header
-from credo_modules.models import check_and_save_enrollment_attributes
+from credo_modules.models import check_and_save_enrollment_attributes, get_enrollment_attributes
 from edxmako.shortcuts import render_to_string
 from mako.template import Template
 from courseware.courses import update_lms_course_usage
@@ -209,6 +209,7 @@ def launch(request, usage_id=None):
 
     is_iframe = state_params.get('is_iframe') if state_params else True
     context_id = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/context', {}).get('id')
+    context_label = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/context', {}).get('label')
     external_user_id = message_launch_data.get('sub')
     message_launch_custom_data = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/custom', {})
 
@@ -245,6 +246,10 @@ def launch(request, usage_id=None):
     course_key = block.location.course_key
     usage_key = block.location
 
+    request_params = message_launch_data.copy()
+    request_params.update(message_launch_custom_data)
+    enrollment_attributes = get_enrollment_attributes(request_params, course_key, context_label=context_label)
+
     if request.user.is_authenticated:
         roles = None
         lti_roles = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/roles', None)\
@@ -257,9 +262,7 @@ def launch(request, usage_id=None):
                     roles.append(roles_lst[1])
         enroll_result = enroll_user_to_course(request.user, course_key, roles)
         if enroll_result:
-            request_params = message_launch_data.copy()
-            request_params.update(message_launch_custom_data)
-            check_and_save_enrollment_attributes(request_params, request.user, course_key)
+            check_and_save_enrollment_attributes(enrollment_attributes, request.user, course_key)
         if lti_params and 'email' in lti_params:
             update_lti_user_data(request.user, lti_params['email'])
 
@@ -270,7 +273,8 @@ def launch(request, usage_id=None):
 
     # Reset attempts based on new context_ID:
     # https://credoeducation.atlassian.net/browse/DEV-209
-    check_and_reset_lti_user_progress(context_id, request.user, course_key, usage_key, lti_version=LTI1p3)
+    check_and_reset_lti_user_progress(context_id, enrollment_attributes, request.user, course_key, usage_key,
+                                      lti_version=LTI1p3)
 
     if not is_iframe:
         return HttpResponseRedirect(reverse('launch_new_tab', kwargs={
