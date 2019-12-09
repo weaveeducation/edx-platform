@@ -1,7 +1,10 @@
 from credo.auth_helper import get_request_referer_from_other_domain, get_saved_referer, save_referer
-from credo_modules.models import CourseUsage, CourseUsageLogEntry, usage_dt_now, get_student_properties
+from credo_modules.models import CourseUsage, CourseUsageLogEntry, usage_dt_now, get_student_properties,\
+    update_unique_user_id_cookie, get_unique_user_id, UNIQUE_USER_ID_COOKIE
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import F
+from openedx.core.djangoapps.site_configuration.helpers import get_value
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from xmodule.modulestore.django import modulestore
@@ -20,7 +23,6 @@ class RefererSaveMiddleware(object):
 
 
 class CourseUsageMiddleware(object):
-    course_usage_cookie = 'credo-course-usage'
 
     def _process_goto_position_urls(self, request, course_id, path_data):
         # handle URLs like
@@ -45,6 +47,7 @@ class CourseUsageMiddleware(object):
 
     def process_request(self, request):
         request.csrf_processing_done = True  # ignore CSRF check for the django REST framework
+        update_unique_user_id_cookie(request)
 
     def process_response(self, request, response):
         path = request.path
@@ -57,6 +60,13 @@ class CourseUsageMiddleware(object):
                     course_id = path_data[3]
             else:
                 course_id = path_data[2]
+
+            sess_cookie_domain = get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN)
+            cookie_domain = sess_cookie_domain if sess_cookie_domain else None
+
+            unique_user_id = get_unique_user_id(request)
+            if unique_user_id and getattr(request, '_update_unique_user_id', False):
+                response.set_cookie(UNIQUE_USER_ID_COOKIE, unique_user_id, path='/', domain=cookie_domain)
 
             datetime_now = usage_dt_now()
             if course_id and not CourseUsage.is_viewed(request, course_id):
