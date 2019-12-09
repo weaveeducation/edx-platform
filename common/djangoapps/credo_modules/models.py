@@ -3,6 +3,7 @@ import time
 import datetime
 import json
 import re
+import uuid
 from urlparse import urlparse
 from django.dispatch import receiver
 from django.contrib.auth.models import User
@@ -256,16 +257,24 @@ class CourseUsage(models.Model):
         unique_together = (('user', 'course_id', 'block_id'),)
 
     @classmethod
-    def is_viewed(cls, request, block_id):
-        if 'course_usage' not in request.session or not isinstance(request.session['course_usage'], list):
+    def check_new_session(cls, request):
+        browser_unique_user_id = get_unique_user_id(request)
+        session_unique_user_id = request.session.get('course_usage_unique_user_id')
+        if 'course_usage' not in request.session\
+          or not isinstance(request.session['course_usage'], list)\
+          or (browser_unique_user_id and browser_unique_user_id != session_unique_user_id):
             request.session['course_usage'] = []
+            request.session['course_usage_unique_user_id'] = browser_unique_user_id
             request.session.modified = True
+
+    @classmethod
+    def is_viewed(cls, request, block_id):
+        cls.check_new_session(request)
         return str(block_id) in request.session['course_usage']
 
     @classmethod
     def mark_viewed(cls, request, block_id):
-        if 'course_usage' not in request.session or not isinstance(request.session['course_usage'], list):
-            request.session['course_usage'] = []
+        cls.check_new_session(request)
         request.session['course_usage'].append(str(block_id))
         request.session.modified = True
 
@@ -765,3 +774,32 @@ def get_student_properties_event_data(user, course_id, is_ora=False, parent_id=N
         return {'student_properties': result, 'student_id': user.id}
     else:
         return {'student_properties': result}
+
+
+UNIQUE_USER_ID_COOKIE = 'credo-course-usage-id'
+
+
+def get_unique_user_id(request):
+    uid = request.COOKIES.get(UNIQUE_USER_ID_COOKIE, None)
+    if uid:
+        return unicode(uid)
+    return None
+
+
+def generate_new_user_id_cookie(request, user_id):
+    request._update_unique_user_id = True
+    request.COOKIES[UNIQUE_USER_ID_COOKIE] = unicode(uuid.uuid4()) + '_' + user_id
+
+
+def update_unique_user_id_cookie(request):
+    user_id = 'anon'
+    if hasattr(request, 'user') and request.user.is_authenticated:
+        user_id = str(request.user.id)
+
+    course_usage_cookie_id = get_unique_user_id(request)
+    if not course_usage_cookie_id:
+        generate_new_user_id_cookie(request, user_id)
+    else:
+        cookie_arr = course_usage_cookie_id.split('_')
+        if len(cookie_arr) < 2 or cookie_arr[1] != user_id:
+            generate_new_user_id_cookie(request, user_id)
