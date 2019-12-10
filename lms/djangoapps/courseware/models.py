@@ -14,6 +14,10 @@ ASSUMPTIONS: modules have unique IDs, even across different module_types
 """
 import itertools
 import logging
+import json
+import platform
+import datetime
+import time
 
 from config_models.models import ConfigurationModel
 from django.conf import settings
@@ -29,6 +33,7 @@ import coursewarehistoryextended
 from opaque_keys.edx.django.models import BlockTypeKeyField, CourseKeyField, UsageKeyField
 
 log = logging.getLogger("edx.courseware")
+log_json = logging.getLogger("credo_json")
 
 
 def chunks(items, chunk_size):
@@ -173,6 +178,35 @@ class StudentModule(models.Model):
                 module_state_key=module_state_key,
                 defaults=defaults,
             )
+
+    @classmethod
+    def log_start_new_attempt(cls, user_id, course_id, block_id):
+        hostname = platform.node().split(".")[0]
+        data = {
+            'type': 'start_new_attempt',
+            'hostname': hostname,
+            'datetime': str(datetime.datetime.now()),
+            'timestamp': time.time(),
+            'user_id': int(user_id),
+            'course_id': str(course_id),
+            'block_id': str(block_id)
+        }
+        log_json.info(json.dumps(data))
+
+    @classmethod
+    def log_reset_progress(cls, user_id, course_id, initiator=None, block_id=None):
+        hostname = platform.node().split(".")[0]
+        data = {
+            'type': 'reset_progress',
+            'hostname': hostname,
+            'datetime': str(datetime.datetime.now()),
+            'timestamp': time.time(),
+            'user_id': int(user_id),
+            'course_id': str(course_id),
+            'block_id': str(block_id) if block_id else None,
+            'initiator': initiator
+        }
+        log_json.info(json.dumps(data))
 
 
 class BaseStudentModuleHistory(models.Model):
@@ -464,6 +498,7 @@ def set_viewed(sender, instance, created, **kwargs):
         course_key_str = str(instance.course_id)
         usage_key_str = str(instance.module_state_key)
         user_id = int(instance.student.id)
+        StudentModule.log_start_new_attempt(instance.student.id, course_key_str, usage_key_str)
         logging.info("Try to create task to send sequential_viewed event: course_key=%s, usage_key=%s, user_id=%d"
                      % (course_key_str, usage_key_str, user_id))
         transaction.on_commit(lambda: track_sequential_viewed_task.delay(course_key_str, usage_key_str, user_id))
