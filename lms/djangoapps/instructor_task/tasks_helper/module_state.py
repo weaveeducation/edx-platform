@@ -478,7 +478,7 @@ def reset_progress_student(_xmodule_instance_args, _entry_id, course_id, _task_i
     )
     task_progress.update_task_state(extra_meta=curr_step)
 
-    update_reset_progress(user, course_id)
+    update_reset_progress(user, course_id, initiator='instructor_dashboard_student_admin_tab')
 
     curr_step = {'step': 'Finalizing reseting report'}
     return task_progress.update_task_state(extra_meta=curr_step)
@@ -492,7 +492,7 @@ def create_reset_user(user):
     return new_user
 
 
-def update_reset_progress(user, course_key, block=None, new_user=None):
+def update_reset_progress(user, course_key, block=None, new_user=None, initiator=None):
     if new_user:
         CourseEnrollment.enroll(new_user, course_key)
     if not block:
@@ -517,3 +517,5 @@ def update_reset_progress(user, course_key, block=None, new_user=None):
 
         if completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
             BlockCompletion.objects.filter(user=user, course_key=course_key, block_key__in=items).delete()
+    block_id_reset = str(block.location) if block else None
+    StudentModule.log_reset_progress(user.id, str(course_key), initiator=initiator, block_id=block_id_reset)

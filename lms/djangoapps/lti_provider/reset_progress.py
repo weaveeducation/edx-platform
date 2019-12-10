@@ -27,7 +27,7 @@ def check_and_reset_lti_user_progress(context_id, context_data, user, course_key
                 context.save()
                 with modulestore().bulk_operations(course_key):
                     block = modulestore().get_item(usage_key)
-                    update_reset_progress(user, course_key, block)
+                    update_reset_progress(user, course_key, block, initiator='lti_new_context_id')
                     if lti_version == LTI1p1 and lis_result_sourcedid:
                         lis_result_sourcedid_hash = hashlib.md5(str(lis_result_sourcedid)).hexdigest()
                         GradedAssignment.objects.filter(
