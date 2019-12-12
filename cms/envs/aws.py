@@ -570,6 +570,10 @@ SCRAPE_YOUTUBE_THUMBNAILS_JOB_QUEUE = ENV_TOKENS.get('SCRAPE_YOUTUBE_THUMBNAILS_
 ############## Base format for LTI links ############################
 BASE_LTI_LINK = ENV_TOKENS.get('BASE_LTI_LINK', 'http://127.0.0.1/lti_provider/courses/{}/{}')
 
+############## Turnitin_Integration ############################
+TURNITIN_SIGNING_SECRET = ENV_TOKENS.get('TURNITIN_SIGNING_SECRET', 'replace-me')
+TURNITIN_WEBHOOK_HOST = ENV_TOKENS.get('TURNITIN_WEBHOOK_HOST', 'http://127.0.0.1')
+
 ########################## Parental controls config  #######################
 
 # The age at which a learner no longer requires parental consent, or None

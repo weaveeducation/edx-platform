@@ -1173,6 +1173,7 @@ INSTALLED_APPS = [
     'rest_framework_swagger',
 
     'credo_modules',
+    'turnitin_integration',
 
     'openedx.features.course_duration_limits',
     'openedx.features.content_type_gating',

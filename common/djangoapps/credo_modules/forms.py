@@ -1,5 +1,4 @@
 import json
-from collections import OrderedDict
 from django.forms import Form, CharField, ChoiceField
 from credo_modules.models import StudentAttributesRegistrationModel, RegistrationPropertiesPerMicrosite
 from microsite_configuration import microsite
@@ -16,7 +15,7 @@ class StudentAttributesRegistrationForm(Form):
 
     def __init__(self, *args, **kwargs):
         super(StudentAttributesRegistrationForm, self).__init__(*args, **kwargs)
-        
+
         if 'org' in kwargs:
             self._org = kwargs['org']
         if 'data' in kwargs:

@@ -428,6 +428,12 @@ class Organization(models.Model):
                                  related_name='org_type',
                                  null=True, blank=True, verbose_name='Org Type')
 
+    class Meta:
+        ordering = ['org']
+
+    def __str__(self):
+        return self.org
+
     def save(self, *args, **kwargs):
         if self.default_frame_domain:
             o = urlparse(self.default_frame_domain)

@@ -82,4 +82,3 @@ admin.site.register(OrganizationType, OrganizationTypeForm)
 admin.site.register(CourseExcludeInsights, CourseExcludeInsightsAdmin)
 admin.site.register(CourseUsage, CourseUsageForm)
 admin.site.register(CustomUserRole, CustomUserRoleForm)
-
