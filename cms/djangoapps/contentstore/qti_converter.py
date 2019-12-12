@@ -103,6 +103,8 @@ def get_mattext(element):
     material = element.find('qti:material', NS)
     if material is not None:
         temp_str = material.find('qti:mattext', NS).text
+        if temp_str is None:
+            return ''
         # Update img tag to match new location of images
         temp_str = re.sub(r'src="(?:[^"/]*/)*([^"]+)"', _re_url_replace, temp_str)
         # Add closing tag for br and img elements
