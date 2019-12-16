@@ -147,7 +147,7 @@ def _call_and_retry_if_needed(self, api_method, **kwargs):
 
 
 def _update_course_structure(course_id, published_on):
-    allowed_categories = ['chapter', 'sequential', 'vertical', 'problem',
+    allowed_categories = ['chapter', 'sequential', 'vertical', 'library_content', 'problem',
                           'openassessment', 'drag-and-drop-v2', 'html', 'video']
     course_key = CourseKey.from_string(course_id)
     t1 = time.time()
