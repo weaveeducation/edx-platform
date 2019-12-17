@@ -292,6 +292,7 @@ class ApiCourseStructure(models.Model):
     display_name = models.TextField(null=True, blank=True)
     graded = models.SmallIntegerField(null=False)
     section_path = models.TextField(null=True, blank=True)
+    deleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'api_course_structure'
@@ -355,6 +356,7 @@ class BlockToSequential(models.Model):
     sequential_name = models.CharField(max_length=255, db_index=True, null=False, blank=False)
     course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
     graded = models.SmallIntegerField(null=False)
+    deleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'block_to_sequential'

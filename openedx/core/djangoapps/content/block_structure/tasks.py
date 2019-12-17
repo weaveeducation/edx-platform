@@ -301,20 +301,20 @@ def _update_course_structure(course_id, published_on):
 
         items_to_remove = []
         for block_id, block_item in existing_structure_items_dict.items():
-            if block_id not in structure_dict and block_item.block_type != 'course':
+            if block_id not in structure_dict and block_item.block_type != 'course' and not block_item.deleted:
                 items_to_remove.append(block_item.id)
         if items_to_remove:
-            ApiCourseStructure.objects.filter(id__in=items_to_remove).delete()
+            ApiCourseStructure.objects.filter(id__in=items_to_remove).update(deleted=True)
 
         if items_to_insert:
             ApiCourseStructure.objects.bulk_create(items_to_insert)
 
         b2s_to_remove = []
         for b2s_id, b2s_item in block_to_sequential_items_dict.items():
-            if b2s_id not in structure_dict:
+            if b2s_id not in structure_dict and not b2s_item.deleted:
                 b2s_to_remove.append(b2s_item.id)
         if b2s_to_remove:
-            BlockToSequential.objects.filter(id__in=b2s_to_remove).delete()
+            BlockToSequential.objects.filter(id__in=b2s_to_remove).update(deleted=True)
 
         if b2s_to_insert:
             BlockToSequential.objects.bulk_create(b2s_to_insert)
