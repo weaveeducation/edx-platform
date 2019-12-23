@@ -380,6 +380,9 @@ class OrganizationType(models.Model):
 
     available_roles = models.ManyToManyField('CustomUserRole', blank=True)
 
+    exclude_properties = models.TextField(blank=True, verbose_name="Excluded property names in Insights",
+                                          help_text="Values should be separated by commas")
+
     class Meta:
         ordering = ['title']
 
@@ -458,6 +461,12 @@ class Organization(models.Model):
         else:
             return False
 
+    def get_exclude_properties(self):
+        if self.org_type:
+            return self.org_type.exclude_properties
+        else:
+            return ""
+
     def to_dict(self):
         return {
             'org': self.org,
@@ -466,6 +475,7 @@ class Organization(models.Model):
             'insights_reports': self.get_insights_reports(),
             'page_level_engagement': self.get_page_level_engagement(),
             'item_analysis_reports': self.get_item_analysis_reports(),
+            'exclude_properties': self.exclude_properties(),
         }
 
     @property
