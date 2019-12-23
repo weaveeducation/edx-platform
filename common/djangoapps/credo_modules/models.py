@@ -475,7 +475,7 @@ class Organization(models.Model):
             'insights_reports': self.get_insights_reports(),
             'page_level_engagement': self.get_page_level_engagement(),
             'item_analysis_reports': self.get_item_analysis_reports(),
-            'exclude_properties': self.exclude_properties(),
+            'exclude_properties': self.get_exclude_properties(),
         }
 
     @property
