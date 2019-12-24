@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('credo_modules', '0028_auto_20191218_0354'),
+        ('credo_modules', '0029_org_default_order'),
     ]
 
     operations = [
