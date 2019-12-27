@@ -1,7 +1,10 @@
 from django.contrib import admin
+from django.urls import reverse
 from django import forms
+from django.conf import settings
 from .models import RegistrationPropertiesPerMicrosite, EnrollmentPropertiesPerCourse,\
     Organization, OrganizationType, CourseExcludeInsights, CourseUsage, CustomUserRole
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 
 class RegistrationPropertiesPerMicrositeForm(admin.ModelAdmin):
@@ -14,7 +17,24 @@ class EnrollmentPropertiesPerCourseForm(admin.ModelAdmin):
 
 class OrganizationForm(admin.ModelAdmin):
     search_fields = ('org', 'org_type__title',)
-    list_display = ('id', 'org', 'org_type', 'default_frame_domain')
+    list_display = ('id', 'org', 'org_type', 'default_frame_domain', 'custom_actions')
+    actions = ['actions', ]
+
+    def custom_actions(self, obj):
+        cms_base = configuration_helpers.get_value(
+            'CMS_BASE',
+            settings.CMS_BASE
+        )
+        if settings.DEBUG:
+            cms_base = 'http://' + cms_base
+        else:
+            cms_base = 'https://' + cms_base
+        return '<a href="' + cms_base + reverse('admin-manage-org-tags', kwargs={
+            "org_id": obj.id
+        }) + '" target="blank">Configure Tags</a>'
+
+    custom_actions.allow_tags = True
+    custom_actions.short_description = 'Actions'
 
 
 class OrganizationTypeForm(admin.ModelAdmin):

@@ -486,6 +486,17 @@ class Organization(models.Model):
             return False
 
 
+class OrganizationTag(models.Model):
+    org = models.ForeignKey(Organization)
+    tag_name = models.CharField(max_length=255, verbose_name='Tag name')
+    insights_view = models.BooleanField(default=True, verbose_name='Display on the Insights')
+    progress_view = models.BooleanField(default=True, verbose_name='Display on the My Skills page')
+
+    class Meta(object):
+        ordering = ('org', 'tag_name')
+        unique_together = (('org', 'tag_name'),)
+
+
 class CourseExcludeInsights(models.Model):
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     course_id = CourseKeyField(max_length=255, db_index=True, null=True, blank=True)
