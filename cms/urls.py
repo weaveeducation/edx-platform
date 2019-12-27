@@ -13,6 +13,7 @@ import openedx.core.djangoapps.external_auth.views
 import openedx.core.djangoapps.lang_pref.views
 from openedx.core.djangoapps.password_policy import compliance as password_policy_compliance
 from openedx.core.djangoapps.password_policy.forms import PasswordPolicyAwareAdminAuthForm
+from credo_modules.views import manage_org_tags
 
 from ratelimitbackend import admin
 
@@ -226,6 +227,7 @@ if settings.FEATURES.get('AUTH_USE_CAS'):
         url(r'^cas-auth/logout/$', django_cas.views.logout, {'next_page': '/'}, name="cas-logout"),
     ]
 urlpatterns.append(url(r'^admin/', include(admin.site.urls)))
+urlpatterns.append(url(r'^admin/configure-org-tags/(?P<org_id>\d+)', manage_org_tags, name='admin-manage-org-tags'))
 
 # enable entrance exams
 if settings.FEATURES.get('ENTRANCE_EXAMS'):

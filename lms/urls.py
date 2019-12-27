@@ -53,6 +53,7 @@ from staticbook import views as staticbook_views
 from student import views as student_views
 from track import views as track_views
 from util import views as util_views
+from credo_modules.views import manage_org_tags
 
 if settings.DEBUG or settings.FEATURES.get('ENABLE_DJANGO_ADMIN_SITE'):
     django_autodiscover()
@@ -846,6 +847,7 @@ if settings.FEATURES.get('CLASS_DASHBOARD'):
 if settings.DEBUG or settings.FEATURES.get('ENABLE_DJANGO_ADMIN_SITE'):
     # Jasmine and admin
     urlpatterns += [
+        url(r'^admin/configure-org-tags/(?P<org_id>\d+)', manage_org_tags, name='admin-manage-org-tags'),
         url(r'^admin/', include(admin.site.urls)),
     ]
 

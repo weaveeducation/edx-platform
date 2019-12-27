@@ -1,25 +1,37 @@
+import hashlib
+import logging
 import json
 
 from collections import OrderedDict
 from courseware.courses import get_course_by_id
 from django.conf import settings
+from django.contrib import messages
 from django.db import transaction
-from django.http import Http404
+from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import redirect
 from django.core.urlresolvers import resolve, reverse, NoReverseMatch
+from django.core.exceptions import PermissionDenied
 from django.contrib.auth import login
 from django.contrib.auth.models import User
 from django.db.models import Q
 from django.views.generic.base import View
+from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.utils.http import urlunquote
 from django.utils.decorators import method_decorator
-from credo_modules.models import CredoModulesUserProfile
+from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import string_concat
+from django.shortcuts import render
+from credo_modules.models import CredoModulesUserProfile, Organization, OrganizationTag
 from credo_modules.utils import additional_profile_fields_hash
 from util.json_request import JsonResponse
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 from edxmako.shortcuts import render_to_response
 from opaque_keys.edx.keys import CourseKey
+
+
+log = logging.getLogger(__name__)
 
 
 class StudentProfileField(object):
@@ -347,3 +359,127 @@ def login_as_user(request):
 
     login(request, edx_user, backend=settings.AUTHENTICATION_BACKENDS[0])
     return redirect(reverse('dashboard'))
+
+
+def _manage_org_tags_render_template(request, org, tags_result):
+    return render(request, "admin/configure_tags_for_org.html", {
+        "title": string_concat("Organization ", str(org.org), '. ', _("Configure Tags")),
+        "site_title": _('Studio Administration'),
+        "site_header": _('Studio Administration'),
+        "user": request.user,
+        "has_permission": True,
+        "site_url": "/",
+        "tags_result": tags_result,
+    })
+
+
+def _manage_org_tags_update_data(request, org, tags_result):
+    request_insights = request.POST.getlist('insights')
+    request_skills = request.POST.getlist('skills')
+    tag_ids = []
+
+    for t in tags_result:
+        tag_org = t.get('obj')
+        tag_id = t.get('id')
+        tag_name = t.get('title')
+        insights_view = tag_id in request_insights
+        progress_view = tag_id in request_skills
+        if not tag_org:
+            tag_org = OrganizationTag(
+                org=org,
+                tag_name=tag_name,
+                insights_view=insights_view,
+                progress_view=progress_view
+            )
+            tag_org.save()
+        elif insights_view != tag_org.insights_view or progress_view != tag_org.progress_view:
+            tag_org.insights_view = insights_view
+            tag_org.progress_view = progress_view
+            tag_org.save()
+        tag_ids.append(tag_org.id)
+
+    query_to_remove = OrganizationTag.objects.filter(org=org)
+    if tag_ids:
+        query_to_remove = query_to_remove.exclude(id__in=tag_ids)
+    query_to_remove.delete()
+
+    messages.success(request, _("Tags successfully saved"))
+    current_url = reverse('admin-manage-org-tags', kwargs={
+        "org_id": org.id
+    })
+    return redirect(current_url)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def manage_org_tags(request, org_id):
+    try:
+        from cms.lib.xblock.tagging.models import TagCategories, TagAvailableValues
+    except (RuntimeError, ImportError):
+        cms_base = configuration_helpers.get_value(
+            'CMS_BASE',
+            settings.CMS_BASE
+        )
+        if settings.DEBUG:
+            cms_base = 'http://' + cms_base
+        else:
+            cms_base = 'https://' + cms_base
+        cms_url = cms_base + reverse('admin-manage-org-tags', kwargs={
+            "org_id": org_id
+        })
+        return redirect(cms_url)
+
+    if not request.user.is_authenticated or not request.user.is_staff:
+        raise PermissionDenied()
+
+    try:
+        org = Organization.objects.get(id=org_id)
+    except Organization.DoesNotExist:
+        log.error("Org with ID=%s doesn't exist" % str(org_id))
+        raise Http404
+
+    tags_dict = {}
+    tags = OrganizationTag.objects.filter(org=org)
+    for t in tags:
+        tags_dict[t.tag_name] = {
+            'insights_view': t.insights_view,
+            'progress_view': t.progress_view,
+            'obj': t
+        }
+
+    org_type_id = None
+    if org.org_type is not None:
+        org_type_id = org.org_type.id
+
+    tag_category_ids = []
+
+    if org_type_id:
+        tag_categories = TagCategories.objects.filter(Q(org_types__org_type=None) | Q(org_types__org_type=org_type_id))
+        tag_category_ids = [t_cat.id for t_cat in tag_categories]
+
+    if tag_category_ids:
+        tag_available_values = TagAvailableValues.objects.filter(category_id__in=tag_category_ids)
+    else:
+        tag_available_values = TagAvailableValues.objects.all()
+
+    tags_result = []
+    tags_auxiliary_list = []
+    for t in tag_available_values:
+        tag_value = t.value.strip().split(' - ')[0].strip()
+        if (tag_value not in tags_auxiliary_list) and (not t.org or t.org == org.org):
+            tags_auxiliary_list.append(tag_value)
+            tags_result.append({
+                'title': tag_value,
+                'insights_view': tags_dict.get(tag_value, {}).get('insights_view', True),
+                'progress_view': tags_dict.get(tag_value, {}).get('progress_view', True),
+                'obj': tags_dict.get(tag_value, {}).get('obj'),
+                'id': hashlib.md5(tag_value).hexdigest()
+            })
+    tags_result = sorted(tags_result, key=lambda v: v['title'])
+
+    if request.method == 'GET':
+        return _manage_org_tags_render_template(request, org, tags_result)
+    elif request.method == 'POST':
+        return _manage_org_tags_update_data(request, org, tags_result)
+    else:
+        return HttpResponseBadRequest('Invalid request')

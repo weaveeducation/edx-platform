@@ -481,7 +481,7 @@ class Organization(models.Model):
             'insights_reports': self.get_insights_reports(),
             'page_level_engagement': self.get_page_level_engagement(),
             'item_analysis_reports': self.get_item_analysis_reports(),
-            'exclude_properties': self.exclude_properties(),
+            'exclude_properties': self.get_exclude_properties(),
         }
 
     @property
@@ -490,6 +490,17 @@ class Organization(models.Model):
             return self.org_type.enable_new_carousel_view
         else:
             return False
+
+
+class OrganizationTag(models.Model):
+    org = models.ForeignKey(Organization)
+    tag_name = models.CharField(max_length=255, verbose_name='Tag name')
+    insights_view = models.BooleanField(default=True, verbose_name='Display on the Insights')
+    progress_view = models.BooleanField(default=True, verbose_name='Display on the My Skills page')
+
+    class Meta(object):
+        ordering = ('org', 'tag_name')
+        unique_together = (('org', 'tag_name'),)
 
 
 class CourseExcludeInsights(models.Model):
