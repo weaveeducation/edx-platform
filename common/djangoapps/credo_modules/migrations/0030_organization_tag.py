@@ -9,7 +9,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('credo_modules', '0028_organizationtype_exclude_properties'),
+        ('credo_modules', '0029_org_default_order'),
     ]
 
     operations = [
