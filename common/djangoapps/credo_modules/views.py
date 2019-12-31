@@ -417,7 +417,7 @@ def _get_org(request, org_id):
     except (RuntimeError, ImportError):
         cms_base = configuration_helpers.get_value(
             'CMS_BASE',
-            settings.CMS_BASE
+            getattr(settings, 'CMS_BASE', 'localhost')
         )
         if settings.DEBUG:
             cms_base = 'http://' + cms_base
