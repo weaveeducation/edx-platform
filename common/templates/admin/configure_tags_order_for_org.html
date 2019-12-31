@@ -1,0 +1,62 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="{% static 'css/vendor/jqtree.css' %}" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-2.2.4.min.js" integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44=" crossorigin="anonymous"></script>
+<script type="text/javascript" src="{% static 'js/vendor/tree.jquery.js' %}"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+    var treeData = {{ tags_lst_str|safe }};
+    $("#tags_tree").tree({
+        data: treeData,
+        dragAndDrop: true,
+        onCanMoveTo: function(moved_node, target_node, position) {
+            if (((moved_node.parent.id === target_node.parent.id)
+                && ((position === 'before') || (position === 'after'))) ||
+                ((moved_node.parent.id === target_node.id) && (position === 'inside'))) {
+                return true;
+            }
+            return false;
+        }
+    });
+
+    function processTreeNode(node, dataToPost) {
+        for (var i=0; i < node.children.length; i++) {
+            var child = node.children[i];
+            dataToPost.push(child['id']);
+            processTreeNode(child, dataToPost);
+        }
+    }
+
+    $(".save-order").click(function() {
+        var dataToPost = [];
+        $(this).prop("disabled", true);
+        processTreeNode($("#tags_tree").tree('getTree'), dataToPost);
+        $.ajax({
+            type: "POST",
+            url: "",
+            data: JSON.stringify(dataToPost),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            headers: {
+                "X-CSRFToken": $("input[name=csrfmiddlewaretoken]").val()
+            },
+            success: function() {
+                location.reload();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="module" id="changelist" style="width: 800px;">
+{% csrf_token %}
+<div id="tags_tree" style="border: 1px solid #DDDDDD;"></div>
+<br />
+<input type="button" value="Save" class="button default save-order" name="_save">
+</div>
+{% endblock %}

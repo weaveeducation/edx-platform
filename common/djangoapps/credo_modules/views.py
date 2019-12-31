@@ -7,7 +7,7 @@ from courseware.courses import get_course_by_id
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
-from django.http import Http404, HttpResponseBadRequest
+from django.http import Http404, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect
 from django.core.urlresolvers import resolve, reverse, NoReverseMatch
 from django.core.exceptions import PermissionDenied
@@ -22,7 +22,7 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext_lazy as _
 from django.utils.translation import string_concat
 from django.shortcuts import render
-from credo_modules.models import CredoModulesUserProfile, Organization, OrganizationTag
+from credo_modules.models import CredoModulesUserProfile, Organization, OrganizationTag, OrganizationTagOrder
 from credo_modules.utils import additional_profile_fields_hash
 from util.json_request import JsonResponse
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
@@ -361,16 +361,17 @@ def login_as_user(request):
     return redirect(reverse('dashboard'))
 
 
-def _manage_org_tags_render_template(request, org, tags_result):
-    return render(request, "admin/configure_tags_for_org.html", {
-        "title": string_concat("Organization ", str(org.org), '. ', _("Configure Tags")),
+def _manage_org_tags_render_template(request, tpl, page_title, org, **kwargs):
+    context = {
+        "title": string_concat("Organization ", str(org.org), '. ', page_title),
         "site_title": _('Studio Administration'),
         "site_header": _('Studio Administration'),
         "user": request.user,
         "has_permission": True,
         "site_url": "/",
-        "tags_result": tags_result,
-    })
+    }
+    context.update(kwargs)
+    return render(request, tpl, context)
 
 
 def _manage_org_tags_update_data(request, org, tags_result):
@@ -410,9 +411,7 @@ def _manage_org_tags_update_data(request, org, tags_result):
     return redirect(current_url)
 
 
-@login_required
-@require_http_methods(["GET", "POST"])
-def manage_org_tags(request, org_id):
+def _get_org(request, org_id):
     try:
         from cms.lib.xblock.tagging.models import TagCategories, TagAvailableValues
     except (RuntimeError, ImportError):
@@ -427,7 +426,7 @@ def manage_org_tags(request, org_id):
         cms_url = cms_base + reverse('admin-manage-org-tags', kwargs={
             "org_id": org_id
         })
-        return redirect(cms_url)
+        return None, None, redirect(cms_url)
 
     if not request.user.is_authenticated or not request.user.is_staff:
         raise PermissionDenied()
@@ -437,15 +436,6 @@ def manage_org_tags(request, org_id):
     except Organization.DoesNotExist:
         log.error("Org with ID=%s doesn't exist" % str(org_id))
         raise Http404
-
-    tags_dict = {}
-    tags = OrganizationTag.objects.filter(org=org)
-    for t in tags:
-        tags_dict[t.tag_name] = {
-            'insights_view': t.insights_view,
-            'progress_view': t.progress_view,
-            'obj': t
-        }
 
     org_type_id = None
     if org.org_type is not None:
@@ -458,9 +448,28 @@ def manage_org_tags(request, org_id):
         tag_category_ids = [t_cat.id for t_cat in tag_categories]
 
     if tag_category_ids:
-        tag_available_values = TagAvailableValues.objects.filter(category_id__in=tag_category_ids)
+        tag_available_values = TagAvailableValues.objects.filter(category_id__in=tag_category_ids).order_by('value')
     else:
-        tag_available_values = TagAvailableValues.objects.all()
+        tag_available_values = TagAvailableValues.objects.all().order_by('value')
+
+    return tag_available_values, org, None
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def manage_org_tags(request, org_id):
+    tag_available_values, org, http_redirect = _get_org(request, org_id)
+    if not org:
+        return http_redirect
+
+    tags_dict = {}
+    tags = OrganizationTag.objects.filter(org=org)
+    for t in tags:
+        tags_dict[t.tag_name] = {
+            'insights_view': t.insights_view,
+            'progress_view': t.progress_view,
+            'obj': t
+        }
 
     tags_result = []
     tags_auxiliary_list = []
@@ -478,8 +487,76 @@ def manage_org_tags(request, org_id):
     tags_result = sorted(tags_result, key=lambda v: v['title'])
 
     if request.method == 'GET':
-        return _manage_org_tags_render_template(request, org, tags_result)
+        return _manage_org_tags_render_template(request, "admin/configure_tags_for_org.html",
+                                                _("Configure Tags"), org, tags_result=tags_result)
     elif request.method == 'POST':
         return _manage_org_tags_update_data(request, org, tags_result)
+    else:
+        return HttpResponseBadRequest('Invalid request')
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def manage_org_tags_sorting(request, org_id):
+    def _update_tags_dict(res, idx, tags_list):
+        if idx + 1 <= len(tags_list):
+            tag_new_val = ' - '.join(tags_list[0:idx + 1])
+            if tag_new_val not in res:
+                res[tag_new_val] = {
+                    'id': tag_new_val,
+                    'title': tags_list[0:idx + 1][-1],
+                    'children': OrderedDict()
+                }
+            _update_tags_dict(res[tag_new_val]['children'], idx + 1, tags_list)
+
+    def _convert_tags_dict_to_list(data):
+        return [{'name': v['title'], 'id': v['id'], 'children': _convert_tags_dict_to_list(v['children'])}
+                for k, v in data.items()]
+
+    tag_available_values_raw, org, http_redirect = _get_org(request, org_id)
+    if not org:
+        return http_redirect
+
+    tag_available_values = [t.value for t in tag_available_values_raw]
+
+    tags_data_raw = OrganizationTagOrder.objects.filter(org=org).order_by('order_num', 'tag_name')
+    tags_data = [t.tag_name for t in tags_data_raw]
+
+    tags_result = OrderedDict()
+
+    if request.method == 'GET':
+        for tag_d in tags_data:
+            tag_split_lst = tag_d.split(' - ')
+            _update_tags_dict(tags_result, 0, tag_split_lst)
+        for tag_av in tag_available_values:
+            tag_split_lst = tag_av.split(' - ')
+            _update_tags_dict(tags_result, 0, tag_split_lst)
+
+        tags_lst = _convert_tags_dict_to_list(tags_result)
+
+        return _manage_org_tags_render_template(request, "admin/configure_tags_order_for_org.html",
+                                                _("Configure Tags Order"), org,
+                                                tags_result=tags_result, tags_lst=tags_lst,
+                                                tags_lst_str=json.dumps(tags_lst))
+    elif request.method == 'POST':
+        req_tags_data = json.loads(request.body)
+        tags_to_insert = []
+        idx = 10
+
+        for tag_item in req_tags_data:
+            if tag_item in tag_available_values:
+                tags_to_insert.append(OrganizationTagOrder(
+                    org=org,
+                    tag_name=tag_item,
+                    order_num=idx
+                ))
+                idx = idx + 10
+
+        with transaction.atomic():
+            OrganizationTagOrder.objects.filter(org=org).delete()
+            OrganizationTagOrder.objects.bulk_create(tags_to_insert)
+
+        messages.success(request, _("Tags order successfully saved"))
+        return JsonResponse({'success': True})
     else:
         return HttpResponseBadRequest('Invalid request')

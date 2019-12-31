@@ -503,6 +503,16 @@ class OrganizationTag(models.Model):
         unique_together = (('org', 'tag_name'),)
 
 
+class OrganizationTagOrder(models.Model):
+    org = models.ForeignKey(Organization)
+    tag_name = models.CharField(max_length=255, verbose_name='Tag name')
+    order_num = models.IntegerField(verbose_name='Order num')
+
+    class Meta(object):
+        ordering = ('order_num', 'tag_name')
+        unique_together = (('org', 'tag_name'),)
+
+
 class CourseExcludeInsights(models.Model):
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     course_id = CourseKeyField(max_length=255, db_index=True, null=True, blank=True)
