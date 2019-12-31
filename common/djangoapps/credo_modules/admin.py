@@ -23,7 +23,7 @@ class OrganizationForm(admin.ModelAdmin):
     def custom_actions(self, obj):
         cms_base = configuration_helpers.get_value(
             'CMS_BASE',
-            settings.CMS_BASE
+            getattr(settings, 'CMS_BASE', 'localhost')
         )
         if settings.DEBUG:
             cms_base = 'http://' + cms_base
