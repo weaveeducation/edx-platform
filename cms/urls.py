@@ -13,7 +13,7 @@ import openedx.core.djangoapps.external_auth.views
 import openedx.core.djangoapps.lang_pref.views
 from openedx.core.djangoapps.password_policy import compliance as password_policy_compliance
 from openedx.core.djangoapps.password_policy.forms import PasswordPolicyAwareAdminAuthForm
-from credo_modules.views import manage_org_tags
+from credo_modules.views import manage_org_tags, manage_org_tags_sorting
 
 from ratelimitbackend import admin
 
@@ -227,6 +227,8 @@ if settings.FEATURES.get('AUTH_USE_CAS'):
     ]
 urlpatterns.append(url(r'^admin/', include(admin.site.urls)))
 urlpatterns.append(url(r'^admin/configure-org-tags/(?P<org_id>\d+)', manage_org_tags, name='admin-manage-org-tags'))
+urlpatterns.append(url(r'^admin/configure-org-tags-order/(?P<org_id>\d+)', manage_org_tags_sorting,
+                       name='admin-manage-org-tags-order'))
 
 # enable entrance exams
 if settings.FEATURES.get('ENTRANCE_EXAMS'):

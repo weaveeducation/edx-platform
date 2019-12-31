@@ -31,7 +31,10 @@ class OrganizationForm(admin.ModelAdmin):
             cms_base = 'https://' + cms_base
         return '<a href="' + cms_base + reverse('admin-manage-org-tags', kwargs={
             "org_id": obj.id
-        }) + '" target="blank">Configure Tags</a>'
+        }) + '" target="blank">Configure Tags</a> | <a href="'\
+               + cms_base + reverse('admin-manage-org-tags-order', kwargs={
+                   "org_id": obj.id
+               }) + '" target="blank">Set Tags Order</a>'
 
     custom_actions.allow_tags = True
     custom_actions.short_description = 'Actions'
