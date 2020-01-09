@@ -496,6 +496,15 @@ class OrganizationTag(models.Model):
         ordering = ('org', 'tag_name')
         unique_together = (('org', 'tag_name'),)
 
+    @classmethod
+    def get_org_tags(cls, org_name):
+        try:
+            org_obj = Organization.objects.get(org=org_name)
+        except Organization.DoesNotExist:
+            return []
+
+        return cls.objects.filter(org=org_obj)
+
 
 class OrganizationTagOrder(models.Model):
     org = models.ForeignKey(Organization)

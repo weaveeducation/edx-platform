@@ -9,6 +9,7 @@ from openassessment.assessment.api import staff as staff_api
 from submissions.api import get_submissions
 from student.models import anonymous_id_for_user
 from xmodule.modulestore.django import modulestore
+from credo_modules.models import OrganizationTag
 
 
 def _tag_title(tag):
@@ -41,12 +42,17 @@ def get_ora_submission_id(course_id, anonymous_user_id, block_id):
     return None
 
 
-def get_tag_values(data, group_tags=False):
+def get_tag_values(data, group_tags=False, tags_to_hide=None):
     res = []
     tags_used = []
+    if not tags_to_hide:
+        tags_to_hide = []
+
     if group_tags:
         for v in data:
             tag_split_lst = v.split(' - ')
+            if tag_split_lst[0] in tags_to_hide:
+                continue
             if len(tag_split_lst) > 1:
                 for idx, tag_part in enumerate(tag_split_lst):
                     if idx > 0:
@@ -70,13 +76,18 @@ def get_tag_values(data, group_tags=False):
                 })
         return res
     else:
-        return [{
-            'value': v,
-            'num': 0,
-            'is_last': True,
-            'id': v,
-            'parent_id': None
-        } for v in data]
+        for v in data:
+            tag_split_lst = v.split(' - ')
+            if tag_split_lst[0] in tags_to_hide:
+                continue
+            res.append({
+                'value': v,
+                'num': 0,
+                'is_last': True,
+                'id': v,
+                'parent_id': None
+            })
+        return res
 
 
 def _convert_into_tree_filter(_d):
@@ -115,7 +126,11 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                     }
 
     tags = {}
-    tag_categories = ['learning_outcome', 'custom_outcome']
+    #tag_categories = ['learning_outcome', 'custom_outcome']
+    tag_categories = '*'
+
+    org_tags = OrganizationTag.get_org_tags(course.id.org)
+    tags_to_hide = [t.tag_name for t in org_tags if not t.progress_view]
 
     problem_locations = [problem_block.location for problem_block in problem_blocks]
     problem_locations_dict = {str(problem_block.location): problem_block for problem_block in problem_blocks}
@@ -149,8 +164,9 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                      and problem_block.category == 'openassessment'
                      and len(problem_block.rubric_criteria) == 0)):
                     for tag_cat, tag_values in aside.saved_tags.items():
-                        if tag_cat in tag_categories:
-                            tmp_tag_values = get_tag_values(tag_values, group_tags=group_tags)
+                        if tag_categories == '*' or tag_cat in tag_categories:
+                            tmp_tag_values = get_tag_values(tag_values, group_tags=group_tags,
+                                                            tags_to_hide=tags_to_hide)
                             for tag in tmp_tag_values:
                                 tag_key = tag['value'].strip()
                                 if tag_key not in tags:
@@ -219,8 +235,9 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                     for criterion, tags_dict in aside.saved_tags.items():
                         if criterion in criterions:
                             for tag_cat, tag_values in tags_dict.items():
-                                if tag_cat in tag_categories:
-                                    tmp_tag_values = get_tag_values(tag_values, group_tags=group_tags)
+                                if tag_categories == '*' or tag_cat in tag_categories:
+                                    tmp_tag_values = get_tag_values(tag_values, group_tags=group_tags,
+                                                                    tags_to_hide=tags_to_hide)
                                     for tag in tmp_tag_values:
                                         tag_k = tag['value'].strip()
                                         if tag_k not in tags:
