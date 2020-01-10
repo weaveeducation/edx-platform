@@ -14,6 +14,7 @@ from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.utils.timezone import utc
+from django.utils.translation import ugettext_lazy as _
 from model_utils.models import TimeStampedModel
 
 from student.models import CourseEnrollment, CourseAccessRole, ENROLL_STATUS_CHANGE, EnrollStatusChange, UserProfile
@@ -502,6 +503,15 @@ class OrganizationTag(models.Model):
         ordering = ('org', 'tag_name')
         unique_together = (('org', 'tag_name'),)
 
+    @classmethod
+    def get_org_tags(cls, org_name):
+        try:
+            org_obj = Organization.objects.get(org=org_name)
+        except Organization.DoesNotExist:
+            return []
+
+        return cls.objects.filter(org=org_obj)
+
 
 class OrganizationTagOrder(models.Model):
     org = models.ForeignKey(Organization)
@@ -511,6 +521,26 @@ class OrganizationTagOrder(models.Model):
     class Meta(object):
         ordering = ('order_num', 'tag_name')
         unique_together = (('org', 'tag_name'),)
+
+
+class TagDescription(models.Model):
+    tag_name = models.CharField(max_length=255, verbose_name='Tag name', unique=True)
+    description = models.TextField()
+
+    def clean(self):
+        super(TagDescription, self).clean()
+
+        self.tag_name = self.tag_name.strip()
+        self.description = self.description.replace('\n', ' ').replace('\r', '')
+
+        if self.tag_name == "":
+            raise ValidationError(_("Value field is required"))
+
+        if not all(ord(char) < 128 for char in self.tag_name):
+            raise ValidationError(_("Value field contains unacceptable characters"))
+
+    class Meta(object):
+        ordering = ['tag_name']
 
 
 class CourseExcludeInsights(models.Model):
