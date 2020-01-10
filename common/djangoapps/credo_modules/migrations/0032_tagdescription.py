@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('credo_modules', '0030_organization_tag_order'),
+        ('credo_modules', '0031_organization_tag_order'),
     ]
 
     operations = [
