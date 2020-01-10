@@ -9,7 +9,7 @@ from openassessment.assessment.api import staff as staff_api
 from submissions.api import get_submissions
 from student.models import anonymous_id_for_user
 from xmodule.modulestore.django import modulestore
-from credo_modules.models import OrganizationTag
+from credo_modules.models import OrganizationTag, TagDescription
 
 
 def _tag_title(tag):
@@ -42,11 +42,13 @@ def get_ora_submission_id(course_id, anonymous_user_id, block_id):
     return None
 
 
-def get_tag_values(data, group_tags=False, tags_to_hide=None):
+def get_tag_values(data, group_tags=False, tags_to_hide=None, tag_descriptions=None):
     res = []
     tags_used = []
     if not tags_to_hide:
         tags_to_hide = []
+    if not tag_descriptions:
+        tag_descriptions = {}
 
     if group_tags:
         for v in data:
@@ -63,7 +65,8 @@ def get_tag_values(data, group_tags=False, tags_to_hide=None):
                                 'num': idx - 1,
                                 'is_last': (idx == (len(tag_split_lst) - 1)),
                                 'id': tag_new_val,
-                                'parent_id': ' - '.join(tag_split_lst[0:idx]) if idx > 1 else None
+                                'parent_id': ' - '.join(tag_split_lst[0:idx]) if idx > 1 else None,
+                                'description': tag_descriptions.get(tag_new_val, '').replace('\n', ' ').replace('\r', '')
                             })
                             tags_used.append(tag_new_val)
             else:
@@ -72,7 +75,8 @@ def get_tag_values(data, group_tags=False, tags_to_hide=None):
                     'num': 0,
                     'is_last': True,
                     'id': v,
-                    'parent_id': None
+                    'parent_id': None,
+                    'description': tag_descriptions.get(v, '').replace('\n', ' ').replace('\r', '')
                 })
         return res
     else:
@@ -85,7 +89,8 @@ def get_tag_values(data, group_tags=False, tags_to_hide=None):
                 'num': 0,
                 'is_last': True,
                 'id': v,
-                'parent_id': None
+                'parent_id': None,
+                'description': tag_descriptions.get(v, '').replace('\n', ' ').replace('\r', '')
             })
         return res
 
@@ -110,6 +115,7 @@ def convert_into_tree(_d, _start=None):
 
 def tags_student_progress(course, student, problem_blocks, courseware_summary, group_tags=False):
     anonymous_user_id = anonymous_id_for_user(student, course.id, save=False)
+    tag_descriptions = {t.tag_name: t.description for t in TagDescription.objects.all()}
 
     items = OrderedDict()
     for chapter in courseware_summary:
@@ -166,7 +172,8 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                     for tag_cat, tag_values in aside.saved_tags.items():
                         if tag_categories == '*' or tag_cat in tag_categories:
                             tmp_tag_values = get_tag_values(tag_values, group_tags=group_tags,
-                                                            tags_to_hide=tags_to_hide)
+                                                            tags_to_hide=tags_to_hide,
+                                                            tag_descriptions=tag_descriptions)
                             for tag in tmp_tag_values:
                                 tag_key = tag['value'].strip()
                                 if tag_key not in tags:
@@ -174,6 +181,7 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                                         'tag': tag_key.strip(),
                                         'tag_title': _tag_title(tag_key),
                                         'tag_title_short': _tag_title_short(tag_key),
+                                        'tag_description': tag['description'],
                                         'problems': [],
                                         'problems_answered': [],
                                         'sections': {},
@@ -237,7 +245,8 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                             for tag_cat, tag_values in tags_dict.items():
                                 if tag_categories == '*' or tag_cat in tag_categories:
                                     tmp_tag_values = get_tag_values(tag_values, group_tags=group_tags,
-                                                                    tags_to_hide=tags_to_hide)
+                                                                    tags_to_hide=tags_to_hide,
+                                                                    tag_descriptions=tag_descriptions)
                                     for tag in tmp_tag_values:
                                         tag_k = tag['value'].strip()
                                         if tag_k not in tags:
@@ -245,6 +254,7 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                                                 'tag': tag_k,
                                                 'tag_title': _tag_title(tag_k),
                                                 'tag_title_short': _tag_title_short(tag_k),
+                                                'tag_description': tag['description'],
                                                 'problems': [],
                                                 'problems_answered': [],
                                                 'sections': {},

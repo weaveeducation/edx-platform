@@ -55,7 +55,8 @@ from django.urls import reverse
             <div class="tags-block-info-data ${'tags-block-clickable' if tag['children'] else ''}"
                  data-percent-correct="${tag['percent_correct']}"
                  data-answers="${tag['answers']}"
-                 data-label="${tag['tag_title']}">
+                 data-label="${tag['tag_title']}"
+                 data-description="${tag['tag_description']}">
                 <div class="tags-block-info-title">
                     <div class="tags-block-info-name">${tag['tag_title_short'] if short_title == 'y' else tag['tag_title']}</div>
                     <div class="tags-block-info-chevron"><i class="fa fa-chevron-right" aria-hidden="true"></i></div>

@@ -1,6 +1,7 @@
-function getTooltipHtml(label, percentCorrect, value, total) {
+function getTooltipHtml(label, description, percentCorrect, value, total) {
     var displayTotal = ((total !== null) && (total !== undefined));
     var html = '<div class="tags-tooltip-block">' +
+            ((description !== '') ? ('<div class="tags-description">' + description + '</div>') : '') +
             '<div class="tags-label">' + label + '</div>' +
             '<table class="tags-table">' +
             '<tr>' +
@@ -170,7 +171,7 @@ function displayAssessmentsChart(chartEl, passValue, data) {
                         var idx = tooltipModel.dataPoints[0].index;
                         var val = data[idx];
                         var tableRoot = tooltipEl.querySelector('.progress-tooltip');
-                        var html = getTooltipHtml(val.title, val.percent_correct, val.correct, val.total);
+                        var html = getTooltipHtml(val.title, '', val.percent_correct, val.correct, val.total);
                         tableRoot.innerHTML = '<div style="background-color: #ffffff; ' +
                             'border: 1px solid #c8c8c8; ' +
                             'max-width: 500px; ' +
@@ -293,12 +294,13 @@ $(document).ready(function() {
     $('.tags-block-info-data').each(function() {
         var label = $(this).data('label'),
             percentCorrect = $(this).data('percent-correct'),
-            answers = $(this).data('answers');
+            answers = $(this).data('answers'),
+            description = $(this).data('description');
         $(this).tooltipsy({
             alignTo: 'cursor',
             offset: [0, 1],
             delay: 200,
-            content: getTooltipHtml(label, percentCorrect, answers, null),
+            content: getTooltipHtml(label, description, percentCorrect, answers, null),
             css: {
                 'padding': '20px',
                 'max-width': '500px',

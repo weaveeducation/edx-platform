@@ -3,7 +3,7 @@ from django.urls import reverse
 from django import forms
 from django.conf import settings
 from .models import RegistrationPropertiesPerMicrosite, EnrollmentPropertiesPerCourse,\
-    Organization, OrganizationType, CourseExcludeInsights, CourseUsage, CustomUserRole
+    Organization, OrganizationType, CourseExcludeInsights, CourseUsage, CustomUserRole, TagDescription
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 
@@ -98,6 +98,10 @@ class CustomUserRoleForm(admin.ModelAdmin):
     list_display = ('id', 'title')
 
 
+class TagDescriptionForm(admin.ModelAdmin):
+    list_display = ('id', 'tag_name', 'description')
+
+
 admin.site.register(RegistrationPropertiesPerMicrosite, RegistrationPropertiesPerMicrositeForm)
 admin.site.register(EnrollmentPropertiesPerCourse, EnrollmentPropertiesPerCourseForm)
 admin.site.register(Organization, OrganizationForm)
@@ -105,4 +109,4 @@ admin.site.register(OrganizationType, OrganizationTypeForm)
 admin.site.register(CourseExcludeInsights, CourseExcludeInsightsAdmin)
 admin.site.register(CourseUsage, CourseUsageForm)
 admin.site.register(CustomUserRole, CustomUserRoleForm)
-
+admin.site.register(TagDescription, TagDescriptionForm)
