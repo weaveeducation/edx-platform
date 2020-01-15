@@ -31,7 +31,7 @@ from django.urls import reverse
         </td>
         <td class="tags-block-top5-title">
             <div class="tags-block-title">Top 5 Skills</div>
-            <div class="tags-block-see-all"><a href="${current_url}?page=skills">See All</a></div>
+            <div class="tags-block-see-all"><a href="${current_url}?page=skills&${current_url_additional_params}">See All</a></div>
             <div class="clear"></div>
         </td>
         % elif icon == 'lowest5':
@@ -40,7 +40,7 @@ from django.urls import reverse
         </td>
         <td class="tags-block-lowest5-title">
             <div class="tags-block-title">Lowest 5 Skills</div>
-            <div class="tags-block-see-all"><a href="${current_url}?page=skills">See All</a></div>
+            <div class="tags-block-see-all"><a href="${current_url}?page=skills&${current_url_additional_params}">See All</a></div>
             <div class="clear"></div>
         </td>
         % endif

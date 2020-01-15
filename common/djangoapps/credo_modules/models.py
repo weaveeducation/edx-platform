@@ -383,6 +383,9 @@ class OrganizationType(models.Model):
 
     exclude_properties = models.TextField(blank=True, verbose_name="Excluded property names in Insights",
                                           help_text="Values should be separated by commas")
+    my_skills_page_lti_access = models.BooleanField(default=False, verbose_name='Display LTI link for My '
+                                                                                'Skills/Progress LMS page '
+                                                                                'in Constructor')
 
     class Meta:
         ordering = ['title']
@@ -456,6 +459,12 @@ class Organization(models.Model):
         else:
             return False
 
+    def get_my_skills_page_lti_access(self):
+        if self.org_type:
+            return self.org_type.my_skills_page_lti_access
+        else:
+            return False
+
     def get_page_level_engagement(self):
         if self.org_type:
             return self.org_type.enable_page_level_engagement
@@ -476,6 +485,7 @@ class Organization(models.Model):
             'insights_reports': self.get_insights_reports(),
             'page_level_engagement': self.get_page_level_engagement(),
             'item_analysis_reports': self.get_item_analysis_reports(),
+            'my_skills_page_lti_access': self.get_my_skills_page_lti_access(),
             'exclude_properties': self.get_exclude_properties(),
         }
 

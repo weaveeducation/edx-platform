@@ -9,6 +9,11 @@ from lti_provider import views
 
 urlpatterns = [
     url(
+        r'^courses/{course_id}/progress$'.format(
+            course_id=settings.COURSE_ID_PATTERN,
+        ),
+        views.lti_progress, name="lti_provider_progress"),
+    url(
         r'^courses/{course_id}/{usage_id}$'.format(
             course_id=settings.COURSE_ID_PATTERN,
             usage_id=settings.USAGE_ID_PATTERN

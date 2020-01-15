@@ -25,6 +25,7 @@ from credo_modules.models import check_and_save_enrollment_attributes, get_enrol
 from edxmako.shortcuts import render_to_string
 from mako.template import Template
 from courseware.courses import update_lms_course_usage
+from courseware.views.views import render_progress_page_frame
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from pylti1p3.deep_link_resource import DeepLinkResource
@@ -142,6 +143,8 @@ def login(request):
             if url_param_key == 'block' or url_param_key == 'block_id':
                 block_id = url_param_val
                 break
+            elif url_param_key == 'course_id':
+                course_id = urllib.unquote(url_param_val)
 
     if course_id:
         course, err_tpl = get_course_by_id(course_id)
@@ -191,11 +194,30 @@ def login(request):
 def launch(request, usage_id=None):
     if not usage_id:
         usage_id = request.GET.get('block_id')
+        course_id = request.GET.get('course_id')
+        page = request.GET.get('page')
+
+        if not usage_id and course_id:
+            if page == 'progress':
+                return _launch(request, course_id=course_id, page=page)
+            else:
+                return _deep_link_launch(request, course_id)
 
     block, err_tpl = get_block_by_id(usage_id)
     if not block:
         return err_tpl
 
+    return _launch(request, block)
+
+
+@csrf_exempt
+@add_p3p_header
+@require_POST
+def progress(request, course_id):
+    return _launch(request, course_id=course_id, page='progress')
+
+
+def _launch(request, block=None, course_id=None, page=None):
     tool_conf = ToolConfDb()
     try:
         message_launch = ExtendedDjangoMessageLaunch(request, tool_conf)
@@ -205,7 +227,9 @@ def launch(request, usage_id=None):
     except LtiException as e:
         return render_lti_error(str(e), 403)
 
-    log.info("LTI 1.3 JWT body: %s for block: %s" % (json.dumps(message_launch_data), usage_id))
+    current_item = str(block.location) if block else str(page + '_page')
+
+    log.info("LTI 1.3 JWT body: %s for block: %s" % (json.dumps(message_launch_data), current_item))
 
     is_iframe = state_params.get('is_iframe') if state_params else True
     context_id = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/context', {}).get('id')
@@ -227,7 +251,7 @@ def launch(request, usage_id=None):
     if lti_tool.use_names_and_role_provisioning_service and message_launch.has_nrps():
         members = message_launch.get_nrps().get_members()
         log.info("LTI 1.3 names and role provisioning service response: %s for block: %s"
-                 % (json.dumps(members), usage_id))
+                 % (json.dumps(members), current_item))
         for member in members:
             if str(member.get('user_id')) == str(external_user_id):
                 member_email = member.get('email')
@@ -243,8 +267,8 @@ def launch(request, usage_id=None):
     us = Lti1p3UserService()
     us.authenticate_lti_user(request, external_user_id, lti_tool, lti_params)
 
-    course_key = block.location.course_key
-    usage_key = block.location
+    course_key = block.location.course_key if block else CourseKey.from_string(course_id)
+    usage_key = block.location if block else None
 
     request_params = message_launch_data.copy()
     request_params.update(message_launch_custom_data)
@@ -266,31 +290,41 @@ def launch(request, usage_id=None):
         if lti_params and 'email' in lti_params:
             update_lti_user_data(request.user, lti_params['email'])
 
-    if message_launch.has_ags():
-        update_graded_assignment(lti_tool, message_launch, block, course_key, usage_key, request.user, external_user_id)
+    if block:
+        if message_launch.has_ags():
+            update_graded_assignment(lti_tool, message_launch, block, course_key, usage_key, request.user,
+                                     external_user_id)
+        else:
+            log.error("LTI1.3 platform doesn't support assignments and grades service: %s" % lti_tool.issuer)
+
+        # Reset attempts based on new context_ID:
+        # https://credoeducation.atlassian.net/browse/DEV-209
+        check_and_reset_lti_user_progress(context_id, enrollment_attributes, request.user, course_key, usage_key,
+                                          lti_version=LTI1p3)
+
+        if not is_iframe:
+            return HttpResponseRedirect(reverse('launch_new_tab', kwargs={
+                'course_id': str(course_key),
+                'usage_id': str(usage_key),
+            }))
+
+        update_lms_course_usage(request, usage_key, course_key)
+        result = render_courseware(request, usage_key)
+        return result
     else:
-        log.error("LTI1.3 platform doesn't support assignments and grades service: %s" % lti_tool.issuer)
-
-    # Reset attempts based on new context_ID:
-    # https://credoeducation.atlassian.net/browse/DEV-209
-    check_and_reset_lti_user_progress(context_id, enrollment_attributes, request.user, course_key, usage_key,
-                                      lti_version=LTI1p3)
-
-    if not is_iframe:
-        return HttpResponseRedirect(reverse('launch_new_tab', kwargs={
-            'course_id': str(course_key),
-            'usage_id': str(usage_key)
-        }))
-
-    update_lms_course_usage(request, usage_key, course_key)
-    result = render_courseware(request, usage_key)
-    return result
+        if not is_iframe:
+            return HttpResponseRedirect(reverse('progress', kwargs={'course_id': course_key}) + '?frame=1')
+        return render_progress_page_frame(request, course_key)
 
 
 @csrf_exempt
 @add_p3p_header
 @require_POST
 def launch_deep_link(request, course_id):
+    return _deep_link_launch(request, course_id)
+
+
+def _deep_link_launch(request, course_id):
     course_key = CourseKey.from_string(course_id)
     with modulestore().bulk_operations(course_key):
         course, err_tpl = get_course_by_id(course_id)

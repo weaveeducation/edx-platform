@@ -174,7 +174,11 @@ username = get_enterprise_learner_generic_name(request) or student.username
                                         percentageString = "{0:.0%}".format(section.percent_graded) if earned > 0 and total > 0 else ""
                                         %>
                                         <h4 class="hd hd-4">
+                                            %if is_frame:
+                                            <a href="javascript: void(0);">
+                                            %else:
                                             <a href="${reverse('courseware_section', kwargs=dict(course_id=text_type(course.id), chapter=chapter['url_name'], section=section.url_name))}">
+                                            %endif
                                                 ${ section.display_name}
                                                 %if total > 0 or earned > 0:
                                                 <span class="sr">

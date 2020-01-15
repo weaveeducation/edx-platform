@@ -31,6 +31,7 @@ from credo_modules.models import check_and_save_enrollment_attributes, get_enrol
 from edxmako.shortcuts import render_to_string
 from mako.template import Template
 from courseware.courses import update_lms_course_usage
+from courseware.views.views import render_progress_page_frame
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 
@@ -58,10 +59,19 @@ OPTIONAL_PARAMETERS = [
     'tool_consumer_instance_guid'
 ]
 
-
 @csrf_exempt
 @add_p3p_header
 def lti_launch(request, course_id, usage_id):
+    return _lti_launch(request, course_id, usage_id)
+
+
+@csrf_exempt
+@add_p3p_header
+def lti_progress(request, course_id):
+    return _lti_launch(request, course_id)
+
+
+def _lti_launch(request, course_id, usage_id=None):
     """
     Endpoint for all requests to embed edX content via the LTI protocol. This
     endpoint will be called by a POST message that contains the parameters for
@@ -149,12 +159,14 @@ def lti_launch(request, course_id, usage_id):
     params['course_key'] = course_key
     params['usage_key'] = usage_key
 
-    try:
-        block = modulestore().get_item(usage_key)
-    except ItemNotFoundError:
-        log_lti_launch(course_id, usage_id, 404, params=request_params)
-        raise Http404()
-    is_time_exam = getattr(block, 'is_proctored_exam', False) or getattr(block, 'is_time_limited', False)
+    is_time_exam = False
+    if usage_key:
+        try:
+            block = modulestore().get_item(usage_key)
+        except ItemNotFoundError:
+            log_lti_launch(course_id, usage_id, 404, params=request_params)
+            raise Http404()
+        is_time_exam = getattr(block, 'is_proctored_exam', False) or getattr(block, 'is_time_limited', False)
 
     if not is_cached:
         cache = caches['default']
@@ -195,28 +207,36 @@ def lti_launch(request, course_id, usage_id):
         if lti_params and 'email' in lti_params:
             update_lti_user_data(request.user, lti_params['email'])
 
-    # Reset attempts based on new context_ID:
-    # https://credoeducation.atlassian.net/browse/DEV-209
-    lis_result_sourcedid = request_params.get('lis_result_sourcedid', None)
-    check_and_reset_lti_user_progress(context_id, enrollment_attributes, request.user, course_key, usage_key,
-                                      lis_result_sourcedid=lis_result_sourcedid)
+    if usage_key:
+        # Reset attempts based on new context_ID:
+        # https://credoeducation.atlassian.net/browse/DEV-209
+        lis_result_sourcedid = request_params.get('lis_result_sourcedid', None)
+        check_and_reset_lti_user_progress(context_id, enrollment_attributes, request.user, course_key, usage_key,
+                                          lis_result_sourcedid=lis_result_sourcedid)
 
-    # Store any parameters required by the outcome service in order to report
-    # scores back later. We know that the consumer exists, since the record was
-    # used earlier to verify the oauth signature.
-    assignment, outcomes = store_outcome_parameters(params, request.user, lti_consumer)
+        # Store any parameters required by the outcome service in order to report
+        # scores back later. We know that the consumer exists, since the record was
+        # used earlier to verify the oauth signature.
+        assignment, outcomes = store_outcome_parameters(params, request.user, lti_consumer)
 
-    if not request_params.get('iframe'):
-        log_lti_launch(course_id, usage_id, 301, request.user.id, assignment=assignment, params=request_params)
-        return HttpResponseRedirect(reverse('launch_new_tab', kwargs={
-            'course_id': course_id,
-            'usage_id': usage_id
-        }))
+        if not request_params.get('iframe'):
+            log_lti_launch(course_id, usage_id, 301, request.user.id, assignment=assignment, params=request_params)
+            return HttpResponseRedirect(reverse('launch_new_tab', kwargs={
+                'course_id': course_id,
+                'usage_id': usage_id
+            }))
 
-    update_lms_course_usage(request, usage_key, course_key)
-    result = render_courseware(request, params['usage_key'])
-    log_lti_launch(course_id, usage_id, 200, request.user.id, assignment=assignment, params=request_params)
-    return result
+        update_lms_course_usage(request, usage_key, course_key)
+        result = render_courseware(request, params['usage_key'])
+        log_lti_launch(course_id, usage_id, 200, request.user.id, assignment=assignment, params=request_params)
+        return result
+    else:
+        if not request_params.get('iframe'):
+            log_lti_launch(course_id, usage_id, 301, request.user.id, params=request_params)
+            return HttpResponseRedirect(reverse('progress', kwargs={'course_id': course_key}) + '?frame=1')
+
+        log_lti_launch(course_id, usage_id, 200, request.user.id, params=request_params)
+        return render_progress_page_frame(request, course_key)
 
 
 def test_launch(request):
@@ -355,15 +375,17 @@ def render_courseware(request, usage_key):
     return render_xblock(request, unicode(usage_key), check_if_enrolled=False)
 
 
-def parse_course_and_usage_keys(course_id, usage_id):
+def parse_course_and_usage_keys(course_id, usage_id=None):
     """
     Convert course and usage ID strings into key objects. Return a tuple of
     (course_key, usage_key), or throw an InvalidKeyError if the translation
     fails.
     """
     course_key = CourseKey.from_string(course_id)
-    usage_id = unquote_slashes(usage_id)
-    usage_key = UsageKey.from_string(usage_id).map_into_course(course_key)
+    usage_key = None
+    if usage_id:
+        usage_id = unquote_slashes(usage_id)
+        usage_key = UsageKey.from_string(usage_id).map_into_course(course_key)
     return course_key, usage_key
 
 

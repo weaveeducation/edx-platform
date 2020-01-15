@@ -9,7 +9,7 @@ from django.urls import reverse
 <div class="progress-assessments-header">
     <div class="progress-assessments-title">Overall Grades by Assessment</div>
     % if course_id:
-    <div class="progress-assessments-see-all"><a href="${current_url}?page=grades">See Grade Breakdown</a></div>
+    <div class="progress-assessments-see-all"><a href="${current_url}?page=grades&${current_url_additional_params}">See Grade Breakdown</a></div>
     % endif
     <div class="clear"></div>
 </div>
