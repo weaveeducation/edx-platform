@@ -964,7 +964,11 @@ def progress(request, course_id, student_id=None):
         return _progress(request, course_key, student_id)
 
 
-def _progress(request, course_key, student_id):
+def render_progress_page_frame(request, course_key):
+    return _progress(request, course_key, None, display_in_frame=True)
+
+
+def _progress(request, course_key, student_id, display_in_frame=False):
     """
     Unwrapped version of "progress".
 
@@ -979,6 +983,16 @@ def _progress(request, course_key, student_id):
         # Check for ValueError if 'student_id' cannot be converted to integer.
         except ValueError:
             raise Http404
+
+    is_frame = request.GET.get('frame')
+    if is_frame:
+        try:
+            is_frame = int(is_frame)
+            is_frame = is_frame == 1
+        except ValueError:
+            is_frame = None
+    if not is_frame:
+        is_frame = display_in_frame
 
     course = get_course_with_access(request.user, 'load', course_key)
 
@@ -1022,7 +1036,7 @@ def _progress(request, course_key, student_id):
         pass
 
     if enable_extended_progress_page:
-        return _extended_progress_page(request, course, student, student_id)
+        return _extended_progress_page(request, course, student, student_id, is_frame=is_frame)
 
     # NOTE: To make sure impersonation by instructor works, use
     # student instead of request.user in the rest of the function.
@@ -1047,6 +1061,7 @@ def _progress(request, course_key, student_id):
         'student': student,
         'credit_course_requirements': _credit_course_requirements(course_key, student),
         'course_expiration_fragment': course_expiration_fragment,
+        'is_frame': is_frame
     }
     if certs_api.get_active_web_certificate(course):
         context['certificate_data'] = _get_cert_data(student, course, enrollment_mode, course_grade)
@@ -1057,17 +1072,28 @@ def _progress(request, course_key, student_id):
         )
     )
 
-    with outer_atomic():
+    if is_frame:
+        context.update({
+            'allow_iframing': True,
+            'disable_accordion': True,
+            'disable_header': True,
+            'disable_footer': True,
+            'disable_window_wrap': True,
+            'disable_tabs': True
+        })
         response = render_to_response('courseware/progress.html', context)
+    else:
+        with outer_atomic():
+            response = render_to_response('courseware/progress.html', context)
 
     return response
 
 
-def _extended_progress_page(request, course, student, student_id=None):
+def _extended_progress_page(request, course, student, student_id=None, is_frame=False):
     page = request.GET.get('page')
 
     with modulestore().bulk_operations(course.id):
-        if page is None:
+        if page is None or page == 'progress':
             page_context = progress_main_page(request, course, student)
             tpl_name = 'extended_progress.html'
         elif page == 'skills':
@@ -1092,9 +1118,19 @@ def _extended_progress_page(request, course, student, student_id=None):
         'student': student,
         'student_name': student_name,
         'current_url': reverse('progress', kwargs={'course_id': course.id}) if student_id is None else reverse(
-            'student_progress', kwargs={'course_id': course.id, 'student_id': student_id})
+            'student_progress', kwargs={'course_id': course.id, 'student_id': student_id}),
+        'current_url_additional_params': 'frame=1' if is_frame else ''
     }
     context.update(page_context)
+    if is_frame:
+        context.update({
+            'allow_iframing': True,
+            'disable_accordion': True,
+            'disable_header': True,
+            'disable_footer': True,
+            'disable_window_wrap': True,
+            'disable_tabs': True
+        })
     context.update(
         get_experiment_user_metadata_context(
             course,

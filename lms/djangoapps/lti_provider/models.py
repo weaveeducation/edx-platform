@@ -287,7 +287,8 @@ def log_lti_launch(course_id, usage_id, http_response, user_id=None, assignment=
         'assignment_id': int(assignment.id) if assignment else None,
         'assignment_version_number': int(assignment.version_number) if assignment else None,
         'assignment_usage_key': str(assignment.usage_key) if assignment else None,
-        'http_response': int(http_response)
+        'http_response': int(http_response),
+        'page': 'block_page' if usage_id else 'progress_page',
     }
     if params:
         for k, v in params.items():
