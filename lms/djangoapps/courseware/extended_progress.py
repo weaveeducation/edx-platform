@@ -165,7 +165,7 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
 
             for aside in problem_block.runtime.get_asides(problem_block):
                 if ((aside.scope_ids.block_type == 'tagging_aside'
-                     and problem_block.category in ['problem', 'drag-and-drop-v2']) or
+                     and problem_block.category in ['problem', 'image-explorer', 'drag-and-drop-v2']) or
                     (aside.scope_ids.block_type == 'tagging_ora_aside'
                      and problem_block.category == 'openassessment'
                      and len(problem_block.rubric_criteria) == 0)):

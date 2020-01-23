@@ -2064,11 +2064,10 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
                 request, text_type(course_key), text_type(usage_key), disable_staff_debug_info=True, course=course
             )
             children_dict = get_block_children(seq_item, seq_item.display_name)
-
             user_state_client = DjangoXBlockUserStateClient(request.user)
             user_state_dict = {}
             problem_locations = [item['data'].location for k, item in children_dict.items()
-                                 if item['category'] == 'problem']
+                                 if item['category'] == 'problem' or item['category'] == 'image-explorer']
 
             if problem_locations:
                 user_state_dict = user_state_client.get_all_blocks(request.user, course_key, problem_locations)
@@ -2109,7 +2108,7 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
                                                                                      key,
                                                                                      submission_uuid=submission_uuid)
 
-                                if answer and item['category'] in ('openassessment', 'drag-and-drop-v2'):
+                                if answer and item['category'] in ('openassessment', 'drag-and-drop-v2', 'image-explorer'):
                                     item['correctness'] = tmp_correctness
 
                                 unix_timestamp = int(time.mktime(score.last_answer_timestamp.timetuple())) \
