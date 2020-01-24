@@ -45,6 +45,7 @@ from contentstore.qti_converter import convert_to_olx
 from course_action_state.models import CourseRerunState
 from models.settings.course_metadata import CourseMetadata
 from openedx.core.djangoapps.embargo.models import CountryAccessRule, RestrictedCourse
+from openedx.core.djangoapps.content.block_structure.tasks import update_course_structure
 from openedx.core.lib.extract_tar import safetar_extractall
 from student.auth import has_course_author_access
 from xmodule.contentstore.django import contentstore
@@ -486,6 +487,11 @@ def rerun_course(source_course_key_string, destination_course_key_string, user_i
             for country_access_rule in country_access_rules:
                 clone_instance(country_access_rule, {'restricted_course': new_restricted_course})
 
+        update_course_structure.apply_async(
+            kwargs=dict(course_id=unicode(destination_course_key), published_on=None),
+            countdown=settings.BLOCK_STRUCTURES_SETTINGS['COURSE_PUBLISH_TASK_DELAY'],
+        )
+
         return "succeeded"
 
     except DuplicateCourseError:
@@ -886,6 +892,11 @@ def import_olx(self, user_id, course_key_string, archive_path, archive_name, lan
         LOGGER.debug(u'new course at %s', new_location)
 
         LOGGER.info(u'Course import %s: Course import successful', courselike_key)
+
+        update_course_structure.apply_async(
+            kwargs=dict(course_id=unicode(course_key_string), published_on=None),
+            countdown=settings.BLOCK_STRUCTURES_SETTINGS['COURSE_PUBLISH_TASK_DELAY'],
+        )
     except Exception as exception:   # pylint: disable=broad-except
         LOGGER.exception(u'error importing course', exc_info=True)
         self.status.fail(text_type(exception))
