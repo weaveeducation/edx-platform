@@ -102,7 +102,7 @@ class TurnitinApi(object):
             'X-Turnitin-Integration-Version': self._integration_version
         }
 
-        r = requests.put(url, data=file_content, headers=headers)
+        r = requests.put(url, data=file_content.encode('utf-8'), headers=headers)
         if r.status_code == 202:
             return r.status_code, True
         return r.status_code, False
