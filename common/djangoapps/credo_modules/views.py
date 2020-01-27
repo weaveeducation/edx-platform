@@ -286,6 +286,8 @@ class StudentProfileView(View):
             fields_to_replace = []
 
             for field_alias, field in form_fields.iteritems():
+                if field.info:
+                    continue
                 passed_field = data.get(field_alias, '')
                 if not passed_field and field.required:
                     errors[field_alias] = ''.join([field.title, " field is required"])
