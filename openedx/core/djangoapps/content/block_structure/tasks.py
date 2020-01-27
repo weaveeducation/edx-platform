@@ -148,7 +148,7 @@ def _call_and_retry_if_needed(self, api_method, **kwargs):
 
 def _update_course_structure(course_id, published_on):
     allowed_categories = ['chapter', 'sequential', 'vertical', 'library_content', 'problem',
-                          'openassessment', 'drag-and-drop-v2', 'html', 'video']
+                          'openassessment', 'drag-and-drop-v2', 'image-explorer', 'html', 'video']
     course_key = CourseKey.from_string(course_id)
     t1 = time.time()
 
@@ -238,7 +238,7 @@ def _update_course_structure(course_id, published_on):
                         block_item.save()
                         items_updated += 1
 
-                if item.category in ('problem', 'drag-and-drop-v2', 'openassessment'):
+                if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer', 'openassessment'):
                     parent = _get_parent_sequential(item, structure_dict)
                     if parent:
                         parent_id = str(parent.location)
@@ -259,7 +259,7 @@ def _update_course_structure(course_id, published_on):
                                 b2s_item.save()
                                 b2s_updated += 1
 
-                if item.category in ('problem', 'drag-and-drop-v2', 'html', 'video')\
+                if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer', 'html', 'video')\
                     or (item.category == 'openassessment' and len(item.rubric_criteria) == 0):
                     aside = item.runtime.get_aside_of_type(item, 'tagging_aside')
                     if isinstance(aside.saved_tags, dict):
