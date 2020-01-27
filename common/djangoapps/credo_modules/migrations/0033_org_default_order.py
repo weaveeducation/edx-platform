@@ -8,7 +8,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('credo_modules', '0028_organizationtype_exclude_properties'),
+        ('credo_modules', '0032_organizationtype_my_skills_page_lti_access'),
     ]
 
     operations = [

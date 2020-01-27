@@ -3,7 +3,7 @@ from django.utils.html import strip_tags
 from submissions import api as sub_data_api
 
 
-CREDO_GRADED_ITEM_CATEGORIES = ['problem', 'drag-and-drop-v2', 'openassessment']
+CREDO_GRADED_ITEM_CATEGORIES = ['problem', 'drag-and-drop-v2', 'openassessment', 'image-explorer']
 
 
 def _get_item_correctness(item):
@@ -77,6 +77,11 @@ def get_problem_detailed_info(item, parent_name, add_correctness=True):
         elif item.category == 'drag-and-drop-v2':
             res['question_text'] = item.question_text
             res['question_text_safe'] = item.question_text
+
+        elif item.category == 'image-explorer':
+            description = item.student_view_data()['description']
+            res['question_text'] = description
+            res['question_text_safe'] = description
     return res
 
 
@@ -129,6 +134,11 @@ def get_answer_and_correctness(user_state_dict, score, category, block, key,
             answer = _get_dnd_answer_values(answer_state.state['item_state'], block.data)
         else:
             answer = _get_dnd_answer_values(block.item_state, block.data)
+    elif category == 'image-explorer':
+        answer_state = user_state_dict.get(str(key))
+        if answer_state:
+            opened_hotspots_cnt = len(answer_state.state.get('opened_hotspots', []))
+            answer['opened_hotspots'] = 'Opened hotspots: ' + str(opened_hotspots_cnt)
 
     if answer:
         if score.earned == 0:
