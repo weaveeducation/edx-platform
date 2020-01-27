@@ -2290,6 +2290,7 @@ INSTALLED_APPS = [
     'csrf.apps.CsrfAppConfig',  # Enables frontend apps to retrieve CSRF tokens.
 
     'credo_modules',
+    'turnitin_integration',
 ]
 
 if os.environ.get('PYCHARM_DEBUG', '0') != '1':
