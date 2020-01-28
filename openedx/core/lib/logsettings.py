@@ -51,7 +51,7 @@ class DBHandler(Handler):
             block_id = data.get('context', {}).get('module', {}).get('usage_key', None)
 
         if event_type == 'edx.grades.problem.submitted':
-            if '@image-explorer+block@' in block_id:
+            if block_id and '@image-explorer+block@' in block_id:
                 event_type = "xblock.image-explorer.hotspot.opened"
                 data['name'] = event_type
                 data['event_type'] = event_type
