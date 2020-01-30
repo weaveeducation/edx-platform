@@ -56,7 +56,7 @@ def update_course_in_cache_v2(self, **kwargs):
 def update_course_structure(self, **kwargs):
     course_id = kwargs.get('course_id')
     published_on = kwargs.get('published_on')
-    if course_id:
+    if course_id and course_id.startswith('course-v1'):
         lock = ApiCourseStructureLock.create(course_id)
         if not lock:
             raise self.retry(kwargs=kwargs, countdown=120)  # retry in 2 minutes
