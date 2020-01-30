@@ -7,7 +7,7 @@ LOGGING['handlers']['local'] = LOGGING['handlers']['tracking'] = {
     'class': 'logging.NullHandler',
 }
 
-LOGGING['loggers']['tracking']['handlers'] = ['console']
+LOGGING['loggers']['tracking']['handlers'] = ['console', 'log_db']
 
 LMS_BASE = 'localhost:18000'
 CMS_BASE = 'localhost:18010'

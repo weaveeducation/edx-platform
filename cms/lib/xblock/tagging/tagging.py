@@ -241,7 +241,8 @@ class StructuredTagsAside(XBlockAside):
         """
         This method return data that should be associated with the "check_problem" event
         """
-        if self.saved_tags and event_type in ("problem_check", "edx.drag_and_drop_v2.item.dropped"):
+        if self.saved_tags and event_type in ("problem_check", "edx.drag_and_drop_v2.item.dropped",
+                                              "xblock.image-explorer.hotspot.opened"):
             return {'saved_tags': self.saved_tags}
         else:
             return None

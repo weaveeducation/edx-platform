@@ -36,7 +36,8 @@ class StudentPropertiesAside(XBlockAside):
                 user = anonymous_user.user
             except ObjectDoesNotExist:
                 pass
-        elif event_type in ("problem_check", "edx.drag_and_drop_v2.item.dropped") or \
+        elif event_type in ("problem_check", "edx.drag_and_drop_v2.item.dropped",
+                            "xblock.image-explorer.hotspot.opened") or \
                 (event_type == 'openassessmentblock.create_submission' and 'submission_uuid' in event):
             usage_id = str(self.scope_ids.usage_id.usage_key)
             try:
