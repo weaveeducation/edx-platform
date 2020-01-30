@@ -25,7 +25,7 @@ class DBHandler(Handler):
         'openassessmentblock.self_assess',
         'openassessmentblock.peer_assess',
         'sequential_block.viewed',
-        'edx.grades.problem.submitted'
+        'xblock.image-explorer.hotspot.opened'
     ]
 
     def emit(self, record):
@@ -50,14 +50,9 @@ class DBHandler(Handler):
         else:
             block_id = data.get('context', {}).get('module', {}).get('usage_key', None)
 
-        if event_type == 'edx.grades.problem.submitted':
-            if block_id and '@image-explorer+block@' in block_id:
-                event_type = "xblock.image-explorer.hotspot.opened"
-                data['name'] = event_type
-                data['event_type'] = event_type
-                data['event']['event_transaction_type'] = event_type
-                msg = json.dumps(data)
-            else:
+        if event_type == 'xblock.image-explorer.hotspot.opened':
+            new_grade = data.get('event', {}).get('new_grade')
+            if not new_grade:
                 return
 
         if user_id and course_id and block_id:
