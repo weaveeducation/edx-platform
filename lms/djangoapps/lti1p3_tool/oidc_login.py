@@ -1,8 +1,8 @@
-from pylti1p3.contrib.django.cookie import DjangoCookieService
 from pylti1p3.contrib.django.redirect import DjangoRedirect
 from pylti1p3.contrib.django.session import DjangoSessionService
 from pylti1p3.oidc_login import OIDCLogin
 from pylti1p3.request import Request
+from .cookie_service import ExtendedDjangoCookieService
 
 
 class DjangoRequest(Request):
@@ -31,7 +31,7 @@ class ExtendedDjangoOIDCLogin(OIDCLogin):
 
     def __init__(self, request, tool_config, additional_params, session_service=None, cookie_service=None):
         django_request = DjangoRequest(request, additional_params)
-        cookie_service = cookie_service if cookie_service else DjangoCookieService(django_request)
+        cookie_service = cookie_service if cookie_service else ExtendedDjangoCookieService(django_request)
         session_service = session_service if session_service else DjangoSessionService(request)
         super(ExtendedDjangoOIDCLogin, self).__init__(django_request, tool_config, session_service, cookie_service)
 
