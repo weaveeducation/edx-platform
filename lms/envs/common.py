@@ -917,7 +917,6 @@ COURSES_WITH_UNSAFE_CODE = []
 DEBUG = False
 USE_TZ = True
 SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
 SESSION_SAVE_EVERY_REQUEST = False
 SESSION_SERIALIZER = 'django.contrib.sessions.serializers.PickleSerializer'
 
@@ -1321,7 +1320,9 @@ MIDDLEWARE_CLASSES = [
 ]
 
 SESSION_COOKIE_SAMESITE = 'None'
-SESSION_COOKIE_SAMESITE_FORCE_ALL = True
+SESSION_COOKIE_SAMESITE_KEYS = {'edx-jwt-refresh-cookie', 'edx-jwt-cookie-signature', 'edx-jwt-cookie-header-payload',
+                                'credo-course-usage-id', 'edx-user-info', 'edxloggedin', 'experiments_is_enterprise',
+                                'openedx-language-preference'}
 
 # Clickjacking protection can be disbaled by setting this to 'ALLOW'
 X_FRAME_OPTIONS = 'ALLOW'
