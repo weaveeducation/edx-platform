@@ -917,6 +917,7 @@ COURSES_WITH_UNSAFE_CODE = []
 DEBUG = False
 USE_TZ = True
 SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
 SESSION_SAVE_EVERY_REQUEST = False
 SESSION_SERIALIZER = 'django.contrib.sessions.serializers.PickleSerializer'
 

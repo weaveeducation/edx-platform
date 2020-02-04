@@ -4,7 +4,15 @@
 <%block name="js_extra">
   <script type="text/javascript">
     $(document).ready(function() {
-        $.cookie('test_cookie', '1', {path: '/'});
+        var newCookie = "test_cookie=1; path=/";
+        var sameSite = "${same_site if same_site else ''}";
+        if (sameSite !== '') {
+            newCookie = newCookie + '; SameSite=' + sameSite;
+        }
+        if (window.location.protocol === 'https:') {
+            newCookie = newCookie + '; secure';
+        }
+        document.cookie = newCookie;
         $.ajax({
             url: '/cookie/check',
             type: 'GET',
