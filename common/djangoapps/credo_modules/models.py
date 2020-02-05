@@ -9,6 +9,7 @@ from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.db import models, IntegrityError, OperationalError, transaction
 from django.db.models import F
+from django.db.models.signals import post_save
 from opaque_keys.edx.django.models import CourseKeyField
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.exceptions import ValidationError
@@ -19,6 +20,7 @@ from model_utils.models import TimeStampedModel
 
 from student.models import CourseEnrollment, CourseAccessRole, ENROLL_STATUS_CHANGE, EnrollStatusChange, UserProfile
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
+from edx_proctoring.models import ProctoredExamStudentAttempt
 
 
 log = logging.getLogger("course_usage")
@@ -709,6 +711,16 @@ class DBLogEntry(models.Model):
         db_table = "credo_tracking_logs"
 
 
+class SequentialBlockAnswered(models.Model):
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    sequential_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    first_answered_block_id = models.CharField(max_length=255, db_index=True, null=True, blank=True)
+    user_id = models.IntegerField(db_index=True)
+
+    class Meta(object):
+        unique_together = (('sequential_id', 'user_id'),)
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values
@@ -880,3 +892,23 @@ def update_unique_user_id_cookie(request):
         cookie_arr = course_usage_cookie_id.split('_')
         if len(cookie_arr) < 2 or cookie_arr[1] != user_id:
             generate_new_user_id_cookie(request, user_id)
+
+
+@receiver(post_save, sender=ProctoredExamStudentAttempt)
+def start_new_attempt_after_exam_started(sender, instance, created, **kwargs):
+    if created:
+        from courseware.tasks import track_sequential_viewed_task
+
+        proctored_exam = instance.proctored_exam
+        course_key_str = str(proctored_exam.course_id)
+        usage_key_str = str(proctored_exam.content_id)
+
+        seq_user_block = SequentialBlockAnswered(
+            course_id=course_key_str,
+            sequential_id=usage_key_str,
+            first_answered_block_id=None,
+            user_id=instance.user.id
+        )
+        seq_user_block.save()
+
+        transaction.on_commit(lambda: track_sequential_viewed_task.delay(course_key_str, usage_key_str, instance.user.id))

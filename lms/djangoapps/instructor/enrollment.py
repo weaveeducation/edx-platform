@@ -53,6 +53,7 @@ from track.event_transaction_utils import (
 )
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
+from credo_modules.models import SequentialBlockAnswered
 
 log = logging.getLogger(__name__)
 
@@ -298,6 +299,8 @@ def reset_student_attempts(course_id, student, module_state_key, requesting_user
         if module_to_reset.module_type == 'sequential':
             StudentModule.log_reset_progress(student.id, str(course_id), initiator='instructor_dashboard_exam_tab',
                                              block_id=str(module_state_key))
+            SequentialBlockAnswered.objects.filter(
+                course_id=str(course_id), sequential_id=str(module_state_key), user_id=student.id).delete()
         module_to_reset.delete()
         create_new_event_transaction_id()
         set_event_transaction_type(STATE_DELETED_EVENT_TYPE)
