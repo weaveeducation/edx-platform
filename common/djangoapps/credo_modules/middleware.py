@@ -165,15 +165,15 @@ class CookiesSameSite(MiddlewareMixin):
         )
         if samesite_force_all:
             for cookie in response.cookies:
-                response.cookies[cookie]['samesite'] = samesite_flag.lower()
+                response.cookies[cookie]['samesite'] = samesite_flag.lower().title()
         else:
             for cookie in protected_cookies:
                 if cookie in response.cookies:
-                    response.cookies[cookie]['samesite'] = samesite_flag.lower()
+                    response.cookies[cookie]['samesite'] = samesite_flag.lower().title()
 
             # Update LTI1.3 auth cookie
             for cookie in response.cookies:
                 if cookie.startswith('lti1p3'):
-                    response.cookies[cookie]['samesite'] = samesite_flag.lower()
+                    response.cookies[cookie]['samesite'] = samesite_flag.lower().title()
 
         return response

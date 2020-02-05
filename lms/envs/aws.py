@@ -1159,4 +1159,6 @@ if raven_dsn:
         )]
     )
 
+SESSION_COOKIE_SAMESITE = ENV_TOKENS.get('SESSION_COOKIE_SAMESITE', SESSION_COOKIE_SAMESITE)
+
 logging.warn('DEPRECATION WARNING: aws.py has been deprecated, you should use production.py instead.')
