@@ -127,7 +127,7 @@ class CourseUsageMiddleware(object):
         return response
 
 
-class CookiesSameSite(MiddlewareMixin):
+class CookiesSameSiteMiddleware(MiddlewareMixin):
     """
     Support for SameSite attribute in Cookies is implemented in Django 2.1 and won't
     be backported to Django 1.11.x.
