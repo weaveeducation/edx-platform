@@ -82,4 +82,5 @@ def get_saved_referer(request):
 
 
 def save_referer(response, referer_url):
-    response.set_cookie('CREDO_HTTP_REFERER', referer_url)
+    response.set_cookie('CREDO_HTTP_REFERER', referer_url, path='/',
+                        secure=getattr(settings, 'SESSION_COOKIE_SECURE', False))
