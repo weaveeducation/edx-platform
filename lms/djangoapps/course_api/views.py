@@ -10,6 +10,7 @@ from rest_framework.throttling import UserRateThrottle
 
 from edx_rest_framework_extensions.paginators import NamespacedPageNumberPagination
 from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin, view_auth_classes
+from openedx.core.djangoapps.content.block_structure.tasks import _update_course_structure
 
 from . import USE_RATE_LIMIT_2_FOR_COURSE_LIST_API, USE_RATE_LIMIT_10_FOR_COURSE_LIST_API
 from .api import course_detail, list_courses
@@ -359,3 +360,20 @@ class OrgsView(APIView):
         else:
             org_types = OrganizationType.objects.all().order_by('title')
             return Response({'success': True, 'org_types': [{'id': org.id, 'title': org.title} for org in org_types]})
+
+
+@can_disable_rate_limit
+class UpdateCourseStructureView(APIView):
+    authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
+    permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
+
+    def post(self, request):
+        if not request.user.is_staff and not request.user.is_superuser:
+            return Response({'success': False, 'error': "You have no permissions to update course structure"})
+
+        course_id = request.POST.get('course_id')
+        if not course_id:
+            return Response({'success': False, 'error': "course_id is not set"})
+
+        _update_course_structure(course_id, None)
+        return Response({'success': True})
