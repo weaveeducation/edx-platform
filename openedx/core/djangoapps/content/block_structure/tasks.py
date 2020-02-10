@@ -156,9 +156,12 @@ def _update_course_structure(course_id, published_on):
         with modulestore().bulk_operations(course_key):
             try:
                 course = modulestore().get_course(course_key, depth=0)
-                if published_on is not None and unicode(course.published_on) != published_on:
+                if published_on:
+                    published_on = published_on.split('.')[0]
+                current_published_on = unicode(course.published_on).split('.')[0]
+                if published_on is not None and current_published_on != published_on:
                     log.info("Skip outdated task for course %s. Course.published_on %s != passed published_on %s"
-                             % (str(course_id), unicode(course.published_on), published_on))
+                             % (str(course_id), current_published_on, published_on))
                     return
                 data = modulestore().get_items(course_key)
             except ItemNotFoundError:
@@ -212,7 +215,7 @@ def _update_course_structure(course_id, published_on):
 
     with transaction.atomic():
         for item in data:
-            if item.category in allowed_categories:
+            if item.category in allowed_categories and item.parent:
                 block_id = str(item.location)
                 if block_id not in existing_structure_items_dict:
                     graded = 1 if item.graded else 0

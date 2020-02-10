@@ -59,7 +59,7 @@ class StudentPropertiesAside(XBlockAside):
                 parent_id = self._get_parent_sequential(self.scope_ids.usage_id.usage_key)
 
             new_attempt = False
-            release_date = datetime.datetime(2020, 2, 3, 14, 59, 12, 0, pytz.UTC)  # TODO update release date
+            release_date = datetime.datetime(2020, 2, 10, 3, 40, 12, 0, pytz.UTC)
 
             try:
                 SequentialBlockAnswered.objects.get(sequential_id=parent_id, user_id=user.id)
@@ -69,7 +69,7 @@ class StudentPropertiesAside(XBlockAside):
                         course_id=self.runtime.course_id,
                         module_state_key=UsageKey.from_string(parent_id),
                         student=user)
-                    if not release_date or st_module.created > release_date:
+                    if st_module.created > release_date:
                         new_attempt = True
                 except StudentModule.DoesNotExist:
                     pass
