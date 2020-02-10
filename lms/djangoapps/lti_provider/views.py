@@ -183,6 +183,7 @@ def _lti_launch(request, course_id, usage_id=None):
             'hash': params_hash,
             'additional_url_params': '',
             'time_exam': 1 if is_time_exam else 0,
+            'same_site': getattr(settings, 'SESSION_COOKIE_SAMESITE')
         }))
         log_lti_launch(course_id, usage_id, 200, new_tab_check=True, params=request_params)
         return HttpResponse(template.render())

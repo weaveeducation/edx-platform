@@ -1213,6 +1213,7 @@ CREDIT_NOTIFICATION_CACHE_TIMEOUT = 5 * 60 * 60
 ################################# Middleware ###################################
 
 MIDDLEWARE_CLASSES = [
+    'credo_modules.middleware.CookiesSameSiteMiddleware',
     'openedx.core.lib.x_forwarded_for.middleware.XForwardedForMiddleware',
 
     'crum.CurrentRequestUserMiddleware',
@@ -1317,6 +1318,11 @@ MIDDLEWARE_CLASSES = [
     # This must be last
     'openedx.core.djangoapps.site_configuration.middleware.SessionCookieDomainOverrideMiddleware',
 ]
+
+SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SAMESITE_KEYS = {'edx-jwt-refresh-cookie', 'edx-jwt-cookie-signature', 'edx-jwt-cookie-header-payload',
+                                'credo-course-usage-id', 'edx-user-info', 'edxloggedin', 'experiments_is_enterprise',
+                                'openedx-language-preference'}
 
 # Clickjacking protection can be disbaled by setting this to 'ALLOW'
 X_FRAME_OPTIONS = 'ALLOW'

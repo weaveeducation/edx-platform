@@ -437,7 +437,7 @@ NOTIFICATION_EMAIL_EDX_LOGO = ENV_TOKENS.get('NOTIFICATION_EMAIL_EDX_LOGO', NOTI
 # unencrypted channels. It is set to False here for backward compatibility,
 # but it is highly recommended that this is True for enviroments accessed
 # by end users.
-CSRF_COOKIE_SECURE = ENV_TOKENS.get('CSRF_COOKIE_SECURE', False)
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
 # Whitelist of domains to which the login/logout pages will redirect.
 LOGIN_REDIRECT_WHITELIST = ENV_TOKENS.get('LOGIN_REDIRECT_WHITELIST', LOGIN_REDIRECT_WHITELIST)
@@ -1158,5 +1158,7 @@ if raven_dsn:
             event_level=logging.ERROR  # Send errors as events
         )]
     )
+
+SESSION_COOKIE_SAMESITE = ENV_TOKENS.get('SESSION_COOKIE_SAMESITE', SESSION_COOKIE_SAMESITE)
 
 logging.warn('DEPRECATION WARNING: aws.py has been deprecated, you should use production.py instead.')
