@@ -21,6 +21,7 @@ from student.models import get_user_by_username_or_email
 from track.event_transaction_utils import create_new_event_transaction_id, set_event_transaction_type
 from track.views import task_track
 from util.db import outer_atomic
+from credo_modules.models import SequentialBlockAnswered
 
 from xblock.runtime import KvsFieldData
 from xblock.scorable import Score
@@ -492,14 +493,10 @@ def create_reset_user(user):
     return new_user
 
 
-def update_reset_progress(user, course_key, block=None, new_user=None, initiator=None):
-    if new_user:
-        CourseEnrollment.enroll(new_user, course_key)
+def update_reset_progress(user, course_key, block=None, initiator=None):
     if not block:
-        if new_user:
-            StudentModule.objects.filter(course_id=course_key, student=user).update(student=new_user)
-        else:
-            StudentModule.objects.filter(course_id=course_key, student=user).delete()
+        StudentModule.objects.filter(course_id=course_key, student=user).delete()
+        SequentialBlockAnswered.objects.filter(course_id=str(course_key), user_id=user.id).delete()
 
         if completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
             BlockCompletion.objects.clear_completion(user, course_key)
@@ -509,11 +506,9 @@ def update_reset_progress(user, course_key, block=None, new_user=None, initiator
         for k, v in children_dict.items():
             items.append(UsageKey.from_string(k))
 
-        if new_user:
-            StudentModule.objects.filter(course_id=course_key, module_state_key__in=items, student=user)\
-                .update(student=new_user)
-        else:
-            StudentModule.objects.filter(course_id=course_key, module_state_key__in=items, student=user).delete()
+        StudentModule.objects.filter(course_id=course_key, module_state_key__in=items, student=user).delete()
+        SequentialBlockAnswered.objects.filter(
+            course_id=str(course_key), sequential_id=str(block.location), user_id=user.id).delete()
 
         if completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
             BlockCompletion.objects.filter(user=user, course_key=course_key, block_key__in=items).delete()

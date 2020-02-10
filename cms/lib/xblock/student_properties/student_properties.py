@@ -2,14 +2,17 @@
 """
 XBlockAside to add student properties to the problem_check event
 """
+import datetime
+import pytz
 
 from submissions import api as sub_api
-from credo_modules.models import get_student_properties_event_data
+from credo_modules.models import SequentialBlockAnswered, get_student_properties_event_data
 from django.core.exceptions import ObjectDoesNotExist
 from student.models import User, AnonymousUserId
 from xblock.core import XBlockAside
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
 from xmodule.modulestore.django import modulestore
+from opaque_keys.edx.keys import UsageKey
 
 
 class StudentPropertiesAside(XBlockAside):
@@ -46,11 +49,43 @@ class StudentPropertiesAside(XBlockAside):
                 pass
 
         if user:
+            from courseware.tasks import track_sequential_viewed_task
+            from courseware.models import StudentModule
+
             block = BlockToSequential.objects.filter(course_id=str(self.runtime.course_id), block_id=usage_id).first()
             if block:
                 parent_id = block.sequential_id
             else:
                 parent_id = self._get_parent_sequential(self.scope_ids.usage_id.usage_key)
+
+            new_attempt = False
+            release_date = datetime.datetime(2020, 2, 10, 3, 40, 12, 0, pytz.UTC)
+
+            try:
+                SequentialBlockAnswered.objects.get(sequential_id=parent_id, user_id=user.id)
+            except SequentialBlockAnswered.DoesNotExist:
+                try:
+                    st_module = StudentModule.objects.get(
+                        course_id=self.runtime.course_id,
+                        module_state_key=UsageKey.from_string(parent_id),
+                        student=user)
+                    if st_module.created > release_date:
+                        new_attempt = True
+                except StudentModule.DoesNotExist:
+                    pass
+
+            if new_attempt:
+                course_key_str = str(self.runtime.course_id)
+                seq_user_block = SequentialBlockAnswered(
+                    course_id=course_key_str,
+                    sequential_id=parent_id,
+                    first_answered_block_id=usage_id,
+                    user_id=user.id
+                )
+                seq_user_block.save()
+                StudentModule.log_start_new_attempt(user.id, course_key_str, parent_id)
+                track_sequential_viewed_task.delay(course_key_str, parent_id, user.id)
+
             return get_student_properties_event_data(user, self.runtime.course_id, is_ora, parent_id=parent_id)
         return None
 
