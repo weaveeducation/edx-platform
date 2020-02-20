@@ -4,7 +4,8 @@
 <%block name="js_extra">
   <script type="text/javascript">
     $(document).ready(function() {
-        var newCookie = "test_cookie=1; path=/";
+        var currentTimestamp = (!Date.now ? +new Date() : Date.now());
+        var newCookie = "test_cookie=" + currentTimestamp + "; path=/";
         var sameSite = "${same_site if same_site else ''}";
         if (sameSite !== '') {
             newCookie = newCookie + '; SameSite=' + sameSite;
@@ -14,7 +15,7 @@
         }
         document.cookie = newCookie;
         $.ajax({
-            url: '/cookie/check',
+            url: '/cookie/check?ts=' + currentTimestamp,
             type: 'GET',
             dataType: 'json',
             contentType: 'application/json; charset=utf-8',

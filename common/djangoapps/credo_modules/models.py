@@ -721,6 +721,11 @@ class SequentialBlockAnswered(models.Model):
         unique_together = (('sequential_id', 'user_id'),)
 
 
+class OrgUsageMigration(models.Model):
+    org = models.CharField(max_length=255, verbose_name='Org', unique=True)
+    updated_ids = models.TextField()
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values
