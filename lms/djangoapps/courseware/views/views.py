@@ -1981,7 +1981,9 @@ def render_xblock_course(request, course_id, usage_key_string):
 
 @require_http_methods(["GET"])
 def cookie_check(request):
-    cookie_sent = True if request.META.get('HTTP_COOKIE') else False
+    test_cookie_val = request.COOKIES.get('test_cookie', None)
+    request_ts = request.GET.get('ts', None)
+    cookie_sent = True if request_ts and test_cookie_val and request_ts == test_cookie_val else False
     return HttpResponse(json.dumps({'cookie_sent': cookie_sent}), content_type='application/json')
 
 

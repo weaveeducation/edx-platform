@@ -306,12 +306,6 @@ urlpatterns += [
     ),
 
     url(
-        r'^cookie/check$',
-        cookie_check,
-        name='cookie_check',
-    ),
-
-    url(
         r'^courses/{course_key}/xblock/{usage_key_string}/?$'.format(
             course_key=settings.COURSE_ID_PATTERN,
             usage_key_string=settings.USAGE_KEY_PATTERN
