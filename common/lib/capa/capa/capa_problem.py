@@ -34,6 +34,11 @@ from capa.util import contextualize_text, convert_files_to_filenames
 from openedx.core.djangolib.markup import HTML
 from xmodule.stringify import stringify_children
 
+try:
+    from django.utils.html import strip_spaces_between_tags
+except ImportError:
+    strip_spaces_between_tags = None
+
 # extra things displayed after "show answers" is pressed
 solution_tags = ['solution']
 
@@ -736,7 +741,7 @@ class LoncapaProblem(object):
         """
         self.do_targeted_feedback(self.tree)
         html = contextualize_text(etree.tostring(self._extract_html(self.tree)), self.context)
-        return html
+        return strip_spaces_between_tags(html) if strip_spaces_between_tags else html
 
     def handle_input_ajax(self, data):
         """
