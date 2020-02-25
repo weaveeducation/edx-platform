@@ -726,6 +726,12 @@ class OrgUsageMigration(models.Model):
     updated_ids = models.TextField()
 
 
+class WistiaIframeMigration(models.Model):
+    iframe_hash = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    wistia_video_url = models.CharField(max_length=255, db_index=True, null=True, blank=True)
+    s3_video_url = models.CharField(max_length=255, null=True, blank=True)
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values
