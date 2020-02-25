@@ -14,6 +14,7 @@ from opaque_keys.edx.django.models import CourseKeyField
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
+from django.utils import timezone
 from django.utils.timezone import utc
 from django.utils.translation import ugettext_lazy as _
 from model_utils.models import TimeStampedModel
@@ -343,7 +344,7 @@ class CourseUsageLogEntry(models.Model):
     course_id = models.CharField(max_length=255, db_index=True)
     block_id = models.CharField(max_length=255, null=True, blank=True)
     block_type = models.CharField(max_length=32, null=True, blank=True)
-    time = models.DateTimeField(auto_now_add=True, db_index=True)
+    time = models.DateTimeField(db_index=True)
     message = models.TextField()
 
     class Meta(object):
@@ -357,7 +358,8 @@ class CourseUsageLogEntry(models.Model):
             course_id=course_id,
             block_id=block_id,
             block_type=block_type,
-            message=message
+            message=message,
+            time=timezone.now()
         )
         new_item.save()
 

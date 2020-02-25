@@ -37,14 +37,14 @@ class Command(BaseCommand):
 
     def _process_org(self, org, first_dt, last_dt):
         print "Start process org: ", org
-        org_usage_migration = OrgUsageMigration.objects.filter(org=org).first()
+#        org_usage_migration = OrgUsageMigration.objects.filter(org=org).first()
         updated_ids = []
-        if not org_usage_migration:
-            org_usage_migration = OrgUsageMigration(
-                org=org,
-            )
-        if org_usage_migration.updated_ids:
-            updated_ids = json.loads(org_usage_migration.updated_ids)
+#        if not org_usage_migration:
+#            org_usage_migration = OrgUsageMigration(
+#                org=org,
+#            )
+#        if org_usage_migration.updated_ids:
+#            updated_ids = json.loads(org_usage_migration.updated_ids)
 
         course_ids = []
         courses = CourseOverview.objects.filter(org=org)
@@ -84,8 +84,8 @@ class Command(BaseCommand):
                     self._copy_usage(usage_item, time_lst)
 
                 updated_ids.append(usage_item.id)
-                org_usage_migration.updated_ids = json.dumps(updated_ids)
-                org_usage_migration.save()
+#                org_usage_migration.updated_ids = json.dumps(updated_ids)
+#                org_usage_migration.save()
 
     def _copy_usage(self, usage_item, time_lst):
         cache_key = str(usage_item.course_id) + '|' + str(usage_item.user.id)
