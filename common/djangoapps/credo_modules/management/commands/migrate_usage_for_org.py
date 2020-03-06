@@ -5,7 +5,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.core.management import BaseCommand
 from django.utils.timezone import make_aware
-from credo_modules.models import CourseUsage, CourseUsageLogEntry, OrgUsageMigration, get_student_properties_event_data
+from credo_modules.models import CourseUsage, CourseUsageLogEntry, get_student_properties_event_data
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 
 

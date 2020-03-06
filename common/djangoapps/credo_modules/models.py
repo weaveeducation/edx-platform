@@ -734,6 +734,17 @@ class WistiaIframeMigration(models.Model):
     s3_video_url = models.CharField(max_length=255, null=True, blank=True)
 
 
+class AttemptCourseMigration(models.Model):
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    done = models.BooleanField(default=False)
+
+
+class AttemptUserMigration(models.Model):
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    sequential_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    user_id = models.IntegerField(db_index=True)
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values
