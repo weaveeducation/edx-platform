@@ -14,6 +14,7 @@ from opaque_keys.edx.django.models import CourseKeyField
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
+from django.utils import timezone
 from django.utils.timezone import utc
 from django.utils.translation import ugettext_lazy as _
 from model_utils.models import TimeStampedModel
@@ -343,7 +344,7 @@ class CourseUsageLogEntry(models.Model):
     course_id = models.CharField(max_length=255, db_index=True)
     block_id = models.CharField(max_length=255, null=True, blank=True)
     block_type = models.CharField(max_length=32, null=True, blank=True)
-    time = models.DateTimeField(auto_now_add=True, db_index=True)
+    time = models.DateTimeField(db_index=True)
     message = models.TextField()
 
     class Meta(object):
@@ -357,7 +358,8 @@ class CourseUsageLogEntry(models.Model):
             course_id=course_id,
             block_id=block_id,
             block_type=block_type,
-            message=message
+            message=message,
+            time=timezone.now()
         )
         new_item.save()
 
@@ -724,6 +726,23 @@ class SequentialBlockAnswered(models.Model):
 class OrgUsageMigration(models.Model):
     org = models.CharField(max_length=255, verbose_name='Org', unique=True)
     updated_ids = models.TextField()
+
+
+class WistiaIframeMigration(models.Model):
+    iframe_hash = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    wistia_video_url = models.CharField(max_length=255, db_index=True, null=True, blank=True)
+    s3_video_url = models.CharField(max_length=255, null=True, blank=True)
+
+
+class AttemptCourseMigration(models.Model):
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    done = models.BooleanField(default=False)
+
+
+class AttemptUserMigration(models.Model):
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    sequential_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    user_id = models.IntegerField(db_index=True)
 
 
 def usage_dt_now():
