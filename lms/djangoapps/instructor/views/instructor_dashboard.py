@@ -243,6 +243,10 @@ def _get_instructor_dashboard_2(request, course_id):
     if display_credo_insights_link and available_tabs.show_insights_link:
         sections.append(_section_credo_insights(request, course))
 
+    site_support_nw_help = configuration_helpers.get_value('SHOW_NW_HELP', False)
+    if available_tabs.show_nw_help and site_support_nw_help:
+        sections.append(_section_nw_help(request, course))
+
     disable_buttons = not _is_small_course(course_key)
 
     certificate_white_list = CertificateWhitelist.get_certificate_white_list(course_key)
@@ -862,6 +866,19 @@ def _section_credo_insights(request, course):
         'course_id': unicode(course.id),
         'credo_insights_url': insights_url,
         'current_platform_name': current_platform_name
+    }
+    return section_data
+
+
+def _section_nw_help(request, course):
+    help_url = configuration_helpers.get_value('NW_HELP_LINK', 'http://www.nimblywise.com/help-center/')
+    help_title = configuration_helpers.get_value('NW_HELP_TITLE', 'NimblyWise Help Center')
+    section_data = {
+        'section_key': 'nw_help',
+        'section_display_name': 'NimblyWise Help Center',
+        'course_id': unicode(course.id),
+        'help_url': help_url,
+        'help_title': help_title
     }
     return section_data
 
