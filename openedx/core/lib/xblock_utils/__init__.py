@@ -325,7 +325,16 @@ def add_staff_markup(user, disable_staff_debug_info, block, view, frag, context)
         show_studio_link = user.instructor_dashboard_tabs.show_studio_link if \
             hasattr(user, 'instructor_dashboard_tabs') else True
 
-        if show_studio_link and is_studio_course:
+        site_support_nw_help = configuration_helpers.get_value('SHOW_NW_HELP', False)
+        show_nw_help = user.instructor_dashboard_tabs.nw_help if \
+            hasattr(user, 'nw_help') else True
+        help_url = None
+        help_title = ''
+        if site_support_nw_help and show_nw_help:
+            help_url = configuration_helpers.get_value('NW_HELP_LINK', 'http://www.nimblywise.com/help-center/')
+            help_title = configuration_helpers.get_value('NW_HELP_TITLE', 'NimblyWise Help Center')
+
+        if (show_studio_link or help_url) and is_studio_course:
             # build edit link to unit in CMS. Can't use reverse here as lms doesn't load cms's urls.py
             cms_base = configuration_helpers.get_value('CMS_BASE', settings.CMS_BASE)
             edit_link = "//" + cms_base + '/container/' + text_type(block.location)
@@ -335,7 +344,8 @@ def add_staff_markup(user, disable_staff_debug_info, block, view, frag, context)
                 frag,
                 render_to_string(
                     "edit_unit_link.html",
-                    {'frag_content': frag.content, 'edit_link': edit_link}
+                    {'frag_content': frag.content, 'edit_link': edit_link,
+                     'show_studio_link': show_studio_link, 'help_url': help_url, 'help_title': help_title}
                 )
             )
         else:
