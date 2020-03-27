@@ -40,14 +40,14 @@ html.video-fullscreen {
     padding: ($baseline/4) ($baseline/2);
     border-radius: ($baseline/4);
     background-color: $light-gray1;
-    color: $staff-color;
+    color: $staff-color !important;
     text-transform: uppercase;
 
     @extend %ui-print-excluded;
 
     &:hover {
-      background-color: $staff-color;
-      color: $white;
+      background-color: $staff-color !important;
+      color: $white !important;
     }
   }
 }
