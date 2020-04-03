@@ -20,17 +20,25 @@ class LtiToolKey(models.Model):
     public_jwk = JSONField(null=False, blank=False, help_text=_("Tool's generated Public key (from the field above) "
                                                                 "presented as JWK. Provide this value to Platforms"))
 
+    def _generate(self):
+        key = RSA.generate(4096)
+        self.private_key = key.exportKey()
+        self.public_key = key.publickey().exportKey()
+        jwk_obj = JWK.from_pem(self.public_key)
+        public_jwk = json.loads(jwk_obj.export_public())
+        public_jwk['alg'] = 'RS256'
+        public_jwk['use'] = 'sig'
+        self.public_jwk = public_jwk
+
     def save(self, *args, **kwargs):
         if not self.id:
-            key = RSA.generate(4096)
-            self.private_key = key.exportKey()
-            self.public_key = key.publickey().exportKey()
-            jwk_obj = JWK.from_pem(self.public_key)
-            public_jwk = json.loads(jwk_obj.export_public())
-            public_jwk['alg'] = 'RS256'
-            public_jwk['use'] = 'sig'
-            self.public_jwk = public_jwk
+            self._generate()
         super(LtiToolKey, self).save(*args, **kwargs)
+
+    def regenerate(self):
+        if self.id:
+            self._generate()
+        self.save()
 
     def __str__(self):
         return '<LtiToolKey id=%d, name=%s>' % (self.id, self.name)
