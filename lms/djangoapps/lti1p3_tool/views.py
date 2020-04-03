@@ -6,7 +6,7 @@ from urlparse import urlparse
 
 from django.conf import settings
 from django.http import HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound,\
-    HttpResponseRedirect
+    HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import AnonymousUser
 from django.core.cache import caches
@@ -34,7 +34,7 @@ from pylti1p3.lineitem import LineItem
 from .oidc_login import ExtendedDjangoOIDCLogin
 from .tool_conf import ToolConfDb
 from .message_launch import ExtendedDjangoMessageLaunch
-from .models import GradedAssignment
+from .models import GradedAssignment, LtiToolKey
 from .users import Lti1p3UserService
 from .utils import get_lineitem_tag
 
@@ -550,3 +550,13 @@ def update_graded_assignment(lti_tool, message_launch, block, course_key, usage_
     else:
         log.info("LTI1.3 platform didn't pass lineitem [issuer=%s, course_key=%s, usage_key=%s, user_id=%s]"
                  % (lti_tool.issuer, str(course_key), str(usage_key), str(user.id)))
+
+
+@csrf_exempt
+def get_jwks(request, key_id):
+    try:
+        key = LtiToolKey.objects.get(id=key_id)
+        return JsonResponse({'keys': [key.public_jwk]})
+    except LtiToolKey.DoesNotExist:
+        return HttpResponseBadRequest()
+
