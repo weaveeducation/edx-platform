@@ -53,10 +53,10 @@ class Command(BaseCommand):
         """
         Get all the graded assignments in the system.
         """
-        return GradedAssignment.objects.all()
+        return GradedAssignment.objects.filter(disabled=False)
 
     def _iter_course_assignments(self, course_key):
         """
         Get all the graded assignments for the given course.
         """
-        return GradedAssignment.objects.filter(course_key=course_key)
+        return GradedAssignment.objects.filter(course_key=course_key, disabled=False)

@@ -5,6 +5,7 @@ in LTI v1.1.
 
 import logging
 import hashlib
+import time
 import uuid
 
 import requests
@@ -66,16 +67,35 @@ def store_outcome_parameters(request_params, user, lti_consumer):
         )
 
         result_id_hash = hashlib.md5(str(result_id)).hexdigest()
-        assignment, created = GradedAssignment.objects.get_or_create(
-            lis_result_sourcedid=result_id_hash,
-            course_key=course_key,
-            usage_key=usage_key,
-            user=user,
-            outcome_service=outcomes,
-            defaults={
-                'lis_result_sourcedid_value': result_id
-            }
-        )
+        try:
+            assignment = GradedAssignment.objects.get(
+                lis_result_sourcedid=result_id_hash,
+                outcome_service=outcomes,
+                course_key=course_key,
+                usage_key=usage_key,
+                user=user
+            )
+        except GradedAssignment.DoesNotExist:
+            try:
+                other_assignment = GradedAssignment(
+                    lis_result_sourcedid=result_id_hash,
+                    outcome_service=outcomes,
+                )
+                postfix = '_' + str(int(time.time())) + '_disabled'
+                other_assignment.lis_result_sourcedid = other_assignment.lis_result_sourcedid + postfix
+                other_assignment.disabled = True
+                other_assignment.save()
+            except GradedAssignment.DoesNotExist:
+                pass
+            assignment = GradedAssignment(
+                lis_result_sourcedid=result_id_hash,
+                course_key=course_key,
+                usage_key=usage_key,
+                user=user,
+                outcome_service=outcomes,
+                lis_result_sourcedid_value=result_id
+            )
+            assignment.save()
         return assignment, outcomes
     return None, None
 
@@ -131,7 +151,7 @@ def get_assignments_for_problem(problem_descriptor, user_id, course_key):
         locations.append(current_descriptor.location)
         current_descriptor = current_descriptor.get_parent()
     assignments = GradedAssignment.objects.filter(
-        user=user_id, course_key=course_key, usage_key__in=locations
+        user=user_id, course_key=course_key, usage_key__in=locations, disabled=False
     )
     return assignments
 

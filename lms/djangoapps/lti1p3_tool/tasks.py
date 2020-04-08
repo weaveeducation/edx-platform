@@ -41,7 +41,7 @@ class Lti1p3ScoresHandler(ScoresHandler):
             locations.append(current_descriptor.location)
             current_descriptor = current_descriptor.get_parent()
         assignments = GradedAssignment.objects.filter(
-            user=user_id, course_key=course_key, usage_key__in=locations
+            user=user_id, course_key=course_key, usage_key__in=locations, disabled=False
         )
         return assignments
 

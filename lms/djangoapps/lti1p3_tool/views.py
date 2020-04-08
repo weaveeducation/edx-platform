@@ -2,6 +2,7 @@ import json
 import logging
 import hashlib
 import urllib
+import time
 from urlparse import urlparse
 
 from django.conf import settings
@@ -503,9 +504,23 @@ def update_graded_assignment(lti_tool, message_launch, block, course_key, usage_
         try:
             GradedAssignment.objects.get(
                 lti_lineitem=lineitem,
-                lti_jwt_sub=external_user_id
+                lti_jwt_sub=external_user_id,
+                course_key=course_key,
+                usage_key=usage_key,
+                user=user,
             )
         except GradedAssignment.DoesNotExist:
+            try:
+                other_assignment = GradedAssignment(
+                    lti_lineitem=lineitem,
+                    lti_jwt_sub=external_user_id,
+                )
+                postfix = '_' + str(int(time.time())) + '_disabled'
+                other_assignment.lti_lineitem = other_assignment.lti_lineitem + postfix
+                other_assignment.disabled = True
+                other_assignment.save()
+            except GradedAssignment.DoesNotExist:
+                pass
             gr = GradedAssignment(
                 user=user,
                 course_key=course_key,
