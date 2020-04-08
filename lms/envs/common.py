@@ -1322,7 +1322,7 @@ MIDDLEWARE_CLASSES = [
 SESSION_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SAMESITE_KEYS = {'edx-jwt-refresh-cookie', 'edx-jwt-cookie-signature', 'edx-jwt-cookie-header-payload',
                                 'credo-course-usage-id', 'edx-user-info', 'edxloggedin', 'experiments_is_enterprise',
-                                'openedx-language-preference'}
+                                'openedx-language-preference', 'CREDO_HTTP_REFERER'}
 
 # Clickjacking protection can be disbaled by setting this to 'ALLOW'
 X_FRAME_OPTIONS = 'ALLOW'
