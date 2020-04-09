@@ -511,7 +511,7 @@ def update_graded_assignment(lti_tool, message_launch, block, course_key, usage_
             )
         except GradedAssignment.DoesNotExist:
             try:
-                other_assignment = GradedAssignment(
+                other_assignment = GradedAssignment.objects.get(
                     lti_lineitem=lineitem,
                     lti_jwt_sub=external_user_id,
                 )

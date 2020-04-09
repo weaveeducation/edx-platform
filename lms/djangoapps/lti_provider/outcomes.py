@@ -77,7 +77,7 @@ def store_outcome_parameters(request_params, user, lti_consumer):
             )
         except GradedAssignment.DoesNotExist:
             try:
-                other_assignment = GradedAssignment(
+                other_assignment = GradedAssignment.objects.get(
                     lis_result_sourcedid=result_id_hash,
                     outcome_service=outcomes,
                 )
