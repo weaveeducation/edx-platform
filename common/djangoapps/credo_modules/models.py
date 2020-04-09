@@ -848,9 +848,12 @@ def get_student_properties_event_data(user, course_id, is_ora=False, parent_id=N
         LtiContextId = None
 
     result = {'registration': {}, 'enrollment': {}}
-    profile = UserProfile.objects.get(user=user)
-    if profile.gender:
-        result['registration']['gender'] = profile.gender
+    try:
+        profile = UserProfile.objects.get(user=user)
+        if profile.gender:
+            result['registration']['gender'] = profile.gender
+    except UserProfile.DoesNotExist:
+        pass
 
     properties = CredoStudentProperties.objects.filter(user=user)
     for prop in properties:
