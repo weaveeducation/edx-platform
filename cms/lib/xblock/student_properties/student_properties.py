@@ -8,6 +8,7 @@ import pytz
 from submissions import api as sub_api
 from credo_modules.models import SequentialBlockAnswered, get_student_properties_event_data
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import IntegrityError, transaction
 from student.models import User, AnonymousUserId
 from xblock.core import XBlockAside
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
@@ -75,16 +76,20 @@ class StudentPropertiesAside(XBlockAside):
                     pass
 
             if new_attempt:
-                course_key_str = str(self.runtime.course_id)
-                seq_user_block = SequentialBlockAnswered(
-                    course_id=course_key_str,
-                    sequential_id=parent_id,
-                    first_answered_block_id=usage_id,
-                    user_id=user.id
-                )
-                seq_user_block.save()
-                StudentModule.log_start_new_attempt(user.id, course_key_str, parent_id)
-                track_sequential_viewed_task.delay(course_key_str, parent_id, user.id)
+                try:
+                    with transaction.atomic():
+                        course_key_str = str(self.runtime.course_id)
+                        seq_user_block = SequentialBlockAnswered(
+                            course_id=course_key_str,
+                            sequential_id=parent_id,
+                            first_answered_block_id=usage_id,
+                            user_id=user.id
+                        )
+                        seq_user_block.save()
+                        StudentModule.log_start_new_attempt(user.id, course_key_str, parent_id)
+                        track_sequential_viewed_task.delay(course_key_str, parent_id, user.id)
+                except IntegrityError:
+                    pass
 
             return get_student_properties_event_data(user, self.runtime.course_id, is_ora, parent_id=parent_id)
         return None
