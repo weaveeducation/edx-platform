@@ -120,6 +120,7 @@ class GradedAssignment(models.Model):
     lti_lineitem_tag = models.CharField(max_length=255, null=True)
     created_by_tool = models.BooleanField(default=False)
     version_number = models.IntegerField(default=0)
+    disabled = models.BooleanField(default=False)
 
     class Meta(object):
         index_together = (('lti_jwt_sub', 'lti_lineitem_tag'),)

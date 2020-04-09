@@ -142,6 +142,7 @@ class GradedAssignment(models.Model):
     lis_result_sourcedid = models.CharField(max_length=255, db_index=True)
     lis_result_sourcedid_value = models.TextField(null=True)
     version_number = models.IntegerField(default=0)
+    disabled = models.BooleanField(default=False)
 
     class Meta(object):
         unique_together = ('outcome_service', 'lis_result_sourcedid')
