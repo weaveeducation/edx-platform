@@ -90,7 +90,7 @@ class CourseUsageMiddleware(object):
             try:
                 course_key = CourseKey.from_string(course_id)
                 deactivated_orgs = get_inactive_orgs()
-                if course_key.org in deactivated_orgs and (not request.user or not request.user.is_superuser):
+                if course_key.org in deactivated_orgs and (not hasattr(request, 'user') or not request.user.is_superuser):
                     return HttpResponse("Course is inactive", status=404)
             except InvalidKeyError:
                 pass
