@@ -1,9 +1,10 @@
 from credo.auth_helper import get_request_referer_from_other_domain, get_saved_referer, save_referer
 from credo_modules.models import CourseUsage, CourseUsageLogEntry, usage_dt_now, get_student_properties,\
-    update_unique_user_id_cookie, get_unique_user_id, UNIQUE_USER_ID_COOKIE
+    update_unique_user_id_cookie, get_unique_user_id, get_inactive_orgs, UNIQUE_USER_ID_COOKIE
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import F
+from django.http import HttpResponse
 from openedx.core.djangoapps.site_configuration.helpers import get_value
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
@@ -57,7 +58,43 @@ class CourseUsageMiddleware(object):
                     except IndexError:
                         pass
 
+    def _get_course_id_from_request(self, request):
+        course_id = None
+        path = request.path
+        path_data = path.split('/')
+
+        if len(path_data) <= 2:
+            return None
+
+        if path_data[1] == 'lti_provider':
+            if len(path_data) > 3:
+                course_id = path_data[3]
+        elif path_data[1] == 'lti1p3_tool':
+            usage_id = request.GET.get('block_id')
+            if not usage_id and len(path_data) > 3:
+                usage_id = path_data[3]
+            if usage_id:
+                try:
+                    uk = UsageKey.from_string(usage_id)
+                    course_id = str(uk.course_key)
+                except InvalidKeyError:
+                    pass
+        else:
+            course_id = path_data[2]
+
+        return course_id if course_id else None
+
     def process_request(self, request):
+        course_id = self._get_course_id_from_request(request)
+        if course_id:
+            try:
+                course_key = CourseKey.from_string(course_id)
+                deactivated_orgs = get_inactive_orgs()
+                if course_key.org in deactivated_orgs and (not request.user or not request.user.is_superuser):
+                    return HttpResponse("Course is inactive", status=404)
+            except InvalidKeyError:
+                pass
+
         request.csrf_processing_done = True  # ignore CSRF check for the django REST framework
         update_unique_user_id_cookie(request)
 
@@ -66,12 +103,7 @@ class CourseUsageMiddleware(object):
         path_data = path.split('/')
 
         if hasattr(request, 'user') and request.user.is_authenticated and len(path_data) > 2:
-            course_id = None
-            if path_data[1] == 'lti_provider':
-                if len(path_data) > 3:
-                    course_id = path_data[3]
-            else:
-                course_id = path_data[2]
+            course_id = self._get_course_id_from_request(request)
 
             sess_cookie_domain = get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN)
             cookie_domain = sess_cookie_domain if sess_cookie_domain else None

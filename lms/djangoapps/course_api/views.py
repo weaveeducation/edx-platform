@@ -29,6 +29,7 @@ from rest_framework.response import Response
 from util.disable_rate_limit import can_disable_rate_limit
 from openedx.core.lib.api.authentication import OAuth2AuthenticationAllowInactiveUser
 from openedx.core.lib.api.permissions import ApiKeyHeaderPermissionIsAuthenticated
+from credo_modules.models import get_inactive_orgs
 
 
 @view_auth_classes(is_authenticated=False)
@@ -295,7 +296,13 @@ def get_customer_info(user):
         'values': None
     })
     if courses:
-        org_list = [CourseKey.from_string(course).org for course in courses]
+        deactivated_orgs = get_inactive_orgs()
+        org_list = []
+        for course in courses:
+            org = CourseKey.from_string(course).org
+            if org not in deactivated_orgs:
+                org_list.append(org)
+
         data = Organization.objects.filter(org__in=org_list).prefetch_related('org_type')
         if data and len(org_list) == len(data):
             insights_reports = set()
@@ -329,6 +336,7 @@ class OrgsView(APIView):
             return Response({'success': False, 'error': "You have no permissions to view organizations"})
         org_slug = request.GET.get('org_slug', None)
         org_type = request.GET.get('org_type', None)
+        deactivated_orgs = get_inactive_orgs()
 
         if org_type:
             try:
@@ -339,16 +347,17 @@ class OrgsView(APIView):
         if org_slug:
             insights_reports = OrganizationType.get_all_insights_reports()
             org_type_result = {}
-            try:
-                org_obj = Organization.objects.get(org=org_slug)
-                if org_obj.org_type is not None:
-                    insights_reports = org_obj.org_type.get_insights_reports()
-                    org_type_result = {
-                        'id': org_obj.org_type.id,
-                        'title': org_obj.org_type.title
-                    }
-            except Organization.DoesNotExist:
-                pass
+            if org_slug not in deactivated_orgs:
+                try:
+                    org_obj = Organization.objects.get(org=org_slug)
+                    if org_obj.org_type is not None:
+                        insights_reports = org_obj.org_type.get_insights_reports()
+                        org_type_result = {
+                            'id': org_obj.org_type.id,
+                            'title': org_obj.org_type.title
+                        }
+                except Organization.DoesNotExist:
+                    pass
             return Response({
                 'success': True,
                 'insights_reports': insights_reports,
@@ -356,7 +365,7 @@ class OrgsView(APIView):
             })
         elif org_type:
             orgs = Organization.objects.filter(org_type=org_type).order_by('org')
-            return Response({'success': True, 'orgs': [o.org for o in orgs]})
+            return Response({'success': True, 'orgs': [o.org for o in orgs if o.org not in deactivated_orgs]})
         else:
             org_types = OrganizationType.objects.all().order_by('title')
             return Response({'success': True, 'org_types': [{'id': org.id, 'title': org.title} for org in org_types]})

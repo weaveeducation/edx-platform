@@ -22,6 +22,7 @@ from model_utils.models import TimeStampedModel
 from student.models import CourseEnrollment, CourseAccessRole, ENROLL_STATUS_CHANGE, EnrollStatusChange, UserProfile
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
 from edx_proctoring.models import ProctoredExamStudentAttempt
+from organizations.models import Organization as EdxOrganization
 
 
 log = logging.getLogger("course_usage")
@@ -919,6 +920,11 @@ def update_unique_user_id_cookie(request):
         cookie_arr = course_usage_cookie_id.split('_')
         if len(cookie_arr) < 2 or cookie_arr[1] != user_id:
             generate_new_user_id_cookie(request, user_id)
+
+
+def get_inactive_orgs():
+    deactivated_orgs_objs = EdxOrganization.objects.filter(active=False)
+    return [org.name for org in deactivated_orgs_objs]
 
 
 @receiver(post_save, sender=ProctoredExamStudentAttempt)

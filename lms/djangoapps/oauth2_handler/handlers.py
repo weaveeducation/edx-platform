@@ -9,6 +9,7 @@ from openedx.core.djangoapps.lang_pref import LANGUAGE_KEY
 from openedx.core.djangoapps.user_api.models import UserPreference
 from student.models import UserProfile, anonymous_id_for_user
 from student.roles import CourseInstructorRole, CourseStaffRole, GlobalStaff
+from credo_modules.models import get_inactive_orgs
 
 
 class OpenIDHandler(object):
@@ -191,7 +192,16 @@ class CourseAccessHandler(object):
         if values is not None:
             course_ids = list(set(course_ids) & set(values))
 
-        return course_ids
+        deactivated_orgs = get_inactive_orgs()
+        if deactivated_orgs:
+            new_course_ids = []
+            for course_id in course_ids:
+                org_ids = course_id.split(':')[1].split('+')[0]
+                if org_ids not in deactivated_orgs:
+                    new_course_ids.append(course_id)
+            return new_course_ids
+        else:
+            return course_ids
 
     # pylint: disable=missing-docstring
     def _get_courses_with_access_type(self, user, access_type):
