@@ -189,8 +189,10 @@ def login(request):
     oidc_login = DjangoOIDCLogin(django_request, tool_conf, session_service=django_session)
     oidc_login.pass_params_to_launch({'is_iframe': request_params.get('iframe')})
 
-    log_lti_launch(request, "login", None, request_params.get('iss'), request_params.get('client_id'),
-                   block_id=block_id, course_id=course_id)
+    iss = request_params.get('iss')
+    client_id = request_params.get('client_id')
+    lti_tool = tool_conf.get_lti_tool(iss, client_id)
+    log_lti_launch(request, "login", None, iss, client_id, block_id=block_id, course_id=course_id, tool_id=lti_tool.id)
 
     try:
         return oidc_login.redirect(target_link_uri)
@@ -270,7 +272,7 @@ def _launch(request, block=None, course_id=None, page=None):
         msg = "LTI 1.3 names and role provisioning service response: %s for block: %s" % (json.dumps(members),
                                                                                           current_item)
         log_lti_launch(request, 'names_and_roles', msg, iss, client_id, block_id=str(usage_key), user_id=None,
-                       course_id=str(course_key))
+                       course_id=str(course_key), tool_id=lti_tool.id)
 
         for member in members:
             if str(member.get('user_id')) == str(external_user_id):
@@ -310,7 +312,7 @@ def _launch(request, block=None, course_id=None, page=None):
     msg = "LTI 1.3 JWT body: %s for block: %s" % (json.dumps(message_launch_data), current_item)
     log_user_id = request.user.id if request.user.is_authenticated else None
     log_lti_launch(request, 'launch', msg, iss, client_id, block_id=str(usage_key), user_id=log_user_id,
-                   course_id=str(course_key))
+                   course_id=str(course_key), tool_id=lti_tool.id)
 
     if block:
         if message_launch.has_ags():
@@ -359,13 +361,14 @@ def _deep_link_launch(request, course_id):
             message_launch_data = message_launch.get_launch_data()
             iss = message_launch.get_iss()
             client_id = message_launch.get_client_id()
+            lti_tool = tool_conf.get_lti_tool(iss, client_id)
         except LtiException as e:
             return render_lti_error(str(e), 403)
 
         msg = "LTI 1.3 JWT body: %s for course: %s [deep link usage]" \
               % (json.dumps(message_launch_data), str(course_id))
         log_lti_launch(request, 'deep_link_launch', msg, iss, client_id, block_id=None, user_id=None,
-                       course_id=str(course_key))
+                       course_id=str(course_key), tool_id=lti_tool.id)
 
         is_deep_link_launch = message_launch.is_deep_link_launch()
         if not is_deep_link_launch:
@@ -484,7 +487,7 @@ def launch_deep_link_submit(request, course_id):
         msg = "LTI1.3 platform deep link jwt source message [issuer=%s, course_key=%s]: %s"\
               % (lti_tool.issuer, str(course_key), str(json.dumps(message_jwt)))
         log_lti_launch(request, 'deep_link_launch_submit', msg, iss, client_id, block_id=None, user_id=None,
-                       course_id=str(course_key))
+                       course_id=str(course_key), tool_id=lti_tool.id)
 
         html = deep_linking_service.get_response_form_html(response_jwt)
         return HttpResponse(html)
@@ -596,7 +599,7 @@ def update_graded_assignment(request, lti_tool, message_launch, block, course_ke
         msg = "LTI1.3 platform didn't pass lineitem [issuer=%s, course_key=%s, usage_key=%s, user_id=%s]"\
               % (lti_tool.issuer, str(course_key), str(usage_key), str(user.id))
         log_lti_launch(request, 'launch', msg, iss, client_id, block_id=usage_key, user_id=user.id,
-                       course_id=str(course_key))
+                       course_id=str(course_key), tool_id=lti_tool.id)
 
 
 @csrf_exempt
@@ -608,7 +611,8 @@ def get_jwks(request, key_id):
         return HttpResponseBadRequest()
 
 
-def log_lti_launch(request, action, message, iss, client_id, block_id=None, user_id=None, course_id=None, data=None):
+def log_lti_launch(request, action, message, iss, client_id, block_id=None, user_id=None, course_id=None,
+                   tool_id=None, data=None):
     hostname = platform.node().split(".")[0]
     res = {
         'action': action,
@@ -623,6 +627,7 @@ def log_lti_launch(request, action, message, iss, client_id, block_id=None, user
         'block_id': str(block_id),
         'course_id': str(course_id),
         'client_ip': get_client_ip(request),
+        'tool_id': tool_id if tool_id else None,
         'lti_version': '1.3'
     }
     if data:
