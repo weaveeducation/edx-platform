@@ -238,9 +238,8 @@ def _launch(request, block=None, course_id=None, page=None):
 
         state_params = message_launch.get_params_from_login()
         tool_conf = message_launch.get_tool_conf()
-        iss = message_launch._get_iss()  # change to "message_launch.get_iss()" after pylti1p3 1.6.2 will be released
+        iss = message_launch.get_iss()
         client_id = message_launch.get_client_id()
-
         lti_tool = tool_conf.get_lti_tool(iss, client_id)
     except LtiException as e:
         return render_lti_error(str(e), 403)
@@ -358,7 +357,7 @@ def _deep_link_launch(request, course_id):
         try:
             message_launch = DjangoMessageLaunch(request, tool_conf)
             message_launch_data = message_launch.get_launch_data()
-            iss = message_launch._get_iss()  # change to "message_launch.get_iss()" after pylti1p3 1.6.2 will be released
+            iss = message_launch.get_iss()
             client_id = message_launch.get_client_id()
         except LtiException as e:
             return render_lti_error(str(e), 403)
@@ -420,7 +419,7 @@ def launch_deep_link_submit(request, course_id):
 
         tool_conf = ToolConfDb()
         message_launch = DjangoMessageLaunch.from_cache(launch_id, request, tool_conf)
-        iss = message_launch._get_iss()  # change to "message_launch.get_iss()" after pylti1p3 1.6.2 will be released
+        iss = message_launch.get_iss()
         client_id = message_launch.get_client_id()
         tool_conf = message_launch.get_tool_conf()
 
@@ -526,7 +525,7 @@ def render_lti_error(message, http_code=None):
 def update_graded_assignment(request, lti_tool, message_launch, block, course_key, usage_key, user, external_user_id):
     ags = message_launch.get_ags()
     message_launch_data = message_launch.get_launch_data()
-    iss = message_launch._get_iss()  # change to "message_launch.get_iss()" after pylti1p3 1.6.2 will be released
+    iss = message_launch.get_iss()
     client_id = message_launch.get_client_id()
 
     endpoint = message_launch_data.get('https://purl.imsglobal.org/spec/lti-ags/claim/endpoint', {})
