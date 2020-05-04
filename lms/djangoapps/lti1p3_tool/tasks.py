@@ -2,13 +2,13 @@ import datetime
 import json
 
 from django.conf import settings
+from pylti1p3.contrib.django import DjangoMessageLaunch
 from pylti1p3.grade import Grade
 from pylti1p3.exception import LtiException
 from lms import CELERY_APP
 from lti_provider.tasks import ScoresHandler, LTI_TASKS_MAX_RETRIES, get_countdown
 from lti_provider.outcomes import OutcomeServiceSendScoreError
 from .models import GradedAssignment
-from .message_launch import ExtendedDjangoMessageLaunch
 from .tool_conf import ToolConfDb
 
 
@@ -66,7 +66,7 @@ class Lti1p3ScoresHandler(ScoresHandler):
             'https://purl.imsglobal.org/spec/lti-ags/claim/endpoint': assignment.lti_jwt_endpoint
         }
         tool_conf = ToolConfDb()
-        message_launch = ExtendedDjangoMessageLaunch(None, tool_conf)
+        message_launch = DjangoMessageLaunch(None, tool_conf)
         message_launch.set_auto_validation(enable=False) \
             .set_jwt({'body': launch_data}) \
             .set_restored() \

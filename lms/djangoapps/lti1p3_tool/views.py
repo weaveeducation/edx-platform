@@ -3,6 +3,8 @@ import logging
 import hashlib
 import urllib
 import time
+import platform
+import datetime
 from urlparse import urlparse
 
 from django.conf import settings
@@ -29,18 +31,20 @@ from courseware.courses import update_lms_course_usage
 from courseware.views.views import render_progress_page_frame
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
+from pylti1p3.contrib.django import DjangoOIDCLogin, DjangoMessageLaunch, DjangoCacheDataStorage
+from pylti1p3.contrib.django.session import DjangoSessionService
+from pylti1p3.contrib.django.request import DjangoRequest
 from pylti1p3.deep_link_resource import DeepLinkResource
 from pylti1p3.exception import OIDCException, LtiException
 from pylti1p3.lineitem import LineItem
-from .oidc_login import ExtendedDjangoOIDCLogin
 from .tool_conf import ToolConfDb
-from .message_launch import ExtendedDjangoMessageLaunch
 from .models import GradedAssignment, LtiToolKey
 from .users import Lti1p3UserService
 from .utils import get_lineitem_tag
 
 
 log = logging.getLogger("edx.lti1p3_tool")
+log_json = logging.getLogger("credo_json")
 
 
 def get_block_by_id(block_id):
@@ -180,8 +184,14 @@ def login(request):
         return HttpResponse(template.render())
 
     tool_conf = ToolConfDb()
-    oidc_login = ExtendedDjangoOIDCLogin(request, tool_conf, request_params)
+    django_request = DjangoRequest(request, default_params=request_params)
+    django_session = DjangoSessionService(request)
+    oidc_login = DjangoOIDCLogin(django_request, tool_conf, session_service=django_session)
     oidc_login.pass_params_to_launch({'is_iframe': request_params.get('iframe')})
+
+    log_lti_launch(request, "login", None, request_params.get('iss'), request_params.get('client_id'),
+                   block_id=block_id, course_id=course_id)
+
     try:
         return oidc_login.redirect(target_link_uri)
     except OIDCException as e:
@@ -222,16 +232,22 @@ def progress(request, course_id):
 def _launch(request, block=None, course_id=None, page=None):
     tool_conf = ToolConfDb()
     try:
-        message_launch = ExtendedDjangoMessageLaunch(request, tool_conf)
+        message_launch = DjangoMessageLaunch(request, tool_conf)
+        message_launch.set_public_key_caching(DjangoCacheDataStorage(), cache_lifetime=7200)
         message_launch_data = message_launch.get_launch_data()
+
         state_params = message_launch.get_params_from_login()
-        lti_tool = message_launch.get_lti_tool()
+        tool_conf = message_launch.get_tool_conf()
+        iss = message_launch._get_iss()  # change to "message_launch.get_iss()" after pylti1p3 1.6.2 will be released
+        client_id = message_launch.get_client_id()
+
+        lti_tool = tool_conf.get_lti_tool(iss, client_id)
     except LtiException as e:
         return render_lti_error(str(e), 403)
 
     current_item = str(block.location) if block else str(page + '_page')
-
-    log.info("LTI 1.3 JWT body: %s for block: %s" % (json.dumps(message_launch_data), current_item))
+    course_key = block.location.course_key if block else CourseKey.from_string(course_id)
+    usage_key = block.location if block else None
 
     is_iframe = state_params.get('is_iframe') if state_params else True
     context_id = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/context', {}).get('id')
@@ -252,8 +268,11 @@ def _launch(request, block=None, course_id=None, page=None):
 
     if lti_tool.use_names_and_role_provisioning_service and message_launch.has_nrps():
         members = message_launch.get_nrps().get_members()
-        log.info("LTI 1.3 names and role provisioning service response: %s for block: %s"
-                 % (json.dumps(members), current_item))
+        msg = "LTI 1.3 names and role provisioning service response: %s for block: %s" % (json.dumps(members),
+                                                                                          current_item)
+        log_lti_launch(request, 'names_and_roles', msg, iss, client_id, block_id=str(usage_key), user_id=None,
+                       course_id=str(course_key))
+
         for member in members:
             if str(member.get('user_id')) == str(external_user_id):
                 member_email = member.get('email')
@@ -268,9 +287,6 @@ def _launch(request, block=None, course_id=None, page=None):
 
     us = Lti1p3UserService()
     us.authenticate_lti_user(request, external_user_id, lti_tool, lti_params)
-
-    course_key = block.location.course_key if block else CourseKey.from_string(course_id)
-    usage_key = block.location if block else None
 
     request_params = message_launch_data.copy()
     request_params.update(message_launch_custom_data)
@@ -292,9 +308,14 @@ def _launch(request, block=None, course_id=None, page=None):
         if lti_params and 'email' in lti_params:
             update_lti_user_data(request.user, lti_params['email'])
 
+    msg = "LTI 1.3 JWT body: %s for block: %s" % (json.dumps(message_launch_data), current_item)
+    log_user_id = request.user.id if request.user.is_authenticated else None
+    log_lti_launch(request, 'launch', msg, iss, client_id, block_id=str(usage_key), user_id=log_user_id,
+                   course_id=str(course_key))
+
     if block:
         if message_launch.has_ags():
-            update_graded_assignment(lti_tool, message_launch, block, course_key, usage_key, request.user,
+            update_graded_assignment(request, lti_tool, message_launch, block, course_key, usage_key, request.user,
                                      external_user_id)
         else:
             log.error("LTI1.3 platform doesn't support assignments and grades service: %s" % lti_tool.issuer)
@@ -335,13 +356,17 @@ def _deep_link_launch(request, course_id):
 
         tool_conf = ToolConfDb()
         try:
-            message_launch = ExtendedDjangoMessageLaunch(request, tool_conf)
+            message_launch = DjangoMessageLaunch(request, tool_conf)
             message_launch_data = message_launch.get_launch_data()
+            iss = message_launch._get_iss()  # change to "message_launch.get_iss()" after pylti1p3 1.6.2 will be released
+            client_id = message_launch.get_client_id()
         except LtiException as e:
             return render_lti_error(str(e), 403)
 
-        log.info("LTI 1.3 JWT body: %s for course: %s [deep link usage]"
-                 % (json.dumps(message_launch_data), str(course_id)))
+        msg = "LTI 1.3 JWT body: %s for course: %s [deep link usage]" \
+              % (json.dumps(message_launch_data), str(course_id))
+        log_lti_launch(request, 'deep_link_launch', msg, iss, client_id, block_id=None, user_id=None,
+                       course_id=str(course_key))
 
         is_deep_link_launch = message_launch.is_deep_link_launch()
         if not is_deep_link_launch:
@@ -394,14 +419,18 @@ def launch_deep_link_submit(request, course_id):
         course_items = get_course_sequential_blocks(course)
 
         tool_conf = ToolConfDb()
-        message_launch = ExtendedDjangoMessageLaunch.from_cache(launch_id, request, tool_conf)
-        if message_launch.jwt_body_is_empty():
+        message_launch = DjangoMessageLaunch.from_cache(launch_id, request, tool_conf)
+        iss = message_launch._get_iss()  # change to "message_launch.get_iss()" after pylti1p3 1.6.2 will be released
+        client_id = message_launch.get_client_id()
+        tool_conf = message_launch.get_tool_conf()
+
+        if message_launch.check_jwt_body_is_empty():
             return render_lti_error('Session has expired. Please repeat request one more time.', 403)
 
         if not message_launch.is_deep_link_launch():
             return render_lti_error('Must be Deep Link Launch', 400)
 
-        lti_tool = message_launch.get_lti_tool()
+        lti_tool = tool_conf.get_lti_tool(iss, client_id)
         message_launch_data = message_launch.get_launch_data()
         deep_linking_settings = message_launch_data \
             .get('https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings', {})
@@ -453,10 +482,11 @@ def launch_deep_link_submit(request, course_id):
         message_jwt = deep_linking_service.get_message_jwt(resources)
         response_jwt = deep_linking_service.encode_jwt(message_jwt)
 
-        log.info("LTI1.3 platform deep link jwt source message [issuer=%s, course_key=%s]: %s"
-                 % (lti_tool.issuer, str(course_key), str(json.dumps(message_jwt))))
-        log.info("LTI1.3 platform deep link jwt encoded response [issuer=%s, course_key=%s]: %s"
-                 % (lti_tool.issuer, str(course_key), str(response_jwt)))
+        msg = "LTI1.3 platform deep link jwt source message [issuer=%s, course_key=%s]: %s"\
+              % (lti_tool.issuer, str(course_key), str(json.dumps(message_jwt)))
+        log_lti_launch(request, 'deep_link_launch_submit', msg, iss, client_id, block_id=None, user_id=None,
+                       course_id=str(course_key))
+
         html = deep_linking_service.get_response_form_html(response_jwt)
         return HttpResponse(html)
 
@@ -473,7 +503,6 @@ def get_params(request):
         cached = cache.get(lti_hash)
         if cached:
             cache.delete(lti_hash)
-            log.info("Cached params: %s, request: %s" % (cached, request))
             request_params = json.loads(cached)
             request_params['iframe'] = request.GET.get('iframe', '0').lower() == '1'
             return request_params, True
@@ -494,9 +523,11 @@ def render_lti_error(message, http_code=None):
     return HttpResponse(template.render())
 
 
-def update_graded_assignment(lti_tool, message_launch, block, course_key, usage_key, user, external_user_id):
+def update_graded_assignment(request, lti_tool, message_launch, block, course_key, usage_key, user, external_user_id):
     ags = message_launch.get_ags()
     message_launch_data = message_launch.get_launch_data()
+    iss = message_launch._get_iss()  # change to "message_launch.get_iss()" after pylti1p3 1.6.2 will be released
+    client_id = message_launch.get_client_id()
 
     endpoint = message_launch_data.get('https://purl.imsglobal.org/spec/lti-ags/claim/endpoint', {})
     lineitem = endpoint.get('lineitem')
@@ -563,8 +594,10 @@ def update_graded_assignment(lti_tool, message_launch, block, course_key, usage_
             )
             gr.save()
     else:
-        log.info("LTI1.3 platform didn't pass lineitem [issuer=%s, course_key=%s, usage_key=%s, user_id=%s]"
-                 % (lti_tool.issuer, str(course_key), str(usage_key), str(user.id)))
+        msg = "LTI1.3 platform didn't pass lineitem [issuer=%s, course_key=%s, usage_key=%s, user_id=%s]"\
+              % (lti_tool.issuer, str(course_key), str(usage_key), str(user.id))
+        log_lti_launch(request, 'launch', msg, iss, client_id, block_id=usage_key, user_id=user.id,
+                       course_id=str(course_key))
 
 
 @csrf_exempt
@@ -575,3 +608,33 @@ def get_jwks(request, key_id):
     except LtiToolKey.DoesNotExist:
         return HttpResponseBadRequest()
 
+
+def log_lti_launch(request, action, message, iss, client_id, block_id=None, user_id=None, course_id=None, data=None):
+    hostname = platform.node().split(".")[0]
+    res = {
+        'action': action,
+        'type': 'lti_launch',
+        'hostname': hostname,
+        'datetime': str(datetime.datetime.now()),
+        'timestamp': time.time(),
+        'message': message if message else None,
+        'iss': iss if iss else None,
+        'client_id': client_id if client_id else None,
+        'user_id': user_id,
+        'block_id': str(block_id),
+        'course_id': str(course_id),
+        'client_ip': get_client_ip(request),
+        'lti_version': '1.3'
+    }
+    if data:
+        res.update(data)
+    log_json.info(json.dumps(res))
+
+
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip

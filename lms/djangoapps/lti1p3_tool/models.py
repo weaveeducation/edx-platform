@@ -1,14 +1,12 @@
-import json
-
 from django.contrib.auth.models import User
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 from django.db import models
+from pylti1p3.registration import Registration
 from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
 from jsonfield.fields import JSONField
 from Cryptodome.PublicKey import RSA
-from jwcrypto.jwk import JWK
 
 
 class LtiToolKey(models.Model):
@@ -24,11 +22,7 @@ class LtiToolKey(models.Model):
         key = RSA.generate(4096)
         self.private_key = key.exportKey()
         self.public_key = key.publickey().exportKey()
-        jwk_obj = JWK.from_pem(self.public_key)
-        public_jwk = json.loads(jwk_obj.export_public())
-        public_jwk['alg'] = 'RS256'
-        public_jwk['use'] = 'sig'
-        self.public_jwk = public_jwk
+        self.public_jwk = Registration.get_jwk(self.public_key)
 
     def save(self, *args, **kwargs):
         if not self.id:
@@ -45,11 +39,15 @@ class LtiToolKey(models.Model):
 
 
 class LtiTool(models.Model):
-    issuer = models.CharField(max_length=255, unique=True,
+    title = models.CharField(max_length=255, default=_("Unknown"))
+    is_active = models.BooleanField(default=True)
+    issuer = models.CharField(max_length=255,
                               help_text=_("This will usually look something like 'http://example.com'. "
                                           "Value provided by LTI 1.3 Platform"))
     client_id = models.CharField(max_length=255, null=False, blank=False,
                                  help_text=_("Value provided by LTI 1.3 Platform"))
+    use_by_default = models.BooleanField(default=False, help_text=_("This iss config will be used in case "
+                                                                    "if client-id was not passed"))
     auth_login_url = models.CharField(max_length=1024, null=False, blank=False,
                                       help_text=_("The platform's OIDC login endpoint. "
                                                   "Value provided by LTI 1.3 Platform"),
@@ -59,6 +57,9 @@ class LtiTool(models.Model):
                                                   "endpoint. Value provided by "
                                                   "LTI 1.3 Platform"),
                                       validators=[URLValidator()])
+    auth_audience = models.CharField(max_length=1024, null=True, blank=True,
+                                     help_text=_("The platform's OAuth2 Audience (aud). "
+                                                 "Usually could be skipped"))
     key_set_url = models.CharField(max_length=1024, null=True, blank=True,
                                    help_text=_("The platform's JWKS endpoint. "
                                                "Value provided by LTI 1.3 Platform"),
@@ -102,11 +103,15 @@ class LtiTool(models.Model):
             "client_id": self.client_id,
             "auth_login_url": self.auth_login_url,
             "auth_token_url": self.auth_token_url,
+            "auth_audience": self.auth_audience,
             "key_set_url": self.key_set_url,
             "key_set": self.key_set,
             "deployment_ids": self.deployment_ids
         }
         return data
+
+    class Meta(object):
+        unique_together = ('issuer', 'client_id')
 
 
 class GradedAssignment(models.Model):

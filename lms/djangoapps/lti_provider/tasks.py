@@ -185,7 +185,8 @@ class ScoresHandler(object):
                     lis_outcome_service_url = response_data['lis_outcome_service_url']
 
             log_lti('send_composite_outcome_task_finished', user_id, '', course_id, False, assignment, weighted_score,
-                    task_id, response_body, request_body, lis_outcome_service_url, version=version)
+                    task_id, response_body, request_body, lis_outcome_service_url, version=version,
+                    lti_version=self._lti_version)
         except Exception as exc:
             request_body = getattr(exc, 'request_body', None)
             response_body = getattr(exc, 'response_body', None)
