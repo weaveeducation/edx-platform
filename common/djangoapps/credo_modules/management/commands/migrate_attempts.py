@@ -1,4 +1,5 @@
 import datetime
+import json
 
 from django.db import transaction
 from django.core.management import BaseCommand
@@ -9,7 +10,8 @@ from lti_provider.models import GradedAssignment
 from credo_modules.models import AttemptCourseMigration, AttemptUserMigration, DBLogEntry
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
 from edx_proctoring.models import ProctoredExam
-from opaque_keys.edx.keys import UsageKey
+from opaque_keys.edx.keys import CourseKey, UsageKey
+from eventtracking import tracker
 
 
 class Command(BaseCommand):
@@ -77,7 +79,23 @@ class Command(BaseCommand):
                     module_state_key__in=blocks_dict[module_state_key],
                     student_id=item.student_id,
                     grade__isnull=False).count()
-                some_problem_answered = True if student_items_answered_count > 0 else False
+
+                some_ora_answered = False
+                ora_answers = StudentModule.objects.filter(
+                    course_id=course_overview.id,
+                    module_type='openassessment',
+                    module_state_key__in=blocks_dict[module_state_key],
+                    student_id=item.student_id)
+                for ora_answer in ora_answers:
+                    try:
+                        ora_answer_state = json.loads(ora_answer.state)
+                        if 'submission_uuid' in ora_answer_state and ora_answer_state['submission_uuid']:
+                            some_ora_answered = True
+                            break
+                    except ValueError:
+                        pass
+
+                some_problem_answered = True if student_items_answered_count > 0 or some_ora_answered else False
 
                 with transaction.atomic():
                     if not some_problem_answered:
@@ -90,14 +108,24 @@ class Command(BaseCommand):
                         for log_entry in log_entries:
                             if log_entry.block_id not in logs_processed:
                                 logs_processed.append(log_entry.block_id)
-                                new_log_entry = DBLogEntry(
-                                    event_name='sequential_block.remove_view',
-                                    user_id=log_entry.user_id,
-                                    course_id=log_entry.course_id,
-                                    block_id=log_entry.block_id,
-                                    message=log_entry.message
-                                )
-                                new_log_entry.save()
+                                log_course_key = CourseKey.from_string(log_entry.course_id)
+                                context = {
+                                    'user_id': log_entry.user_id,
+                                    'org_id': log_course_key.org,
+                                    'course_id': str(log_entry.course_id)
+                                }
+                                log_message_item = json.loads(log_entry.message)
+
+                                with tracker.get_tracker().context('sequential_block.remove_view', context):
+                                    tracker.emit('sequential_block.remove_view', log_message_item.get('event', {}))
+#                                new_log_entry = DBLogEntry(
+#                                    event_name='sequential_block.remove_view',
+#                                    user_id=log_entry.user_id,
+#                                    course_id=log_entry.course_id,
+#                                    block_id=log_entry.block_id,
+#                                    message=log_entry.message
+#                                )
+#                                new_log_entry.save()
                         print '------> Emit events'
                     else:
                         print '------> Some answers exists - Skip'
