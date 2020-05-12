@@ -746,6 +746,11 @@ class AttemptUserMigration(models.Model):
     user_id = models.IntegerField(db_index=True)
 
 
+class StaffUser(models.Model):
+    user_id = models.IntegerField(db_index=True)
+    course_id = models.CharField(max_length=255, db_index=True, null=True, blank=True)
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values
