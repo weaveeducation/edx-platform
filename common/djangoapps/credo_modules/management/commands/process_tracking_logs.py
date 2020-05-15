@@ -131,9 +131,13 @@ class Command(BaseCommand):
         if event.get('event_source') != 'server' or event_type not in self.EVENT_TYPES:
             return False
 
-        res = EventProcessor.process(event_type, event)
-        if not res:
-            return False
+        try:
+            res = EventProcessor.process(event_type, event)
+            if not res:
+                return False
+        except Exception:
+            if event_type == 'edx.drag_and_drop_v2.item.dropped':
+                return False
 
         is_view = False
         if event_type == 'sequential_block.viewed':
