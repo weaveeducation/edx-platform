@@ -124,20 +124,20 @@ class Command(BaseCommand):
         try:
             event = json.loads(line)
         except ValueError:
-            return False
+            return
 
         event_type = event.get('event_type')
 
         if event.get('event_source') != 'server' or event_type not in self.EVENT_TYPES:
-            return False
+            return
 
         try:
             res = EventProcessor.process(event_type, event)
             if not res:
-                return False
+                return
         except Exception:
             if event_type == 'edx.drag_and_drop_v2.item.dropped':
-                return False
+                return
 
         is_view = False
         if event_type == 'sequential_block.viewed':
@@ -149,9 +149,14 @@ class Command(BaseCommand):
                 # continue
                 pass
             else:
-                return False
+                return
+
+        db_items = 0
 
         for e in res:
+            if not e:
+                continue
+
             answer_id = str(e.user_id) + '-' + e.block_id
             question_token = e.block_id
             question_name = e.display_name
@@ -180,7 +185,8 @@ class Command(BaseCommand):
                 e, is_view, answer_id, real_timestamp, question_name,
                 question_hash, properties_data_json, tags_json, attempt_json, db_check=True)
             if res_db_check:
-                return True
+                db_items = db_items + 1
+                continue
 
             tr_log = all_log_items.get(answer_id)
             if tr_log:
@@ -208,7 +214,7 @@ class Command(BaseCommand):
                         )
                         res_props.append(new_prop_item)
                     all_log_props_items[answer_id] = res_props[:]
-            return False
+        return db_items
 
     def handle(self, *args, **options):
         aws_access_key_id = getattr(settings, 'AWS_ACCESS_KEY_ID', None)
@@ -261,35 +267,35 @@ class Command(BaseCommand):
 
             print("Start process items")
 
-            while line:
-                if line:
-                    try:
+            try:
+                while line:
+                    if line:
                         db_res = self._process_log(line, all_log_items, all_log_props_items)
                         if db_res:
-                            db_updated_items = db_updated_items + 1
-                    except Exception:
-                        os.remove(log_file_name)
-                        raise
+                            db_updated_items = db_updated_items + db_res
 
-                line = fp.readline()
-                line = line.strip()
+                    line = fp.readline()
+                    line = line.strip()
 
-            all_log_items_lst = all_log_items.values()
+                all_log_items_lst = all_log_items.values()
 
-            all_log_props_lst = []
-            for log_props in all_log_props_items.values():
-                all_log_props_lst.extend(log_props)
+                all_log_props_lst = []
+                for log_props in all_log_props_items.values():
+                    all_log_props_lst.extend(log_props)
 
-            print("Updated %d existing DB records" % db_updated_items)
-            print("Try to create %d tracking logs records" % len(all_log_items_lst))
-            if all_log_items_lst:
-                TrackingLog.objects.bulk_create(all_log_items_lst, 1000)
+                print("Updated %d existing DB records" % db_updated_items)
+                print("Try to create %d tracking logs records" % len(all_log_items_lst))
+                if all_log_items_lst:
+                    TrackingLog.objects.bulk_create(all_log_items_lst, 1000)
 
-            print("Try to create %d tracking log props records" % len(all_log_props_lst))
-            if all_log_props_lst:
-                TrackingLogProp.objects.bulk_create(all_log_props_lst, 2000)
+                print("Try to create %d tracking log props records" % len(all_log_props_lst))
+                if all_log_props_lst:
+                    TrackingLogProp.objects.bulk_create(all_log_props_lst, 2000)
 
-            fp.close()
-            os.remove(log_file_name)
+                fp.close()
+                os.remove(log_file_name)
 
-            self._finish_process_log(key_path)
+                self._finish_process_log(key_path)
+            except Exception:
+                os.remove(log_file_name)
+                raise

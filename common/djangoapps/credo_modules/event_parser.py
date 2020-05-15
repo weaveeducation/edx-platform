@@ -131,6 +131,8 @@ class EventParser(object):
 
         course_id = self.get_course_id(event)
         user_id, is_staff = self.user_info(event)
+        if not user_id:
+            return None
 
         org_id = self.get_org_id_for_course(course_id)
         course = self.get_course_for_course(course_id)
@@ -186,7 +188,7 @@ class EventParser(object):
         )
 
     def user_info(self, event):
-        user_id = str(self.get_student_id(event))
+        user_id = self.get_student_id(event)
 #        is_staff = is_staff_role(user_id, self.get_course_id(event))
         is_staff = False
         return user_id, is_staff
