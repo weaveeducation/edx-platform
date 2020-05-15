@@ -3,6 +3,7 @@ import json
 import hashlib
 import tempfile
 import subprocess
+import pytz
 import os
 from django.conf import settings
 from django.core.management import BaseCommand
@@ -169,7 +170,7 @@ class Command(BaseCommand):
             answer_id = self._get_md5(answer_id)
             question_hash = self._get_md5(question_token)
 
-            real_timestamp = make_aware(e.real_timestamp)
+            real_timestamp = make_aware(e.real_timestamp, pytz.utc)
             properties_data_json = json.dumps(e.student_properties) if e.student_properties else None
             tags_json = json.dumps(e.saved_tags) if e.saved_tags else None
             attempt = {
