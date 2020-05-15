@@ -565,7 +565,8 @@ class OraParser(EventParser):
             if criterion_name:
                 criterion_name = criterion_name.replace(":", " ")
                 item = self.process(event_data, answer=part, criterion_name=criterion_name)
-                items.append(item)
+                if item:
+                    items.append(item)
         return items
 
     def get_category(self, event):
