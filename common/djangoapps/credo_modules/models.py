@@ -751,6 +751,48 @@ class StaffUser(models.Model):
     course_id = models.CharField(max_length=255, db_index=True, null=True, blank=True)
 
 
+class TrackingLog(models.Model):
+    course_id = models.CharField(max_length=255, null=False, db_index=True)
+    org_id = models.CharField(max_length=80, null=False, db_index=True)
+    course = models.CharField(max_length=255, null=False)
+    run = models.CharField(max_length=80, null=False)
+    prop_term = models.CharField(max_length=20, null=True, blank=True)
+    block_id = models.CharField(max_length=255, null=False, db_index=True)
+    user_id = models.IntegerField(db_index=True)
+    is_view = models.BooleanField(default=True)
+    answer_id = models.CharField(max_length=255, null=False, unique=True)
+    timestamp = models.DateTimeField()
+    display_name = models.CharField(max_length=2048, null=True, blank=True)
+    question_name = models.CharField(max_length=2048, null=True, blank=True)
+    question_text = models.TextField(null=True, blank=True)
+    question_hash = models.CharField(max_length=80, null=True)
+    is_ora_block = models.BooleanField(default=False)
+    is_ora_empty_rubrics = models.BooleanField(default=False)
+    ora_criterion_name = models.CharField(max_length=255, null=True, blank=True)
+    grade = models.FloatField(null=True)
+    max_grade = models.FloatField(null=True)
+    answer = models.TextField(null=True, blank=True)
+    correctness = models.CharField(max_length=20, null=True, blank=True)
+    is_new_attempt = models.BooleanField(default=False)
+    properties_data = models.TextField(null=True, blank=True)
+    tags = models.TextField(null=True, blank=True)
+    attempts = models.TextField(null=True, blank=True)
+
+    class Meta(object):
+        index_together = (('org_id', 'timestamp'),)
+
+
+class TrackingLogProp(models.Model):
+    answer_id = models.CharField(max_length=255, null=False, db_index=True)
+    prop_name = models.CharField(max_length=255, null=False)
+    prop_value = models.CharField(max_length=255, null=False)
+
+
+class TrackingLogFile(models.Model):
+    log_filename = models.CharField(max_length=255, null=False, db_index=True)
+    status = models.CharField(max_length=255, null=False)
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values
