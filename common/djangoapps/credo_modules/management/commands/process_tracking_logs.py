@@ -143,8 +143,9 @@ class Command(BaseCommand):
         is_view = False
         if event_type == 'sequential_block.viewed':
             is_view = True
-            block_events = DBLogEntry.objects.filter(
+            block_events_data = DBLogEntry.objects.filter(
                 user_id=res[0].user_id, course_id=res[0].course_id, block_id=res[0].block_id).values("event_name")
+            block_events = [b['event_name'] for b in block_events_data]
             block_events = list(set(block_events))
             if len(block_events) == 1 and block_events[0] == 'sequential_block.viewed':
                 # continue
