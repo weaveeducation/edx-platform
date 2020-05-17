@@ -878,7 +878,7 @@ class ViewedParser(EventParser):
         return event.get('context').get('user_id', None)
 
     def is_new_attempt(self, event, *args, **kwargs):
-        return None
+        return False
 
     def is_block_view(self, event, *args, **kwargs):
         return True
