@@ -50,9 +50,6 @@ class Command(BaseCommand):
             else:
                 tr_log.attempts = attempt_json
 
-    def _prepare_text(self, txt):
-        line = txt.decode('ascii',errors='ignore').encode('ascii')
-
     def _update_tr_log(self, tr_log, e, is_view, answer_id, real_timestamp, question_name, question_hash,
                        properties_data_json, tags_json, attempt_json):
         tr_log.course_id = e.course_id
