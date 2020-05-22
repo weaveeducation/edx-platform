@@ -19,9 +19,19 @@ class Gender(object):
     }
 
 
+PROPERTIES_TO_REMOVE = [
+    "gender",
+    "email", "firstname", "lastname", "first_name", "last_name", "name", "surname",
+    "student_email", "studentemail", "student_firstname", "studentfirstname",
+    "studentlastname", "student_lastname", "studentname", "student_name",
+    "terms"
+]
+
+
 def convert_properties(props_dict):
-    if Gender.key in props_dict and props_dict[Gender.key] in Gender.map:
-        props_dict[Gender.key] = Gender.map[props_dict[Gender.key]]
+    for pr_to_remove in PROPERTIES_TO_REMOVE:
+        if pr_to_remove in props_dict:
+            props_dict.pop(pr_to_remove, None)
     return props_dict
 
 
@@ -56,11 +66,11 @@ class EventProcessor(object):
 
 class EventData(object):
     def __init__(self, category, course_id, org_id, course, run, block_id,
-                 timestamp, real_timestamp, saved_tags, student_properties,
+                 timestamp, real_timestamp, dtime_ts, saved_tags, student_properties,
                  grade, max_grade, user_id, display_name, question_text, question_hash, question_text_hash,
                  answers, submit_info=None, is_ora_empty_rubrics=False, is_block_view=False, possible_points=None,
                  ora_block=False, is_new_attempt=False, block_seq=None, is_staff=False, criterion_name=None,
-                 correctness=None):
+                 correctness=None, is_correct=False, term=None):
         self.category = category
         self.course_id = course_id
         self.course = course
@@ -68,17 +78,25 @@ class EventData(object):
         self.run = run
         self.block_id = block_id
         self.timestamp = timestamp
+        self.dtime_ts = dtime_ts
         self.real_timestamp = real_timestamp
         self.saved_tags = saved_tags
         self.student_properties = student_properties
         self.grade = grade
         self.max_grade = max_grade
+        self.criterion_name = criterion_name
+        self.correctness = correctness
+        self.is_correct = is_correct
         self.user_id = user_id
-        self.display_name = display_name.replace("\n", " ").replace("\t", " ") if display_name else ""
-        self.question_text = question_text.replace("\n", " ").replace("\t", " ") if question_text else ""
+        self.display_name = self._prepare_text(display_name) if display_name else ""
         self.question_hash = question_hash
         self.question_text_hash = question_text_hash
-        self.answers = answers.replace("\n", " ").replace("\t", " ") if answers else ""
+        if answers:
+            self.answers = self._prepare_text(answers)
+            self.answers_hash = hashlib.md5(self.answers.encode('utf-8')).hexdigest()
+        else:
+            self.answers = ""
+            self.answers_hash = ""
         self.submit_info = submit_info
         self.is_ora_empty_rubrics = is_ora_empty_rubrics
         self.is_block_view = is_block_view
@@ -87,8 +105,7 @@ class EventData(object):
         self.is_new_attempt = is_new_attempt
         self.block_seq = block_seq
         self.is_staff = is_staff
-        self.criterion_name = criterion_name
-        self.correctness = correctness
+        self.term = term
 
     def __str__(self):
         sb = []
@@ -97,13 +114,16 @@ class EventData(object):
             sb.append(key + '=' + v)
         return '<EventData ' + ', '.join(sb) + '>'
 
+    def _prepare_text(self, txt):
+        txt = txt.strip().replace("\n", " ").replace("\t", " ").replace("|", " ")
+        txt = txt.decode('ascii', errors='ignore').encode('ascii')
+        if len(txt) > 5000:
+            txt = txt[:5000] + '...'
+        return txt
+
     @property
     def parsed_submit_info(self):
         return json.loads(self.submit_info) if self.submit_info else None
-
-    @property
-    def term(self):
-        return self.student_properties.get('terms', None) if self.student_properties else None
 
     @property
     def ora_with_rubrics(self):
@@ -150,13 +170,16 @@ class EventParser(object):
         question_text = self.get_question_text(event, *args, **kwargs)
         question_text_hash = self.get_question_text_hash(question_text)
         question_hash = self.get_question_hash(display_name, question_text)
-        student_properties = convert_properties(self.get_student_properites(event))
+        student_properties = self.get_student_properites(event)
+        term = student_properties.get('terms', None) if student_properties else None
 
         course, student_properties = self._update_course_and_student_properties(course, student_properties, dtime)
+        student_properties = convert_properties(self.get_student_properites(event))
 
         answers = self.get_answers(event, correct_data, dtime_ts, grade=grade, *args, **kwargs)
         criterion_name = kwargs.get('criterion_name', None)
         correctness = correct_data.correctness if correct_data else None
+        is_correct = correct_data.is_correct
 
         return EventData(
             category=self.get_category(event),
@@ -167,6 +190,7 @@ class EventParser(object):
             block_id=problem_id,
             timestamp=timestamp,
             real_timestamp=dtime,
+            dtime_ts=dtime_ts,
             saved_tags=saved_tags,
             student_properties=student_properties,
             grade=grade,
@@ -184,12 +208,14 @@ class EventParser(object):
             is_new_attempt=self.is_new_attempt(event, *args, **kwargs),
             is_staff=is_staff,
             criterion_name=criterion_name,
-            correctness=correctness
+            correctness=correctness,
+            is_correct=is_correct,
+            term=term
         )
 
     def user_info(self, event):
         user_id = self.get_student_id(event)
-#        is_staff = is_staff_role(user_id, self.get_course_id(event))
+        #is_staff = is_staff_role(user_id, self.get_course_id(event))
         is_staff = False
         return user_id, is_staff
 

@@ -3,11 +3,9 @@ import json
 import hashlib
 import tempfile
 import subprocess
-import pytz
 import os
 from django.conf import settings
 from django.core.management import BaseCommand
-from django.utils.timezone import make_aware
 from credo_modules.event_parser import EventProcessor
 from credo_modules.models import DBLogEntry, TrackingLog, TrackingLogProp, TrackingLogFile
 
@@ -52,21 +50,23 @@ class Command(BaseCommand):
             else:
                 tr_log.attempts = attempt_json
 
+    def _prepare_text(self, txt):
+        line = txt.decode('ascii',errors='ignore').encode('ascii')
+
     def _update_tr_log(self, tr_log, e, is_view, answer_id, real_timestamp, question_name, question_hash,
                        properties_data_json, tags_json, attempt_json):
         tr_log.course_id = e.course_id
         tr_log.org_id = e.org_id
         tr_log.course = e.course
         tr_log.run = e.run
-        tr_log.prop_term = e.term
+        tr_log.term = e.term
         tr_log.block_id = e.block_id
         tr_log.user_id = e.user_id
         tr_log.is_view = is_view
         tr_log.answer_id = answer_id
-        tr_log.timestamp = real_timestamp
+        tr_log.ts = real_timestamp
         tr_log.display_name = e.display_name
         tr_log.question_name = question_name
-        tr_log.question_text = e.question_text
         tr_log.question_hash = question_hash
         tr_log.is_ora_block = e.ora_block
         tr_log.ora_criterion_name = e.criterion_name
@@ -75,10 +75,10 @@ class Command(BaseCommand):
         tr_log.max_grade = e.max_grade
         tr_log.answer = e.answers
         tr_log.correctness = e.correctness
-        tr_log.is_new_attempt = e.is_new_attempt
-        tr_log.properties_data = properties_data_json
-        tr_log.tags = tags_json
-        self._update_attempt(tr_log, is_view, attempt_json)
+        tr_log.is_correct = e.is_correct
+        tr_log.is_incorrect = not e.is_correct
+        #@TODO update
+        #self._update_attempt(tr_log, is_view, attempt_json)
 
     def _process_existing_tr(self, e, is_view, answer_id, real_timestamp, question_name, question_hash,
                              properties_data_json, tags_json, attempt_json, db_check=True, tr_log=None):
@@ -88,7 +88,7 @@ class Command(BaseCommand):
             if db_check:
                 tr_log = TrackingLog.objects.get(answer_id=answer_id)
             if (tr_log.is_view and not is_view) or \
-                    (not tr_log.is_view and not is_view and real_timestamp > tr_log.timestamp):
+                    (not tr_log.is_view and not is_view and real_timestamp > tr_log.ts):
                 self._update_tr_log(tr_log, e, is_view, answer_id, real_timestamp, question_name, question_hash,
                                     properties_data_json, tags_json, attempt_json)
                 if db_check:
@@ -110,10 +110,12 @@ class Command(BaseCommand):
                     if db_check:
                         TrackingLogProp.objects.bulk_create(new_tr_props)
                         new_tr_props = []
-            elif not tr_log.is_view and not is_view and real_timestamp < tr_log.timestamp:
-                self._update_attempt(tr_log, is_view, attempt_json)
-                if db_check:
-                    tr_log.save()
+            elif not tr_log.is_view and not is_view and real_timestamp < tr_log.ts:
+                #@TODO update
+                #self._update_attempt(tr_log, is_view, attempt_json)
+                #if db_check:
+                #    tr_log.save()
+                pass
             return True, tr_log, new_tr_props
         except TrackingLog.DoesNotExist:
             pass
@@ -166,19 +168,19 @@ class Command(BaseCommand):
             if e.ora_block and not e.is_ora_empty_rubrics:
                 answer_id = answer_id + '-' + e.criterion_name
                 question_token = e.block_id + '-' + e.criterion_name
-                question_name = e.criterion_name
+                question_name = e.display_name + ': ' + e.criterion_name
 
             answer_id = self._get_md5(answer_id)
             question_hash = self._get_md5(question_token)
 
-            real_timestamp = make_aware(e.real_timestamp, pytz.utc)
+            real_timestamp = e.dtime_ts
             properties_data_json = json.dumps(e.student_properties) if e.student_properties else None
             tags_json = json.dumps(e.saved_tags) if e.saved_tags else None
             attempt = {
                 'grade': e.grade,
                 'max_grade': e.max_grade,
                 'answer': e.answers,
-                'timestamp': e.timestamp,
+                'timestamp': e.ts,
                 'correctness': e.correctness
             }
             attempt_json = json.dumps(attempt)
