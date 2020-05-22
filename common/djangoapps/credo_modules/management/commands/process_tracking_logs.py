@@ -177,7 +177,7 @@ class Command(BaseCommand):
                 'grade': e.grade,
                 'max_grade': e.max_grade,
                 'answer': e.answers,
-                'timestamp': e.ts,
+                'timestamp': e.dtime_ts,
                 'correctness': e.correctness
             }
             attempt_json = json.dumps(attempt)
