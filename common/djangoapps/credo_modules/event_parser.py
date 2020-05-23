@@ -116,7 +116,7 @@ class EventData(object):
 
     def _prepare_text(self, txt):
         txt = txt.strip().replace("\n", " ").replace("\t", " ").replace("|", " ")
-        txt = txt.decode('ascii', errors='ignore').encode('ascii')
+        txt = txt.encode('utf-8').decode('ascii', errors='ignore').encode('ascii')
         if len(txt) > 5000:
             txt = txt[:5000] + '...'
         return txt

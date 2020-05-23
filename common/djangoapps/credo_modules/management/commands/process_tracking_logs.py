@@ -138,6 +138,8 @@ class Command(BaseCommand):
         except Exception:
             if event_type == 'edx.drag_and_drop_v2.item.dropped':
                 return
+            else:
+                raise
 
         is_view = False
         if event_type == 'sequential_block.viewed':
