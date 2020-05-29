@@ -24,15 +24,66 @@ PROPERTIES_TO_REMOVE = [
     "email", "firstname", "lastname", "first_name", "last_name", "name", "surname",
     "student_email", "studentemail", "student_firstname", "studentfirstname",
     "studentlastname", "student_lastname", "studentname", "student_name",
-    "terms"
+    "user", "user_full_name", "user_email",
+    "term", "terms", "run", "runs"
 ]
 
 
-def convert_properties(props_dict):
+def filter_properties(props_dict):
     for pr_to_remove in PROPERTIES_TO_REMOVE:
         if pr_to_remove in props_dict:
             props_dict.pop(pr_to_remove, None)
     return props_dict
+
+
+def get_prop_user_info(props_dict):
+    email = None
+    first_name = None
+    last_name = None
+    full_name = None
+
+    emails_props = ['email', 'student_email', 'studentemail', 'user_email']
+    for email_prop in emails_props:
+        email = props_dict.get(email_prop)
+        if email:
+            break
+
+    first_name_props = ['firstname', 'first_name', 'student_firstname', 'studentfirstname']
+    for first_name_prop in first_name_props:
+        first_name = props_dict.get(first_name_prop)
+        if first_name:
+            break
+
+    last_name_props = ['lastname', 'last_name', 'surname', 'studentlastname', 'student_lastname']
+    for last_name_prop in last_name_props:
+        last_name = props_dict.get(last_name_prop)
+        if last_name:
+            break
+
+    full_name_props = ['name', 'studentname', 'student_name', 'user', 'user_full_name']
+    for full_name_prop in full_name_props:
+        full_name = props_dict.get(full_name_prop)
+        if full_name:
+            break
+
+    if not full_name:
+        if first_name and last_name:
+            full_name = first_name + ' ' + last_name
+        elif first_name and not last_name:
+            full_name = first_name
+        elif not first_name and last_name:
+            full_name = last_name
+
+    return email, full_name
+
+
+def prepare_text_for_column_db(txt, char_num=5000):
+    txt = txt.strip().replace("\n", " ").replace("\t", " ").replace("|", " ")
+    txt = txt.encode('utf-8').decode('ascii', errors='ignore').encode('ascii')
+    if len(txt) > char_num:
+        char_num = char_num - 4
+        txt = txt[:char_num] + '...'
+    return txt
 
 
 class EventCategory(object):
@@ -67,10 +118,11 @@ class EventProcessor(object):
 class EventData(object):
     def __init__(self, category, course_id, org_id, course, run, block_id,
                  timestamp, real_timestamp, dtime_ts, saved_tags, student_properties,
-                 grade, max_grade, user_id, display_name, question_text, question_hash, question_text_hash,
+                 grade, max_grade, user_id, display_name, question_name, question_text, question_text_hash,
                  answers, submit_info=None, is_ora_empty_rubrics=False, is_block_view=False, possible_points=None,
-                 ora_block=False, is_new_attempt=False, block_seq=None, is_staff=False, criterion_name=None,
-                 correctness=None, is_correct=False, term=None):
+                 ora_block=False, is_new_attempt=False, block_seq=None, criterion_name=None,
+                 correctness=None, is_correct=False, term=None, answer_id=None,
+                 prop_user_name=None, prop_user_email=None):
         self.category = category
         self.course_id = course_id
         self.course = course
@@ -88,15 +140,16 @@ class EventData(object):
         self.correctness = correctness
         self.is_correct = is_correct
         self.user_id = user_id
-        self.display_name = self._prepare_text(display_name) if display_name else ""
-        self.question_hash = question_hash
+        self.display_name = prepare_text_for_column_db(display_name, 500) if display_name else ""
+        self.question_name = prepare_text_for_column_db(question_name, 2048) if question_name else ""
+        self.question_text = question_text
+        self.question_hash = None
         self.question_text_hash = question_text_hash
         if answers:
-            self.answers = self._prepare_text(answers)
-            self.answers_hash = hashlib.md5(self.answers.encode('utf-8')).hexdigest()
+            self.answers = prepare_text_for_column_db(answers)
         else:
             self.answers = ""
-            self.answers_hash = ""
+        self.answers_hash = None
         self.submit_info = submit_info
         self.is_ora_empty_rubrics = is_ora_empty_rubrics
         self.is_block_view = is_block_view
@@ -104,8 +157,14 @@ class EventData(object):
         self.ora_block = ora_block
         self.is_new_attempt = is_new_attempt
         self.block_seq = block_seq
-        self.is_staff = is_staff
+        self.is_staff = False
         self.term = term
+        self.answer_id = answer_id
+        self.sequential_name = None
+        self.sequential_id = None
+        self.sequential_graded = False
+        self.prop_user_name = prop_user_name
+        self.prop_user_email = prop_user_email
 
     def __str__(self):
         sb = []
@@ -113,13 +172,6 @@ class EventData(object):
             v = self.__dict__[key]
             sb.append(key + '=' + v)
         return '<EventData ' + ', '.join(sb) + '>'
-
-    def _prepare_text(self, txt):
-        txt = txt.strip().replace("\n", " ").replace("\t", " ").replace("|", " ")
-        txt = txt.encode('utf-8').decode('ascii', errors='ignore').encode('ascii')
-        if len(txt) > 5000:
-            txt = txt[:5000] + '...'
-        return txt
 
     @property
     def parsed_submit_info(self):
@@ -134,6 +186,9 @@ class EventData(object):
 
 
 class EventParser(object):
+
+    def _get_md5(self, val):
+        return hashlib.md5(val.encode('utf-8')).hexdigest()
 
     def process(self, event, *args, **kwargs):
         event_data = self.get_event_data(event)
@@ -150,7 +205,7 @@ class EventParser(object):
         dtime_ts = self.get_timestamp_from_datetime(dtime)
 
         course_id = self.get_course_id(event)
-        user_id, is_staff = self.user_info(event)
+        user_id = self.user_info(event)
         if not user_id:
             return None
 
@@ -167,19 +222,28 @@ class EventParser(object):
         max_grade = correct_data.max_grade if correct_data else 0
         saved_tags = self.convert_tags(self.get_saved_tags(event, **kwargs))
         display_name = self.get_display_name(event, *args, **kwargs)
+        question_name = self.get_question_name(event, *args, **kwargs)
         question_text = self.get_question_text(event, *args, **kwargs)
         question_text_hash = self.get_question_text_hash(question_text)
-        question_hash = self.get_question_hash(display_name, question_text)
         student_properties = self.get_student_properites(event)
-        term = student_properties.get('terms', None) if student_properties else None
+        term = dtime.strftime("%B %Y")
+        course, student_properties = self._update_course_and_student_properties(course, student_properties)
+        prop_user_name, prop_user_email = get_prop_user_info(student_properties)
 
-        course, student_properties = self._update_course_and_student_properties(course, student_properties, dtime)
-        student_properties = convert_properties(self.get_student_properites(event))
+        student_properties = filter_properties(student_properties)
 
         answers = self.get_answers(event, correct_data, dtime_ts, grade=grade, *args, **kwargs)
         criterion_name = kwargs.get('criterion_name', None)
         correctness = correct_data.correctness if correct_data else None
         is_correct = correct_data.is_correct
+
+        answer_id = str(user_id) + '-' + problem_id
+        is_ora_block = self.is_ora_block(event, *args, **kwargs)
+        is_ora_empty_rubrics = self.is_ora_empty_rubrics(event, *args, **kwargs)
+
+        if is_ora_block and not is_ora_empty_rubrics:
+            answer_id = answer_id + '-' + criterion_name
+        answer_id = self._get_md5(answer_id)
 
         return EventData(
             category=self.get_category(event),
@@ -197,44 +261,43 @@ class EventParser(object):
             max_grade=max_grade,
             user_id=user_id,
             display_name=display_name,
+            question_name=question_name,
             question_text=question_text,
-            question_hash=question_hash,
             question_text_hash=question_text_hash,
             answers=answers,
-            is_ora_empty_rubrics=self.is_ora_empty_rubrics(event, *args, **kwargs),
+            is_ora_empty_rubrics=is_ora_empty_rubrics,
             is_block_view=self.is_block_view(event, *args, **kwargs),
             possible_points=self.get_possible_points(event, *args, **kwargs),
-            ora_block=self.is_ora_block(event, *args, **kwargs),
+            ora_block=is_ora_block,
             is_new_attempt=self.is_new_attempt(event, *args, **kwargs),
-            is_staff=is_staff,
             criterion_name=criterion_name,
             correctness=correctness,
             is_correct=is_correct,
-            term=term
+            term=term,
+            answer_id=answer_id,
+            prop_user_name=prop_user_name,
+            prop_user_email=prop_user_email
         )
 
     def user_info(self, event):
         user_id = self.get_student_id(event)
-        #is_staff = is_staff_role(user_id, self.get_course_id(event))
-        is_staff = False
-        return user_id, is_staff
+        return user_id
 
     def check_exclude_insights(self, user_id, course_id):
         pass
 
-    def _update_course_and_student_properties(self, course, student_properties, dtime):
+    def _update_course_and_student_properties(self, course, student_properties):
         overload_items = {
-            'course': {'value': course, 'props': ['course', 'courses', 'course_title', 'course title', 'othercourse']},
-            'term': {'value': None, 'props': ['term', 'terms', 'run', 'runs']}
+            'course': {'value': course, 'props': ['course', 'courses',
+                                                  'course_title', 'course title',
+                                                  'course_name', 'course name', 'coursename',
+                                                  'othercourse']},
         }
         for k in overload_items:
             for prop in overload_items[k]['props']:
                 new_value, new_properties = self.pull_value_from_student_properties(prop, student_properties)
                 if new_value:
                     overload_items[k]['value'], student_properties = new_value, new_properties
-        student_properties['terms'] = overload_items['term']['value']
-        if not student_properties['terms']:
-            student_properties['terms'] = dtime.strftime("%B %Y")
 
         return overload_items['course']['value'], student_properties
 
@@ -267,11 +330,14 @@ class EventParser(object):
 
     def get_student_properites(self, event):
         result = {}
+        tmp_result = {}
         tmp = event.get('context').get('asides', {}).get('student_properties_aside', {}) \
             .get('student_properties', {})
         types = ['registration', 'enrollment']
         for tp in types:
-            result.update(tmp.get(tp, {}))
+            tmp_result.update(tmp.get(tp, {}))
+        for prop_key, prop_value in tmp_result.items():
+            result[prop_key.lower()] = prop_value
         return result
 
     def get_saved_tags(self, event, **kwargs):
@@ -415,10 +481,10 @@ class EventParser(object):
     def get_question_text_hash(self, question_text=None):
         return hashlib.md5(question_text.encode('utf-8')).hexdigest()
 
-    def get_question_hash(self, display_name, question_text):
-        return hashlib.md5(u''.join([display_name, question_text]).encode('utf-8')).hexdigest()
-
     def get_display_name(self, event, *args, **kwargs):
+        raise NotImplementedError()
+
+    def get_question_name(self, event, *args, **kwargs):
         raise NotImplementedError()
 
     def get_student_id(self, event, *args, **kwargs):
@@ -470,6 +536,9 @@ class ImageExplorerParser(EventParser):
 
     def get_display_name(self, event, *args, **kwargs):
         return event.get('context').get('module', {}).get('display_name', '')
+
+    def get_question_name(self, event, *args, **kwargs):
+        return self.get_display_name(event, *args, **kwargs)
 
     def get_grade(self, correctness, *args, **kwargs):
         if correctness.max_grade != 0:
@@ -570,6 +639,9 @@ class ProblemParser(EventParser):
     def get_display_name(self, event, *args, **kwargs):
         return event.get('context').get('module', {}).get('display_name', '')
 
+    def get_question_name(self, event, *args, **kwargs):
+        return self.get_display_name(event, *args, **kwargs)
+
     def get_student_id(self, event, *args, **kwargs):
         return event.get('context').get('user_id', None)
 
@@ -652,8 +724,11 @@ class OraParser(EventParser):
         return question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
 
     def get_display_name(self, event, *args, **kwargs):
+        return event.get('context').get('module', {}).get('display_name', '')
+
+    def get_question_name(self, event, *args, **kwargs):
         criterion_name = kwargs['criterion_name']
-        return event.get('context').get('module', {}).get('display_name', '') + ': ' + criterion_name
+        return self.get_display_name(event, *args, **kwargs) + ': ' + criterion_name
 
     def get_saved_tags(self, event, **kwargs):
         criterion_name = kwargs['criterion_name']
@@ -724,6 +799,9 @@ class OraWithoutCriteriaParser(EventParser):
 
     def get_display_name(self, event, *args, **kwargs):
         return event.get('context').get('module', {}).get('display_name', '')
+
+    def get_question_name(self, event, *args, **kwargs):
+        return self.get_display_name(event, *args, **kwargs)
 
     def get_student_id(self, event, *args, **kwargs):
         return event.get('context').get('user_id', None)
@@ -821,6 +899,9 @@ class DndParser(EventParser):
     def get_display_name(self, event, *args, **kwargs):
         return event.get('context').get('module', {}).get('display_name', '')
 
+    def get_question_name(self, event, *args, **kwargs):
+        return self.get_display_name(event, *args, **kwargs)
+
     def get_student_id(self, event, *args, **kwargs):
         return event.get('context').get('user_id', None)
 
@@ -890,7 +971,10 @@ class ViewedParser(EventParser):
         return event.get('event').get('question_text', '').replace("\n", " ").replace("\t", " ").replace("\r", "")
 
     def get_display_name(self, event, *args, **kwargs):
-        display_name = event.get('event').get('display_name', '')
+        return event.get('event').get('display_name', '')
+
+    def get_question_name(self, event, *args, **kwargs):
+        display_name = self.get_display_name(event, *args, **kwargs)
         criterion_name = kwargs.get('criterion_name')
         if self._is_ora(event) and criterion_name:
             return display_name + ': ' + criterion_name
@@ -911,20 +995,15 @@ class ViewedParser(EventParser):
 
     def get_student_properites(self, event):
         result = {}
+        tmp_result = {}
         tmp = event.get('event').get('student_properties_aside', {}).get('student_properties', {})
         types = ['registration', 'enrollment']
         for tp in types:
-            result.update(tmp.get(tp, {}))
+            tmp_result.update(tmp.get(tp, {}))
+        for prop_key, prop_value in tmp_result.items():
+            result[prop_key.lower()] = prop_value
         return result
 
 
 def parse_course_id(course_id):
     return list(course_id[len('course-v1:'):].split('+') + ([None] * 3))[:3]
-
-
-def get_student_properites(properties):
-    result = {}
-    types = ['registration', 'enrollment']
-    for tp in types:
-        result.update(properties.get(tp, {}))
-    return result

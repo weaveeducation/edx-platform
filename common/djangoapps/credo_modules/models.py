@@ -746,11 +746,6 @@ class AttemptUserMigration(models.Model):
     user_id = models.IntegerField(db_index=True)
 
 
-class StaffUser(models.Model):
-    user_id = models.IntegerField(db_index=True)
-    course_id = models.CharField(max_length=255, db_index=True, null=True, blank=True)
-
-
 class TrackingLog(models.Model):
     course_id = models.CharField(max_length=255, null=False, db_index=True)
     org_id = models.CharField(max_length=80, null=False, db_index=True)
@@ -770,12 +765,18 @@ class TrackingLog(models.Model):
     ora_criterion_name = models.CharField(max_length=255, null=True, blank=True)
     grade = models.FloatField(null=True)
     max_grade = models.FloatField(null=True)
-    is_correct = models.BooleanField(default=False)
-    is_incorrect = models.BooleanField(default=False)
+    is_correct = models.SmallIntegerField(default=0)
+    is_incorrect = models.SmallIntegerField(default=0)
     answer = models.TextField(null=True, blank=True)
     answer_hash = models.CharField(max_length=80, null=True)
     correctness = models.CharField(max_length=20, null=True, blank=True)
-    attempts = models.TextField(null=True, blank=True)
+    sequential_name = models.CharField(max_length=255, null=True)
+    sequential_id = models.CharField(max_length=255, null=True, db_index=True)
+    sequential_graded = models.SmallIntegerField(default=0)
+    is_staff = models.SmallIntegerField(default=0)
+    attempt_ts = models.IntegerField()
+    is_last_attempt = models.SmallIntegerField(default=1)
+    update_ts = models.IntegerField(db_index=True)
 
     class Meta(object):
         index_together = (('org_id', 'ts'),)
@@ -785,6 +786,23 @@ class TrackingLogProp(models.Model):
     answer_id = models.CharField(max_length=255, null=False, db_index=True)
     prop_name = models.CharField(max_length=255, null=False)
     prop_value = models.CharField(max_length=255, null=False)
+
+
+class TrackingLogUserInfo(models.Model):
+    org_id = models.CharField(max_length=255, db_index=True)
+    user_id = models.IntegerField(db_index=True)
+    email = models.CharField(max_length=255, null=True)
+    full_name = models.CharField(max_length=255, null=True)
+    search_token = models.CharField(max_length=255, null=True, db_index=True)
+
+    def update_search_token(self):
+        token_lst = []
+        if self.email:
+            token_lst.append(self.email)
+        if self.full_name:
+            token_lst.append(self.full_name)
+        if token_lst:
+            self.search_token = '|'.join(token_lst)
 
 
 class TrackingLogFile(models.Model):

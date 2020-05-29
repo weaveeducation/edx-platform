@@ -2,12 +2,18 @@ import boto
 import json
 import hashlib
 import tempfile
+import time
 import subprocess
 import os
 from django.conf import settings
 from django.core.management import BaseCommand
+from django.contrib.auth.models import User
+from django.db.models import Q
 from credo_modules.event_parser import EventProcessor
-from credo_modules.models import DBLogEntry, TrackingLog, TrackingLogProp, TrackingLogFile
+from credo_modules.models import DBLogEntry, TrackingLog, TrackingLogProp, TrackingLogUserInfo, TrackingLogFile
+from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
+from student.models import CourseAccessRole
+from opaque_keys.edx.keys import CourseKey
 
 
 class Command(BaseCommand):
@@ -43,15 +49,51 @@ class Command(BaseCommand):
     def _get_md5(self, val):
         return hashlib.md5(val.encode('utf-8')).hexdigest()
 
-    def _update_attempt(self, tr_log, is_view, attempt_json):
-        if not is_view:
-            if tr_log.attempts:
-                tr_log.attempts = tr_log.attempts + '|' + attempt_json
-            else:
-                tr_log.attempts = attempt_json
+    def _update_b2s_cache(self, course_id, b2s_cache):
+        b2s_items = BlockToSequential.objects.filter(course_id=course_id)
+        b2s_cache[course_id] = {}
+        for b2s_item in b2s_items:
+            b2s_cache[course_id][b2s_item.block_id] = (b2s_item.sequential_id, b2s_item.sequential_name,
+                                                       b2s_item.graded)
 
-    def _update_tr_log(self, tr_log, e, is_view, answer_id, real_timestamp, question_name, question_hash,
-                       properties_data_json, tags_json, attempt_json):
+    def _update_staff_cache(self, course_id, staff_cache):
+        staff_cache[course_id] = []
+        course_key = CourseKey.from_string(course_id)
+        course_access_roles = CourseAccessRole.objects.filter(role__in=('instructor', 'staff'), course_id=course_key)
+        for role in course_access_roles:
+            staff_cache[course_id].append(role.user_id)
+
+    def _update_user_info(self, org_id, user_id, prop_email, prop_full_name, users_processed_cache):
+        token = org_id + '|' + str(user_id)
+        if token in users_processed_cache:
+            return
+
+        log_user_info = TrackingLogUserInfo(org_id=org_id, user_id=user_id)
+
+        try:
+            user = User.objects.get(id=user_id)
+            if user.email.endswith('@credomodules.com') and prop_email:
+                log_user_info.email = prop_email
+            else:
+                log_user_info.email = user.email
+
+            if user.first_name and user.last_name:
+                log_user_info.full_name = user.first_name + ' ' + user.last_name
+            elif user.first_name and not user.last_name:
+                log_user_info.full_name = user.first_name
+            elif not user.first_name and user.last_name:
+                log_user_info.full_name = user.last_name
+            elif prop_full_name:
+                log_user_info.full_name = prop_full_name
+
+            log_user_info.update_search_token()
+            log_user_info.save()
+        except User.DoesNotExist:
+            pass
+
+        users_processed_cache.append(token)
+
+    def _update_tr_log(self, tr_log, e, is_view, answer_id, real_timestamp):
         tr_log.course_id = e.course_id
         tr_log.org_id = e.org_id
         tr_log.course = e.course
@@ -63,22 +105,31 @@ class Command(BaseCommand):
         tr_log.answer_id = answer_id
         tr_log.ts = real_timestamp
         tr_log.display_name = e.display_name
-        tr_log.question_name = question_name
-        tr_log.question_hash = question_hash
+        tr_log.question_name = e.question_name
+        tr_log.question_hash = e.question_hash
         tr_log.is_ora_block = e.ora_block
         tr_log.ora_criterion_name = e.criterion_name
         tr_log.is_ora_empty_rubrics = e.is_ora_empty_rubrics
         tr_log.grade = e.grade
         tr_log.max_grade = e.max_grade
         tr_log.answer = e.answers
+        tr_log.answer_hash = e.answers_hash
         tr_log.correctness = e.correctness
-        tr_log.is_correct = e.is_correct
-        tr_log.is_incorrect = not e.is_correct
-        #@TODO update
-        #self._update_attempt(tr_log, is_view, attempt_json)
+        if e.ora_block and not e.is_ora_empty_rubrics:
+            tr_log.is_correct = 0
+            tr_log.is_incorrect = 0
+        else:
+            tr_log.is_correct = 1 if e.is_correct else 0
+            tr_log.is_incorrect = 0 if e.is_correct else 1
+        tr_log.sequential_name = e.sequential_name
+        tr_log.sequential_id = e.sequential_id
+        tr_log.sequential_graded = 1 if e.sequential_graded else 0
+        tr_log.is_staff = 1 if e.is_staff else 0
+        tr_log.attempt_ts = real_timestamp
+        tr_log.is_last_attempt = 1
+        tr_log.update_ts = int(time.time())
 
-    def _process_existing_tr(self, e, is_view, answer_id, real_timestamp, question_name, question_hash,
-                             properties_data_json, tags_json, attempt_json, db_check=True, tr_log=None):
+    def _process_existing_tr(self, e, is_view, answer_id, real_timestamp, db_check=True, tr_log=None):
         new_tr_props = []
 
         try:
@@ -86,8 +137,7 @@ class Command(BaseCommand):
                 tr_log = TrackingLog.objects.get(answer_id=answer_id)
             if (tr_log.is_view and not is_view) or \
                     (not tr_log.is_view and not is_view and real_timestamp > tr_log.ts):
-                self._update_tr_log(tr_log, e, is_view, answer_id, real_timestamp, question_name, question_hash,
-                                    properties_data_json, tags_json, attempt_json)
+                self._update_tr_log(tr_log, e, is_view, answer_id, real_timestamp)
                 if db_check:
                     tr_log.save()
 
@@ -107,18 +157,12 @@ class Command(BaseCommand):
                     if db_check:
                         TrackingLogProp.objects.bulk_create(new_tr_props)
                         new_tr_props = []
-            elif not tr_log.is_view and not is_view and real_timestamp < tr_log.ts:
-                #@TODO update
-                #self._update_attempt(tr_log, is_view, attempt_json)
-                #if db_check:
-                #    tr_log.save()
-                pass
             return True, tr_log, new_tr_props
         except TrackingLog.DoesNotExist:
             pass
         return False, None, []
 
-    def _process_log(self, line, all_log_items, all_log_props_items):
+    def _process_log(self, line, all_log_items, all_log_props_items, b2s_cache, staff_cache, users_processed_cache):
         line = line.strip()
 
         try:
@@ -160,50 +204,59 @@ class Command(BaseCommand):
             if not e:
                 continue
 
-            answer_id = str(e.user_id) + '-' + e.block_id
-            question_token = e.block_id
-            question_name = e.display_name
+            course_id = e.course_id
+            if course_id not in b2s_cache:
+                self._update_b2s_cache(course_id, b2s_cache)
 
-            if e.ora_block and not e.is_ora_empty_rubrics:
-                answer_id = answer_id + '-' + e.criterion_name
-                question_token = e.block_id + '-' + e.criterion_name
-                question_name = e.display_name + ': ' + e.criterion_name
+            if course_id not in staff_cache:
+                self._update_staff_cache(course_id, staff_cache)
 
-            answer_id = self._get_md5(answer_id)
-            question_hash = self._get_md5(question_token)
+            sequential_id, sequential_name, sequential_graded = None, None, False
+            if e.block_id in b2s_cache[course_id]:
+                sequential_id, sequential_name, sequential_graded = b2s_cache[course_id][e.block_id]
+
+            e.sequential_name = sequential_name
+            e.sequential_id = sequential_id
+            e.sequential_graded = sequential_graded
+
+            if e.user_id in staff_cache['global'] or e.user_id in staff_cache[course_id]:
+                e.is_staff = True
+
+            self._update_user_info(e.org_id, e.user_id, e.prop_user_email, e.prop_user_name, users_processed_cache)
+
+            question_token = e.question_name
+            if sequential_name:
+                question_token = sequential_name + '|' + e.question_name
+            e.question_hash = self._get_md5(question_token)
+            e.answers_hash = self._get_md5(question_token + '|' + e.answers)
 
             real_timestamp = e.dtime_ts
-            properties_data_json = json.dumps(e.student_properties) if e.student_properties else None
-            tags_json = json.dumps(e.saved_tags) if e.saved_tags else None
-            attempt = {
-                'grade': e.grade,
-                'max_grade': e.max_grade,
-                'answer': e.answers,
-                'timestamp': e.dtime_ts,
-                'correctness': e.correctness
-            }
-            attempt_json = json.dumps(attempt)
+            #@TODO
+            #attempt = {
+            #    'grade': e.grade,
+            #    'max_grade': e.max_grade,
+            #    'answer': e.answers,
+            #    'timestamp': e.dtime_ts,
+            #    'correctness': e.correctness
+            #}
 
             res_db_check, _tr, _props = self._process_existing_tr(
-                e, is_view, answer_id, real_timestamp, question_name,
-                question_hash, properties_data_json, tags_json, attempt_json, db_check=True)
+                e, is_view, e.answer_id, real_timestamp, db_check=True)
             if res_db_check:
                 db_items = db_items + 1
                 continue
 
-            tr_log = all_log_items.get(answer_id)
+            tr_log = all_log_items.get(e.answer_id)
             if tr_log:
                 res_db_check, updated_tr, updated_props = self._process_existing_tr(
-                    e, is_view, answer_id, real_timestamp, question_name, question_hash,
-                    properties_data_json, tags_json, attempt_json, db_check=False, tr_log=tr_log)
-                all_log_items[answer_id] = updated_tr
+                    e, is_view, e.answer_id, real_timestamp, db_check=False, tr_log=tr_log)
+                all_log_items[e.answer_id] = updated_tr
                 if updated_props:
-                    all_log_props_items[answer_id] = updated_props[:]
+                    all_log_props_items[e.answer_id] = updated_props[:]
             else:
                 new_item = TrackingLog()
-                self._update_tr_log(new_item, e, is_view, answer_id, real_timestamp,
-                                    question_name, question_hash, properties_data_json, tags_json, attempt_json)
-                all_log_items[answer_id] = new_item
+                self._update_tr_log(new_item, e, is_view, e.answer_id, real_timestamp)
+                all_log_items[e.answer_id] = new_item
 
                 if e.student_properties:
                     res_props = []
@@ -211,12 +264,12 @@ class Command(BaseCommand):
                         if len(prop_value) > 255:
                             prop_value = prop_value[0:255]
                         new_prop_item = TrackingLogProp(
-                            answer_id=answer_id,
+                            answer_id=e.answer_id,
                             prop_name=prop_name,
                             prop_value=prop_value
                         )
                         res_props.append(new_prop_item)
-                    all_log_props_items[answer_id] = res_props[:]
+                    all_log_props_items[e.answer_id] = res_props[:]
         return db_items
 
     def handle(self, *args, **options):
@@ -225,6 +278,16 @@ class Command(BaseCommand):
 
         conn = boto.connect_s3(aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key)
         bucket = conn.get_bucket('edu-credo-edx')
+
+        b2s_cache = {}
+        staff_cache = {
+            'global': []
+        }
+        users_processed_cache = []
+
+        superusers = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True))
+        for superuser in superusers:
+            staff_cache['global'].append(superuser.id)
 
         print("Prepare keys")
         all_keys = []
@@ -273,7 +336,8 @@ class Command(BaseCommand):
             try:
                 while line:
                     if line:
-                        db_res = self._process_log(line, all_log_items, all_log_props_items)
+                        db_res = self._process_log(line, all_log_items, all_log_props_items, b2s_cache, staff_cache,
+                                                   users_processed_cache)
                         if db_res:
                             db_updated_items = db_updated_items + db_res
 
