@@ -776,6 +776,8 @@ class TrackingLog(models.Model):
     is_staff = models.SmallIntegerField(default=0)
     attempt_ts = models.IntegerField()
     is_last_attempt = models.SmallIntegerField(default=1)
+    properties_data = models.CharField(max_length=4096, null=True, blank=True)
+    course_user_id = models.CharField(max_length=255, null=True)
     update_ts = models.IntegerField(db_index=True)
 
     class Meta(object):
@@ -783,7 +785,7 @@ class TrackingLog(models.Model):
 
 
 class TrackingLogProp(models.Model):
-    answer_id = models.CharField(max_length=255, null=False, db_index=True)
+    course_user_id = models.CharField(max_length=255, null=False, db_index=True)
     prop_name = models.CharField(max_length=255, null=False)
     prop_value = models.CharField(max_length=255, null=False)
 

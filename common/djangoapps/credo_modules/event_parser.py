@@ -165,6 +165,8 @@ class EventData(object):
         self.sequential_graded = False
         self.prop_user_name = prop_user_name
         self.prop_user_email = prop_user_email
+        course_user_id_source = course_id + '|' + str(self.user_id)
+        self.course_user_id = hashlib.md5(course_user_id_source.encode('utf-8')).hexdigest()
 
     def __str__(self):
         sb = []
@@ -172,6 +174,14 @@ class EventData(object):
             v = self.__dict__[key]
             sb.append(key + '=' + v)
         return '<EventData ' + ', '.join(sb) + '>'
+
+    def get_properties_json_list(self):
+        if not self.student_properties:
+            return ''
+        lst = []
+        for prop_key, prop_value in self.student_properties.items():
+            lst.append(prop_key + ':' + prop_value)
+        return json.dumps(lst) if lst else ''
 
     @property
     def parsed_submit_info(self):
@@ -337,6 +347,8 @@ class EventParser(object):
         for tp in types:
             tmp_result.update(tmp.get(tp, {}))
         for prop_key, prop_value in tmp_result.items():
+            if len(prop_value) > 255:
+                prop_value = prop_value[0:255]
             result[prop_key.lower()] = prop_value
         return result
 

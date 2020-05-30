@@ -127,6 +127,8 @@ class Command(BaseCommand):
         tr_log.is_staff = 1 if e.is_staff else 0
         tr_log.attempt_ts = real_timestamp
         tr_log.is_last_attempt = 1
+        tr_log.course_user_id = e.course_user_id
+        tr_log.properties_data = e.get_properties_json_list()
         tr_log.update_ts = int(time.time())
 
     def _process_existing_tr(self, e, is_view, answer_id, real_timestamp, db_check=True, tr_log=None):
@@ -142,27 +144,28 @@ class Command(BaseCommand):
                     tr_log.save()
 
                 # update related props
-                if db_check:
-                    TrackingLogProp.objects.filter(answer_id=answer_id).delete()
-                if e.student_properties:
-                    for prop_name, prop_value in e.student_properties.items():
-                        if len(prop_value) > 255:
-                            prop_value = prop_value[0:255]
-                        new_prop_item = TrackingLogProp(
-                            answer_id=answer_id,
-                            prop_name=prop_name,
-                            prop_value=prop_value
-                        )
-                        new_tr_props.append(new_prop_item)
-                    if db_check:
-                        TrackingLogProp.objects.bulk_create(new_tr_props)
-                        new_tr_props = []
+#                if db_check:
+#                    TrackingLogProp.objects.filter(answer_id=answer_id).delete()
+#                if e.student_properties:
+#                    for prop_name, prop_value in e.student_properties.items():
+#                        if len(prop_value) > 255:
+#                            prop_value = prop_value[0:255]
+#                        new_prop_item = TrackingLogProp(
+#                            answer_id=answer_id,
+#                            prop_name=prop_name,
+#                            prop_value=prop_value
+#                        )
+#                        new_tr_props.append(new_prop_item)
+#                    if db_check:
+#                        TrackingLogProp.objects.bulk_create(new_tr_props)
+#                        new_tr_props = []
             return True, tr_log, new_tr_props
         except TrackingLog.DoesNotExist:
             pass
         return False, None, []
 
-    def _process_log(self, line, all_log_items, all_log_props_items, b2s_cache, staff_cache, users_processed_cache):
+    def _process_log(self, line, all_log_items, all_log_props_items, b2s_cache, staff_cache,
+                     users_processed_cache, course_user_prop_cache):
         line = line.strip()
 
         try:
@@ -251,25 +254,26 @@ class Command(BaseCommand):
                 res_db_check, updated_tr, updated_props = self._process_existing_tr(
                     e, is_view, e.answer_id, real_timestamp, db_check=False, tr_log=tr_log)
                 all_log_items[e.answer_id] = updated_tr
-                if updated_props:
-                    all_log_props_items[e.answer_id] = updated_props[:]
+                #if updated_props:
+                #    all_log_props_items[e.course_user_id] = updated_props[:]
             else:
                 new_item = TrackingLog()
                 self._update_tr_log(new_item, e, is_view, e.answer_id, real_timestamp)
                 all_log_items[e.answer_id] = new_item
 
-                if e.student_properties:
-                    res_props = []
-                    for prop_name, prop_value in e.student_properties.items():
-                        if len(prop_value) > 255:
-                            prop_value = prop_value[0:255]
-                        new_prop_item = TrackingLogProp(
-                            answer_id=e.answer_id,
-                            prop_name=prop_name,
-                            prop_value=prop_value
-                        )
-                        res_props.append(new_prop_item)
-                    all_log_props_items[e.answer_id] = res_props[:]
+                if e.student_properties and e.course_user_id not in course_user_prop_cache:
+                    tr_log_prop_some = TrackingLogProp.objects.filter(course_user_id=e.course_user_id).first()
+                    if not tr_log_prop_some:
+                        res_props = []
+                        for prop_name, prop_value in e.student_properties.items():
+                            new_prop_item = TrackingLogProp(
+                                course_user_id=e.course_user_id,
+                                prop_name=prop_name,
+                                prop_value=prop_value
+                            )
+                            res_props.append(new_prop_item)
+                        all_log_props_items[e.course_user_id] = res_props[:]
+                    course_user_prop_cache.append(e.course_user_id)
         return db_items
 
     def handle(self, *args, **options):
@@ -284,6 +288,7 @@ class Command(BaseCommand):
             'global': []
         }
         users_processed_cache = []
+        course_user_prop_cache = []
 
         superusers = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True))
         for superuser in superusers:
@@ -337,7 +342,7 @@ class Command(BaseCommand):
                 while line:
                     if line:
                         db_res = self._process_log(line, all_log_items, all_log_props_items, b2s_cache, staff_cache,
-                                                   users_processed_cache)
+                                                   users_processed_cache, course_user_prop_cache)
                         if db_res:
                             db_updated_items = db_updated_items + db_res
 
