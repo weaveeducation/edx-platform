@@ -1,4 +1,6 @@
 import uuid
+import tempfile
+import os
 
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -123,12 +125,23 @@ def _create_submissions(key_id, submission_uuid, course_id, item_id, user_id):
 
             if is_text_response:
                 content = data['text_response']
+                status_code2, resp2 = turnitin_api.upload_file(resp1['id'], filename, content.encode('utf-8'))
             else:
                 file_num = data['file_num']
                 s3_key = _get_student_item_key(anon_user.anonymous_user_id, course_id, item_id, file_num)
-                content = s3_backend.get_key_content(s3_key)
 
-            status_code2, resp2 = turnitin_api.upload_file(resp1['id'], filename, content)
+                tf = tempfile.NamedTemporaryFile(delete=False)
+                try:
+                    s3_backend.save_key_content_into_file(s3_key, tf)
+                    tf.close()
+
+                    tf = open(tf.name, 'rb')
+                    content = tf.read()
+                    status_code2, resp2 = turnitin_api.upload_file(resp1['id'], filename, content)
+                finally:
+                    tf.close()
+                    os.remove(tf.name)
+
             log_action('turnitin_task', 'API upload_file response for file: ' + filename,
                        ora_submission_uuid=submission_uuid, item_id=item_id, user_id=user.id,
                        turnitin_submission_id=turnitin_submission_id, status_code=status_code2)

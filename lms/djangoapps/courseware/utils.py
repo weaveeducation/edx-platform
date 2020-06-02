@@ -113,11 +113,14 @@ def get_answer_and_correctness(user_state_dict, score, category, block, key,
     if category == 'problem' and user_state_dict:
         answer_state = user_state_dict.get(str(key))
         if answer_state:
-            state_gen = block.generate_report_data([answer_state])
-            for state_username, state_item in state_gen:
-                tmp_answer = state_item.get('Answer')
-                answer[state_item.get('Answer ID')] = tmp_answer.strip().replace('\n', ' ') \
-                    if tmp_answer is not None else ''
+            try:
+                state_gen = block.generate_report_data([answer_state])
+                for state_username, state_item in state_gen:
+                    tmp_answer = state_item.get('Answer')
+                    answer[state_item.get('Answer ID')] = tmp_answer.strip().replace('\n', ' ') \
+                        if tmp_answer is not None else ''
+            except AssertionError:
+                correctness = get_correctness(score)
     elif category == 'openassessment':
         submission_dict = None
         if submission:
@@ -141,15 +144,19 @@ def get_answer_and_correctness(user_state_dict, score, category, block, key,
             answer['opened_hotspots'] = 'Opened hotspots: ' + str(opened_hotspots_cnt)
 
     if answer:
-        if score.earned == 0:
-            correctness = 'incorrect'
-        elif score.possible == score.earned:
-            correctness = 'correct'
-        else:
-            correctness = 'partially correct'
+        correctness = get_correctness(score)
 
     return answer, correctness
 
 
 def get_score_points(score_points):
     return int(score_points) if int(score_points) == score_points else score_points
+
+
+def get_correctness(score):
+    if score.earned == 0:
+        return 'incorrect'
+    elif score.possible == score.earned:
+        return 'correct'
+    else:
+        return 'partially correct'
