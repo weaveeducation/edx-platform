@@ -19,8 +19,8 @@ class Gender(object):
     }
 
 
-PROPERTIES_TO_REMOVE = [
-    "gender",
+EXCLUDE_PROPERTIES = [
+    "gender", "context_id", "course_section",
     "email", "firstname", "lastname", "first_name", "last_name", "name", "surname",
     "student_email", "studentemail", "student_firstname", "studentfirstname",
     "studentlastname", "student_lastname", "studentname", "student_name",
@@ -28,9 +28,16 @@ PROPERTIES_TO_REMOVE = [
     "term", "terms", "run", "runs"
 ]
 
+COURSE_PROPERTIES = [
+    'course', 'courses',
+    'course_title', 'course title',
+    'course_name', 'course name', 'coursename',
+    'othercourse'
+]
+
 
 def filter_properties(props_dict):
-    for pr_to_remove in PROPERTIES_TO_REMOVE:
+    for pr_to_remove in EXCLUDE_PROPERTIES:
         if pr_to_remove in props_dict:
             props_dict.pop(pr_to_remove, None)
     return props_dict
@@ -122,7 +129,7 @@ class EventData(object):
                  answers, submit_info=None, is_ora_empty_rubrics=False, is_block_view=False, possible_points=None,
                  ora_block=False, is_new_attempt=False, block_seq=None, criterion_name=None,
                  correctness=None, is_correct=False, term=None, answer_id=None,
-                 prop_user_name=None, prop_user_email=None):
+                 prop_user_name=None, prop_user_email=None, ora_user_answer=None):
         self.category = category
         self.course_id = course_id
         self.course = course
@@ -167,6 +174,7 @@ class EventData(object):
         self.prop_user_email = prop_user_email
         course_user_id_source = course_id + '|' + str(self.user_id)
         self.course_user_id = hashlib.md5(course_user_id_source.encode('utf-8')).hexdigest()
+        self.ora_user_answer = ora_user_answer
 
     def __str__(self):
         sb = []
@@ -250,6 +258,7 @@ class EventParser(object):
         answer_id = str(user_id) + '-' + problem_id
         is_ora_block = self.is_ora_block(event, *args, **kwargs)
         is_ora_empty_rubrics = self.is_ora_empty_rubrics(event, *args, **kwargs)
+        ora_user_answer = self.get_ora_user_answer(event)
 
         if is_ora_block and not is_ora_empty_rubrics:
             answer_id = answer_id + '-' + criterion_name
@@ -286,7 +295,8 @@ class EventParser(object):
             term=term,
             answer_id=answer_id,
             prop_user_name=prop_user_name,
-            prop_user_email=prop_user_email
+            prop_user_email=prop_user_email,
+            ora_user_answer=ora_user_answer
         )
 
     def user_info(self, event):
@@ -295,6 +305,9 @@ class EventParser(object):
 
     def check_exclude_insights(self, user_id, course_id):
         pass
+
+    def get_ora_user_answer(self, event):
+        return None
 
     def _update_course_and_student_properties(self, course, student_properties):
         overload_items = {
@@ -703,11 +716,17 @@ class OraParser(EventParser):
         points_possible = int(answer.get('criterion', {}).get('points_possible', 0))
         points = int(answer.get('option', {}).get('points', 0))
 
+        correctness = 'incorrect'
+        if 0 < points < points_possible:
+            correctness = 'partially-correct'
+        elif points == points_possible:
+            correctness = 'correct'
+
         return CorrectData(
             points == points_possible,
             float(points),
             float(points_possible),
-            None
+            correctness
         )
 
     def get_grade(self, correctness, *args, **kwargs):
@@ -721,6 +740,13 @@ class OraParser(EventParser):
         answer = kwargs['answer']
         answer_display = answer.get('option', {}).get('name', '')
         return answer_display
+
+    def get_ora_user_answer(self, event):
+        answers_parts = event.get('event').get('answer', {}).get('parts')
+        if answers_parts is None:
+            return ''
+        answer = ' '.join([i.get('text', '') for i in answers_parts])
+        return answer
 
     def get_question_text(self, event, *args, **kwargs):
         question_text = ''
@@ -773,7 +799,10 @@ class OraWithoutCriteriaParser(EventParser):
         return True
 
     def custom_event_condition(self, event, *args, **kwargs):
-        rubric_count = int(event.get('event').get('rubric_count', 0))
+        event_data = event.get('event', {})
+        if 'rubric_count' not in event_data:
+            return False
+        rubric_count = event_data.get('rubric_count')
         return rubric_count == 0
 
     def get_possible_points(self, event, *args, **kwargs):
@@ -789,10 +818,12 @@ class OraWithoutCriteriaParser(EventParser):
         return 1
 
     def get_answers(self, event, correctness, timestamp, *args, **kwargs):
+        return 'n/a'
+
+    def get_ora_user_answer(self, event):
         answers_parts = event.get('event').get('answer', {}).get('parts')
         if answers_parts is None:
             return ''
-
         answer = ' '.join([i.get('text', '') for i in answers_parts])
         return answer
 

@@ -85,7 +85,7 @@ def get_enrollment_attributes(post_data, course_id, **kwargs):
         except ValueError:
             return
         if enrollment_properties:
-            for k, v in enrollment_properties.iteritems():
+            for k, v in enrollment_properties.items():
                 lti_key = v['lti'] if 'lti' in v else False
                 default = v['default'] if 'default' in v and v['default'] else None
                 if lti_key and lti_key not in exclude_lti_properties:
@@ -165,6 +165,20 @@ class RegistrationPropertiesPerMicrosite(models.Model):
         db_table = "credo_registration_properties"
         verbose_name = "registration properties item"
         verbose_name_plural = "registration properties per microsite"
+
+
+class RegistrationPropertiesPerOrg(models.Model):
+    org = models.CharField(max_length=255, verbose_name='Org', unique=True)
+    data = models.TextField(
+        verbose_name="Registration Properties",
+        help_text="Config in JSON format",
+        validators=[validate_json_props]
+    )
+
+    class Meta(object):
+        db_table = "credo_registration_properties_v2"
+        verbose_name = "registration properties item"
+        verbose_name_plural = "registration properties per org"
 
 
 class EnrollmentPropertiesPerCourse(models.Model):
@@ -769,6 +783,7 @@ class TrackingLog(models.Model):
     is_incorrect = models.SmallIntegerField(default=0)
     answer = models.TextField(null=True, blank=True)
     answer_hash = models.CharField(max_length=80, null=True)
+    ora_answer = models.TextField(null=True, blank=True)
     correctness = models.CharField(max_length=20, null=True, blank=True)
     sequential_name = models.CharField(max_length=255, null=True)
     sequential_id = models.CharField(max_length=255, null=True, db_index=True)
@@ -785,9 +800,43 @@ class TrackingLog(models.Model):
 
 
 class TrackingLogProp(models.Model):
+    MAX_PROPS_COUNT_PER_ORG = 20
+
     course_user_id = models.CharField(max_length=255, null=False, db_index=True)
-    prop_name = models.CharField(max_length=255, null=False)
-    prop_value = models.CharField(max_length=255, null=False)
+    org_id = models.CharField(max_length=80, null=False, db_index=True)
+    course_id = models.CharField(max_length=255, null=False)
+    user_id = models.IntegerField()
+    update_ts = models.IntegerField(db_index=True)
+    prop0 = models.CharField(max_length=255, null=True)
+    prop1 = models.CharField(max_length=255, null=True)
+    prop2 = models.CharField(max_length=255, null=True)
+    prop3 = models.CharField(max_length=255, null=True)
+    prop4 = models.CharField(max_length=255, null=True)
+    prop5 = models.CharField(max_length=255, null=True)
+    prop6 = models.CharField(max_length=255, null=True)
+    prop7 = models.CharField(max_length=255, null=True)
+    prop8 = models.CharField(max_length=255, null=True)
+    prop9 = models.CharField(max_length=255, null=True)
+    prop10 = models.CharField(max_length=255, null=True)
+    prop11 = models.CharField(max_length=255, null=True)
+    prop12 = models.CharField(max_length=255, null=True)
+    prop13 = models.CharField(max_length=255, null=True)
+    prop14 = models.CharField(max_length=255, null=True)
+    prop15 = models.CharField(max_length=255, null=True)
+    prop16 = models.CharField(max_length=255, null=True)
+    prop17 = models.CharField(max_length=255, null=True)
+    prop18 = models.CharField(max_length=255, null=True)
+    prop19 = models.CharField(max_length=255, null=True)
+
+
+class PropertiesInfo(models.Model):
+    org = models.CharField(max_length=255, verbose_name='Org')
+    course_id = models.CharField(max_length=255, verbose_name='Course ID', null=True)
+    data = models.TextField(
+        verbose_name="List of available properties",
+        help_text="Config in JSON format",
+    )
+    update_ts = models.IntegerField(db_index=True)
 
 
 class TrackingLogUserInfo(models.Model):
@@ -908,19 +957,20 @@ def get_student_properties(request, course_key, item=None):
     return student_properties
 
 
-def get_student_properties_event_data(user, course_id, is_ora=False, parent_id=None):
+def get_student_properties_event_data(user, course_id, is_ora=False, parent_id=None, skip_user_profile=False):
     try:
         from lti_provider.models import LtiContextId
     except ImportError:
         LtiContextId = None
 
     result = {'registration': {}, 'enrollment': {}}
-    try:
-        profile = UserProfile.objects.get(user=user)
-        if profile.gender:
-            result['registration']['gender'] = profile.gender
-    except UserProfile.DoesNotExist:
-        pass
+    if not skip_user_profile:
+        try:
+            profile = UserProfile.objects.get(user=user)
+            if profile.gender:
+                result['registration']['gender'] = profile.gender
+        except UserProfile.DoesNotExist:
+            pass
 
     properties = CredoStudentProperties.objects.filter(user=user)
     for prop in properties:
