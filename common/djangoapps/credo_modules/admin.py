@@ -2,13 +2,13 @@ from django.contrib import admin
 from django.urls import reverse
 from django import forms
 from django.conf import settings
-from .models import RegistrationPropertiesPerMicrosite, EnrollmentPropertiesPerCourse,\
+from .models import RegistrationPropertiesPerOrg, EnrollmentPropertiesPerCourse,\
     Organization, OrganizationType, CourseExcludeInsights, CourseUsage, CustomUserRole, TagDescription
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 
-class RegistrationPropertiesPerMicrositeForm(admin.ModelAdmin):
-    list_display = ('id', 'org', 'domain')
+class RegistrationPropertiesPerOrgForm(admin.ModelAdmin):
+    list_display = ('id', 'org')
 
 
 class EnrollmentPropertiesPerCourseForm(admin.ModelAdmin):
@@ -102,7 +102,7 @@ class TagDescriptionForm(admin.ModelAdmin):
     list_display = ('id', 'tag_name', 'description')
 
 
-admin.site.register(RegistrationPropertiesPerMicrosite, RegistrationPropertiesPerMicrositeForm)
+admin.site.register(RegistrationPropertiesPerOrg, RegistrationPropertiesPerOrgForm)
 admin.site.register(EnrollmentPropertiesPerCourse, EnrollmentPropertiesPerCourseForm)
 admin.site.register(Organization, OrganizationForm)
 admin.site.register(OrganizationType, OrganizationTypeForm)

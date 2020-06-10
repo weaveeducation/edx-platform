@@ -293,11 +293,16 @@ class RegistrationFormFactory(object):
         Returns:
             HttpResponse
         """
-        form_desc = FormDescription("post", reverse("user_api_registration"))
-        self._apply_third_party_auth_overrides(request, form_desc)
+        url = reverse("user_api_registration")
 
         # Custom form fields can be added via the form set in settings.REGISTRATION_EXTENSION_FORM
-        custom_form = get_registration_extension_form()
+        custom_form = get_registration_extension_form(request=request)
+        org_id = custom_form.get_org()
+        if org_id:
+            url = url + '?org_id=' + org_id
+
+        form_desc = FormDescription("post", url)
+        self._apply_third_party_auth_overrides(request, form_desc)
 
         if custom_form:
             # Default fields are always required
