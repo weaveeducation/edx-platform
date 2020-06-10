@@ -1,6 +1,8 @@
 """
 Models used by the block structure framework.
 """
+import json
+
 from contextlib import contextmanager
 from datetime import datetime
 from django.conf import settings
@@ -360,3 +362,16 @@ class BlockToSequential(models.Model):
 
     class Meta:
         db_table = 'block_to_sequential'
+
+
+class CourseAuthProfileFieldsCache(models.Model):
+    course_id = models.CharField(max_length=255, unique=True)
+    data = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'course_auth_profile_fields_cache'
+
+    def get_fields(self):
+        if self.data:
+            return json.loads(self.data)
+        return None

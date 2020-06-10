@@ -7,7 +7,8 @@ from openedx.core.djangoapps.content.course_overviews.models import CourseOvervi
 from credo_modules.event_parser import EXCLUDE_PROPERTIES, COURSE_PROPERTIES
 from credo_modules.models import RegistrationPropertiesPerMicrosite, RegistrationPropertiesPerOrg,\
     EnrollmentPropertiesPerCourse, PropertiesInfo
-from xmodule.modulestore.django import modulestore
+from credo_modules.mongo import get_course_structure
+from openedx.core.djangoapps.content.block_structure.models import CourseAuthProfileFieldsCache
 
 
 class Command(BaseCommand):
@@ -87,9 +88,28 @@ class Command(BaseCommand):
                             if prop_key not in course_props[course_id] and prop_key not in exclude_properties:
                                 course_props[course_id].append(prop_key)
 
-                course = modulestore().get_course(course_key)
-                if course and course.credo_additional_profile_fields:
-                    for k, v in course.credo_additional_profile_fields.items():
+                credo_additional_profile_fields = None
+
+                try:
+                    profile_fields_cache = CourseAuthProfileFieldsCache.objects.get(course_id=course_id)
+                    credo_additional_profile_fields = profile_fields_cache.get_fields()
+                except CourseAuthProfileFieldsCache.DoesNotExist:
+                    course_structure = get_course_structure(course_key)
+                    if course_structure:
+                        for st in course_structure['blocks']:
+                            if st['block_type'] == 'course':
+                                credo_additional_profile_fields = st.get('fields', {}) \
+                                    .get('credo_additional_profile_fields', None)
+                                break
+                    if credo_additional_profile_fields:
+                        profile_fields_cache = CourseAuthProfileFieldsCache(
+                            course_id=course_id,
+                            data=json.dumps(credo_additional_profile_fields)
+                        )
+                        profile_fields_cache.save()
+
+                if credo_additional_profile_fields:
+                    for k, v in credo_additional_profile_fields.items():
                         prop_key = k.strip().lower()
                         if prop_key not in org_props[org] and prop_key not in exclude_properties:
                             org_props[org].append(prop_key)

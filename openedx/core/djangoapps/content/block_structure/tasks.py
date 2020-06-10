@@ -3,6 +3,7 @@ Asynchronous tasks related to the Course Blocks sub-application.
 """
 import logging
 import time
+import json
 from django.db import transaction
 
 from capa.responsetypes import LoncapaProblemError
@@ -19,7 +20,7 @@ from xmodule.modulestore.exceptions import ItemNotFoundError
 from openedx.core.djangoapps.content.block_structure import api
 from openedx.core.djangoapps.content.block_structure.config import STORAGE_BACKING_FOR_CACHE, waffle
 from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure, ApiCourseStructureTags,\
-    ApiCourseStructureLock, BlockToSequential
+    ApiCourseStructureLock, BlockToSequential, CourseAuthProfileFieldsCache
 
 log = logging.getLogger('edx.celery.task')
 
@@ -156,6 +157,28 @@ def _update_course_structure(course_id, published_on):
         with modulestore().bulk_operations(course_key):
             try:
                 course = modulestore().get_course(course_key, depth=0)
+                if course:
+                    if course.credo_additional_profile_fields:
+                        mongo_profile_fields = course.credo_additional_profile_fields
+                        try:
+                            profile_fields_cache = CourseAuthProfileFieldsCache.objects.get(course_id=course_id)
+                            profile_fields_cache_fields = profile_fields_cache.get_fields()
+                            if not profile_fields_cache_fields or set(profile_fields_cache_fields.keys()) != set(mongo_profile_fields.keys()):
+                                profile_fields_cache.data = json.dumps(mongo_profile_fields)
+                                profile_fields_cache.save()
+                        except CourseAuthProfileFieldsCache.DoesNotExist:
+                            profile_fields_cache = CourseAuthProfileFieldsCache(
+                                course_id=course_id,
+                                data=json.dumps(mongo_profile_fields)
+                            )
+                            profile_fields_cache.save()
+                    else:
+                        try:
+                            profile_fields_cache = CourseAuthProfileFieldsCache.objects.get(course_id=course_id)
+                            profile_fields_cache.delete()
+                        except CourseAuthProfileFieldsCache.DoesNotExist:
+                            pass
+
                 if published_on:
                     published_on = published_on.split('.')[0]
                 current_published_on = unicode(course.published_on).split('.')[0]

@@ -65,7 +65,7 @@ class StudentProfileField(object):
     @classmethod
     def init_from_course(cls, course, default_fields=None):
         res_unsorted = OrderedDict()
-        for k, v in course.credo_additional_profile_fields.iteritems():
+        for k, v in course.credo_additional_profile_fields.items():
             order = None
             try:
                 order = int(v['order']) if 'order' in v else None
