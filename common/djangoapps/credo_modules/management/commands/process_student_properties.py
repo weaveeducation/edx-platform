@@ -41,7 +41,7 @@ class Command(BaseCommand):
                     prop_value = student_properties['registration'].get(org_prop, None)
                 if org_prop in course_props and not prop_value:
                     prop_value = '(none)'
-                if len(prop_value) > 255:
+                if prop_value and len(prop_value) > 255:
                     prop_value = prop_value[0:255]
                 kwargs[prop_key] = prop_value
 
