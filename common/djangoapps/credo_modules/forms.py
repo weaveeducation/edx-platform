@@ -1,7 +1,11 @@
 import json
+import re
+
 from django.forms import Form, CharField, ChoiceField
-from credo_modules.models import StudentAttributesRegistrationModel, RegistrationPropertiesPerMicrosite
-from microsite_configuration import microsite
+from django.conf import settings
+from credo_modules.models import StudentAttributesRegistrationModel, RegistrationPropertiesPerOrg
+from opaque_keys.edx.keys import CourseKey
+from opaque_keys import InvalidKeyError
 
 
 class StudentAttributesRegistrationForm(Form):
@@ -14,22 +18,41 @@ class StudentAttributesRegistrationForm(Form):
     _key_pattern = 'custom_attr_%s'
 
     def __init__(self, *args, **kwargs):
+        request = kwargs.pop('request', None)
+
         super(StudentAttributesRegistrationForm, self).__init__(*args, **kwargs)
 
         if 'org' in kwargs:
             self._org = kwargs['org']
+        elif request:
+            try:
+                course_id = request.GET.get('course_id')
+                next_url = request.GET.get('next')
+                org_id = request.GET.get('org_id')
+
+                if course_id:
+                    course_id = course_id.replace(' ', '+')
+                    course_key = CourseKey.from_string(course_id)
+                    self._org = course_key.org
+                elif next_url:
+                    course_key = self._parse_course_id_from_string(next_url)
+                    if course_key:
+                        self._org = course_key.org
+                elif org_id:
+                    self._org = org_id
+
+            except InvalidKeyError:
+                pass
+
         if 'data' in kwargs:
             self._passed_post_data = kwargs['data']
 
         try:
             if self._org:
-                properties = RegistrationPropertiesPerMicrosite.objects.get(org=self._org)
+                properties = RegistrationPropertiesPerOrg.objects.get(org=self._org)
             else:
-                site_domain = microsite.get_value('site_domain')
-                if not site_domain:
-                    return
-                properties = RegistrationPropertiesPerMicrosite.objects.get(domain=site_domain)
-        except RegistrationPropertiesPerMicrosite.DoesNotExist:
+                return
+        except RegistrationPropertiesPerOrg.DoesNotExist:
             return
 
         try:
@@ -84,6 +107,15 @@ class StudentAttributesRegistrationForm(Form):
                     else:
                         kwargs.pop('options', None)
                         self.fields[key] = CharField(**kwargs)
+
+    def _parse_course_id_from_string(self, input_str):
+        m_obj = re.match(r'^/courses/{}'.format(settings.COURSE_ID_PATTERN), input_str)
+        if m_obj:
+            return CourseKey.from_string(m_obj.group('course_id'))
+        return None
+
+    def get_org(self):
+        return self._org
 
     def save(self, **kwargs):
         values = []

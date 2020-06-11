@@ -155,7 +155,7 @@ def create_account_with_params(request, params):
         do_third_party_auth=do_external_auth,
         tos_required=tos_required,
     )
-    custom_form = get_registration_extension_form(data=params)
+    custom_form = get_registration_extension_form(data=params, request=request)
 
     # Perform operations within a transaction that are critical to account creation
     with outer_atomic(read_committed=True):
