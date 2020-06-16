@@ -1,5 +1,6 @@
 import datetime
 import requests
+from django.core.cache import caches
 
 from base64 import b64encode
 from django.conf import settings
@@ -62,8 +63,17 @@ class TurnitinApi(object):
         return r.status_code, content
 
     def get_eula_version(self):
+        cache_key = 'eula_latest'
+        cache_timeout = 60 * 60 * 24
+        cache = caches['default']
+
+        eula_data = cache.get(cache_key)
+        if eula_data:
+            return eula_data['version'], eula_data['url']
+
         status_code, content = self._send_request('/eula/latest')
         if status_code == 200:
+            cache.set(cache_key, content, cache_timeout)
             return content['version'], content['url']
         return None, None
 
@@ -86,7 +96,8 @@ class TurnitinApi(object):
             },
             "metadata": {
                 "owners": [owner]
-            }
+            },
+            "owner_default_permission_set": "LEARNER"
         }
         status_code, content = self._send_request('/submissions', method='post', data=data)
         if status_code == 201:
@@ -127,6 +138,7 @@ class TurnitinApi(object):
 
     def create_viewer_launch_url(self, submission_id, turnitin_user):
         data = {
+            "viewer_default_permission_set": "LEARNER",
             "viewer_user_id": turnitin_user.user_id_hash,
             "locale": "en"
         }

@@ -2,6 +2,7 @@ import uuid
 import tempfile
 import os
 
+from django.core.cache import caches
 from django.contrib.auth.models import User
 from django.db import transaction
 from lms import CELERY_APP
@@ -15,7 +16,7 @@ from .api import TurnitinApi
 from .utils import log_action
 
 
-TURNITIN_TASKS_MAX_RETRIES = 1
+TURNITIN_TASKS_MAX_RETRIES = 7
 
 
 def get_countdown(attempt_num):
@@ -103,7 +104,11 @@ def _create_submissions(key_id, submission_uuid, course_id, item_id, user_id):
     log_action('turnitin_task', 'Submissions to process: ' + ','.join([str(s.id) for s in submissions]),
                ora_submission_uuid=submission_uuid, item_id=item_id, user_id=user.id)
 
-    eula_version, eula_url = turnitin_api.get_eula_version()
+    cache = caches['default']
+    cache_key = 'eula_version_' + str(user.id)
+    eula_version = cache.get(cache_key)
+    if not eula_version:
+        eula_version, eula_url = turnitin_api.get_eula_version()
 
     for sub in submissions:
         with transaction.atomic():

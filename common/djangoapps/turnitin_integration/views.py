@@ -1,5 +1,6 @@
 import json
 
+from django.core.cache import caches
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
@@ -84,6 +85,12 @@ def turnitin_eula(request, api_key_id):
 
     turnitin_api = TurnitinApi(turnitin_api_key)
     eula_version, eula_url = turnitin_api.get_eula_version()
+
+    cache = caches['default']
+    cache_key = 'eula_version_' + str(request.user.id)
+    cache_timeout = 8 * 60 * 60
+    cache.set(cache_key, eula_version, cache_timeout)
+
     if eula_version:
         return redirect(eula_url)
     else:

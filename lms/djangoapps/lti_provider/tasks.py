@@ -19,7 +19,7 @@ from xmodule.modulestore.django import modulestore
 log = logging.getLogger("edx.lti_provider")
 
 
-LTI_TASKS_MAX_RETRIES = 10
+LTI_TASKS_MAX_RETRIES = 7
 
 
 def get_countdown(attempt_num):
