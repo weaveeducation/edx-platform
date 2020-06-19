@@ -738,6 +738,13 @@ class SequentialBlockAnswered(models.Model):
         unique_together = (('sequential_id', 'user_id'),)
 
 
+class SequentialBlockAttempt(models.Model):
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    sequential_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    user_id = models.IntegerField(db_index=True)
+    dt = models.DateTimeField(db_index=True)
+
+
 class OrgUsageMigration(models.Model):
     org = models.CharField(max_length=255, verbose_name='Org', unique=True)
     updated_ids = models.TextField()
@@ -830,7 +837,7 @@ class TrackingLogProp(models.Model):
 
 
 class PropertiesInfo(models.Model):
-    org = models.CharField(max_length=255, verbose_name='Org')
+    org = models.CharField(max_length=255, verbose_name='Org', db_index=True)
     course_id = models.CharField(max_length=255, verbose_name='Course ID', null=True)
     data = models.TextField(
         verbose_name="List of available properties",
@@ -1059,5 +1066,13 @@ def start_new_attempt_after_exam_started(sender, instance, created, **kwargs):
             user_id=instance.user.id
         )
         seq_user_block.save()
+
+        seq_block_attempt = SequentialBlockAttempt(
+            course_id=course_key_str,
+            sequential_id=usage_key_str,
+            user_id=instance.user.id,
+            dt=instance.created
+        )
+        seq_block_attempt.save()
 
         transaction.on_commit(lambda: track_sequential_viewed_task.delay(course_key_str, usage_key_str, instance.user.id))

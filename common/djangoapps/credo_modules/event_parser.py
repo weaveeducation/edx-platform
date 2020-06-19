@@ -32,7 +32,7 @@ COURSE_PROPERTIES = [
     'course', 'courses',
     'course_title', 'course title',
     'course_name', 'course name', 'coursename',
-    'othercourse'
+    'othercourse', 'course name/number'
 ]
 
 

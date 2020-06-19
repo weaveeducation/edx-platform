@@ -6,7 +6,7 @@ import datetime
 import pytz
 
 from submissions import api as sub_api
-from credo_modules.models import SequentialBlockAnswered, get_student_properties_event_data
+from credo_modules.models import SequentialBlockAnswered, SequentialBlockAttempt, get_student_properties_event_data
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
 from student.models import User, AnonymousUserId
@@ -60,6 +60,7 @@ class StudentPropertiesAside(XBlockAside):
                 parent_id = self._get_parent_sequential(self.scope_ids.usage_id.usage_key)
 
             new_attempt = False
+            attempt_created = None
             release_date = datetime.datetime(2020, 2, 10, 3, 40, 12, 0, pytz.UTC)
 
             try:
@@ -72,6 +73,7 @@ class StudentPropertiesAside(XBlockAside):
                         student=user)
                     if st_module.created > release_date:
                         new_attempt = True
+                        attempt_created = st_module.created
                 except StudentModule.DoesNotExist:
                     pass
 
@@ -86,6 +88,15 @@ class StudentPropertiesAside(XBlockAside):
                             user_id=user.id
                         )
                         seq_user_block.save()
+                        attempt_created = attempt_created - datetime.timedelta(seconds=60)
+                        seq_block_attempt = SequentialBlockAttempt(
+                            course_id=course_key_str,
+                            sequential_id=parent_id,
+                            user_id=user.id,
+                            dt=attempt_created
+                        )
+                        seq_block_attempt.save()
+
                         StudentModule.log_start_new_attempt(user.id, course_key_str, parent_id)
                         track_sequential_viewed_task.delay(course_key_str, parent_id, user.id)
                 except IntegrityError:

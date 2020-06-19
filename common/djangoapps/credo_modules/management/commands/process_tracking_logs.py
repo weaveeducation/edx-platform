@@ -4,13 +4,15 @@ import hashlib
 import tempfile
 import time
 import subprocess
+import pytz
 import os
 from django.conf import settings
 from django.core.management import BaseCommand
 from django.contrib.auth.models import User
 from django.db.models import Q
 from credo_modules.event_parser import EventProcessor
-from credo_modules.models import DBLogEntry, TrackingLog, TrackingLogProp, TrackingLogUserInfo, TrackingLogFile
+from credo_modules.models import DBLogEntry, TrackingLog, TrackingLogUserInfo, TrackingLogFile,\
+    SequentialBlockAttempt
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
 from student.models import CourseAccessRole
 from opaque_keys.edx.keys import CourseKey
@@ -25,6 +27,33 @@ class Command(BaseCommand):
         'xblock.image-explorer.hotspot.opened',
         'sequential_block.viewed',
     ]
+
+    def _get_attempts_info(self, event_type, answer_ts, user_id, sequential_id, user_attempts_cache):
+        if not sequential_id:
+            return None, True
+        key = sequential_id + '|' + str(user_id)
+        if key not in user_attempts_cache:
+            user_attempts_cache[key] = []
+            attempts = SequentialBlockAttempt.objects.filter(sequential_id=sequential_id, user_id=user_id)\
+                .order_by('dt')
+            if attempts:
+                for attempt in attempts:
+                    dt = attempt.dt.replace(tzinfo=pytz.utc)
+                    user_attempts_cache[key].append(int(time.mktime(dt.timetuple())))
+        attempts_num = len(user_attempts_cache[key])
+        if attempts_num == 0:
+            return None, True
+
+        # always return last attempt
+        if event_type == 'sequential_block.viewed':
+            return user_attempts_cache[key][-1], True
+
+        for i, attempt_ts in enumerate(user_attempts_cache[key]):
+            if (i + 1) == attempts_num:
+                return attempt_ts, True
+            elif attempt_ts <= answer_ts < user_attempts_cache[key][i + 1]:
+                return attempt_ts, False
+        return None, True
 
     def _start_process_log(self, log_path):
         try:
@@ -93,7 +122,7 @@ class Command(BaseCommand):
 
         users_processed_cache.append(token)
 
-    def _update_tr_log(self, tr_log, e, is_view, answer_id, real_timestamp):
+    def _update_tr_log(self, tr_log, e, is_view, answer_id, real_timestamp, attempt_ts, is_last_attempt):
         tr_log.course_id = e.course_id
         tr_log.org_id = e.org_id
         tr_log.course = e.course
@@ -110,6 +139,7 @@ class Command(BaseCommand):
         tr_log.is_ora_block = e.ora_block
         tr_log.ora_criterion_name = e.criterion_name
         tr_log.is_ora_empty_rubrics = e.is_ora_empty_rubrics
+        tr_log.ora_answer = e.ora_user_answer
         tr_log.grade = e.grade
         tr_log.max_grade = e.max_grade
         tr_log.answer = e.answers
@@ -125,47 +155,28 @@ class Command(BaseCommand):
         tr_log.sequential_id = e.sequential_id
         tr_log.sequential_graded = 1 if e.sequential_graded else 0
         tr_log.is_staff = 1 if e.is_staff else 0
-        tr_log.attempt_ts = real_timestamp
-        tr_log.is_last_attempt = 1
+        tr_log.attempt_ts = attempt_ts
+        tr_log.is_last_attempt = 1 if is_last_attempt else 0
         tr_log.course_user_id = e.course_user_id
         tr_log.properties_data = e.get_properties_json_list()
         tr_log.update_ts = int(time.time())
 
-    def _process_existing_tr(self, e, is_view, answer_id, real_timestamp, db_check=True, tr_log=None):
-        new_tr_props = []
-
+    def _process_existing_tr(self, e, is_view, answer_id, real_timestamp, attempt_ts, is_last_attempt, db_check=True, tr_log=None):
         try:
             if db_check:
-                tr_log = TrackingLog.objects.get(answer_id=answer_id)
+                tr_log = TrackingLog.objects.get(answer_id=answer_id, attempt_ts=attempt_ts)
             if (tr_log.is_view and not is_view) or \
                     (not tr_log.is_view and not is_view and real_timestamp > tr_log.ts):
-                self._update_tr_log(tr_log, e, is_view, answer_id, real_timestamp)
+                self._update_tr_log(tr_log, e, is_view, answer_id, real_timestamp, attempt_ts, is_last_attempt)
                 if db_check:
                     tr_log.save()
 
-                # update related props
-#                if db_check:
-#                    TrackingLogProp.objects.filter(answer_id=answer_id).delete()
-#                if e.student_properties:
-#                    for prop_name, prop_value in e.student_properties.items():
-#                        if len(prop_value) > 255:
-#                            prop_value = prop_value[0:255]
-#                        new_prop_item = TrackingLogProp(
-#                            answer_id=answer_id,
-#                            prop_name=prop_name,
-#                            prop_value=prop_value
-#                        )
-#                        new_tr_props.append(new_prop_item)
-#                    if db_check:
-#                        TrackingLogProp.objects.bulk_create(new_tr_props)
-#                        new_tr_props = []
-            return True, tr_log, new_tr_props
+            return True, tr_log
         except TrackingLog.DoesNotExist:
             pass
-        return False, None, []
+        return False, None
 
-    def _process_log(self, line, all_log_items, all_log_props_items, b2s_cache, staff_cache,
-                     users_processed_cache, course_user_prop_cache):
+    def _process_log(self, line, all_log_items, b2s_cache, staff_cache, users_processed_cache, user_attempts_cache):
         line = line.strip()
 
         try:
@@ -195,10 +206,13 @@ class Command(BaseCommand):
                 user_id=res[0].user_id, course_id=res[0].course_id, block_id=res[0].block_id).values("event_name")
             block_events = [b['event_name'] for b in block_events_data]
             block_events = list(set(block_events))
+
             if len(block_events) == 1 and block_events[0] == 'sequential_block.viewed':
                 # continue
                 pass
             else:
+                # skip "empty" attempts in case if
+                # there are some answers or 'sequential_block.remove_view' events
                 return
 
         db_items = 0
@@ -234,46 +248,28 @@ class Command(BaseCommand):
             e.answers_hash = self._get_md5(question_token + '|' + e.answers)
 
             real_timestamp = e.dtime_ts
-            #@TODO
-            #attempt = {
-            #    'grade': e.grade,
-            #    'max_grade': e.max_grade,
-            #    'answer': e.answers,
-            #    'timestamp': e.dtime_ts,
-            #    'correctness': e.correctness
-            #}
 
-            res_db_check, _tr, _props = self._process_existing_tr(
-                e, is_view, e.answer_id, real_timestamp, db_check=True)
+            attempt_ts, is_last_attempt = self._get_attempts_info(event_type, real_timestamp, e.user_id, sequential_id,
+                                                                  user_attempts_cache)
+
+            res_db_check, _tr = self._process_existing_tr(
+                e, is_view, e.answer_id, real_timestamp, attempt_ts, is_last_attempt, db_check=True)
             if res_db_check:
                 db_items = db_items + 1
                 continue
 
-            tr_log = all_log_items.get(e.answer_id)
+            log_item_key = e.answer_id + '|' + str(attempt_ts)
+
+            tr_log = all_log_items.get(log_item_key)
             if tr_log:
-                res_db_check, updated_tr, updated_props = self._process_existing_tr(
-                    e, is_view, e.answer_id, real_timestamp, db_check=False, tr_log=tr_log)
-                all_log_items[e.answer_id] = updated_tr
-                #if updated_props:
-                #    all_log_props_items[e.course_user_id] = updated_props[:]
+                res_db_check, updated_tr = self._process_existing_tr(
+                    e, is_view, e.answer_id, real_timestamp, attempt_ts, is_last_attempt, db_check=False, tr_log=tr_log)
+                all_log_items[log_item_key] = updated_tr
             else:
                 new_item = TrackingLog()
-                self._update_tr_log(new_item, e, is_view, e.answer_id, real_timestamp)
-                all_log_items[e.answer_id] = new_item
+                self._update_tr_log(new_item, e, is_view, e.answer_id, real_timestamp, attempt_ts, is_last_attempt)
+                all_log_items[log_item_key] = new_item
 
-                if e.student_properties and e.course_user_id not in course_user_prop_cache:
-                    tr_log_prop_some = TrackingLogProp.objects.filter(course_user_id=e.course_user_id).first()
-                    if not tr_log_prop_some:
-                        res_props = []
-                        for prop_name, prop_value in e.student_properties.items():
-                            new_prop_item = TrackingLogProp(
-                                course_user_id=e.course_user_id,
-                                prop_name=prop_name,
-                                prop_value=prop_value
-                            )
-                            res_props.append(new_prop_item)
-                        all_log_props_items[e.course_user_id] = res_props[:]
-                    course_user_prop_cache.append(e.course_user_id)
         return db_items
 
     def handle(self, *args, **options):
@@ -284,11 +280,11 @@ class Command(BaseCommand):
         bucket = conn.get_bucket('edu-credo-edx')
 
         b2s_cache = {}
+        user_attempts_cache = {}
         staff_cache = {
             'global': []
         }
         users_processed_cache = []
-        course_user_prop_cache = []
 
         superusers = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True))
         for superuser in superusers:
@@ -334,15 +330,14 @@ class Command(BaseCommand):
 
             db_updated_items = 0
             all_log_items = {}
-            all_log_props_items = {}
 
             print("Start process items")
 
             try:
                 while line:
                     if line:
-                        db_res = self._process_log(line, all_log_items, all_log_props_items, b2s_cache, staff_cache,
-                                                   users_processed_cache, course_user_prop_cache)
+                        db_res = self._process_log(line, all_log_items, b2s_cache, staff_cache,
+                                                   users_processed_cache, user_attempts_cache)
                         if db_res:
                             db_updated_items = db_updated_items + db_res
 
@@ -351,18 +346,10 @@ class Command(BaseCommand):
 
                 all_log_items_lst = all_log_items.values()
 
-                all_log_props_lst = []
-                for log_props in all_log_props_items.values():
-                    all_log_props_lst.extend(log_props)
-
                 print("Updated %d existing DB records" % db_updated_items)
                 print("Try to create %d tracking logs records" % len(all_log_items_lst))
                 if all_log_items_lst:
                     TrackingLog.objects.bulk_create(all_log_items_lst, 1000)
-
-                print("Try to create %d tracking log props records" % len(all_log_props_lst))
-                if all_log_props_lst:
-                    TrackingLogProp.objects.bulk_create(all_log_props_lst, 2000)
 
                 fp.close()
                 os.remove(log_file_name)
