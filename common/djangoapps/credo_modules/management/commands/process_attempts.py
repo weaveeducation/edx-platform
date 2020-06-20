@@ -34,9 +34,9 @@ class Command(BaseCommand):
         processed_data = []
         block_seq_cache = {}
 
-        date_from = make_aware(datetime.datetime.strptime('2019-07-02', '%Y-%m-%d'), timezone.utc)
+        date_from = make_aware(datetime.datetime.strptime('2019-09-16', '%Y-%m-%d'), timezone.utc)
 
-        limit = 10000
+        limit = 1000
         page = 0
         process = True
 
