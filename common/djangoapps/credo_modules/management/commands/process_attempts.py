@@ -34,7 +34,7 @@ class Command(BaseCommand):
         processed_data = []
         block_seq_cache = {}
 
-        date_from = make_aware(datetime.datetime.strptime('2019-10-18', '%Y-%m-%d'), timezone.utc)
+        date_from = make_aware(datetime.datetime.strptime('2020-03-24', '%Y-%m-%d'), timezone.utc)
         process = True
 
         while process:
