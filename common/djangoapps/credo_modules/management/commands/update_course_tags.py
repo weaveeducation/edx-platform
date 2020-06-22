@@ -9,6 +9,7 @@ from pymongo.database import Database
 from opaque_keys.edx.keys import CourseKey
 from credo_modules.mongo import get_course_structure
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
+from openedx.core.djangoapps.content.block_structure.tasks import update_course_structure
 
 
 class Command(BaseCommand):
@@ -117,3 +118,7 @@ class Command(BaseCommand):
                 if cached_version:
                     print 'remove cache for: ', str(version_obj['_id'])
                     cache.delete(str(version_obj['_id']))
+                update_course_structure.apply_async(
+                    kwargs=dict(course_id=unicode(course_key), published_on=None),
+                    countdown=10,
+                )
