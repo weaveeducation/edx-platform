@@ -41,7 +41,8 @@ class Command(BaseCommand):
             date_to = date_from + datetime.timedelta(hours=4)
             print '------ Process items from %s to %s' % (str(date_from), str(date_to))
 
-            events = DBLogEntry.objects.filter(time__gte=date_from, time__lte=date_to).order_by('time')
+            events = DBLogEntry.objects.filter(time__gte=date_from, time__lte=date_to,
+                                               event_name__in=self.event_types).order_by('time')
             if len(events) == 0:
                 return
 
@@ -49,9 +50,6 @@ class Command(BaseCommand):
                 block_id = event.block_id
                 user_id = event.user_id
                 course_id = event.course_id
-
-                if event.event_name not in self.event_types:
-                    continue
 
                 sequential_id = self._get_sequential_id(block_id, block_seq_cache)
                 if not sequential_id:
