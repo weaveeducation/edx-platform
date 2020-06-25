@@ -94,33 +94,51 @@ class Command(BaseCommand):
 
     def _update_user_info(self, org_id, user_id, prop_email, prop_full_name, users_processed_cache):
         token = org_id + '|' + str(user_id)
+        create_new = False
+
         if token in users_processed_cache:
-            return
+            log_user_info = users_processed_cache[token]
+        else:
+            try:
+                log_user_info = TrackingLogUserInfo.objects.get(org_id=org_id, user_id=user_id)
+            except TrackingLogUserInfo.DoesNotExist:
+                log_user_info = TrackingLogUserInfo(org_id=org_id, user_id=user_id)
+                create_new = True
 
-        log_user_info = TrackingLogUserInfo(org_id=org_id, user_id=user_id)
+        email_to_set = ''
+        full_name_to_set = ''
 
-        try:
-            user = User.objects.get(id=user_id)
-            if user.email.endswith('@credomodules.com') and prop_email:
-                log_user_info.email = prop_email
-            else:
-                log_user_info.email = user.email
+        if create_new:
+            try:
+                user = User.objects.get(id=user_id)
+                email_to_set = user.email
+                if user.first_name and user.last_name:
+                    full_name_to_set = user.first_name + ' ' + user.last_name
+                elif user.first_name and not user.last_name:
+                    full_name_to_set = user.first_name
+                elif not user.first_name and user.last_name:
+                    full_name_to_set = user.last_name
+            except User.DoesNotExist:
+                pass
 
-            if user.first_name and user.last_name:
-                log_user_info.full_name = user.first_name + ' ' + user.last_name
-            elif user.first_name and not user.last_name:
-                log_user_info.full_name = user.first_name
-            elif not user.first_name and user.last_name:
-                log_user_info.full_name = user.last_name
-            elif prop_full_name:
-                log_user_info.full_name = prop_full_name
+        if prop_email:
+            email_to_set = prop_email
+        if prop_full_name:
+            full_name_to_set = prop_full_name
 
+        changed = False
+        if email_to_set and log_user_info.email != email_to_set:
+            log_user_info.email = email_to_set
+            changed = True
+        if full_name_to_set and log_user_info.full_name != full_name_to_set:
+            log_user_info.full_name = full_name_to_set
+            changed = True
+
+        if create_new or changed:
             log_user_info.update_search_token()
             log_user_info.save()
-        except User.DoesNotExist:
-            pass
-
-        users_processed_cache.append(token)
+            if create_new:
+                users_processed_cache[token] = log_user_info
 
     def _update_tr_log(self, tr_log, e, is_view, answer_id, real_timestamp, attempt_ts, is_last_attempt):
         tr_log.course_id = e.course_id
@@ -288,7 +306,7 @@ class Command(BaseCommand):
         staff_cache = {
             'global': []
         }
-        users_processed_cache = []
+        users_processed_cache = {}
 
         superusers = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True))
         for superuser in superusers:
