@@ -42,7 +42,7 @@ class Command(BaseCommand):
                     user_attempts_cache[key].append(int(time.mktime(dt.timetuple())))
         attempts_num = len(user_attempts_cache[key])
         if attempts_num == 0:
-            return None, True
+            return 0, True
 
         # always return last attempt
         if event_type == 'sequential_block.viewed':
@@ -53,7 +53,7 @@ class Command(BaseCommand):
                 return attempt_ts, True
             elif attempt_ts <= answer_ts < user_attempts_cache[key][i + 1]:
                 return attempt_ts, False
-        return None, True
+        return 0, True
 
     def _start_process_log(self, log_path):
         try:

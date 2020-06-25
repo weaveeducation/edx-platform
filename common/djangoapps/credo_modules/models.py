@@ -776,7 +776,7 @@ class TrackingLog(models.Model):
     block_id = models.CharField(max_length=255, null=False, db_index=True)
     user_id = models.IntegerField(db_index=True)
     is_view = models.BooleanField(default=True)
-    answer_id = models.CharField(max_length=255, null=False, unique=True)
+    answer_id = models.CharField(max_length=255, null=False)
     ts = models.IntegerField()
     display_name = models.CharField(max_length=2048, null=True, blank=True)
     question_name = models.CharField(max_length=2048, null=True, blank=True)
@@ -804,6 +804,7 @@ class TrackingLog(models.Model):
 
     class Meta(object):
         index_together = (('org_id', 'ts'),)
+        unique_together = (('answer_id', 'attempt_ts'),)
 
 
 class TrackingLogProp(models.Model):
