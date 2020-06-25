@@ -249,8 +249,12 @@ class Command(BaseCommand):
 
             real_timestamp = e.dtime_ts
 
-            attempt_ts, is_last_attempt = self._get_attempts_info(event_type, real_timestamp, e.user_id, sequential_id,
-                                                                  user_attempts_cache)
+            if sequential_id:
+                attempt_ts, is_last_attempt = self._get_attempts_info(event_type, real_timestamp, e.user_id,
+                                                                      sequential_id, user_attempts_cache)
+            else:
+                attempt_ts = 0
+                is_last_attempt = True
 
             res_db_check, _tr = self._process_existing_tr(
                 e, is_view, e.answer_id, real_timestamp, attempt_ts, is_last_attempt, db_check=True)
