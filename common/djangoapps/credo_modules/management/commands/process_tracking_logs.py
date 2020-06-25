@@ -27,7 +27,7 @@ class Command(BaseCommand):
         'xblock.image-explorer.hotspot.opened',
         'sequential_block.viewed',
     ]
-    update_process_num = 0
+    update_process_num = None
 
     def _get_attempts_info(self, event_type, answer_ts, user_id, sequential_id, user_attempts_cache):
         if not sequential_id:
