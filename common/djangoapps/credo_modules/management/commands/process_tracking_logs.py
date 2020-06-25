@@ -27,13 +27,11 @@ class Command(BaseCommand):
         'xblock.image-explorer.hotspot.opened',
         'sequential_block.viewed',
     ]
-
-    def _get_tracking_log_model(self):
-        return TrackingLog
+    update_process_num = 0
 
     def _get_attempts_info(self, event_type, answer_ts, user_id, sequential_id, user_attempts_cache):
         if not sequential_id:
-            return None, True
+            return None, True, []
         key = sequential_id + '|' + str(user_id)
         if key not in user_attempts_cache:
             user_attempts_cache[key] = []
@@ -45,18 +43,18 @@ class Command(BaseCommand):
                     user_attempts_cache[key].append(int(time.mktime(dt.timetuple())))
         attempts_num = len(user_attempts_cache[key])
         if attempts_num == 0:
-            return 0, True
+            return 0, True, []
 
         # always return last attempt
         if event_type == 'sequential_block.viewed':
-            return user_attempts_cache[key][-1], True
+            return user_attempts_cache[key][-1], True, user_attempts_cache[key]
 
         for i, attempt_ts in enumerate(user_attempts_cache[key]):
             if (i + 1) == attempts_num:
-                return attempt_ts, True
+                return attempt_ts, True, user_attempts_cache[key]
             elif attempt_ts <= answer_ts < user_attempts_cache[key][i + 1]:
-                return attempt_ts, False
-        return 0, True
+                return attempt_ts, False, user_attempts_cache[key]
+        return 0, True, user_attempts_cache[key]
 
     def _start_process_log(self, log_path):
         try:
@@ -104,6 +102,7 @@ class Command(BaseCommand):
         else:
             try:
                 log_user_info = TrackingLogUserInfo.objects.get(org_id=org_id, user_id=user_id)
+                users_processed_cache[token] = log_user_info
             except TrackingLogUserInfo.DoesNotExist:
                 log_user_info = TrackingLogUserInfo(org_id=org_id, user_id=user_id)
                 create_new = True
@@ -180,22 +179,46 @@ class Command(BaseCommand):
         tr_log.is_last_attempt = 1 if is_last_attempt else 0
         tr_log.course_user_id = e.course_user_id
         tr_log.update_ts = int(time.time())
+        tr_log.update_process_num = self.update_process_num
+
+    def _tr_log_need_update(self, tr_log, is_view, real_timestamp):
+        if (tr_log.is_view and not is_view) or (not tr_log.is_view and not is_view and real_timestamp > tr_log.ts):
+            return True
+        return False
 
     def _process_existing_tr(self, e, is_view, answer_id, real_timestamp, attempt_ts, is_last_attempt, db_check=True,
                              tr_log=None):
-        try:
-            if db_check:
+        if db_check:
+            try:
                 tr_log = TrackingLog.objects.get(answer_id=answer_id, attempt_ts=attempt_ts)
-            if (tr_log.is_view and not is_view) or \
-                    (not tr_log.is_view and not is_view and real_timestamp > tr_log.ts):
-                self._update_tr_log(tr_log, e, is_view, answer_id, real_timestamp, attempt_ts, is_last_attempt)
-                if db_check:
+                if self._tr_log_need_update(tr_log, is_view, real_timestamp):
+                    self._update_tr_log(tr_log, e, is_view, answer_id, real_timestamp, attempt_ts, is_last_attempt)
                     tr_log.save()
-
+                return True, tr_log
+            except TrackingLog.DoesNotExist:
+                pass
+            return False, None
+        else:
+            if self._tr_log_need_update(tr_log, is_view, real_timestamp):
+                self._update_tr_log(tr_log, e, is_view, answer_id, real_timestamp, attempt_ts, is_last_attempt)
             return True, tr_log
-        except TrackingLog.DoesNotExist:
-            pass
-        return False, None
+
+    def _check_sequential_block_viewed(self, res):
+        block_events_data = DBLogEntry.objects.filter(
+            user_id=res[0].user_id, course_id=res[0].course_id, block_id=res[0].block_id).values("event_name")
+        block_events = [b['event_name'] for b in block_events_data]
+        block_events = list(set(block_events))
+
+        if len(block_events) == 1 and block_events[0] == 'sequential_block.viewed':
+            # continue
+            return True
+        else:
+            # skip "empty" attempts in case if
+            # there are some answers or 'sequential_block.remove_view' events
+            return False
+
+    def _update_previous_attempts(self, user_id, sequential_id, last_attempt_ts):
+        pass
 
     def _process_log(self, line, all_log_items, b2s_cache, staff_cache, users_processed_cache, user_attempts_cache):
         line = line.strip()
@@ -223,17 +246,8 @@ class Command(BaseCommand):
         is_view = False
         if event_type == 'sequential_block.viewed':
             is_view = True
-            block_events_data = DBLogEntry.objects.filter(
-                user_id=res[0].user_id, course_id=res[0].course_id, block_id=res[0].block_id).values("event_name")
-            block_events = [b['event_name'] for b in block_events_data]
-            block_events = list(set(block_events))
-
-            if len(block_events) == 1 and block_events[0] == 'sequential_block.viewed':
-                # continue
-                pass
-            else:
-                # skip "empty" attempts in case if
-                # there are some answers or 'sequential_block.remove_view' events
+            view_process = self._check_sequential_block_viewed(res)
+            if not view_process:
                 return
 
         db_items = 0
@@ -271,8 +285,11 @@ class Command(BaseCommand):
             real_timestamp = e.dtime_ts
 
             if sequential_id:
-                attempt_ts, is_last_attempt = self._get_attempts_info(event_type, real_timestamp, e.user_id,
-                                                                      sequential_id, user_attempts_cache)
+                attempt_ts, is_last_attempt, user_attempts = self._get_attempts_info(
+                    event_type, real_timestamp, e.user_id, sequential_id, user_attempts_cache)
+                if len(user_attempts) > 1:
+                    last_attempt_ts = user_attempts[-1]
+                    self._update_previous_attempts(e.user_id, sequential_id, last_attempt_ts)
             else:
                 attempt_ts = 0
                 is_last_attempt = True
@@ -291,8 +308,7 @@ class Command(BaseCommand):
                     e, is_view, e.answer_id, real_timestamp, attempt_ts, is_last_attempt, db_check=False, tr_log=tr_log)
                 all_log_items[log_item_key] = updated_tr
             else:
-                tracking_log_model = self._get_tracking_log_model()
-                new_item = tracking_log_model()
+                new_item = TrackingLog()
                 self._update_tr_log(new_item, e, is_view, e.answer_id, real_timestamp, attempt_ts, is_last_attempt)
                 all_log_items[log_item_key] = new_item
 

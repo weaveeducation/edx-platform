@@ -799,10 +799,11 @@ class TrackingLog(models.Model):
     attempt_ts = models.IntegerField()
     is_last_attempt = models.SmallIntegerField(default=1)
     course_user_id = models.CharField(max_length=255, null=True)
-    update_ts = models.IntegerField(db_index=True)
+    update_ts = models.IntegerField()
+    update_process_num = models.IntegerField(db_index=True, null=True)
 
     class Meta(object):
-        index_together = (('org_id', 'ts'),)
+        index_together = (('org_id', 'ts'), ('user_id', 'sequential_id'))
         unique_together = (('answer_id', 'attempt_ts'),)
 
 
