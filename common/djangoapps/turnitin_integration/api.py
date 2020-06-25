@@ -118,8 +118,11 @@ class TurnitinApi(object):
             return r.status_code, True
         return r.status_code, False
 
-    def create_report(self, submission_id):
+    def create_report(self, submission_id, add_to_index, auto_exclude_self_matching_scope):
         data = {
+            "indexing_settings": {
+                "add_to_index": add_to_index
+            },
             "generation_settings": {
                 "search_repositories": [
                     "INTERNET",
@@ -127,7 +130,8 @@ class TurnitinApi(object):
                     "PUBLICATION",
                     "CROSSREF",
                     "CROSSREF_POSTED_CONTENT"
-                ]
+                ],
+                "auto_exclude_self_matching_scope": "ALL" if auto_exclude_self_matching_scope else "NONE"
             }
         }
         status_code, content = self._send_request('/submissions/' + submission_id + '/similarity',

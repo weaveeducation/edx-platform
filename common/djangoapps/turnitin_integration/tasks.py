@@ -168,6 +168,11 @@ def _generate_report(turnitin_submission_id):
                        turnitin_submission_id=turnitin_submission_id)
             return
 
+        usage_key = UsageKey.from_string(turnitin_submission.block_id)
+        block = modulestore().get_item(usage_key)
+        add_to_index = block.turnitin_config.get('add_to_index', False)
+        auto_exclude_self_matching_scope = block.turnitin_config.get('auto_exclude_self_matching_scope', False)
+
         api_key = turnitin_submission.api_key
         if not api_key.is_active:
             log_action('turnitin_task', 'Generate report error. API key is inactive', key_id=api_key.id,
@@ -176,7 +181,8 @@ def _generate_report(turnitin_submission_id):
 
         turnitin_api = TurnitinApi(api_key)
 
-        status_code, result = turnitin_api.create_report(turnitin_submission_id)
+        status_code, result = turnitin_api.create_report(turnitin_submission_id, add_to_index,
+                                                         auto_exclude_self_matching_scope)
         log_action('turnitin_task', 'API create_report response for turnitin_submission_id: ' + turnitin_submission_id,
                    status_code=status_code)
         if result:
