@@ -124,7 +124,7 @@ class EventProcessor(object):
 
 class EventData(object):
     def __init__(self, category, course_id, org_id, course, run, block_id,
-                 timestamp, real_timestamp, dtime_ts, saved_tags, student_properties,
+                 timestamp, dtime, dtime_ts, saved_tags, student_properties,
                  grade, max_grade, user_id, display_name, question_name, question_text, question_text_hash,
                  answers, submit_info=None, is_ora_empty_rubrics=False, is_block_view=False, possible_points=None,
                  ora_block=False, is_new_attempt=False, block_seq=None, criterion_name=None,
@@ -138,7 +138,7 @@ class EventData(object):
         self.block_id = block_id
         self.timestamp = timestamp
         self.dtime_ts = dtime_ts
-        self.real_timestamp = real_timestamp
+        self.dtime = dtime
         self.saved_tags = saved_tags
         self.student_properties = student_properties
         self.grade = grade
@@ -272,7 +272,7 @@ class EventParser(object):
             run=run,
             block_id=problem_id,
             timestamp=timestamp,
-            real_timestamp=dtime,
+            dtime=dtime,
             dtime_ts=dtime_ts,
             saved_tags=saved_tags,
             student_properties=student_properties,
