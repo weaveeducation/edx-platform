@@ -12,7 +12,7 @@ from django.core.management import BaseCommand
 from django.contrib.auth.models import User
 from django.db.models import Q
 from credo_modules.event_parser import EventProcessor
-from credo_modules.models import DBLogEntry, TrackingLog, TrackingLogUserInfo, TrackingLogFile,\
+from credo_modules.models import DBLogEntry, TrackingLog, TrackingLogUserInfo, TrackingLogFile, TrackingLogConfig,\
     SequentialBlockAttempt
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
 from student.models import CourseAccessRole
@@ -236,6 +236,8 @@ class Command(BaseCommand):
 
     def _update_previous_attempts(self, user_id, sequential_id, last_attempt_ts):
         key = sequential_id + '|' + str(user_id)
+        if self._updated_user_attempts is None:
+            self._updated_user_attempts = {}
         if key not in self._updated_user_attempts or self._updated_user_attempts[key] != last_attempt_ts:
             TrackingLog.objects.filter(
                 user_id=user_id, sequential_id=sequential_id, is_last_attempt=1
@@ -347,7 +349,6 @@ class Command(BaseCommand):
         conn = boto.connect_s3(aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key)
         bucket = conn.get_bucket('edu-credo-edx')
 
-        self._updated_user_attempts = {}
         b2s_cache = {}
         staff_cache = {
             'global': []
@@ -371,6 +372,7 @@ class Command(BaseCommand):
 
         keys = [k.key for k in sorted(all_keys, key=lambda x: x.last_modified)]
         files_num = len(keys)
+        last_line = None
 
         for file_num, key_path in enumerate(keys):
             print('------------------------------------------------')
@@ -404,6 +406,7 @@ class Command(BaseCommand):
             try:
                 while line:
                     if line:
+                        last_line = line
                         db_res = self._process_log(line, all_log_items, b2s_cache, staff_cache,
                                                    users_processed_cache)
                         if db_res:
@@ -426,3 +429,10 @@ class Command(BaseCommand):
             except Exception:
                 os.remove(log_file_name)
                 raise
+
+            if file_num + 1 == files_num:
+                line_json = json.loads(last_line)
+                event_time = line_json.get('time').split('+')[0].replace('T', ' ')
+                TrackingLogConfig.update_setting('last_log_time', event_time)
+                TrackingLogConfig.update_setting('update_process_num', '1')
+                TrackingLogConfig.update_setting('update_time', int(time.time()))

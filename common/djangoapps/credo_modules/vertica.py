@@ -13,6 +13,10 @@ def get_vertica_dsn():
 def merge_data_into_vertica_table(table_name, model_class, update_process_num):
     print('Get data from DB to save into CSV')
     model_data = model_class.objects.filter(update_process_num=update_process_num).values_list()
+    if len(model_data) == 0:
+        print('Nothing to copy!')
+        return
+
     table_name_copy_from = table_name + '_temp'
 
     with vertica_python.connect(dsn=get_vertica_dsn()) as conn:
@@ -50,9 +54,9 @@ def merge_data_into_vertica_table(table_name, model_class, update_process_num):
         insert_values = ['t1.%s' % field for field in fields]
         insert_values_sql = ','.join(insert_values)
 
-        sql2 = "MERGE INTO %s AS t2 USING %s AS t1 ON t1.id = t2.id \
-                WHEN MATCHED THEN UPDATE SET %s \
-                WHEN NOT MATCHED THEN INSERT %s VALUES (%s)"
+        sql2 = "MERGE INTO %s AS t2 USING %s AS t1 ON t1.id = t2.id " +\
+               "WHEN MATCHED THEN UPDATE SET %s " +\
+               "WHEN NOT MATCHED THEN INSERT %s VALUES (%s)"
         sql2 = sql2 % (table_name, table_name_copy_from, update_columns_sql,
                        insert_columns_sql, insert_values_sql)
 

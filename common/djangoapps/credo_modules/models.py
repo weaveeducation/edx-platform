@@ -843,6 +843,22 @@ class TrackingLogConfig(models.Model):
     value = models.CharField(max_length=255)
     updated = models.DateTimeField(auto_now=True)
 
+    @classmethod
+    def update_setting(cls, key, value):
+        try:
+            conf_obj = TrackingLogConfig.objects.get(key=key)
+        except TrackingLogConfig.DoesNotExist:
+            conf_obj = TrackingLogConfig(key=key)
+        conf_obj.value = str(value)
+        conf_obj.save()
+
+    @classmethod
+    def get_setting(cls, key, default_value=None):
+        conf_obj = TrackingLogConfig.objects.filter(key=key).first()
+        if not conf_obj:
+            return default_value
+        return conf_obj.value
+
 
 class PropertiesInfo(models.Model):
     org = models.CharField(max_length=255, verbose_name='Org', db_index=True)
