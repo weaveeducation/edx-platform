@@ -559,6 +559,9 @@ CONSTRUCTOR_LINK = ENV_TOKENS.get('CONSTRUCTOR_LINK', 'http://127.0.0.1:9015')
 ############## Credo Insights ############################
 CREDO_INSIGHTS_LINK = ENV_TOKENS.get('CREDO_INSIGHTS_LINK', 'https://insights.credoeducation.com')
 
+############## VERTICA DSN ############################
+VERTICA_DSN = ENV_TOKENS.get('VERTICA_DSN', '')
+
 BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 7 * 24 * 60 * 60}  # 7 days
 
 ########## Settings for video transcript migration tasks ############

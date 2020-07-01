@@ -1076,6 +1076,9 @@ RAVEN_CONFIG = ENV_TOKENS.get('RAVEN_CONFIG', {})
 ############## Credo API config ############################
 CREDO_API_CONFIG = ENV_TOKENS.get('CREDO_API_CONFIG', {})
 
+############## VERTICA DSN ############################
+VERTICA_DSN = ENV_TOKENS.get('VERTICA_DSN', '')
+
 ########################## Parental controls config  #######################
 
 # The age at which a learner no longer requires parental consent, or None

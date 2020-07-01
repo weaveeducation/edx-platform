@@ -1139,6 +1139,9 @@ CREDO_INSIGHTS_LINK = ENV_TOKENS.get('CREDO_INSIGHTS_LINK', 'https://insights.cr
 TURNITIN_SIGNING_SECRET = ENV_TOKENS.get('TURNITIN_SIGNING_SECRET', 'replace-me')
 TURNITIN_WEBHOOK_HOST = ENV_TOKENS.get('TURNITIN_WEBHOOK_HOST', 'http://127.0.0.1')
 
+############## VERTICA DSN ############################
+VERTICA_DSN = ENV_TOKENS.get('VERTICA_DSN', '')
+
 BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 7 * 24 * 60 * 60}  # 7 days
 
 ############################### Plugin Settings ###############################

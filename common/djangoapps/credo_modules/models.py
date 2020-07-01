@@ -835,6 +835,7 @@ class TrackingLogProp(models.Model):
     prop17 = models.CharField(max_length=255, null=True)
     prop18 = models.CharField(max_length=255, null=True)
     prop19 = models.CharField(max_length=255, null=True)
+    update_process_num = models.IntegerField(db_index=True, null=True)
 
 
 class TrackingLogConfig(models.Model):

@@ -642,6 +642,9 @@ CREDO_INSIGHTS_LINK = ENV_TOKENS.get('CREDO_INSIGHTS_LINK', 'https://insights.cr
 ############## Base format for LTI links ############################
 BASE_LTI_LINK = ENV_TOKENS.get('BASE_LTI_LINK', 'http://127.0.0.1/lti_provider/courses/{}/{}')
 
+############## VERTICA DSN ############################
+VERTICA_DSN = ENV_TOKENS.get('VERTICA_DSN', '')
+
 BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 7 * 24 * 60 * 60}  # 7 days
 
 ####################### Plugin Settings ##########################

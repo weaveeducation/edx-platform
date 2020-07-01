@@ -29,19 +29,34 @@ class Command(BaseCommand):
         'sequential_block.viewed',
     ]
     update_process_num = None
-    _updated_attempts = None
+    _updated_user_attempts = None
+    _last_attempt_dt = None
+    _user_attempts_cache = None
 
     def _get_attempts_info(self, answer_ts, user_id, sequential_id):
+        if not self._last_attempt_dt:
+            seq_block_attempt = SequentialBlockAttempt.objects.filter().order_by('-dt').first()
+            self._last_attempt_dt = seq_block_attempt.dt
+            self._user_attempts_cache = {}
+
         if not sequential_id or answer_ts < 1562025600:  # i.e answer_ts < '2019-07-02'
             return None, True, []
 
-        user_attempts = []
-        attempts = SequentialBlockAttempt.objects.filter(sequential_id=sequential_id, user_id=user_id)\
-                .order_by('dt')
-        if attempts:
-            for attempt in attempts:
-                dt = attempt.dt.replace(tzinfo=pytz.utc)
-                user_attempts.append(int(time.mktime(dt.timetuple())))
+        key = sequential_id + '|' + str(user_id)
+        if key not in self._user_attempts_cache:
+            self._user_attempts_cache[key] = []
+            user_attempts = []
+            attempts = SequentialBlockAttempt.objects.filter(sequential_id=sequential_id, user_id=user_id,
+                                                             dt__lte=self._last_attempt_dt).order_by('dt')
+            if attempts:
+                for attempt in attempts:
+                    dt = attempt.dt.replace(tzinfo=pytz.utc)
+                    t = int(time.mktime(dt.timetuple()))
+                    user_attempts.append(t)
+                    self._user_attempts_cache[key].append(t)
+        else:
+            user_attempts = self._user_attempts_cache[key]
+
         attempts_num = len(user_attempts)
         if attempts_num == 0:
             return 0, True, []
@@ -202,7 +217,7 @@ class Command(BaseCommand):
 
     def _check_sequential_block_viewed(self, res):
         update_attempts_strategy_dt = datetime.datetime(2020, 2, 10, 3, 40, 12, 0)
-        if res[0].dtime > update_attempts_strategy_dt:
+        if res[0].dtime > update_attempts_strategy_dt:  # process all viewed events after attempts bugfix
             return True
 
         block_events_data = DBLogEntry.objects.filter(
@@ -220,7 +235,7 @@ class Command(BaseCommand):
 
     def _update_previous_attempts(self, user_id, sequential_id, last_attempt_ts):
         key = sequential_id + '|' + str(user_id)
-        if key not in self._updated_attempts or self._updated_attempts[key] != last_attempt_ts:
+        if key not in self._updated_user_attempts or self._updated_user_attempts[key] != last_attempt_ts:
             TrackingLog.objects.filter(
                 user_id=user_id, sequential_id=sequential_id, is_last_attempt=1
             ).exclude(
@@ -229,7 +244,7 @@ class Command(BaseCommand):
                 is_last_attempt=0,
                 update_process_num=self.update_process_num
             )
-            self._updated_attempts[key] = last_attempt_ts
+            self._updated_user_attempts[key] = last_attempt_ts
 
     def _process_log(self, line, all_log_items, b2s_cache, staff_cache, users_processed_cache):
         line = line.strip()
@@ -331,7 +346,7 @@ class Command(BaseCommand):
         conn = boto.connect_s3(aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key)
         bucket = conn.get_bucket('edu-credo-edx')
 
-        self._updated_attempts = {}
+        self._updated_user_attempts = {}
         b2s_cache = {}
         staff_cache = {
             'global': []
