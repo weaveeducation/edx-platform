@@ -433,7 +433,8 @@ class EventParser(object):
 
     def get_timestamp_from_datetime(self, dt):
         dt = dt.replace(tzinfo=pytz.utc)
-        return int(time.mktime(dt.timetuple()))
+        dt2 = dt - datetime.datetime(1970, 1, 1).replace(tzinfo=pytz.utc)
+        return int(dt2.total_seconds())
 
     def get_event_time(self, event):
         """Returns a datetime object from an event object, if present."""

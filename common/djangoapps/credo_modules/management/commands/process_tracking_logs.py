@@ -51,7 +51,8 @@ class Command(BaseCommand):
             if attempts:
                 for attempt in attempts:
                     dt = attempt.dt.replace(tzinfo=pytz.utc)
-                    t = int(time.mktime(dt.timetuple()))
+                    dt2 = dt - datetime.datetime(1970, 1, 1).replace(tzinfo=pytz.utc)
+                    t = int(dt2.total_seconds())
                     user_attempts.append(t)
                     self._user_attempts_cache[key].append(t)
         else:
