@@ -33,7 +33,14 @@ def merge_data_into_vertica_table(table_name, model_class, update_process_num, v
         print('Save CSV into file')
         tf = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
         csvwriter = csv.writer(tf, delimiter='|')
-        csvwriter.writerows(model_data)
+        for model_item in model_data:
+            row_to_insert = []
+            for v in model_item:
+                if isinstance(v, basestring):
+                    row_to_insert.append(v.encode("utf-8"))
+                else:
+                    row_to_insert.append(v)
+            csvwriter.writerow(row_to_insert)
         tf.close()
 
         print('Vertica COPY operation')
