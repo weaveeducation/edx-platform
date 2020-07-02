@@ -7,7 +7,7 @@ from django.conf import settings
 
 
 def get_vertica_dsn():
-    return settings.VERTICA_DSN + '?connection_timeout=30'
+    return settings.VERTICA_DSN
 
 
 def merge_data_into_vertica_table(table_name, model_class, update_process_num, vertica_dsn=None):
@@ -21,6 +21,7 @@ def merge_data_into_vertica_table(table_name, model_class, update_process_num, v
     dsn = get_vertica_dsn()
     if not dsn:
         dsn = vertica_dsn
+    dsn = dsn + '?connection_timeout=30'
 
     with vertica_python.connect(dsn=dsn) as conn:
         cursor = conn.cursor()
