@@ -139,7 +139,7 @@ class PropertiesUpdater(object):
         if key in self._users_updated:
             return None
 
-        print('Update properties for course: ' + course_id + ' and user ' + str(user_id))
+        print('Update properties for course ' + course_id + ' and user ' + str(user_id))
 
         user = User.objects.get(id=user_id)
         course_key = CourseKey.from_string(course_id)

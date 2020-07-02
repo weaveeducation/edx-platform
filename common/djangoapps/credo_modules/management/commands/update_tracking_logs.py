@@ -27,7 +27,6 @@ class Command(BaseProcessLogsCommand):
         }
         users_processed_cache = {}
         db_updated_items = 0
-        all_log_items = {}
 
         print('Prepare super users data')
         superusers = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True))
@@ -52,6 +51,7 @@ class Command(BaseProcessLogsCommand):
 
                 print('Update user properties')
                 props_to_insert = []
+                all_log_items = {}
 
                 for log in logs:
                     log_prop = props_updater.update_props_for_course_and_user(
