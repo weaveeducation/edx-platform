@@ -359,6 +359,7 @@ class BlockToSequential(models.Model):
     course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
     graded = models.SmallIntegerField(null=False)
     deleted = models.BooleanField(default=False)
+    visible_to_staff_only = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'block_to_sequential'

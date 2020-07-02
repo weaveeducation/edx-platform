@@ -97,7 +97,7 @@ class Command(BaseCommand):
         b2s_cache[course_id] = {}
         for b2s_item in b2s_items:
             b2s_cache[course_id][b2s_item.block_id] = (b2s_item.sequential_id, b2s_item.sequential_name,
-                                                       b2s_item.graded)
+                                                       b2s_item.graded, b2s_item.visible_to_staff_only)
 
     def _update_staff_cache(self, course_id, staff_cache):
         staff_cache[course_id] = []
@@ -292,9 +292,9 @@ class Command(BaseCommand):
             if course_id not in staff_cache:
                 self._update_staff_cache(course_id, staff_cache)
 
-            sequential_id, sequential_name, sequential_graded = None, None, False
+            sequential_id, sequential_name, sequential_graded, visible_to_staff_only = None, None, False, False
             if e.block_id in b2s_cache[course_id]:
-                sequential_id, sequential_name, sequential_graded = b2s_cache[course_id][e.block_id]
+                sequential_id, sequential_name, sequential_graded, visible_to_staff_only = b2s_cache[course_id][e.block_id]
 
             e.sequential_name = sequential_name
             e.sequential_id = sequential_id
@@ -302,6 +302,9 @@ class Command(BaseCommand):
 
             if e.user_id in staff_cache['global'] or e.user_id in staff_cache[course_id]:
                 e.is_staff = True
+
+            if is_view and visible_to_staff_only and not e.is_staff:
+                return
 
             self._update_user_info(e.org_id, e.user_id, e.prop_user_email, e.prop_user_name, users_processed_cache)
 

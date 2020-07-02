@@ -276,12 +276,16 @@ def _update_course_structure(course_id, published_on):
                                 sequential_name=parent.display_name.strip(),
                                 course_id=course_id,
                                 graded=parent_graded,
+                                visible_to_staff_only=item.visible_to_staff_only
                             ))
                         else:
                             b2s_item = block_to_sequential_items_dict[block_id]
-                            if b2s_item.sequential_name != parent.display_name.strip() or b2s_item.graded != parent_graded:
+                            if b2s_item.sequential_name != parent.display_name.strip() \
+                              or b2s_item.graded != parent_graded\
+                              or b2s_item.visible_to_staff_only != item.visible_to_staff_only:
                                 b2s_item.sequential_name = parent.display_name.strip()
                                 b2s_item.graded = parent_graded
+                                b2s_item.visible_to_staff_only = item.visible_to_staff_only
                                 b2s_item.save()
                                 b2s_updated += 1
 
