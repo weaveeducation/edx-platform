@@ -90,17 +90,15 @@ class Command(BaseProcessLogsCommand):
         vertica_dsn = TrackingLogConfig.get_setting('vertica_dsn')
 
         print('Try to update "credo_modules_trackinglogprop" in Vertica')
-        merge_data_into_vertica_table('credo_modules_trackinglogprop', TrackingLogProp, self.update_process_num,
-                                      vertica_dsn=vertica_dsn)
+        merge_data_into_vertica_table(TrackingLogProp, self.update_process_num, vertica_dsn=vertica_dsn)
 
         print('Try to update "credo_modules_trackinglog" in Vertica')
-        merge_data_into_vertica_table('credo_modules_trackinglog', TrackingLog, self.update_process_num,
-                                      vertica_dsn=vertica_dsn)
+        merge_data_into_vertica_table(TrackingLog, self.update_process_num, vertica_dsn=vertica_dsn)
 
         if new_last_log_time:
-            print("Update 'last_log_time' conf value")
+            print("Set 'last_log_time' conf value")
             TrackingLogConfig.update_setting('last_log_time', new_last_log_time.strftime('%Y-%m-%d %H:%M:%S.%f'))
 
-        print("Update 'update_process_num'/'update_time conf' values")
+        print("Set new 'update_process_num'/'update_time' conf values")
         TrackingLogConfig.update_setting('update_process_num', self.update_process_num + 1)
         TrackingLogConfig.update_setting('update_time', int(time.time()))

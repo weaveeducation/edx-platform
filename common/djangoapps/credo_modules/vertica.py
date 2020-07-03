@@ -10,7 +10,9 @@ def get_vertica_dsn():
     return settings.VERTICA_DSN
 
 
-def merge_data_into_vertica_table(table_name, model_class, update_process_num, vertica_dsn=None):
+def merge_data_into_vertica_table(model_class, update_process_num, vertica_dsn=None):
+    table_name = model_class._meta.db_table
+
     print('Get data from DB to save into CSV')
     model_data = model_class.objects.filter(update_process_num=update_process_num).values_list()
     if len(model_data) == 0:
@@ -33,6 +35,8 @@ def merge_data_into_vertica_table(table_name, model_class, update_process_num, v
         print('Save CSV into file')
         tf = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
         csvwriter = csv.writer(tf, delimiter='|')
+        new_rows_num = 0
+
         for model_item in model_data:
             row_to_insert = []
             for v in model_item:
@@ -43,7 +47,9 @@ def merge_data_into_vertica_table(table_name, model_class, update_process_num, v
                 else:
                     row_to_insert.append(v)
             csvwriter.writerow(row_to_insert)
+            new_rows_num = new_rows_num + 1
         tf.close()
+        print('Try to insert/update %d rows' % new_rows_num)
 
         print('Vertica COPY operation')
         try:
