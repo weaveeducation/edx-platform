@@ -1,7 +1,6 @@
 import datetime
 import hashlib
 import json
-import time
 import re
 import pytz
 from collections import namedtuple
@@ -174,7 +173,7 @@ class EventData(object):
         self.prop_user_email = prop_user_email
         course_user_id_source = course_id + '|' + str(self.user_id)
         self.course_user_id = hashlib.md5(course_user_id_source.encode('utf-8')).hexdigest()
-        self.ora_user_answer = ora_user_answer
+        self.ora_user_answer = prepare_text_for_column_db(ora_user_answer, 500) if ora_user_answer else None
 
     def __str__(self):
         sb = []
@@ -246,7 +245,7 @@ class EventParser(object):
         student_properties = self.get_student_properites(event)
         term = dtime.strftime("%B %Y")
         course, student_properties = self._update_course_and_student_properties(course, student_properties)
-        prop_user_name, prop_user_email = get_prop_user_info(student_properties)
+        prop_user_email, prop_user_name = get_prop_user_info(student_properties)
 
         student_properties = filter_properties(student_properties)
 
@@ -813,7 +812,7 @@ class OraWithoutCriteriaParser(EventParser):
         return event.get('context').get('module', {}).get('usage_key')
 
     def get_correctness(self, event_data, *args, **kwargs):
-        return CorrectData(True, 1, 0, 'correct')
+        return CorrectData(True, 1, 1, 'correct')
 
     def get_grade(self, correctness, *args, **kwargs):
         return 1

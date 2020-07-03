@@ -2,6 +2,7 @@ import csv
 import os
 import tempfile
 import vertica_python
+import time
 
 from django.conf import settings
 
@@ -15,9 +16,15 @@ def merge_data_into_vertica_table(model_class, update_process_num, vertica_dsn=N
 
     print('Get data from DB to save into CSV')
     model_data = model_class.objects.filter(update_process_num=update_process_num).values_list()
+
     if len(model_data) == 0:
         print('Nothing to copy!')
         return
+
+    fields = [field.name for field in model_class._meta.get_fields()]
+
+    insert_columns = ['%s' % field for field in fields]
+    insert_columns_sql = ','.join(insert_columns)
 
     table_name_copy_from = table_name + '_temp'
     dsn = get_vertica_dsn()
@@ -28,12 +35,13 @@ def merge_data_into_vertica_table(model_class, update_process_num, vertica_dsn=N
     with vertica_python.connect(dsn=dsn) as conn:
         cursor = conn.cursor()
 
-        sql0 = 'TRUNCATE TABLE %s' % table_name
+        sql0 = 'TRUNCATE TABLE %s' % table_name_copy_from
         print(sql0)
         cursor.execute(sql0)
 
-        print('Save CSV into file')
         tf = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
+        print('Save CSV into file: %s' % tf.name)
+
         csvwriter = csv.writer(tf, delimiter='|')
         new_rows_num = 0
 
@@ -41,11 +49,13 @@ def merge_data_into_vertica_table(model_class, update_process_num, vertica_dsn=N
             row_to_insert = []
             for v in model_item:
                 if isinstance(v, basestring):
-                    row_to_insert.append(v.encode("utf-8"))
+                    row_to_insert.append(v.strip().replace("\n", " ").replace("\t", " ").encode("utf-8"))
                 elif isinstance(v, bool):
                     row_to_insert.append('1' if v else '0')
+                elif v is None:
+                    row_to_insert.append('')
                 else:
-                    row_to_insert.append(v)
+                    row_to_insert.append(str(v))
             csvwriter.writerow(row_to_insert)
             new_rows_num = new_rows_num + 1
         tf.close()
@@ -54,7 +64,7 @@ def merge_data_into_vertica_table(model_class, update_process_num, vertica_dsn=N
         print('Vertica COPY operation')
         try:
             with open(tf.name, "rb") as fs:
-                sql1 = "COPY %s FROM STDIN DELIMITER '|'" % table_name_copy_from
+                sql1 = "COPY %s (%s) FROM STDIN DELIMITER '|'" % (table_name_copy_from, insert_columns_sql)
                 print(sql1)
                 cursor.copy(sql1, fs, buffer_size=65536)
             os.remove(tf.name)
@@ -62,25 +72,20 @@ def merge_data_into_vertica_table(model_class, update_process_num, vertica_dsn=N
             os.remove(tf.name)
             raise
 
-        fields = [field.name for field in model_class._meta.get_fields()]
-
-        update_columns = ['%s=t1.%s' % (field, field) for field in fields if field != 'id']
-        update_columns_sql = ','.join(update_columns)
-
-        insert_columns = ['%s' % field for field in fields]
-        insert_columns_sql = ','.join(insert_columns)
-
-        insert_values = ['t1.%s' % field for field in fields]
-        insert_values_sql = ','.join(insert_values)
-
-        sql2 = "MERGE INTO %s AS t2 USING %s AS t1 ON t1.id = t2.id " +\
-               "WHEN MATCHED THEN UPDATE SET %s " +\
-               "WHEN NOT MATCHED THEN INSERT (%s) VALUES (%s)"
-        sql2 = sql2 % (table_name, table_name_copy_from, update_columns_sql,
-                       insert_columns_sql, insert_values_sql)
-
-        print('Vertica MERGE operation')
+        print('Vertica DELETE operation')
+        sql2 = "DELETE FROM %s WHERE id in (SELECT id FROM %s)" % (table_name, table_name_copy_from)
         print(sql2)
-
+        t1 = time.time()
         cursor.execute(sql2)
+        t2 = time.time()
+        print('Vertica DELETE done: %d sec' % str(t2 - t1))
+
+        print('Vertica INSERT operation')
+        sql3 = "INSERT INTO %s SELECT * FROM %s" % (table_name, table_name_copy_from)
+        print(sql3)
+        t3 = time.time()
+        cursor.execute(sql3)
+        t4 = time.time()
+        print('Vertica INSERT done: %d sec' % str(t4 - t3))
+
         cursor.execute("COMMIT")

@@ -11,7 +11,7 @@ from django.conf import settings
 from django.core.management import BaseCommand
 from django.contrib.auth.models import User
 from django.db.models import Q
-from credo_modules.event_parser import EventProcessor
+from credo_modules.event_parser import EventProcessor, prepare_text_for_column_db
 from credo_modules.models import DBLogEntry, TrackingLog, TrackingLogUserInfo, TrackingLogFile, TrackingLogConfig,\
     SequentialBlockAttempt
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
@@ -184,7 +184,7 @@ class Command(BaseCommand):
         else:
             tr_log.is_correct = 1 if e.is_correct else 0
             tr_log.is_incorrect = 0 if e.is_correct else 1
-        tr_log.sequential_name = e.sequential_name
+        tr_log.sequential_name = prepare_text_for_column_db(e.sequential_name)
         tr_log.sequential_id = e.sequential_id
         tr_log.sequential_graded = 1 if e.sequential_graded else 0
         tr_log.is_staff = 1 if e.is_staff else 0
