@@ -139,8 +139,6 @@ class PropertiesUpdater(object):
         if key in self._users_updated:
             return None
 
-        print('Update properties for course ' + course_id + ' and user ' + str(user_id))
-
         user = User.objects.get(id=user_id)
         course_key = CourseKey.from_string(course_id)
         org = course_key.org
@@ -154,6 +152,8 @@ class PropertiesUpdater(object):
             return None
         except TrackingLogProp.DoesNotExist:
             pass
+
+        print('Update properties for course ' + course_id + ' and user ' + str(user_id))
 
         if not org_props:
             prop_obj1 = PropertiesInfo.objects.get(org=org, course_id=None)
