@@ -38,6 +38,8 @@ def merge_data_into_vertica_table(table_name, model_class, update_process_num, v
             for v in model_item:
                 if isinstance(v, basestring):
                     row_to_insert.append(v.encode("utf-8"))
+                elif isinstance(v, bool):
+                    row_to_insert.append('1' if v else '0')
                 else:
                     row_to_insert.append(v)
             csvwriter.writerow(row_to_insert)
