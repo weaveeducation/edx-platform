@@ -64,7 +64,8 @@ def merge_data_into_vertica_table(model_class, update_process_num, vertica_dsn=N
         print('Vertica COPY operation')
         try:
             with open(tf.name, "rb") as fs:
-                sql1 = "COPY %s (%s) FROM STDIN DELIMITER '|'" % (table_name_copy_from, insert_columns_sql)
+                sql1 = "COPY %s (%s) FROM STDIN DELIMITER '|' ABORT ON ERROR"\
+                       % (table_name_copy_from, insert_columns_sql)
                 print(sql1)
                 cursor.copy(sql1, fs, buffer_size=65536)
             os.remove(tf.name)
