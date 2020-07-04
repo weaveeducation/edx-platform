@@ -77,7 +77,7 @@ def merge_data_into_vertica_table(model_class, update_process_num, vertica_dsn=N
         t1 = time.time()
         cursor.execute(sql2)
         t2 = time.time()
-        print('Vertica DELETE done: %d sec' % str(t2 - t1))
+        print('Vertica DELETE done: %s sec' % str(t2 - t1))
 
         print('Vertica INSERT operation')
         sql3 = "INSERT INTO %s SELECT * FROM %s" % (table_name, table_name_copy_from)
@@ -85,6 +85,6 @@ def merge_data_into_vertica_table(model_class, update_process_num, vertica_dsn=N
         t3 = time.time()
         cursor.execute(sql3)
         t4 = time.time()
-        print('Vertica INSERT done: %d sec' % str(t4 - t3))
+        print('Vertica INSERT done: %s sec' % str(t4 - t3))
 
         cursor.execute("COMMIT")
