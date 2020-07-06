@@ -1,5 +1,6 @@
 import datetime
 import time
+import pytz
 
 from .process_tracking_logs import Command as BaseProcessLogsCommand
 from credo_modules.models import DBLogEntry, TrackingLog, TrackingLogProp, TrackingLogConfig
@@ -15,9 +16,9 @@ class Command(BaseProcessLogsCommand):
     def handle(self, *args, **options):
         dt_from = TrackingLogConfig.get_setting('last_log_time')
         if dt_from:
-            dt_from = datetime.datetime.strptime(dt_from, '%Y-%m-%d %H:%M:%S.%f')
+            dt_from = datetime.datetime.strptime(dt_from, '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=pytz.utc)
         else:
-            dt_from = datetime.datetime(year=2015, month=1, day=1)
+            dt_from = datetime.datetime(year=2015, month=1, day=1, tzinfo=pytz.UTC)
 
         self.update_process_num = int(TrackingLogConfig.get_setting('update_process_num', 1))
 
