@@ -146,8 +146,6 @@ class PropertiesUpdater(object):
         course_user_id_source = str(course_id) + '|' + str(user_id)
         course_user_id = hashlib.md5(course_user_id_source.encode('utf-8')).hexdigest()
 
-        print('Update properties for course ' + course_id + ' and user ' + str(user_id))
-
         if not org_props:
             prop_obj1 = PropertiesInfo.objects.get(org=org, course_id=None)
             org_props = json.loads(prop_obj1.data)
