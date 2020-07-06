@@ -146,13 +146,6 @@ class PropertiesUpdater(object):
         course_user_id_source = str(course_id) + '|' + str(user_id)
         course_user_id = hashlib.md5(course_user_id_source.encode('utf-8')).hexdigest()
 
-        try:
-            TrackingLogProp.objects.get(course_user_id=course_user_id)
-            self._users_updated.append(key)
-            return None
-        except TrackingLogProp.DoesNotExist:
-            pass
-
         print('Update properties for course ' + course_id + ' and user ' + str(user_id))
 
         if not org_props:
@@ -191,5 +184,13 @@ class PropertiesUpdater(object):
             kwargs[prop_key] = prop_value
 
         self._users_updated.append(key)
-        log_prop = TrackingLogProp(**kwargs)
-        return log_prop
+
+        try:
+            log_prop = TrackingLogProp.objects.get(course_user_id=course_user_id)
+            for k, v in kwargs.items():
+                setattr(log_prop, k, v)
+            log_prop.save()
+            return None
+        except TrackingLogProp.DoesNotExist:
+            log_prop = TrackingLogProp(**kwargs)
+            return log_prop
