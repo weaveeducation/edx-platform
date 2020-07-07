@@ -21,6 +21,7 @@ class Command(BaseProcessLogsCommand):
             dt_from = datetime.datetime(year=2015, month=1, day=1, tzinfo=pytz.UTC)
 
         self.update_process_num = int(TrackingLogConfig.get_setting('update_process_num', 1))
+        print('Update process num: %d' % self.update_process_num)
 
         b2s_cache = {}
         staff_cache = {
@@ -85,7 +86,7 @@ class Command(BaseProcessLogsCommand):
 
                 dt_from = dt_from + datetime.timedelta(hours=4)
             else:
-                print('There is no new logs')
+                print('New logs are absent')
                 process = False
 
         vertica_dsn = TrackingLogConfig.get_setting('vertica_dsn')
@@ -97,9 +98,10 @@ class Command(BaseProcessLogsCommand):
         merge_data_into_vertica_table(TrackingLog, self.update_process_num, vertica_dsn=vertica_dsn)
 
         if new_last_log_time:
-            print("Set 'last_log_time' conf value")
+            print("Set 'last_log_time' conf value: %s" % new_last_log_time.strftime('%Y-%m-%d %H:%M:%S.%f'))
             TrackingLogConfig.update_setting('last_log_time', new_last_log_time.strftime('%Y-%m-%d %H:%M:%S.%f'))
 
-        print("Set new 'update_process_num'/'update_time' conf values")
-        TrackingLogConfig.update_setting('update_process_num', self.update_process_num + 1)
+        new_update_process_num = self.update_process_num + 1
+        print("Set new 'update_process_num'/'update_time' conf values: %d" % new_update_process_num)
+        TrackingLogConfig.update_setting('update_process_num', new_update_process_num)
         TrackingLogConfig.update_setting('update_time', int(time.time()))
