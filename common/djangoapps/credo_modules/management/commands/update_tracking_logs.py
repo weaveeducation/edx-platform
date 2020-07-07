@@ -37,7 +37,7 @@ class Command(BaseProcessLogsCommand):
 
         process = True
         new_last_log_time = None
-        props_updater = PropertiesUpdater()
+        props_updater = PropertiesUpdater(show_logs=False)
 
         while process:
             dt_to = dt_from + datetime.timedelta(hours=4)

@@ -16,12 +16,18 @@ class PropertiesUpdater(object):
     _org_props = None
     _course_updated = None
     _users_updated = None
+    _show_logs = None
 
-    def __init__(self):
+    def __init__(self, show_logs=True):
         self._org_common_props = {}
         self._org_props = {}
         self._course_updated = []
         self._users_updated = []
+        self._show_logs = show_logs
+
+    def _log(self, msg):
+        if self._show_logs:
+            print(msg)
 
     def get_exclude_properties(self):
         return EXCLUDE_PROPERTIES + COURSE_PROPERTIES
@@ -31,7 +37,7 @@ class PropertiesUpdater(object):
         exclude_properties = self.get_exclude_properties()
 
         if org not in self._org_props:
-            print('Prepare properties for org: ' + org)
+            self._log('Prepare properties for org: ' + org)
 
             self._org_props[org] = []
             try:
@@ -82,8 +88,7 @@ class PropertiesUpdater(object):
             return
 
         self._init_org_properties(org)
-
-        print('Update properties for course: ' + course_id)
+        self._log('Update properties for course: ' + course_id)
 
         exclude_properties = self.get_exclude_properties()
         course_key = CourseKey.from_string(course_id)
