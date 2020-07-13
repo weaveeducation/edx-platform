@@ -178,6 +178,8 @@ def _update_course_structure(course_id, published_on):
                             profile_fields_cache.delete()
                         except CourseAuthProfileFieldsCache.DoesNotExist:
                             pass
+                else:
+                    return
 
                 if published_on:
                     published_on = published_on.split('.')[0]
@@ -298,16 +300,22 @@ def _update_course_structure(course_id, published_on):
                                 for tag_value in tag_values:
                                     t_name = tag_name.strip()
                                     t_value = tag_value.strip()
-                                    tag_id = block_id + '|__|' + t_name + '|' + t_value
-                                    structure_tags.append(tag_id)
-                                    if tag_id not in existing_structure_tags_dict:
-                                        tags_to_insert.append(ApiCourseStructureTags(
-                                            course_id=course_id,
-                                            block=block_item,
-                                            rubric=None,
-                                            tag_name=t_name,
-                                            tag_value=t_value
-                                        ))
+                                    t_value_lst = t_value.split(' - ')
+                                    for idx, _ in enumerate(t_value_lst):
+                                        t_value_upd = ' - '.join(t_value_lst[0:idx + 1])
+                                        tag_id = block_id + '|__|' + t_name + '|' + t_value_upd
+                                        structure_tags.append(tag_id)
+                                        if tag_id not in existing_structure_tags_dict:
+                                            is_parent = 1 if len(t_value_lst) > idx + 1 else 0
+                                            tags_to_insert.append(ApiCourseStructureTags(
+                                                course_id=course_id,
+                                                block=block_item,
+                                                rubric=None,
+                                                tag_name=t_name,
+                                                tag_value=t_value_upd,
+                                                is_parent=is_parent,
+                                                ts=int(time.time())
+                                            ))
                 elif item.category == 'openassessment' and len(item.rubric_criteria) > 0:
                     aside = item.runtime.get_aside_of_type(item, 'tagging_ora_aside')
                     for rubric, saved_tags in aside.saved_tags.items():
@@ -318,16 +326,22 @@ def _update_course_structure(course_id, published_on):
                                         r_name = rubric.strip()
                                         t_name = tag_name.strip()
                                         t_value = tag_value.strip()
-                                        tag_id = block_id + '|' + r_name + '|' + t_name + '|' + t_value
-                                        structure_tags.append(tag_id)
-                                        if tag_id not in existing_structure_tags_dict:
-                                            tags_to_insert.append(ApiCourseStructureTags(
-                                                course_id=course_id,
-                                                block=block_item,
-                                                rubric=r_name,
-                                                tag_name=t_name,
-                                                tag_value=t_value
-                                            ))
+                                        t_value_lst = t_value.split(' - ')
+                                        for idx, _ in enumerate(t_value_lst):
+                                            t_value_upd = ' - '.join(t_value_lst[0:idx + 1])
+                                            tag_id = block_id + '|' + r_name + '|' + t_name + '|' + t_value_upd
+                                            structure_tags.append(tag_id)
+                                            if tag_id not in existing_structure_tags_dict:
+                                                is_parent = 1 if len(t_value_lst) > idx + 1 else 0
+                                                tags_to_insert.append(ApiCourseStructureTags(
+                                                    course_id=course_id,
+                                                    block=block_item,
+                                                    rubric=r_name,
+                                                    tag_name=t_name,
+                                                    tag_value=t_value_upd,
+                                                    is_parent=is_parent,
+                                                    ts=int(time.time())
+                                                ))
 
         items_to_remove = []
         for block_id, block_item in existing_structure_items_dict.items():
