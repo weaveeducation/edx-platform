@@ -175,12 +175,16 @@ class PropertiesUpdater(object):
             raise Exception('Count of props exceeds '
                             'permissible max props count: ' + TrackingLogProp.MAX_PROPS_COUNT_PER_ORG)
 
+        for i in range(TrackingLogProp.MAX_PROPS_COUNT_PER_ORG):
+            prop_key = 'prop' + str(i)
+            kwargs[prop_key] = '(none)'
+
         for idx, org_prop in enumerate(org_props):
             prop_key = 'prop' + str(idx)
             prop_value = student_properties['enrollment'].get(org_prop, None)
             if not prop_value:
                 prop_value = student_properties['registration'].get(org_prop, None)
-            if org_prop in course_props and not prop_value:
+            if not prop_value:
                 prop_value = '(none)'
             if prop_value and len(prop_value) > 255:
                 prop_value = prop_value[0:255]
