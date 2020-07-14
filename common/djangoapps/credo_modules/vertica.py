@@ -11,12 +11,15 @@ def get_vertica_dsn():
     return settings.VERTICA_DSN + '?connection_timeout=30'
 
 
-def merge_data_into_vertica_table(model_class, update_process_num=None, course_ids_lst=None, vertica_dsn=None):
+def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list=None,
+                                  course_ids_lst=None, vertica_dsn=None):
     table_name = model_class._meta.db_table
 
     print('Get data from DB to save into CSV')
     if update_process_num:
         model_data = model_class.objects.filter(update_process_num=update_process_num).values_list()
+    elif ids_list:
+        model_data = model_class.objects.filter(id__in=ids_list).values_list()
     elif course_ids_lst:
         model_data = model_class.objects.filter(course_id__in=course_ids_lst).values_list()
     else:
