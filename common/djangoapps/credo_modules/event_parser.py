@@ -251,7 +251,8 @@ class EventParser(object):
 
         answers = self.get_answers(event, correct_data, dtime_ts, grade=grade, *args, **kwargs)
         criterion_name = kwargs.get('criterion_name', None)
-        criterion_name = criterion_name.strip()
+        if criterion_name:
+            criterion_name = criterion_name.strip()
         correctness = correct_data.correctness if correct_data else None
         is_correct = correct_data.is_correct
 
