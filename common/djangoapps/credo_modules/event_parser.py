@@ -251,6 +251,7 @@ class EventParser(object):
 
         answers = self.get_answers(event, correct_data, dtime_ts, grade=grade, *args, **kwargs)
         criterion_name = kwargs.get('criterion_name', None)
+        criterion_name = criterion_name.strip()
         correctness = correct_data.correctness if correct_data else None
         is_correct = correct_data.is_correct
 
@@ -766,7 +767,7 @@ class OraParser(EventParser):
 
     def get_question_name(self, event, *args, **kwargs):
         criterion_name = kwargs['criterion_name']
-        return self.get_display_name(event, *args, **kwargs) + ': ' + criterion_name
+        return self.get_display_name(event, *args, **kwargs) + ': ' + criterion_name.strip()
 
     def get_saved_tags(self, event, **kwargs):
         criterion_name = kwargs['criterion_name']
@@ -1020,7 +1021,7 @@ class ViewedParser(EventParser):
         display_name = self.get_display_name(event, *args, **kwargs)
         criterion_name = kwargs.get('criterion_name')
         if self._is_ora(event) and criterion_name:
-            return display_name + ': ' + criterion_name
+            return display_name + ': ' + criterion_name.strip()
         return display_name
 
     def get_saved_tags(self, event, **kwargs):

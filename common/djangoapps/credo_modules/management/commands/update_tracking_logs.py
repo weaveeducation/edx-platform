@@ -9,6 +9,7 @@ from credo_modules.vertica import merge_data_into_vertica_table
 from django.contrib.auth.models import User
 from django.db.models import Q
 from opaque_keys.edx.keys import CourseKey
+from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructureTags, ApiCourseStructureUpdateTime
 
 
 class Command(BaseProcessLogsCommand):
@@ -28,6 +29,7 @@ class Command(BaseProcessLogsCommand):
             'global': []
         }
         users_processed_cache = {}
+        course_ids_lst = []
         db_updated_items = 0
 
         print('Prepare super users data')
@@ -48,6 +50,8 @@ class Command(BaseProcessLogsCommand):
             if logs_count != 0:
                 print('Update properties info for courses and orgs')
                 for log in logs:
+                    if log.course_id not in course_ids_lst:
+                        course_ids_lst.append(log.course_id)
                     course_key = CourseKey.from_string(log.course_id)
                     props_updater.update_props_for_course(course_key.org, log.course_id)
 
@@ -92,10 +96,43 @@ class Command(BaseProcessLogsCommand):
         vertica_dsn = TrackingLogConfig.get_setting('vertica_dsn')
 
         print('Try to update "credo_modules_trackinglogprop" in Vertica')
-        merge_data_into_vertica_table(TrackingLogProp, self.update_process_num, vertica_dsn=vertica_dsn)
+        merge_data_into_vertica_table(TrackingLogProp, update_process_num=self.update_process_num,
+                                      vertica_dsn=vertica_dsn)
 
         print('Try to update "credo_modules_trackinglog" in Vertica')
-        merge_data_into_vertica_table(TrackingLog, self.update_process_num, vertica_dsn=vertica_dsn)
+        merge_data_into_vertica_table(TrackingLog, update_process_num=self.update_process_num,
+                                      vertica_dsn=vertica_dsn)
+
+        print('Try to update "api_course_structure_tags" in Vertica')
+        if course_ids_lst:
+            course_id_to_upd_obj = {}
+            course_ids_relevant_lst = []
+
+            for course_id in course_ids_lst:
+                try:
+                    course_upd_time_obj = ApiCourseStructureUpdateTime.objects.get(course_id=course_id)
+                    if not course_upd_time_obj.processed:
+                        course_id_to_upd_obj[course_id] = course_upd_time_obj
+                        course_ids_relevant_lst.append(course_id)
+                except ApiCourseStructureUpdateTime.DoesNotExist:
+                    course_id_to_upd_obj[course_id] = ApiCourseStructureUpdateTime(
+                        course_id=course_id,
+                        processed=False
+                    )
+                    course_ids_relevant_lst.append(course_id)
+
+            if course_ids_relevant_lst:
+                print('course_ids_relevant_lst: %s' % str(course_ids_relevant_lst))
+
+                merge_data_into_vertica_table(ApiCourseStructureTags, course_ids_lst=course_ids_relevant_lst,
+                                              vertica_dsn=vertica_dsn)
+                for course_id, course_upd_time_obj in course_id_to_upd_obj.items():
+                    course_upd_time_obj.processed = True
+                    course_upd_time_obj.save()
+            else:
+                print('course_ids_relevant_lst list is empty')
+        else:
+            print('course_ids_lst list is empty')
 
         if new_last_log_time:
             print("Set 'last_log_time' conf value: %s" % new_last_log_time.strftime('%Y-%m-%d %H:%M:%S.%f'))

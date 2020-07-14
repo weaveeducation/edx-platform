@@ -324,6 +324,14 @@ class ApiCourseStructureTags(models.Model):
         db_table = 'api_course_structure_tags'
 
 
+class ApiCourseStructureUpdateTime(models.Model):
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    processed = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'api_course_structure_update_time'
+
+
 class ApiCourseStructureLock(models.Model):
     course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False, unique=True)
     created = models.DateTimeField()

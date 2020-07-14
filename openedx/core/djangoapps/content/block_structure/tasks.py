@@ -20,7 +20,7 @@ from xmodule.modulestore.exceptions import ItemNotFoundError
 from openedx.core.djangoapps.content.block_structure import api
 from openedx.core.djangoapps.content.block_structure.config import STORAGE_BACKING_FOR_CACHE, waffle
 from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure, ApiCourseStructureTags,\
-    ApiCourseStructureLock, BlockToSequential, CourseAuthProfileFieldsCache
+    ApiCourseStructureLock, ApiCourseStructureUpdateTime, BlockToSequential, CourseAuthProfileFieldsCache
 
 log = logging.getLogger('edx.celery.task')
 
@@ -378,6 +378,15 @@ def _update_course_structure(course_id, published_on):
         time_to_get_structure_from_mongo = t2 - t1
         time_to_get_mysql_structure = t3 - t2
         time_to_update_data_in_mysql = t4 - t3
+
+        try:
+            api_upd = ApiCourseStructureUpdateTime.objects.get(course_id=course_id)
+        except ApiCourseStructureUpdateTime.DoesNotExist:
+            api_upd = ApiCourseStructureUpdateTime(
+                course_id=course_id
+            )
+        api_upd.processed = False
+        api_upd.save()
 
         log.info("Update %s structure results: added %s items, updated %s items, removed %s items, "
                  "added %s tags, removed %s tags, added %s b2s, updated %s b2s, removed %s b2s. "
