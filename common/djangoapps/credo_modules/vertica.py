@@ -26,7 +26,12 @@ def merge_data_into_vertica_table(model_class, update_process_num=None, course_i
         print('Nothing to copy!')
         return
 
-    fields = [field.name for field in model_class._meta.get_fields()]
+    fields = []
+    for field in model_class._meta.get_fields():
+        if field.name == 'block':
+            fields.append('block_id')
+        else:
+            fields.append(field.name)
 
     insert_columns = ['%s' % field for field in fields]
     insert_columns_sql = ','.join(insert_columns)
