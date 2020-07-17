@@ -162,6 +162,7 @@ class Command(BaseCommand):
         tr_log.run = e.run
         tr_log.term = e.term
         tr_log.block_id = e.block_id
+        tr_log.block_tag_id = e.block_tag_id
         tr_log.user_id = e.user_id
         tr_log.is_view = is_view
         tr_log.answer_id = answer_id
@@ -176,7 +177,6 @@ class Command(BaseCommand):
         tr_log.grade = e.grade
         tr_log.max_grade = e.max_grade
         tr_log.answer = e.answers
-        tr_log.answer_hash = e.answers_hash
         tr_log.correctness = e.correctness
         if e.ora_block and not e.is_ora_empty_rubrics:
             tr_log.is_correct = 0

@@ -1,3 +1,4 @@
+import hashlib
 import time
 
 from django.core.management import BaseCommand
@@ -39,9 +40,16 @@ class Command(BaseCommand):
                     if t_value_upd_key not in existing_structure_tags_dict[k]:
                         existing_structure_tags_dict[k].append(t_value_upd_key)
                         is_parent = 1 if len(t_value_lst) > idx + 1 else 0
+
+                        block_tag_token = tag.block_id
+                        if tag.rubric:
+                            block_tag_token = tag.block_id + '|' + tag.rubric
+                        block_tag_id = hashlib.md5(block_tag_token.encode('utf-8')).hexdigest()
+
                         tags_to_insert.append(ApiCourseStructureTags(
                             course_id=tag.course_id,
                             block=tag.block,
+                            block_tag_id=block_tag_id,
                             rubric=tag.rubric,
                             tag_name=tag.tag_name,
                             tag_value=t_value_upd,

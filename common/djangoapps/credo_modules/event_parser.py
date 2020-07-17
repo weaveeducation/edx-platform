@@ -84,7 +84,7 @@ def get_prop_user_info(props_dict):
 
 
 def prepare_text_for_column_db(txt, char_num=5000):
-    txt = txt.strip().replace("\n", " ").replace("\t", " ").replace("|", " ")
+    txt = txt.strip().replace("\n", " ").replace("\t", " ").replace('"', '\'').replace("|", " ")
     txt = txt.encode('utf-8').decode('ascii', errors='ignore').encode('ascii')
     if len(txt) > char_num:
         char_num = char_num - 4
@@ -122,7 +122,7 @@ class EventProcessor(object):
 
 
 class EventData(object):
-    def __init__(self, category, course_id, org_id, course, run, block_id,
+    def __init__(self, category, course_id, org_id, course, run, block_id, block_tag_id,
                  timestamp, dtime, dtime_ts, saved_tags, student_properties,
                  grade, max_grade, user_id, display_name, question_name, question_text, question_text_hash,
                  answers, submit_info=None, is_ora_empty_rubrics=False, is_block_view=False, possible_points=None,
@@ -135,6 +135,7 @@ class EventData(object):
         self.org_id = org_id
         self.run = run
         self.block_id = block_id
+        self.block_tag_id = block_tag_id
         self.timestamp = timestamp
         self.dtime_ts = dtime_ts
         self.dtime = dtime
@@ -253,6 +254,10 @@ class EventParser(object):
         criterion_name = kwargs.get('criterion_name', None)
         if criterion_name:
             criterion_name = criterion_name.strip()
+            block_tag_id = self._get_md5(problem_id + '|' + criterion_name)
+        else:
+            block_tag_id = self._get_md5(problem_id)
+
         correctness = correct_data.correctness if correct_data else None
         is_correct = correct_data.is_correct
 
@@ -272,6 +277,7 @@ class EventParser(object):
             course=course,
             run=run,
             block_id=problem_id,
+            block_tag_id=block_tag_id,
             timestamp=timestamp,
             dtime=dtime,
             dtime_ts=dtime_ts,
@@ -644,8 +650,12 @@ class ProblemParser(EventParser):
                     submission['answer']]
                 processed_answers = []
                 for item in answers_text:
-                    processed_answers.append(re.sub(r'<choicehint\s*(selected=\"true\")*>.*?</choicehint>', '',
-                                                    item.replace("\n", "").replace("\t", "").replace("\r", "")))
+                    item_upd = item.replace("\n", "").replace("\t", "").replace("\r", "")
+                    item_upd = re.sub(r'<choicehint\s*(selected=\"true\")*>.*?</choicehint>', '', item_upd)
+                    item_upd = re.sub(r'<choicehint\s*(selected=\"false\")*>.*?</choicehint>', '', item_upd)
+                    item_upd = item_upd.strip()
+                    processed_answers.append(item_upd)
+
                 answer_display.append(', '.join(processed_answers))
         return '; '.join(answer_display)
 

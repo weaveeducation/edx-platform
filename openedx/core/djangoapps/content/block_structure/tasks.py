@@ -2,6 +2,7 @@
 Asynchronous tasks related to the Course Blocks sub-application.
 """
 import logging
+import hashlib
 import time
 import json
 from django.db import transaction
@@ -307,9 +308,12 @@ def _update_course_structure(course_id, published_on):
                                         structure_tags.append(tag_id)
                                         if tag_id not in existing_structure_tags_dict:
                                             is_parent = 1 if len(t_value_lst) > idx + 1 else 0
+                                            block_tag_id = hashlib.md5(block_id.encode('utf-8')).hexdigest()
+
                                             tags_to_insert.append(ApiCourseStructureTags(
                                                 course_id=course_id,
                                                 block=block_item,
+                                                block_tag_id=block_tag_id,
                                                 rubric=None,
                                                 tag_name=t_name,
                                                 tag_value=t_value_upd,
@@ -333,9 +337,13 @@ def _update_course_structure(course_id, published_on):
                                             structure_tags.append(tag_id)
                                             if tag_id not in existing_structure_tags_dict:
                                                 is_parent = 1 if len(t_value_lst) > idx + 1 else 0
+                                                block_token = block_id + '|' + r_name
+                                                block_tag_id = hashlib.md5(block_token.encode('utf-8')).hexdigest()
+
                                                 tags_to_insert.append(ApiCourseStructureTags(
                                                     course_id=course_id,
                                                     block=block_item,
+                                                    block_tag_id=block_tag_id,
                                                     rubric=r_name,
                                                     tag_name=t_name,
                                                     tag_value=t_value_upd,

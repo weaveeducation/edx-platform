@@ -313,6 +313,7 @@ class ApiCourseStructure(models.Model):
 class ApiCourseStructureTags(models.Model):
     course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
     block = models.ForeignKey(ApiCourseStructure, on_delete=models.CASCADE, to_field='block_id')
+    block_tag_id = models.CharField(max_length=80, null=True)
     rubric = models.CharField(max_length=255, null=True, blank=False,
                               help_text="Should be filled in only for ORA blocks")
     tag_name = models.CharField(max_length=255, null=False, blank=False)
