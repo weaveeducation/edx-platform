@@ -184,7 +184,7 @@ class Command(BaseCommand):
         else:
             tr_log.is_correct = 1 if e.is_correct else 0
             tr_log.is_incorrect = 0 if e.is_correct else 1
-        tr_log.sequential_name = prepare_text_for_column_db(e.sequential_name)
+        tr_log.sequential_name = prepare_text_for_column_db(e.sequential_name) if e.sequential_name else None
         tr_log.sequential_id = e.sequential_id
         tr_log.sequential_graded = 1 if e.sequential_graded else 0
         tr_log.is_staff = 1 if e.is_staff else 0
