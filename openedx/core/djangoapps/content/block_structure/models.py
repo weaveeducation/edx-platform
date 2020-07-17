@@ -311,6 +311,7 @@ class ApiCourseStructure(models.Model):
 
 
 class ApiCourseStructureTags(models.Model):
+    org_id = models.CharField(max_length=80, null=True, db_index=True)
     course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
     block = models.ForeignKey(ApiCourseStructure, on_delete=models.CASCADE, to_field='block_id')
     block_tag_id = models.CharField(max_length=80, null=True)

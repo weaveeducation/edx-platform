@@ -311,6 +311,7 @@ def _update_course_structure(course_id, published_on):
                                             block_tag_id = hashlib.md5(block_id.encode('utf-8')).hexdigest()
 
                                             tags_to_insert.append(ApiCourseStructureTags(
+                                                org_id=course_key.org,
                                                 course_id=course_id,
                                                 block=block_item,
                                                 block_tag_id=block_tag_id,
@@ -341,6 +342,7 @@ def _update_course_structure(course_id, published_on):
                                                 block_tag_id = hashlib.md5(block_token.encode('utf-8')).hexdigest()
 
                                                 tags_to_insert.append(ApiCourseStructureTags(
+                                                    org_id=course_key.org,
                                                     course_id=course_id,
                                                     block=block_item,
                                                     block_tag_id=block_tag_id,

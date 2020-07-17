@@ -47,6 +47,7 @@ class Command(BaseCommand):
                         block_tag_id = hashlib.md5(block_tag_token.encode('utf-8')).hexdigest()
 
                         tags_to_insert.append(ApiCourseStructureTags(
+                            org_id=tag.org_id,
                             course_id=tag.course_id,
                             block=tag.block,
                             block_tag_id=block_tag_id,
