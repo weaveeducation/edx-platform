@@ -40,7 +40,7 @@ class Command(BaseCommand):
             self._user_attempts_cache = {}
 
         if not sequential_id or answer_ts < 1562025600:  # i.e answer_ts < '2019-07-02'
-            return None, True, []
+            return 0, True, []
 
         key = sequential_id + '|' + str(user_id)
         if key not in self._user_attempts_cache:
@@ -324,6 +324,9 @@ class Command(BaseCommand):
             else:
                 attempt_ts = 0
                 is_last_attempt = True
+
+            if attempt_ts is None:
+                attempt_ts = 0
 
             res_db_check, _tr = self._process_existing_tr(
                 e, is_view, e.answer_id, real_timestamp, attempt_ts, is_last_attempt, db_check=True)
