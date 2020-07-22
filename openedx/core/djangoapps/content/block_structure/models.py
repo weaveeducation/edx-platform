@@ -319,6 +319,7 @@ class ApiCourseStructureTags(models.Model):
                               help_text="Should be filled in only for ORA blocks")
     tag_name = models.CharField(max_length=255, null=False, blank=False)
     tag_value = models.CharField(max_length=255, null=False, blank=False, db_index=True)
+    root_tag_value_hash = models.CharField(max_length=80, null=True, blank=False)
     is_parent = models.SmallIntegerField(default=0)
     ts = models.IntegerField(null=True)
 

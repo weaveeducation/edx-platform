@@ -34,6 +34,8 @@ class Command(BaseCommand):
 
                 t_value = tag.tag_value.strip()
                 t_value_lst = t_value.split(' - ')
+                root_tag_value_hash = hashlib.md5(t_value_lst[0].strip().encode('utf-8')).hexdigest()
+
                 for idx, _ in enumerate(t_value_lst):
                     t_value_upd = ' - '.join(t_value_lst[0:idx + 1])
                     t_value_upd_key = tag.tag_name + '|' + t_value_upd
@@ -51,6 +53,7 @@ class Command(BaseCommand):
                             course_id=tag.course_id,
                             block=tag.block,
                             block_tag_id=block_tag_id,
+                            root_tag_value_hash=root_tag_value_hash,
                             rubric=tag.rubric,
                             tag_name=tag.tag_name,
                             tag_value=t_value_upd,
