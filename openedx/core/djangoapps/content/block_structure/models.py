@@ -321,7 +321,7 @@ class ApiCourseStructureTags(models.Model):
     tag_value = models.CharField(max_length=255, null=False, blank=False, db_index=True)
     root_tag_value_hash = models.CharField(max_length=80, null=True, blank=False)
     is_parent = models.SmallIntegerField(default=0)
-    ts = models.IntegerField(null=True)
+    ts = models.IntegerField(null=True, db_index=True)
 
     class Meta:
         db_table = 'api_course_structure_tags'

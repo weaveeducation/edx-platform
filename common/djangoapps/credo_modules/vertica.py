@@ -12,7 +12,7 @@ def get_vertica_dsn():
 
 
 def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list=None,
-                                  course_ids_lst=None, vertica_dsn=None):
+                                  course_ids_lst=None, vertica_dsn=None, filter_fn=None):
     table_name = model_class._meta.db_table
 
     print('Get data from DB to save into CSV')
@@ -57,6 +57,11 @@ def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list
         new_rows_num = 0
 
         for model_item in model_data:
+            if filter_fn:
+                ignore_res = filter_fn(model_item, fields)
+                if ignore_res:
+                    continue
+
             row_to_insert = []
             for v in model_item:
                 if isinstance(v, basestring):
@@ -70,6 +75,12 @@ def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list
             csvwriter.writerow(row_to_insert)
             new_rows_num = new_rows_num + 1
         tf.close()
+
+        if new_rows_num == 0:
+            print('Nothing to insert/update')
+            os.remove(tf.name)
+            return
+
         print('Try to insert/update %d rows' % new_rows_num)
 
         print('Vertica COPY operation')
