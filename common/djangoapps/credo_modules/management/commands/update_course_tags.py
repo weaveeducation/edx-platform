@@ -138,6 +138,9 @@ class Command(BaseCommand):
                                     changed = True
                                 else:
                                     for tag_val in tag_vals:
+                                        if isinstance(version_obj['blocks'][i]['asides'][j]['fields']['saved_tags'][tag_type], basestring):
+                                            tmp_val = version_obj['blocks'][i]['asides'][j]['fields']['saved_tags'][tag_type]
+                                            version_obj['blocks'][i]['asides'][j]['fields']['saved_tags'][tag_type] = [tmp_val]
                                         if tag_val not in version_obj['blocks'][i]['asides'][j]['fields']['saved_tags'][tag_type]:
                                             version_obj['blocks'][i]['asides'][j]['fields']['saved_tags'][tag_type].append(tag_val)
                                             changed = True
