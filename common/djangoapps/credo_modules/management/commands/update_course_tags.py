@@ -18,7 +18,10 @@ class Command(BaseCommand):
         definitions = mongo_conn.modulestore.definitions
         display_name = block.get('fields', {}).get('display_name')
         if not display_name:
-            return
+            if block['block_type'] == 'openassessment':
+                display_name = 'Open Response Assessment'
+            else:
+                return None
         definition_obj = definitions.find_one({'_id': block['definition']})
         if definition_obj:
             if definition_obj['block_type'] == 'problem':
@@ -33,7 +36,14 @@ class Command(BaseCommand):
         return None
 
     def handle(self, *args, **options):
-        source_course_id = 'course-v1:Virginia-State-University+LO-02+Spring-2017'
+        source_course_ids = [
+            'course-v1:NimblyWise+Assessment-Master+02',
+            'course-v1:NimblyWise+Dev-03+2019',
+            'course-v1:NimblyWise+Dev-02+2019',
+            'course-v1:NimblyWise+Dev-03+2020',
+            'course-v1:NimblyWise+Dev-02+2020',
+            'course-v1:NimblyWise+Dev-01+2019'
+        ]
         source_data_dict = {}
 
         orgs_to_update = [
@@ -41,16 +51,15 @@ class Command(BaseCommand):
             'American-Public-University-System',
             'Brazosport-College',
             'Claflin-University',
+            'Credo-Education',
             'Dyouville-College',
             'Excelsior-College',
-            'Georgia-State-College-And-University',
+            'Georgia-College-And-State-University',
             'Hagerstown-Community-College',
             'IUK',
-            'University-of-Lynchburg',
-            'McMurry-University',
             'MidAmerica-Nazarene-University',
-            'Moreno-Valley-College',
             'Mount-Saint-Mary-College',
+            'NC-Central-University',
             'New-England-College',
             'NimblyWise',
             'North-Carolina-Central-University',
@@ -60,10 +69,14 @@ class Command(BaseCommand):
             'Southern-New-Hampshire-University',
             'Southwest-Texas-Junior-College',
             'Spartanburg-Community-College',
+            'SprocketU',
+            'Tabor-College',
             'Tarrant-County-College-District',
+            'Tarrant-Community-College-District',
             'Thomas-Edison-State-University',
             'University-of-Lynchburg',
             'University-Of-Portsmouth',
+            'University-Saint-Mary',
             'Virginia-State-University',
             'William-Jewell-College',
             'Winston-Salem-State-University'
@@ -75,18 +88,26 @@ class Command(BaseCommand):
         mongo_conn.authenticate(settings.CONTENTSTORE['DOC_STORE_CONFIG']['user'],
                                 settings.CONTENTSTORE['DOC_STORE_CONFIG']['password'])
 
-        source_course_data = get_course_structure(CourseKey.from_string(source_course_id))
-        for block in source_course_data['blocks']:
-            if block['block_type'] in ("problem", "openassessment") and block['asides']:
-                block_id = self.get_block_id(block, mongo_conn)
-                if block_id:
-                    source_data_dict[block_id] = copy.deepcopy(block['asides'])
+        for source_course_id in source_course_ids:
+            source_course_data = get_course_structure(CourseKey.from_string(source_course_id))
+            if not source_course_data:
+                continue
+            for block in source_course_data['blocks']:
+                if block['block_type'] in ("problem", "openassessment") and block['asides']:
+                    block_id = self.get_block_id(block, mongo_conn)
+                    if block_id:
+                        for aside in block['asides']:
+                            if (block['block_type'] == 'problem' and aside['aside_type'] == 'tagging_aside') or\
+                              (block['block_type'] == 'openassessment' and aside['aside_type'] == 'tagging_ora_aside'):
+                                saved_tags = aside.get('fields', {}).get('saved_tags', {})
+                                if saved_tags:
+                                    source_data_dict[block_id] = copy.deepcopy(saved_tags)
 
         for org_num, org in enumerate(orgs_to_update):
             print '-- Start process org: ', org_num, org
             courses = CourseOverview.objects.filter(org=org)
             for c in courses:
-                if str(c.id) != source_course_id:
+                if str(c.id) not in source_course_ids:
                     print '----- Start process course: ', str(c.id)
                     self._update_course_with_tags(mongo_conn, c.id, source_data_dict)
 
@@ -109,8 +130,32 @@ class Command(BaseCommand):
             for i, block in enumerate(version_obj['blocks']):
                 block_id = self.get_block_id(block, mongo_conn)
                 if block_id and block_id in source_data_dict:
-                    version_obj['blocks'][i]['asides'] = source_data_dict[block_id]
-                    changed = True
+                    for j, aside in enumerate(block['asides']):
+                        if block['block_type'] == 'problem' and aside['aside_type'] == 'tagging_aside':
+                            for tag_type, tag_vals in source_data_dict[block_id].items():
+                                if tag_type not in block['asides'][j]['fields']['saved_tags']:
+                                    version_obj['blocks'][i]['asides'][j]['fields']['saved_tags'][tag_type] = tag_vals[:]
+                                    changed = True
+                                else:
+                                    for tag_val in tag_vals:
+                                        if tag_val not in version_obj['blocks'][i]['asides'][j]['fields']['saved_tags'][tag_type]:
+                                            version_obj['blocks'][i]['asides'][j]['fields']['saved_tags'][tag_type].append(tag_val)
+                                            changed = True
+                        if block['block_type'] == 'openassessment' and aside['aside_type'] == 'tagging_ora_aside':
+                            for ora_rubric, ora_tag_info in source_data_dict[block_id].items():
+                                if ora_rubric not in block['asides'][j]['fields']['saved_tags']:
+                                    version_obj['blocks'][i]['asides'][j]['fields']['saved_tags'][ora_rubric] = copy.deepcopy(ora_tag_info)
+                                    changed = True
+                                else:
+                                    for tag_type, tag_vals in source_data_dict[block_id][ora_rubric].items():
+                                        if tag_type not in block['asides'][j]['fields']['saved_tags'][ora_rubric]:
+                                            version_obj['blocks'][i]['asides'][j]['fields']['saved_tags'][ora_rubric][tag_type] = tag_vals[:]
+                                            changed = True
+                                        else:
+                                            for tag_val in tag_vals:
+                                                if tag_val not in version_obj['blocks'][i]['asides'][j]['fields']['saved_tags'][ora_rubric][tag_type]:
+                                                    version_obj['blocks'][i]['asides'][j]['fields']['saved_tags'][ora_rubric][tag_type].append(tag_val)
+                                                    changed = True
             if changed:
                 print 'Save!'
                 structures.save(version_obj)
