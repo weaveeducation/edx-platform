@@ -47,36 +47,6 @@ class Command(BaseCommand):
         source_data_dict = {}
 
         orgs_to_update = [
-            'Adventist-University-Of-Health-Sciences',
-            'American-Public-University-System',
-            'Brazosport-College',
-            'Claflin-University',
-            'Credo-Education',
-            'Dyouville-College',
-            'Excelsior-College',
-            'Georgia-College-And-State-University',
-            'Hagerstown-Community-College',
-            'IUK',
-            'MidAmerica-Nazarene-University',
-            'Mount-Saint-Mary-College',
-            'NC-Central-University',
-            'New-England-College',
-            'NimblyWise',
-            'North-Carolina-Central-University',
-            'Rutgers-University',
-            'San-Diego-Christian-College',
-            'San-Joaquin-Valley-College',
-            'Southern-New-Hampshire-University',
-            'Southwest-Texas-Junior-College',
-            'Spartanburg-Community-College',
-            'SprocketU',
-            'Tabor-College',
-            'Tarrant-County-College-District',
-            'Tarrant-Community-College-District',
-            'Thomas-Edison-State-University',
-            'University-of-Lynchburg',
-            'University-Of-Portsmouth',
-            'University-Saint-Mary',
             'Virginia-State-University',
             'William-Jewell-College',
             'Winston-Salem-State-University'
@@ -129,7 +99,7 @@ class Command(BaseCommand):
             changed = False
             for i, block in enumerate(version_obj['blocks']):
                 block_id = self.get_block_id(block, mongo_conn)
-                if block_id and block_id in source_data_dict:
+                if block_id and block_id in source_data_dict and 'asides' in block:
                     for j, aside in enumerate(block['asides']):
                         if block['block_type'] == 'problem' and aside['aside_type'] == 'tagging_aside':
                             for tag_type, tag_vals in source_data_dict[block_id].items():
