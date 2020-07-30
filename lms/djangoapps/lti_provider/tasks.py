@@ -115,14 +115,16 @@ class ScoresHandler(object):
         )
 
     def _send_leaf_outcome(self, assignment_id, points_earned, points_possible):
-        send_leaf_outcome.delay(
-            assignment_id, points_earned, points_possible
+        send_leaf_outcome.apply_async(
+            (assignment_id, points_earned, points_possible),
+            routing_key=settings.HIGH_PRIORITY_QUEUE
         )
 
     def _send_composite_outcome(self, user_id, course_id, assignment_id, assignment_version_number):
         send_composite_outcome.apply_async(
             (user_id, course_id, assignment_id, assignment_version_number),
-            countdown=settings.LTI_AGGREGATE_SCORE_PASSBACK_DELAY
+            countdown=settings.LTI_AGGREGATE_SCORE_PASSBACK_DELAY,
+            routing_key=settings.HIGH_PRIORITY_QUEUE
         )
 
     def _increment_assignment_versions(self, course_key, usage_key, user_id):

@@ -46,14 +46,16 @@ class Lti1p3ScoresHandler(ScoresHandler):
         return assignments
 
     def _send_leaf_outcome(self, assignment_id, points_earned, points_possible):
-        lti1p3_send_leaf_outcome.delay(
-            assignment_id, points_earned, points_possible
+        lti1p3_send_leaf_outcome.apply_async(
+            (assignment_id, points_earned, points_possible),
+            routing_key=settings.HIGH_PRIORITY_QUEUE
         )
 
     def _send_composite_outcome(self, user_id, course_id, assignment_id, assignment_version_number):
         lti1p3_send_composite_outcome.apply_async(
             (user_id, course_id, assignment_id, assignment_version_number),
-            countdown=settings.LTI_AGGREGATE_SCORE_PASSBACK_DELAY
+            countdown=settings.LTI_AGGREGATE_SCORE_PASSBACK_DELAY,
+            routing_key=settings.HIGH_PRIORITY_QUEUE
         )
 
     def _get_graded_assignment_by_id(self, assignment_id):
