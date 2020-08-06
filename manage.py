@@ -24,6 +24,7 @@ import importlib
 import os
 import sys
 from argparse import ArgumentParser
+from shutil import copyfile
 
 import contracts
 
@@ -95,6 +96,11 @@ def parse_args():
 
 
 if __name__ == "__main__":
+    if os.environ.get('PYCHARM_DEBUG') == '1':
+        config_path_lst = ['lms.auth.json', 'cms.auth.json', 'lms.env.json', 'cms.env.json']
+        for v in config_path_lst:
+            copyfile('/edx/src/configs/' + v, '/edx/app/edxapp/' + v)
+
     edx_args, django_args = parse_args()
 
     edx_args_base = edx_args.settings_base.replace('/', '.') + '.'

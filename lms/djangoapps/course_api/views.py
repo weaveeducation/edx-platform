@@ -10,12 +10,24 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.exceptions import NotFound
 
+from credo_modules.models import Organization, OrganizationType
+from credo_modules.course_access_handler import CourseAccessHandler
 from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin, view_auth_classes
+from openedx.core.djangoapps.content.block_structure.tasks import _update_course_structure
+from opaque_keys.edx.keys import CourseKey
+from util.disable_rate_limit import can_disable_rate_limit
 
 from . import USE_RATE_LIMIT_2_FOR_COURSE_LIST_API, USE_RATE_LIMIT_10_FOR_COURSE_LIST_API
 from .api import course_detail, list_course_keys, list_courses
 from .forms import CourseDetailGetForm, CourseIdListGetForm, CourseListGetForm
 from .serializers import CourseDetailSerializer, CourseKeySerializer, CourseSerializer
+
+from edx_rest_framework_extensions.auth.jwt.authentication import JwtAuthentication
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from openedx.core.lib.api.authentication import OAuth2AuthenticationAllowInactiveUser
+from openedx.core.lib.api.permissions import ApiKeyHeaderPermissionIsAuthenticated
+from credo_modules.models import get_inactive_orgs
 
 
 @view_auth_classes(is_authenticated=False)
@@ -378,3 +390,104 @@ class CourseIdListView(DeveloperErrorViewMixin, ListAPIView):
             form.cleaned_data['username'],
             role=form.cleaned_data['role'],
         )
+
+
+def get_customer_info(user):
+    data = []
+    insights_reports = OrganizationType.get_all_insights_reports()
+    handler = CourseAccessHandler()
+    courses = handler.claim_staff_courses({
+        'user': user,
+        'values': None
+    })
+    if courses:
+        deactivated_orgs = get_inactive_orgs()
+        org_list = []
+        for course in courses:
+            org = CourseKey.from_string(course).org
+            if org not in deactivated_orgs:
+                org_list.append(org)
+
+        data = Organization.objects.filter(org__in=org_list).prefetch_related('org_type')
+        if data and len(org_list) == len(data):
+            insights_reports = set()
+            for v in data:
+                insights_reports.update(v.get_insights_reports())
+            insights_reports = list(insights_reports)
+    return {
+        'is_superuser': user.is_superuser,
+        'is_staff': user.is_staff,
+        'insights_reports': insights_reports,
+        'details': [v.to_dict() for v in data]
+    }
+
+
+@can_disable_rate_limit
+class CustomerInfoView(APIView):
+    authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
+    permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
+
+    def get(self, request):
+        return Response(get_customer_info(request.user))
+
+
+@can_disable_rate_limit
+class OrgsView(APIView):
+    authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
+    permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
+
+    def get(self, request):
+        if not request.user.is_staff and not request.user.is_superuser:
+            return Response({'success': False, 'error': "You have no permissions to view organizations"})
+        org_slug = request.GET.get('org_slug', None)
+        org_type = request.GET.get('org_type', None)
+        deactivated_orgs = get_inactive_orgs()
+
+        if org_type:
+            try:
+                org_type = int(org_type)
+            except:
+                org_type = None
+
+        if org_slug:
+            insights_reports = OrganizationType.get_all_insights_reports()
+            org_type_result = {}
+            if org_slug not in deactivated_orgs:
+                try:
+                    org_obj = Organization.objects.get(org=org_slug)
+                    if org_obj.org_type is not None:
+                        insights_reports = org_obj.org_type.get_insights_reports()
+                        org_type_result = {
+                            'id': org_obj.org_type.id,
+                            'title': org_obj.org_type.title
+                        }
+                except Organization.DoesNotExist:
+                    pass
+            return Response({
+                'success': True,
+                'insights_reports': insights_reports,
+                'org_type': org_type_result
+            })
+        elif org_type:
+            orgs = Organization.objects.filter(org_type=org_type).order_by('org')
+            return Response({'success': True, 'orgs': [o.org for o in orgs if o.org not in deactivated_orgs]})
+        else:
+            org_types = OrganizationType.objects.all().order_by('title')
+            return Response({'success': True, 'org_types': [{'id': org.id, 'title': org.title} for org in org_types]})
+
+
+@can_disable_rate_limit
+class UpdateCourseStructureView(APIView):
+    authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
+    permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
+
+    def post(self, request):
+        if not request.user.is_staff and not request.user.is_superuser:
+            return Response({'success': False, 'error': "You have no permissions to update course structure"})
+
+        course_id = request.POST.get('course_id')
+        if not course_id:
+            return Response({'success': False, 'error': "course_id is not set"})
+
+        _update_course_structure(course_id, None)
+        return Response({'success': True})

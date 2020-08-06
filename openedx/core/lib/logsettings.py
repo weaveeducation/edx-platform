@@ -13,7 +13,8 @@ LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
 def get_logger_config(log_dir,
                       logging_env="no_env",
                       local_loglevel='INFO',
-                      service_variant=""):
+                      service_variant="",
+                      syslog_settings=None):
     """
 
     Return the appropriate logging config dictionary. You should assign the

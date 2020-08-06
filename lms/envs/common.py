@@ -130,7 +130,9 @@ FEATURES = {
     # .. toggle_status: unsupported
     'ENABLE_SYSADMIN_DASHBOARD': False,  # sysadmin dashboard, to see what courses are loaded, to delete & load courses
 
+    'ENROLL_ACTIVE_USERS_ONLY': False,
     'DISABLE_LOGIN_BUTTON': False,  # used in systems where login is automatic, eg MIT SSL
+    'DISABLE_REGISTER_BUTTON': False,  # used for cases if you want to register users only after push "enroll" button
 
     # Toggles OAuth2 authentication provider
     'ENABLE_OAUTH2_PROVIDER': False,
@@ -1482,6 +1484,7 @@ CREDIT_NOTIFICATION_CACHE_TIMEOUT = 5 * 60 * 60
 ################################# Middleware ###################################
 
 MIDDLEWARE = [
+    'credo_modules.middleware.CookiesSameSiteMiddleware',
     'openedx.core.lib.x_forwarded_for.middleware.XForwardedForMiddleware',
 
     # Avoid issue with https://blog.heroku.com/chrome-changes-samesite-cookie
@@ -1528,9 +1531,11 @@ MIDDLEWARE = [
 
     # CORS and CSRF
     'corsheaders.middleware.CorsMiddleware',
-    'openedx.core.djangoapps.cors_csrf.middleware.CorsCSRFMiddleware',
+    # disable CSRF check - temporary solution!!
+    #'openedx.core.djangoapps.cors_csrf.middleware.CorsCSRFMiddleware',
     'openedx.core.djangoapps.cors_csrf.middleware.CsrfCrossDomainCookieMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # disable CSRF check - temporary solution!!
+    #'django.middleware.csrf.CsrfViewMiddleware',
 
     'splash.middleware.SplashMiddleware',
 
@@ -1582,12 +1587,23 @@ MIDDLEWARE = [
     # Handles automatically storing user ids in django-simple-history tables when possible.
     'simple_history.middleware.HistoryRequestMiddleware',
 
+    'credo_modules.middleware.RefererSaveMiddleware',
+
+    'credo_modules.middleware.CourseUsageMiddleware',
+
+    'third_party_auth.middleware.SSOAuthMiddleware',
+
     # This must be last
     'openedx.core.djangoapps.site_configuration.middleware.SessionCookieDomainOverrideMiddleware',
 ]
 
+SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SAMESITE_KEYS = {'edx-jwt-refresh-cookie', 'edx-jwt-cookie-signature', 'edx-jwt-cookie-header-payload',
+                                'credo-course-usage-id', 'edx-user-info', 'edxloggedin', 'experiments_is_enterprise',
+                                'openedx-language-preference', 'CREDO_HTTP_REFERER'}
+
 # Clickjacking protection can be disbaled by setting this to 'ALLOW'
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS = 'ALLOW'
 
 # Platform for Privacy Preferences header
 P3P_HEADER = 'CP="Open EdX does not have a P3P policy."'
@@ -2562,6 +2578,8 @@ INSTALLED_APPS = [
     # Management of per-user schedules
     'openedx.core.djangoapps.schedules',
     'rest_framework_jwt',
+    'credo_modules',
+    'turnitin_integration',
 ]
 
 ######################### CSRF #########################################
@@ -2801,6 +2819,7 @@ REGISTRATION_EXTRA_FIELDS = {
     'terms_of_service': 'hidden',
     'city': 'hidden',
     'country': 'hidden',
+    'password_copy': 'hidden',
 }
 
 REGISTRATION_FIELD_ORDER = [
@@ -3916,3 +3935,12 @@ GITHUB_REPO_ROOT = '/edx/var/edxapp/data'
 
 ##################### SUPPORT URL ############################
 SUPPORT_HOW_TO_UNENROLL_LINK = ''
+
+############## LTI additional settings ############################
+
+EMBEDDED_CODE_CACHE_TIMEOUT = 60 * 60
+EMBEDDED_CODE_CACHE_PREFIX = "embedded_code"
+
+############## Additional settings ############################
+
+HIDE_PROFILE = False

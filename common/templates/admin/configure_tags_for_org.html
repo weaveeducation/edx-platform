@@ -1,0 +1,31 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div class="module" id="changelist" style="width: 800px;">
+<form id="changelist-form" method="post" novalidate="">
+{% csrf_token %}
+<table id="result_list" style="width: 800px;">
+    <thead>
+    <tr>
+        <th>Tag Name</th>
+        <th>Insights</th>
+        <th>My Skills</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for tag in tags_result %}
+    <tr class="{% cycle "row1" "row2" %}">
+        <td>{{ tag.title }}</td>
+        <td><input type="checkbox" name="insights" value="{{ tag.id }}" {% if tag.insights_view %}checked="checked"{% endif %}></td>
+        <td><input type="checkbox" name="skills" value="{{ tag.id }}" {% if tag.progress_view %}checked="checked"{% endif %}></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<br />
+<div class="submit-row">
+<input type="submit" value="Save" class="default" name="_save">
+</div>
+</form>
+</div>
+{% endblock %}

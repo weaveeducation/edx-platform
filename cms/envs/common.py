@@ -723,7 +723,7 @@ MIDDLEWARE = [
 EXTRA_MIDDLEWARE_CLASSES = []
 
 # Clickjacking protection can be disabled by setting this to 'ALLOW'
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS = 'ALLOW'
 
 # Platform for Privacy Preferences header
 P3P_HEADER = 'CP="Open EdX does not have a P3P policy."'
@@ -1479,6 +1479,9 @@ INSTALLED_APPS = [
 
     # API Documentation
     'drf_yasg',
+
+    'credo_modules',
+    'turnitin_integration',
 
     'openedx.features.course_duration_limits',
     'openedx.features.content_type_gating',
@@ -2258,3 +2261,6 @@ DISABLE_DEPRECATED_SIGNIN_URL = False
 # .. toggle_tickets: ARCH-1253
 # .. toggle_status: supported
 DISABLE_DEPRECATED_SIGNUP_URL = False
+
+XQUEUE_WAITTIME_BETWEEN_REQUESTS = 5  # seconds
+GENERATE_PROFILE_SCORES = False

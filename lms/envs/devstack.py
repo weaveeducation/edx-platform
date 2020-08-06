@@ -320,7 +320,7 @@ ACCOUNT_MICROFRONTEND_URL = 'http://localhost:1997'
 ############## Docker based devstack settings #######################
 
 FEATURES.update({
-    'AUTOMATIC_AUTH_FOR_TESTING': True,
+    'AUTOMATIC_AUTH_FOR_TESTING': False,
     'ENABLE_DISCUSSION_SERVICE': True,
     'SHOW_HEADER_LANGUAGE_SELECTOR': True,
     'ENABLE_ENTERPRISE_INTEGRATION': False,
@@ -403,3 +403,7 @@ if os.path.isfile(join(dirname(abspath(__file__)), 'private.py')):
 # ]
 # TEMPLATES[1]["DIRS"] = _make_mako_template_dirs
 # derive_settings(__name__)
+
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+SESSION_COOKIE_SAMESITE = None

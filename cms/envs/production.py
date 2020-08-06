@@ -11,6 +11,14 @@ import codecs
 import copy
 import os
 import yaml
+import logging
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+except ImportError:
+    pass
 
 from django.core.exceptions import ImproperlyConfigured
 from django.urls import reverse_lazy
@@ -240,7 +248,7 @@ if ENV_TOKENS.get('SESSION_COOKIE_NAME', None):
 # unencrypted channels. It is set to False here for backward compatibility,
 # but it is highly recommended that this is True for environments accessed
 # by end users.
-CSRF_COOKIE_SECURE = ENV_TOKENS.get('CSRF_COOKIE_SECURE', False)
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
 #Email overrides
 MKTG_URL_LINK_MAP.update(ENV_TOKENS.get('MKTG_URL_LINK_MAP', {}))
@@ -276,9 +284,19 @@ for feature, value in ENV_FEATURES.items():
 for app in ENV_TOKENS.get('ADDL_INSTALLED_APPS', []):
     INSTALLED_APPS.append(app)
 
+############## Syslog settings ############################
+SYSLOG_USE_TCP = ENV_TOKENS.get('SYSLOG_USE_TCP', False)
+SYSLOG_HOST = ENV_TOKENS.get('SYSLOG_HOST', '')
+SYSLOG_PORT = ENV_TOKENS.get('SYSLOG_PORT', 0)
+
 LOGGING = get_logger_config(LOG_DIR,
                             logging_env=ENV_TOKENS['LOGGING_ENV'],
-                            service_variant=SERVICE_VARIANT)
+                            service_variant=SERVICE_VARIANT,
+                            syslog_settings={
+                                'SYSLOG_USE_TCP': SYSLOG_USE_TCP,
+                                'SYSLOG_HOST': SYSLOG_HOST,
+                                'SYSLOG_PORT': SYSLOG_PORT
+                            })
 
 # The following variables use (or) instead of the default value inside (get). This is to enforce using the Lazy Text
 # values when the varibale is an empty string. Therefore, setting these variable as empty text in related
@@ -531,6 +549,30 @@ RETIREMENT_SERVICE_WORKER_USERNAME = ENV_TOKENS.get(
 ############### Settings for edx-rbac  ###############
 SYSTEM_WIDE_ROLE_CLASSES = ENV_TOKENS.get('SYSTEM_WIDE_ROLE_CLASSES') or SYSTEM_WIDE_ROLE_CLASSES
 
+############## Sentry ############################
+RAVEN_CONFIG = ENV_TOKENS.get('RAVEN_CONFIG', {})
+
+############## Credo API config ############################
+CREDO_API_CONFIG = ENV_TOKENS.get('CREDO_API_CONFIG', {})
+
+############## LTI Constructor ############################
+CONSTRUCTOR_LINK = ENV_TOKENS.get('CONSTRUCTOR_LINK', 'http://127.0.0.1:9015')
+
+############## Turnitin_Integration ############################
+TURNITIN_SIGNING_SECRET = ENV_TOKENS.get('TURNITIN_SIGNING_SECRET', 'replace-me')
+TURNITIN_WEBHOOK_HOST = ENV_TOKENS.get('TURNITIN_WEBHOOK_HOST', 'http://127.0.0.1')
+
+############## Credo Insights ############################
+CREDO_INSIGHTS_LINK = ENV_TOKENS.get('CREDO_INSIGHTS_LINK', 'https://insights.credoeducation.com')
+
+############## Base format for LTI links ############################
+BASE_LTI_LINK = ENV_TOKENS.get('BASE_LTI_LINK', 'http://127.0.0.1/lti_provider/courses/{}/{}')
+
+############## VERTICA DSN ############################
+VERTICA_DSN = ENV_TOKENS.get('VERTICA_DSN', '')
+
+BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 7 * 24 * 60 * 60}  # 7 days
+
 ####################### Plugin Settings ##########################
 
 # This is at the bottom because it is going to load more settings after base settings are loaded
@@ -540,3 +582,13 @@ plugin_settings.add_plugins(__name__, plugin_constants.ProjectType.CMS, plugin_c
 ########################## Derive Any Derived Settings  #######################
 
 derive_settings(__name__)
+
+raven_dsn = RAVEN_CONFIG.get('dsn')
+if raven_dsn:
+    sentry_sdk.init(
+        dsn=raven_dsn,
+        integrations=[CeleryIntegration(), DjangoIntegration(), LoggingIntegration(
+            level=logging.INFO,        # Capture info and above as breadcrumbs
+            event_level=logging.ERROR  # Send errors as events
+        )]
+    )
