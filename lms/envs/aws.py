@@ -1078,6 +1078,7 @@ CREDO_API_CONFIG = ENV_TOKENS.get('CREDO_API_CONFIG', {})
 
 ############## VERTICA DSN ############################
 VERTICA_DSN = ENV_TOKENS.get('VERTICA_DSN', '')
+VERTICA_BACKUP_SERVER_NODES = ENV_TOKENS.get('VERTICA_BACKUP_SERVER_NODES', None)
 
 ########################## Parental controls config  #######################
 

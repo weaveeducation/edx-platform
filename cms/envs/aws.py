@@ -561,6 +561,7 @@ CREDO_INSIGHTS_LINK = ENV_TOKENS.get('CREDO_INSIGHTS_LINK', 'https://insights.cr
 
 ############## VERTICA DSN ############################
 VERTICA_DSN = ENV_TOKENS.get('VERTICA_DSN', '')
+VERTICA_BACKUP_SERVER_NODES = ENV_TOKENS.get('VERTICA_BACKUP_SERVER_NODES', None)
 
 BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 7 * 24 * 60 * 60}  # 7 days
 
