@@ -135,11 +135,11 @@ FEATURES = {
     'DISABLE_REGISTER_BUTTON': False,  # used for cases if you want to register users only after push "enroll" button
 
     # Toggles OAuth2 authentication provider
-    'ENABLE_OAUTH2_PROVIDER': False,
+    'ENABLE_OAUTH2_PROVIDER': True,
 
     # Allows to enable an API endpoint to serve XBlock view, used for example by external applications.
     # See jquey-xblock: https://github.com/edx-solutions/jquery-xblock
-    'ENABLE_XBLOCK_VIEW_ENDPOINT': False,
+    'ENABLE_XBLOCK_VIEW_ENDPOINT': True,
 
     # Allows to configure the LMS to provide CORS headers to serve requests from other domains
     'ENABLE_CORS_HEADERS': False,
@@ -334,13 +334,13 @@ FEATURES = {
     'SHOW_BUMPER_PERIODICITY': 7 * 24 * 3600,
 
     # Special Exams, aka Timed and Proctored Exams
-    'ENABLE_SPECIAL_EXAMS': False,
+    'ENABLE_SPECIAL_EXAMS': True,
 
     # Enable OpenBadge support. See the BADGR_* settings later in this file.
     'ENABLE_OPENBADGES': False,
 
     # Enable LTI Provider feature.
-    'ENABLE_LTI_PROVIDER': False,
+    'ENABLE_LTI_PROVIDER': True,
 
     # Show the language selector in the header
     'SHOW_HEADER_LANGUAGE_SELECTOR': False,
@@ -643,8 +643,8 @@ OAUTH2_DEFAULT_SCOPES = {
 
 OAUTH2_PROVIDER = {
     'OAUTH2_VALIDATOR_CLASS': 'openedx.core.djangoapps.oauth_dispatch.dot_overrides.validators.EdxOAuth2Validator',
-    # 3 months and then we expire refresh tokens using edx_clear_expired_tokens (length is mobile app driven)
-    'REFRESH_TOKEN_EXPIRE_SECONDS': 7776000,
+    'REFRESH_TOKEN_EXPIRE_SECONDS': None,  # endless
+    'ACCESS_TOKEN_EXPIRE_SECONDS': 2592000,  # 30 days
     'SCOPES_BACKEND_CLASS': 'openedx.core.djangoapps.oauth_dispatch.scopes.ApplicationModelScopes',
     'SCOPES': dict(OAUTH2_DEFAULT_SCOPES, **{
         'certificates:read': _('Retrieve your course certificates'),
@@ -2819,7 +2819,7 @@ REGISTRATION_EXTRA_FIELDS = {
     'terms_of_service': 'hidden',
     'city': 'hidden',
     'country': 'hidden',
-    'password_copy': 'hidden',
+    'password_copy': 'required'
 }
 
 REGISTRATION_FIELD_ORDER = [

@@ -42,8 +42,11 @@ def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list
     table_name_copy_from = table_name + '_temp'
 
     dsn = vertica_dsn if vertica_dsn else get_vertica_dsn()
+    additional_settings = {}
+    #if settings.VERTICA_BACKUP_SERVER_NODES:
+    #    additional_settings['backup_server_node'] = settings.VERTICA_BACKUP_SERVER_NODES
 
-    with vertica_python.connect(dsn=dsn) as conn:
+    with vertica_python.connect(dsn=dsn, **additional_settings) as conn:
         cursor = conn.cursor()
 
         sql0 = 'TRUNCATE TABLE %s' % table_name_copy_from
