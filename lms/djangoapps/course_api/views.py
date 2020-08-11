@@ -393,6 +393,13 @@ class CourseIdListView(DeveloperErrorViewMixin, ListAPIView):
 
 
 def get_customer_info(user):
+    if not user.is_active:
+        return {
+            'is_superuser': False,
+            'is_staff': False,
+            'insights_reports': [],
+            'details': []
+        }
     data = []
     insights_reports = OrganizationType.get_all_insights_reports()
     handler = CourseAccessHandler()
@@ -422,6 +429,21 @@ def get_customer_info(user):
     }
 
 
+class CourseIdExtendedListView(APIView):
+    authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
+    permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
+
+    def get(self, request):
+        courses = []
+        if request.user.is_active:
+            handler = CourseAccessHandler()
+            courses = handler.claim_staff_courses({
+                'user': request.user,
+                'values': None
+            })
+        return Response({'courses': courses})
+
+
 @can_disable_rate_limit
 class CustomerInfoView(APIView):
     authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
@@ -437,8 +459,6 @@ class OrgsView(APIView):
     permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
 
     def get(self, request):
-        if not request.user.is_staff and not request.user.is_superuser:
-            return Response({'success': False, 'error': "You have no permissions to view organizations"})
         org_slug = request.GET.get('org_slug', None)
         org_type = request.GET.get('org_type', None)
         deactivated_orgs = get_inactive_orgs()
@@ -482,9 +502,6 @@ class UpdateCourseStructureView(APIView):
     permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
 
     def post(self, request):
-        if not request.user.is_staff and not request.user.is_superuser:
-            return Response({'success': False, 'error': "You have no permissions to update course structure"})
-
         course_id = request.POST.get('course_id')
         if not course_id:
             return Response({'success': False, 'error': "course_id is not set"})

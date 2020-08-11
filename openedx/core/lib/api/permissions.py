@@ -2,7 +2,7 @@
 API library for Django REST Framework permissions-oriented workflows
 """
 
-
+from django.contrib.auth.models import User
 from django.conf import settings
 from django.http import Http404
 from edx_django_utils.monitoring import set_custom_metric
@@ -10,6 +10,7 @@ from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 from rest_condition import C
 from rest_framework import permissions
+from rest_framework.authentication import BaseAuthentication
 
 from edx_rest_framework_extensions.permissions import IsStaff, IsUserInUrl
 from openedx.core.lib.log_utils import audit_log
@@ -133,3 +134,14 @@ class IsStaffOrOwner(permissions.BasePermission):
             or (user.username == getattr(request, 'data', {}).get('username')) \
             or (user.username == getattr(request, 'data', {}).get('user')) \
             or (user.username == getattr(view, 'kwargs', {}).get('username'))
+
+
+class APIAdminAuthentication(BaseAuthentication):
+
+    def authenticate(self, request):
+        api_key = getattr(settings, "EDX_API_KEY", None)
+
+        if api_key is not None and request.META.get("HTTP_X_EDX_API_KEY") == api_key:
+            user = User.objects.filter(is_superuser=True).order_by('id').first()
+            return (user, None)
+        return None

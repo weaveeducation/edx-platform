@@ -24,7 +24,7 @@ from six import text_type, iteritems
 
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiveUser
-from openedx.core.lib.api.permissions import IsUserInUrl
+from openedx.core.lib.api.permissions import IsUserInUrl, APIAdminAuthentication
 
 
 class DeveloperErrorResponseException(Exception):
@@ -121,7 +121,8 @@ def view_auth_classes(is_user=False, is_authenticated=True):
         func_or_class.authentication_classes = (
             JwtAuthentication,
             BearerAuthenticationAllowInactiveUser,
-            SessionAuthenticationAllowInactiveUser
+            SessionAuthenticationAllowInactiveUser,
+            APIAdminAuthentication
         )
         func_or_class.permission_classes = ()
         if is_authenticated:
