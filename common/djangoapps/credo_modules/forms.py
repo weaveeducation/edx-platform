@@ -84,7 +84,7 @@ class StudentAttributesRegistrationForm(Form):
                     'error_messages': {
                         "required": required_msq,
                     },
-                    'order': order,
+                    'order': order if order else 0,
                     'options': options,
                     'key': self._key_pattern % k
                 }
@@ -92,7 +92,7 @@ class StudentAttributesRegistrationForm(Form):
                 registration_attributes_list.append(data)
 
             if registration_attributes_list:
-                registration_attributes_list_sorted = sorted(registration_attributes_list, key=lambda k: k['order'])
+                registration_attributes_list_sorted = sorted(registration_attributes_list, key=lambda k: k.get('order'))
 
             if registration_attributes_list_sorted:
                 for val in registration_attributes_list_sorted:
