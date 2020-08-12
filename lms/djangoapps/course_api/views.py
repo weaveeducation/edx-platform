@@ -337,6 +337,7 @@ class OrgsView(APIView):
         org_slug = request.GET.get('org_slug', None)
         org_type = request.GET.get('org_type', None)
         deactivated_orgs = get_inactive_orgs()
+        details = {}
 
         if org_type:
             try:
@@ -350,6 +351,7 @@ class OrgsView(APIView):
             if org_slug not in deactivated_orgs:
                 try:
                     org_obj = Organization.objects.get(org=org_slug)
+                    details = org_obj.to_dict()
                     if org_obj.org_type is not None:
                         insights_reports = org_obj.org_type.get_insights_reports()
                         org_type_result = {
@@ -361,7 +363,8 @@ class OrgsView(APIView):
             return Response({
                 'success': True,
                 'insights_reports': insights_reports,
-                'org_type': org_type_result
+                'org_type': org_type_result,
+                'details': details
             })
         elif org_type:
             orgs = Organization.objects.filter(org_type=org_type).order_by('org')
