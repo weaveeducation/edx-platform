@@ -3038,3 +3038,6 @@ class AccountRecoveryConfiguration(ConfigurationModel):
                     first row being the header and columns will be as follows: \
                     username, email, new_email")
     )
+
+
+User._meta.get_field('email')._unique = True
