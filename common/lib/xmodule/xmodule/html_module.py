@@ -83,7 +83,16 @@ class HtmlBlock(
         scope=Scope.settings
     )
 
+    has_author_view = True
+
     ENABLE_HTML_XBLOCK_STUDENT_VIEW_DATA = 'ENABLE_HTML_XBLOCK_STUDENT_VIEW_DATA'
+
+    @XBlock.supports("multi_device")
+    def author_view(self, _context):
+        """
+        Return a fragment that contains the html for the author view
+        """
+        return Fragment(self.get_html())
 
     @XBlock.supports("multi_device")
     def student_view(self, _context):
