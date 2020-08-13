@@ -403,9 +403,10 @@ def parse_assessment_meta(assessment_meta_xml, new_assessment):
     """
     meta_root = assessment_meta_xml.getroot()
     desc = meta_root.find('meta:description', NS).text
+
     if desc is not None:
 #        new_assessment.description = re.sub('&lt.*?&gt;|<.*?>|\n', '', desc.encode('utf-8'))
-        new_assessment.description = desc.encode('utf-8')
+        new_assessment.description = desc
 
     end_time = meta_root.find('meta:due_at', NS)
     if end_time is not None:
