@@ -18,6 +18,7 @@ from .models import (
     LTIProviderConfig,
     OAuth2ProviderConfig,
     SAMLConfiguration,
+    SAMLConfigurationPerMicrosite,
     SAMLProviderConfig,
     SAMLProviderData
 )
@@ -41,6 +42,14 @@ class OAuth2ProviderConfigAdmin(KeyedConfigurationModelAdmin):
         )
 
 admin.site.register(OAuth2ProviderConfig, OAuth2ProviderConfigAdmin)
+
+
+class SAMLConfigurationPerMicrositeAdmin(admin.ModelAdmin):
+    """ Django Admin class for SAMLConfigurationPerMicrosite """
+    list_display = ('id', 'domain', 'entity_id')
+
+
+admin.site.register(SAMLConfigurationPerMicrosite, SAMLConfigurationPerMicrositeAdmin)
 
 
 class SAMLProviderConfigForm(forms.ModelForm):
