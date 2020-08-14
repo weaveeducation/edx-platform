@@ -28,6 +28,11 @@ from xmodule.modulestore.django import modulestore
 from ..exceptions import UpdateProblemModuleStateError
 from .runner import TaskProgress
 from .utils import UNKNOWN_TASK_ID, UPDATE_STATUS_FAILED, UPDATE_STATUS_SKIPPED, UPDATE_STATUS_SUCCEEDED
+from credo_modules.models import SequentialBlockAnswered
+from completion import waffle as completion_waffle
+from completion.models import BlockCompletion
+from courseware.utils import get_block_children
+
 
 TASK_LOG = logging.getLogger('edx.celery.task')
 
@@ -431,3 +436,26 @@ def _get_modules_to_update(course_id, usage_keys, student_identifier, filter_fcn
             for key in usage_keys
         ]
     return student_modules
+
+
+def update_reset_progress(user, course_key, block=None, initiator=None):
+    if not block:
+        StudentModule.objects.filter(course_id=course_key, student=user).delete()
+        SequentialBlockAnswered.objects.filter(course_id=str(course_key), user_id=user.id).delete()
+
+        if completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
+            BlockCompletion.objects.clear_completion(user, course_key)
+    else:
+        children_dict = get_block_children(block, block.display_name, add_correctness=False)
+        items = [block.location]
+        for k, v in children_dict.items():
+            items.append(UsageKey.from_string(k))
+
+        StudentModule.objects.filter(course_id=course_key, module_state_key__in=items, student=user).delete()
+        SequentialBlockAnswered.objects.filter(
+            course_id=str(course_key), sequential_id=str(block.location), user_id=user.id).delete()
+
+        if completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
+            BlockCompletion.objects.filter(user=user, course_key=course_key, block_key__in=items).delete()
+    block_id_reset = str(block.location) if block else None
+    StudentModule.log_reset_progress(user.id, str(course_key), initiator=initiator, block_id=block_id_reset)

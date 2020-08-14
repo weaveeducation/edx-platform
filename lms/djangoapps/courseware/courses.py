@@ -45,7 +45,7 @@ from lms.djangoapps.courseware.date_summary import (
 )
 from lms.djangoapps.courseware.masquerade import check_content_start_date_for_masquerade_user
 from lms.djangoapps.courseware.model_data import FieldDataCache
-from lms.djangoapps.courseware.module_render import get_module
+from lms.djangoapps.courseware.module_render import get_module, get_module_for_descriptor
 from edxmako.shortcuts import render_to_string
 from lms.djangoapps.certificates import api as certs_api
 from lms.djangoapps.courseware.access_utils import (
@@ -67,6 +67,7 @@ from util.date_utils import strftime_localized
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.x_module import STUDENT_VIEW
+from credo_modules.models import CourseUsage, get_student_properties
 
 log = logging.getLogger(__name__)
 
@@ -793,3 +794,52 @@ def get_course_chapter_ids(course_key):
         log.exception('Failed to retrieve course from modulestore.')
         return []
     return [six.text_type(chapter_key) for chapter_key in chapter_keys if chapter_key.block_type == 'chapter']
+
+
+def update_lms_course_usage(request, usage_key, course_key):
+    if request.method == 'HEAD':
+        return
+
+    item = None
+    block_type = ''
+    max_attempts = 10
+    num_attempt = 0
+    student_properties = None
+
+    while block_type != 'course' and num_attempt < max_attempts:
+        if item is None:  # first iteration
+            item = modulestore().get_item(usage_key)
+            student_properties = get_student_properties(request, course_key, item)
+            if item.category == 'sequential':
+                add_vertical_usage(item, request, course_key, student_properties)
+        CourseUsage.update_block_usage(request, course_key, item.location, student_properties)
+        item = item.get_parent()
+        block_type = item.category
+        num_attempt = num_attempt + 1
+
+
+def add_vertical_usage(item, request, course_key, student_properties=None):
+    activate_block_id = request.GET.get('activate_block_id')
+    if activate_block_id:
+        try:
+            item_vertical = modulestore().get_item(UsageKey.from_string(activate_block_id))
+            if item_vertical.category == 'vertical':
+                CourseUsage.update_block_usage(request, course_key, item_vertical.location, student_properties)
+                return
+        except ItemNotFoundError:
+            pass
+
+    course = get_course_by_id(course_key, depth=1)
+    field_data_cache = FieldDataCache.cache_for_descriptor_descendents(
+        course.id, request.user, item, depth=2
+    )
+    course_module = get_module_for_descriptor(
+        request.user, request, item, field_data_cache, course.id, course=course
+    )
+    if course_module is not None:
+        real_position = (course_module.position - 1) if course_module.position else 0
+        try:
+            child = course_module.get_children()[real_position]
+            CourseUsage.update_block_usage(request, course_key, child.location, student_properties)
+        except IndexError:
+            pass

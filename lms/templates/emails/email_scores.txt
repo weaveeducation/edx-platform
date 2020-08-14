@@ -1,0 +1,38 @@
+Hello!
+
+This email contains the scores received by the learner named above. If you have any questions about the information contained in this report, please contact your instructor and/or librarian. Please do not reply directly to this email, as it is sent from an automated address.
+
+${scores['common']['quiz_name']}
+
+% if scores['user']['full_name']:
+${scores['user']['full_name']}
+% endif
+% if scores['common']['browser_datetime']:
+Time of the last answer: ${scores['common']['browser_datetime']}
+% endif
+
+TOTAL SCORE: ${scores['common']['percent_graded']}%
+POINTS: ${scores['common']['earned']}/${scores['common']['possible']}
+
+% for item in scores['items']:
+${item['parent_name']} | ${item['display_name']}
+${item['correctness']} - ${item['earned']} / ${item['possible']} ${'- ' + item['browser_datetime'] if item['browser_datetime'] else ''}
+
+% if item['question_text_safe']:
+${item['question_text_safe']}
+
+% endif
+% if item['answer']:
+Answer:
+${item['answer']}
+
+% endif
+-------------------------------
+
+% endfor
+
+This score has also been logged in Credo’s grade reports and can be verified by checking with your instructor and/or librarian.
+
+Privacy Information:
+This email has only been sent to addresses provided by the user listed above. If you are receiving this email, a user has provided your email address to Credo as a recipient.
+Credo protects the privacy of our Licensees’ student education records in conformance with the Family Educational Rights and Privacy Act ("FERPA"), where FERPA is applicable. Please review our Privacy documentation at: ${privacy_url}

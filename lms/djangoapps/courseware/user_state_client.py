@@ -461,3 +461,17 @@ class DjangoXBlockUserStateClient(XBlockUserStateClient):
                     continue
 
                 yield XBlockUserState(sm.student.username, sm.module_state_key, state, sm.modified, scope)
+
+    def get_all_blocks(self, user, course_key, block_list):
+        result = {}
+        items = StudentModule.objects.order_by('id').filter(
+            student_id=user.id,
+            course_id=course_key,
+            module_state_key__in=block_list)
+        for item in items:
+            state = json.loads(item.state)
+            if state == {}:
+                continue
+            result[str(item.module_state_key)] = XBlockUserState(
+                user.username, item.module_state_key, state, item.modified, Scope.user_state)
+        return result

@@ -15,6 +15,7 @@ from six.moves import range
 from six.moves.urllib.parse import urlparse  # pylint: disable=import-error
 
 from openedx.core.djangoapps.site_configuration.models import SiteConfiguration
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.theming.helpers import get_config_value_from_site_or_settings, get_current_site
 from openedx.core.djangoapps.user_api.config.waffle import (
     ENABLE_MULTIPLE_USER_ENTERPRISES_FEATURE,
@@ -200,3 +201,13 @@ def is_multiple_user_enterprises_feature_enabled():
         Boolean value representing switch status
     """
     return user_api_waffle().is_enabled(ENABLE_MULTIPLE_USER_ENTERPRISES_FEATURE)
+
+
+def is_user_credo_anonymous(user):
+    if user.email.endswith('@credomodules.com'):
+        return True
+    return False
+
+
+def get_hide_profile_setting():
+    return configuration_helpers.get_value('HIDE_PROFILE', settings.HIDE_PROFILE)
