@@ -103,6 +103,8 @@ def get_score(submissions_scores, csm_scores, persisted_block, block):
             weight, graded - retrieved from the latest block content
     """
     weight = _get_weight_from_block(persisted_block, block)
+    last_answer_timestamp = None
+
     # TODO: Remove as part of EDUCATOR-4602.
     if str(block.location.course_key) == 'course-v1:UQx+BUSLEAD5x+2T2019':
         log.info(u'Weight for block: ***{}*** is {}'
@@ -110,11 +112,16 @@ def get_score(submissions_scores, csm_scores, persisted_block, block):
 
     # Priority order for retrieving the scores:
     # submissions API -> CSM -> grades persisted block -> latest block content
-    raw_earned, raw_possible, weighted_earned, weighted_possible, first_attempted = (
-        _get_score_from_submissions(submissions_scores, block) or
-        _get_score_from_csm(csm_scores, block, weight) or
-        _get_score_from_persisted_or_latest_block(persisted_block, block, weight)
-    )
+    data = _get_score_from_submissions(submissions_scores, block)
+    if data:
+        raw_earned, raw_possible, weighted_earned, weighted_possible, first_attempted = data
+    else:
+        data = _get_score_from_csm(csm_scores, block, weight)
+        if data:
+            raw_earned, raw_possible, weighted_earned, weighted_possible, first_attempted, last_answer_timestamp = data
+        else:
+            data = _get_score_from_persisted_or_latest_block(persisted_block, block, weight)
+            raw_earned, raw_possible, weighted_earned, weighted_possible, first_attempted = data
 
     # TODO: Remove as part of EDUCATOR-4602.
     if str(block.location.course_key) == 'course-v1:UQx+BUSLEAD5x+2T2019':
@@ -138,6 +145,7 @@ def get_score(submissions_scores, csm_scores, persisted_block, block):
             weight,
             graded,
             first_attempted=first_attempted,
+            last_answer_timestamp=last_answer_timestamp
         )
 
 
@@ -210,7 +218,9 @@ def _get_score_from_csm(csm_scores, block, weight):
             raw_earned = 0.0
 
         raw_possible = score.total
-        return (raw_earned, raw_possible) + weighted_score(raw_earned, raw_possible, weight) + (first_attempted,)
+        last_timestamp = score.modified
+        return (raw_earned, raw_possible) + weighted_score(raw_earned, raw_possible, weight) +\
+               (first_attempted, last_timestamp)
 
 
 def _get_score_from_persisted_or_latest_block(persisted_block, block, weight):

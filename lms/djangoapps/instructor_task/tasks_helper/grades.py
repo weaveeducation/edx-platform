@@ -495,8 +495,12 @@ class CourseGradeReport(object):
         grades_header = ["Grade"]
         for assignment_info in six.itervalues(graded_assignments):
             if assignment_info['separate_subsection_avg_headers']:
-                grades_header.extend(six.itervalues(assignment_info['subsection_headers']))
+                for subsection_headers in assignment_info['subsection_headers'].itervalues():
+                    grades_header.append(subsection_headers)
+                    grades_header.append('%s Timestamp (UTC)' % subsection_headers)
             grades_header.append(assignment_info['average_header'])
+            if not assignment_info['separate_subsection_avg_headers']:
+                grades_header.append('%s Timestamp (UTC)' % assignment_info['average_header'])
         return grades_header
 
     def _batch_users(self, context):
@@ -580,9 +584,10 @@ class CourseGradeReport(object):
             )
             grade_results.extend(subsection_grades_results)
 
-            assignment_average = self._user_assignment_average(course_grade, subsection_grades, assignment_info)
+            assignment_average, last_answer_timestamp = self._user_assignment_average(course_grade, subsection_grades,
+                                                                                      assignment_info)
             if assignment_average is not None:
-                grade_results.append([assignment_average])
+                grade_results.append([assignment_average, last_answer_timestamp])
 
         return [course_grade.percent] + _flatten(grade_results)
 
@@ -597,9 +602,13 @@ class CourseGradeReport(object):
             subsection_grade = course_grade.subsection_grade(subsection_location)
             if subsection_grade.attempted_graded or subsection_grade.override:
                 grade_result = subsection_grade.percent_graded
+                grade_last_timestamp = subsection_grade.last_answer_timestamp
+                last_answer_timestamp_str = grade_last_timestamp.strftime("%Y-%m-%d %H:%M:%S") \
+                    if grade_last_timestamp else ''
             else:
                 grade_result = u'Not Attempted'
-            grade_results.append([grade_result])
+                last_answer_timestamp_str = u'Not Attempted'
+            grade_results.append([grade_result, last_answer_timestamp_str])
             subsection_grades.append(subsection_grade)
         return subsection_grades, grade_results
 
@@ -608,13 +617,20 @@ class CourseGradeReport(object):
             if assignment_info['grader']:
                 if course_grade.attempted:
                     subsection_breakdown = [
-                        {'percent': subsection_grade.percent_graded}
+                        {
+                            'percent': subsection_grade.percent_graded,
+                            'last_answer_timestamp': subsection_grade.last_answer_timestamp
+                        }
                         for subsection_grade in subsection_grades
                     ]
                     assignment_average, _ = assignment_info['grader'].total_with_drops(subsection_breakdown)
+                    last_answer_timestamp = assignment_info['grader'].max_last_answer_timestamp(subsection_breakdown)
+                    last_answer_timestamp_str = last_answer_timestamp.strftime("%Y-%m-%d %H:%M:%S") \
+                        if last_answer_timestamp else ''
                 else:
                     assignment_average = 0.0
-                return assignment_average
+                    last_answer_timestamp_str = u'Not Attempted'
+                return assignment_average, last_answer_timestamp_str
 
     def _user_cohort_group_names(self, user, context):
         """
