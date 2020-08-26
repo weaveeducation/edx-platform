@@ -17,13 +17,14 @@ from django.utils.translation import ugettext as _
 from django.views.decorators.http import require_http_methods
 from edx_proctoring.api import does_backend_support_onboarding, get_exam_configuration_dashboard_url
 from help_tokens.core import HelpUrlExpert
-from opaque_keys.edx.keys import CourseKey
-from opaque_keys.edx.locator import LibraryUsageLocator
+from opaque_keys.edx.keys import CourseKey, UsageKey
+from opaque_keys.edx.locator import LibraryUsageLocator, BlockUsageLocator
 from pytz import UTC
 from six import binary_type, text_type
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Scope
+from celery.task import task
 
 from cms.djangoapps.contentstore.config.waffle import SHOW_REVIEW_RULES_FLAG
 from cms.lib.xblock.authoring_mixin import VISIBILITY_VIEW
@@ -68,8 +69,12 @@ from xmodule.modulestore.draft_and_published import DIRECT_ONLY_CATEGORIES
 from xmodule.modulestore.exceptions import InvalidLocationError, ItemNotFoundError
 from xmodule.modulestore.inheritance import own_metadata
 from xmodule.services import ConfigurationService, SettingsService, TeamsConfigurationService
+from xmodule.contentstore.content import StaticContent
+from xmodule.contentstore.django import contentstore
+from xmodule.exceptions import NotFoundError
 from xmodule.tabs import CourseTabList
 from xmodule.x_module import AUTHOR_VIEW, PREVIEW_VIEWS, STUDENT_VIEW, STUDIO_VIEW
+from credo_modules.models import CopySectionTask
 
 __all__ = [
     'orphan_handler', 'xblock_handler', 'xblock_view_handler', 'xblock_outline_handler', 'xblock_container_handler'
@@ -84,7 +89,7 @@ NEVER = lambda x: False
 ALWAYS = lambda x: True
 
 
-highlights_setting = WaffleSwitch(u'dynamic_pacing', u'studio_course_update')
+highlights_setting = WaffleSwitch('dynamic_pacing', 'studio_course_update')
 
 
 def _filter_entrance_exam_grader(graders):
@@ -94,7 +99,7 @@ def _filter_entrance_exam_grader(graders):
     the grader type for a given section of a course
     """
     if is_entrance_exams_enabled():
-        graders = [grader for grader in graders if grader.get('type') != u'Entrance Exam']
+        graders = [grader for grader in graders if grader.get('type') != 'Entrance Exam']
     return graders
 
 
@@ -493,6 +498,45 @@ def _update_with_callback(xblock, user, old_metadata=None, old_content=None):
     return modulestore().update_item(xblock, user.id)
 
 
+@task()
+def copy_to_other_course(task_id, user_id, usage_key_string, destination_course_key_string):
+    try:
+        copy_task = CopySectionTask.objects.get(id=task_id)
+    except CopySectionTask.DoesNotExist:
+        return
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        copy_task.set_error()
+        copy_task.save()
+        return
+
+    try:
+        copy_task.set_started()
+        copy_task.save()
+
+        usage_key = UsageKey.from_string(usage_key_string)
+        _copy_to_other_course(user, _get_xblock(usage_key, user), destination_course_key_string)
+
+        copy_task.set_finished()
+        copy_task.save()
+    except:
+        copy_task.set_error()
+        copy_task.save()
+        raise
+
+
+def _copy_to_other_course(user, xblock, course_dst_id):
+    broken_blocks = {}
+    course_key = CourseKey.from_string(course_dst_id)
+    course = modulestore().get_course(course_key)
+    duplicate_source_usage_key = usage_key_with_run(str(course.location))
+    _duplicate_item(duplicate_source_usage_key, xblock.location, user, xblock.display_name, course_key=course_key,
+                    broken_blocks=broken_blocks)
+    return {'id': str(xblock.location), 'broken_blocks': broken_blocks}
+
+
 def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, nullout=None,
                  grader_type=None, is_prereq=None, prereq_usage_key=None, prereq_min_score=None,
                  prereq_min_completion=None, publish=None, fields=None):
@@ -771,7 +815,7 @@ def _move_item(source_usage_key, target_parent_usage_key, user, target_index=Non
 
         if (valid_move_type.get(target_parent_type, '') != source_type and
                 target_parent_type not in parent_component_types):
-            error = _(u'You can not move {source_type} into {target_parent_type}.').format(
+            error = _('You can not move {source_type} into {target_parent_type}.').format(
                 source_type=source_type,
                 target_parent_type=target_parent_type,
             )
@@ -784,7 +828,7 @@ def _move_item(source_usage_key, target_parent_usage_key, user, target_index=Non
         elif target_parent_type == 'split_test':
             error = _('You can not move an item directly into content experiment.')
         elif source_index is None:
-            error = _(u'{source_usage_key} not found in {parent_usage_key}.').format(
+            error = _('{source_usage_key} not found in {parent_usage_key}.').format(
                 source_usage_key=text_type(source_usage_key),
                 parent_usage_key=text_type(source_parent.location)
             )
@@ -792,12 +836,12 @@ def _move_item(source_usage_key, target_parent_usage_key, user, target_index=Non
             try:
                 target_index = int(target_index) if target_index is not None else None
                 if target_index is not None and len(target_parent.children) < target_index:
-                    error = _(u'You can not move {source_usage_key} at an invalid index ({target_index}).').format(
+                    error = _('You can not move {source_usage_key} at an invalid index ({target_index}).').format(
                         source_usage_key=text_type(source_usage_key),
                         target_index=target_index
                     )
             except ValueError:
-                error = _(u'You must provide target_index ({target_index}) as an integer.').format(
+                error = _('You must provide target_index ({target_index}) as an integer.').format(
                     target_index=target_index
                 )
         if error:
@@ -815,7 +859,7 @@ def _move_item(source_usage_key, target_parent_usage_key, user, target_index=Non
         )
 
         log.info(
-            u'MOVE: %s moved from %s to %s at %d index',
+            'MOVE: %s moved from %s to %s at %d index',
             text_type(source_usage_key),
             text_type(source_parent.location),
             text_type(target_parent_usage_key),
@@ -830,15 +874,42 @@ def _move_item(source_usage_key, target_parent_usage_key, user, target_index=Non
         return JsonResponse(context)
 
 
-def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_name=None, is_child=False):
+def _get_breadcrumbs(item):
+    names_list = []
+    first = True
+    parent = None
+    while first or parent:
+        if first:
+            first = False
+            names_list.append(item.display_name)
+            parent = item.get_parent()
+        else:
+            names_list.append(parent.display_name)
+            parent = parent.get_parent()
+        if parent.category == 'course':
+            parent = None
+    return ' / ' .join(names_list[::-1])
+
+
+def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_name=None, is_child=False,
+                    course_key=None, broken_blocks=None):
     """
     Duplicate an existing xblock as a child of the supplied parent_usage_key.
     """
+    if broken_blocks is None:
+        broken_blocks = {}
+
     store = modulestore()
-    with store.bulk_operations(duplicate_source_usage_key.course_key):
+    with store.bulk_operations(course_key if course_key else duplicate_source_usage_key.course_key):
         source_item = store.get_item(duplicate_source_usage_key)
         # Change the blockID to be unique.
         dest_usage_key = source_item.location.replace(name=uuid4().hex)
+        if course_key and (str(course_key) != str(dest_usage_key.course_key)):
+            dest_usage_key = BlockUsageLocator(
+                course_key.version_agnostic(),
+                block_type=dest_usage_key.block_type,
+                block_id=dest_usage_key.block_id,
+            )
         category = dest_usage_key.block_type
 
         # Update the display name to indicate this is a duplicate (unless display name provided).
@@ -856,9 +927,9 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
             duplicate_metadata['display_name'] = display_name
         else:
             if source_item.display_name is None:
-                duplicate_metadata['display_name'] = _(u"Duplicate of {0}").format(source_item.category)
+                duplicate_metadata['display_name'] = _("Duplicate of {0}").format(source_item.category)
             else:
-                duplicate_metadata['display_name'] = _(u"Duplicate of '{0}'").format(source_item.display_name)
+                duplicate_metadata['display_name'] = _("Duplicate of '{0}'").format(source_item.display_name)
 
         asides_to_create = []
         for aside in source_item.runtime.get_asides(source_item):
@@ -874,7 +945,7 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
 
         dest_module = store.create_item(
             user.id,
-            dest_usage_key.course_key,
+            course_key if course_key else dest_usage_key.course_key,
             dest_usage_key.block_type,
             block_id=dest_usage_key.block_id,
             definition_data=source_item.get_explicitly_set_fields_by_scope(Scope.content),
@@ -883,6 +954,18 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
             asides=asides_to_create
         )
 
+        if course_key and dest_module.category == 'video' and dest_module.sub:
+            filename = 'subs_{0}.srt.sjson'.format(dest_module.sub)
+            content_location_src = StaticContent.compute_location(source_item.location.course_key, filename)
+            content_location_dst = StaticContent.compute_location(course_key, filename)
+            try:
+                sjson_transcripts = contentstore().find(content_location_src)
+                new_content = StaticContent(content_location_dst, filename,
+                                            sjson_transcripts.content_type, sjson_transcripts.data)
+                contentstore().save(new_content)
+            except NotFoundError:
+                pass
+
         children_handled = False
 
         if hasattr(dest_module, 'studio_post_duplicate'):
@@ -890,14 +973,19 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
             # These blocks may handle their own children or parenting if needed. Let them return booleans to
             # let us know if we need to handle these or not.
             dest_module.xmodule_runtime = StudioEditModuleRuntime(user)
-            children_handled = dest_module.studio_post_duplicate(store, source_item)
+
+            try:
+                children_handled = dest_module.studio_post_duplicate(store, source_item)
+            except ItemNotFoundError:
+                broken_blocks[str(source_item.location)] = _get_breadcrumbs(source_item)
 
         # Children are not automatically copied over (and not all xblocks have a 'children' attribute).
         # Because DAGs are not fully supported, we need to actually duplicate each child as well.
-        if source_item.has_children and not children_handled:
+        if source_item.has_children and not children_handled and source_item.category != 'library_content':
             dest_module.children = dest_module.children or []
             for child in source_item.children:
-                dupe = _duplicate_item(dest_module.location, child, user=user, is_child=True)
+                dupe = _duplicate_item(dest_module.location, child, user=user, is_child=True, course_key=course_key,
+                                       broken_blocks=broken_blocks)
                 if dupe not in dest_module.children:  # _duplicate_item may add the child for us.
                     dest_module.children.append(dupe)
             store.update_item(dest_module, user.id)
@@ -1158,7 +1246,7 @@ def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=F
         # Translators: The {pct_sign} here represents the percent sign, i.e., '%'
         # in many languages. This is used to avoid Transifex's misinterpreting of
         # '% o'. The percent sign is also translatable as a standalone string.
-        explanatory_message = _(u'Students must score {score}{pct_sign} or higher to access course materials.').format(
+        explanatory_message = _('Students must score {score}{pct_sign} or higher to access course materials.').format(
             score=int(parent_xblock.entrance_exam_minimum_score_pct * 100),
             # Translators: This is the percent sign. It will be used to represent
             # a percent value out of 100, e.g. "58%" means "58/100".
@@ -1505,6 +1593,6 @@ def _xblock_type_and_display_name(xblock):
     """
     Returns a string representation of the xblock's type and display name
     """
-    return _(u'{section_or_subsection} "{display_name}"').format(
+    return _('{section_or_subsection} "{display_name}"').format(
         section_or_subsection=xblock_type_display_name(xblock),
         display_name=xblock.display_name_with_default)
