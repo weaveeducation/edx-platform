@@ -431,7 +431,9 @@ def _get_section_path(block, structure_dict):
 
 
 def _process_display_name(block):
-    display_name = block.display_name.strip() or ''
+    display_name = ''
+    if block.display_name:
+        display_name = block.display_name.strip() or ''
     return display_name.replace('|', ' ')
 
 
