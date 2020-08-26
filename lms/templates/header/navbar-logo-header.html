@@ -14,7 +14,13 @@ from branding import api as branding_api
 %>
 
 <h1 class="header-logo">
+  % if configuration_helpers.get_value('DISABLE_LOGO_HOME_URL', False):
+  <a href="javascript: void(0);" style="cursor: default;">
+  % elif not configuration_helpers.get_value('DISABLE_LOGIN_BUTTON', settings.FEATURES['DISABLE_LOGIN_BUTTON']):
   <a href="${branding_api.get_home_url()}">
+  % else:
+  <a href="/">
+  % endif
     <%block name="navigation_logo">
     <img  class="logo" src="${branding_api.get_logo_url(is_secure)}" alt="${_("{platform_name} Home Page").format(platform_name=static.get_platform_name())}"/>
     </%block>

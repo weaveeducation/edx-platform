@@ -109,7 +109,7 @@ def _is_valid_social_username(value):
     return '/' not in value
 
 
-def retrieve_last_sitewide_block_completed(user):
+def retrieve_last_sitewide_block_completed(user, absolute_path=True):
     """
     Completion utility
     From a given User object retrieve
@@ -176,11 +176,17 @@ def retrieve_last_sitewide_block_completed(user):
     if not (lms_root and item):
         return
 
-    return u"{lms_root}/courses/{course_key}/jump_to/{location}".format(
-        lms_root=lms_root,
-        course_key=text_type(item.location.course_key),
-        location=text_type(item.location),
-    )
+    if absolute_path:
+        return "{lms_root}/courses/{course_key}/jump_to/{location}".format(
+            lms_root=lms_root,
+            course_key=text_type(item.location.course_key),
+            location=text_type(item.location),
+        )
+    else:
+        return "/courses/{course_key}/jump_to/{location}".format(
+            course_key=text_type(item.location.course_key),
+            location=text_type(item.location),
+        )
 
 
 def is_secondary_email_feature_enabled():
