@@ -95,11 +95,11 @@ class SSOAuthMiddleware(MiddlewareMixin):
                         pipeline.AUTH_ENTRY_LOGIN,
                         redirect_url=request.path,
                     )
-                    redirect = HttpResponseRedirect(login_url)
+                    redirect_obj = HttpResponseRedirect(login_url)
                     course_key = course_id_from_url(request.path)
                     if course_key:
-                        redirect.set_cookie(self.sso_auto_enroll_cookie, course_key)
-                    return redirect
+                        redirect_obj.set_cookie(self.sso_auto_enroll_cookie, course_key)
+                    return redirect_obj
 
         self._check_sso_cookie_and_enroll(request)
         return None
