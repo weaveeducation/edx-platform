@@ -24,6 +24,7 @@ from lms.djangoapps.certificates.models import CertificateWhitelist, GeneratedCe
 from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.courseware.user_state_client import DjangoXBlockUserStateClient
 from lms.djangoapps.grades.api import CourseGradeFactory
+from lms.djangoapps.grades.subsection_grade import FakeSubsectionGrade
 from lms.djangoapps.grades.api import context as grades_context
 from lms.djangoapps.grades.api import prefetch_course_and_subsection_grades
 from lms.djangoapps.instructor_analytics.basic import list_problem_responses
@@ -567,7 +568,7 @@ class CourseGradeReport(object):
                 yield users
 
         course_id = context.course_id
-        task_log_message = u'{}, Task type: {}'.format(context.task_info_string, context.action_name)
+        task_log_message = '{}, Task type: {}'.format(context.task_info_string, context.action_name)
         report_for_verified_only = generate_grade_report_for_verified_only()
         return get_enrolled_learners_for_course(course_id=course_id, verified_only=report_for_verified_only)
 
@@ -586,7 +587,7 @@ class CourseGradeReport(object):
 
             assignment_average, last_answer_timestamp = self._user_assignment_average(course_grade, subsection_grades, assignment_info)
             if assignment_average is not None:
-                grade_results.append([assignment_average, last_answer_timestamp])
+                grade_results.append([assignment_average])
 
         return [course_grade.percent] + _flatten(grade_results)
 
@@ -598,15 +599,22 @@ class CourseGradeReport(object):
         subsection_grades = []
         grade_results = []
         for subsection_location in subsection_headers:
-            subsection_grade = course_grade.subsection_grade(subsection_location)
+            try:
+                subsection_grade = course_grade.subsection_grade(subsection_location)
+            except KeyError:
+                subsection_grade = FakeSubsectionGrade()
+                TASK_LOG.warning(
+                    'CourseGradeReport: section %s was not found',
+                    str(subsection_location),
+                )
             if subsection_grade.attempted_graded or subsection_grade.override:
                 grade_result = subsection_grade.percent_graded
                 grade_last_timestamp = subsection_grade.last_answer_timestamp
                 last_answer_timestamp_str = grade_last_timestamp.strftime("%Y-%m-%d %H:%M:%S") \
                     if grade_last_timestamp else ''
             else:
-                grade_result = u'Not Attempted'
-                last_answer_timestamp_str = u'Not Attempted'
+                grade_result = 'Not Attempted'
+                last_answer_timestamp_str = 'Not Attempted'
             grade_results.append([grade_result, last_answer_timestamp_str])
             subsection_grades.append(subsection_grade)
         return subsection_grades, grade_results
