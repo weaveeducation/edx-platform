@@ -584,8 +584,7 @@ class CourseGradeReport(object):
             )
             grade_results.extend(subsection_grades_results)
 
-            assignment_average, last_answer_timestamp = self._user_assignment_average(course_grade, subsection_grades,
-                                                                                      assignment_info)
+            assignment_average, last_answer_timestamp = self._user_assignment_average(course_grade, subsection_grades, assignment_info)
             if assignment_average is not None:
                 grade_results.append([assignment_average, last_answer_timestamp])
 
@@ -631,6 +630,7 @@ class CourseGradeReport(object):
                     assignment_average = 0.0
                     last_answer_timestamp_str = u'Not Attempted'
                 return assignment_average, last_answer_timestamp_str
+        return None, None
 
     def _user_cohort_group_names(self, user, context):
         """
