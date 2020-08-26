@@ -11,6 +11,7 @@ import six
 import waffle
 from babel.dates import format_datetime
 from babel.numbers import get_currency_symbol
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest
@@ -36,7 +37,7 @@ from openedx.core.djangoapps.enrollments.permissions import ENROLL_IN_COURSE
 from openedx.features.content_type_gating.models import ContentTypeGatingConfig
 from openedx.features.course_duration_limits.models import CourseDurationLimitConfig
 from openedx.features.enterprise_support.api import enterprise_customer_for_request
-from student.models import CourseEnrollment
+from student.models import CourseEnrollment, CourseEnrollmentAllowed
 from util.db import outer_atomic
 from xmodule.modulestore.django import modulestore
 
@@ -278,7 +279,11 @@ class ChooseModeView(View):
             # been configured.  However, alternative enrollment workflows have been introduced into the
             # system, such as third-party discovery.  These workflows result in learners arriving
             # directly at this screen, and they will not necessarily be pre-enrolled in the audit mode.
-            CourseEnrollment.enroll(request.user, course_key, CourseMode.AUDIT)
+            if settings.FEATURES.get('ENROLL_ACTIVE_USERS_ONLY', False) and not request.user.is_active:
+                CourseEnrollmentAllowed.objects.get_or_create(course_id=course_key, email=request.user.email,
+                                                              auto_enroll=True)
+            else:
+                CourseEnrollment.enroll(request.user, course_key, CourseMode.AUDIT)
             # If the course has started redirect to course home instead
             if course.has_started():
                 return redirect(reverse('openedx.course_experience.course_home', kwargs={'course_id': course_key}))
