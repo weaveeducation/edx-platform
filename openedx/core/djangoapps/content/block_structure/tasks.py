@@ -241,7 +241,7 @@ def _update_course_structure(course_id, published_on):
 
     with transaction.atomic():
         for item in data:
-            if item.category in allowed_categories and item.parent:
+            if item.category in allowed_categories and item.parent and item.display_name:
                 block_id = str(item.location)
                 if block_id not in existing_structure_items_dict:
                     graded = 1 if item.graded else 0
