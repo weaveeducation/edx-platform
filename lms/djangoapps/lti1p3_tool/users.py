@@ -32,8 +32,9 @@ class Lti1p3UserService(UserService):
         lti_user.save()
         return lti_user
 
-    def _authenticate(self, lti_user, lti_tool):
+    def _authenticate(self, request, lti_user, lti_tool):
         return authenticate(
+            request=request,
             username=lti_user.edx_user.username,
             lti_jwt_sub=lti_user.lti_jwt_sub,
             lti_tool=lti_tool
@@ -42,7 +43,7 @@ class Lti1p3UserService(UserService):
 
 class Lti1p3Backend(object):
 
-    def authenticate(self, username=None, lti_jwt_sub=None, lti_tool=None):
+    def authenticate(self, _request, username=None, lti_jwt_sub=None, lti_tool=None):
         try:
             edx_user = User.objects.get(username=username)
         except User.DoesNotExist:

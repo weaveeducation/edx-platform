@@ -16,6 +16,7 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from django.views.generic.base import View
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.clickjacking import xframe_options_exempt
 from django.contrib.auth.decorators import login_required
 from django.utils.http import urlunquote
 from django.utils.decorators import method_decorator
@@ -217,6 +218,7 @@ def show_student_profile_form(request, course, simple_layout=False, redirect_to=
 class StudentProfileView(View):
 
     @method_decorator(login_required)
+    @method_decorator(xframe_options_exempt)
     @method_decorator(transaction.atomic)
     def get(self, request, course_id):
         redirect_to = request.GET.get('next', None)

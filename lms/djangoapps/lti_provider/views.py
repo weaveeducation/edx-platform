@@ -11,6 +11,7 @@ from collections import OrderedDict
 from django.conf import settings
 from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, HttpResponseRedirect,\
     JsonResponse
+from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
@@ -60,12 +61,14 @@ OPTIONAL_PARAMETERS = [
 
 @csrf_exempt
 @add_p3p_header
+@xframe_options_exempt
 def lti_launch(request, course_id, usage_id):
     return _lti_launch(request, course_id, usage_id)
 
 
 @csrf_exempt
 @add_p3p_header
+@xframe_options_exempt
 def lti_progress(request, course_id):
     return _lti_launch(request, course_id)
 
@@ -372,7 +375,7 @@ def render_courseware(request, usage_key):
     """
     # return an HttpResponse object that contains the template and necessary context to render the courseware.
     from lms.djangoapps.courseware.views.views import render_xblock
-    return render_xblock(request, str(usage_key), check_if_enrolled=False)
+    return render_xblock(request, str(usage_key), check_if_enrolled=False, show_bookmark_button=False)
 
 
 def parse_course_and_usage_keys(course_id, usage_id=None):

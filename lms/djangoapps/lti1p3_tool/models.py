@@ -3,10 +3,13 @@ from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 from django.db import models
-from pylti1p3.registration import Registration
 from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
 from jsonfield.fields import JSONField
 from Cryptodome.PublicKey import RSA
+try:
+    from pylti1p3.registration import Registration
+except ImportError:
+    pass
 
 
 class LtiToolKey(models.Model):

@@ -2,14 +2,18 @@ import datetime
 import json
 
 from django.conf import settings
-from pylti1p3.contrib.django import DjangoMessageLaunch
-from pylti1p3.grade import Grade
-from pylti1p3.exception import LtiException
 from lms import CELERY_APP
 from lti_provider.tasks import ScoresHandler, LTI_TASKS_MAX_RETRIES, get_countdown
 from lti_provider.outcomes import OutcomeServiceSendScoreError
 from .models import GradedAssignment
 from .tool_conf import ToolConfDb
+
+try:
+    from pylti1p3.contrib.django import DjangoMessageLaunch
+    from pylti1p3.grade import Grade
+    from pylti1p3.exception import LtiException
+except ImportError:
+    pass
 
 
 @CELERY_APP.task(name='lti1p3_tool.tasks.send_composite_outcome', max_retries=LTI_TASKS_MAX_RETRIES, bind=True)

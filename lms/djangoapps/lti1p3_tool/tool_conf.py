@@ -1,8 +1,11 @@
-from pylti1p3.exception import LtiException
-from pylti1p3.tool_config.abstract import ToolConfAbstract
-from pylti1p3.registration import Registration
-from pylti1p3.deployment import Deployment
 from .models import LtiTool
+try:
+    from pylti1p3.exception import LtiException
+    from pylti1p3.tool_config.abstract import ToolConfAbstract
+    from pylti1p3.registration import Registration
+    from pylti1p3.deployment import Deployment
+except ImportError:
+    ToolConfAbstract = object
 
 
 class ToolConfDb(ToolConfAbstract):

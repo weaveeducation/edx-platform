@@ -11,6 +11,7 @@ from django.conf import settings
 from django.http import HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound,\
     HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.clickjacking import xframe_options_exempt
 from django.contrib.auth.models import AnonymousUser
 from django.core.cache import caches
 from django.shortcuts import reverse
@@ -31,17 +32,19 @@ from courseware.courses import update_lms_course_usage
 from courseware.views.views import render_progress_page_frame
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
-from pylti1p3.contrib.django import DjangoOIDCLogin, DjangoMessageLaunch, DjangoCacheDataStorage
-from pylti1p3.contrib.django.session import DjangoSessionService
-from pylti1p3.contrib.django.request import DjangoRequest
-from pylti1p3.deep_link_resource import DeepLinkResource
-from pylti1p3.exception import OIDCException, LtiException
-from pylti1p3.lineitem import LineItem
 from .tool_conf import ToolConfDb
 from .models import GradedAssignment, LtiToolKey
 from .users import Lti1p3UserService
 from .utils import get_lineitem_tag
-
+try:
+    from pylti1p3.contrib.django import DjangoOIDCLogin, DjangoMessageLaunch, DjangoCacheDataStorage
+    from pylti1p3.contrib.django.session import DjangoSessionService
+    from pylti1p3.contrib.django.request import DjangoRequest
+    from pylti1p3.deep_link_resource import DeepLinkResource
+    from pylti1p3.exception import OIDCException, LtiException
+    from pylti1p3.lineitem import LineItem
+except ImportError:
+    pass
 
 log = logging.getLogger("edx.lti1p3_tool")
 log_json = logging.getLogger("credo_json")
@@ -108,6 +111,7 @@ def get_course_sequential_blocks(course):
 
 @csrf_exempt
 @add_p3p_header
+@xframe_options_exempt
 def login(request):
     if not settings.FEATURES['ENABLE_LTI_PROVIDER']:
         return HttpResponseForbidden()
@@ -204,6 +208,7 @@ def login(request):
 
 @csrf_exempt
 @add_p3p_header
+@xframe_options_exempt
 @require_POST
 def launch(request, usage_id=None):
     if not usage_id:
@@ -226,6 +231,7 @@ def launch(request, usage_id=None):
 
 @csrf_exempt
 @add_p3p_header
+@xframe_options_exempt
 @require_POST
 def progress(request, course_id):
     return _launch(request, course_id=course_id, page='progress')

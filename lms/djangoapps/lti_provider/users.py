@@ -55,7 +55,7 @@ class UserService(object):
         lti_user.save()
         return lti_user
 
-    def _authenticate(self, lti_user, lti_consumer):
+    def _authenticate(self, request, lti_user, lti_consumer):
         return authenticate(
             username=lti_user.edx_user.username,
             lti_user_id=lti_user.lti_user_id,
@@ -142,7 +142,7 @@ class UserService(object):
         Log out the current user, and log in using the edX identity associated with
         the LTI ID.
         """
-        edx_user = self._authenticate(lti_user, lti_consumer)
+        edx_user = self._authenticate(request, lti_user, lti_consumer)
         if not edx_user:
             # This shouldn't happen, since we've created edX accounts for any LTI
             # users by this point, but just in case we can return a 403.
@@ -182,7 +182,7 @@ class LtiBackend(object):
     identity (i.e. the user was created by the create_lti_user method above).
     """
 
-    def authenticate(self, username=None, lti_user_id=None, lti_consumer=None):
+    def authenticate(self, _request, username=None, lti_user_id=None, lti_consumer=None):
         """
         Try to authenticate a user. This method will return a Django user object
         if a user with the corresponding username exists in the database, and

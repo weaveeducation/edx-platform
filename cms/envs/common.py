@@ -722,9 +722,6 @@ MIDDLEWARE = [
 
 EXTRA_MIDDLEWARE_CLASSES = []
 
-# Clickjacking protection can be disabled by setting this to 'ALLOW'
-X_FRAME_OPTIONS = 'ALLOW'
-
 # Platform for Privacy Preferences header
 P3P_HEADER = 'CP="Open EdX does not have a P3P policy."'
 

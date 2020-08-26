@@ -1644,7 +1644,7 @@ def _track_successful_certificate_generation(user_id, course_id):
 @xframe_options_exempt
 @transaction.non_atomic_requests
 @ensure_csrf_cookie
-def render_xblock(request, usage_key_string, check_if_enrolled=True):
+def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookmark_button=None):
     """
     Returns an HttpResponse with HTML content for the xBlock with the given usage_key.
     The returned HTML is a chromeless rendering of the xBlock (excluding content of the containing courseware).
@@ -1676,7 +1676,10 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True):
         )
 
         student_view_context = request.GET.dict()
-        student_view_context['show_bookmark_button'] = request.GET.get('show_bookmark_button', '0') == '1'
+        if show_bookmark_button is not None:
+            student_view_context['show_bookmark_button'] = show_bookmark_button
+        else:
+            student_view_context['show_bookmark_button'] = request.GET.get('show_bookmark_button', '0') == '1'
         student_view_context['show_title'] = request.GET.get('show_title', '1') == '1'
 
         enable_completion_on_view_service = False
@@ -1982,6 +1985,7 @@ def check_credo_access(request, course_id):
 
 @ensure_valid_course_key
 @add_p3p_header
+@xframe_options_exempt
 def render_xblock_course(request, course_id, usage_key_string):
     course_key = CourseKey.from_string(course_id)
     course = modulestore().get_course(course_key, depth=2)
@@ -2010,7 +2014,8 @@ def render_xblock_course(request, course_id, usage_key_string):
             'hash': '',
             'additional_url_params': additional_url_params,
             'time_exam': 1 if is_time_exam else 0,
-            'same_site': getattr(settings, 'SESSION_COOKIE_SAMESITE')
+            'same_site': getattr(settings, 'SESSION_COOKIE_SAMESITE'),
+            'show_bookmark_button': False
         }))
         return HttpResponse(template.render())
 
@@ -2035,7 +2040,7 @@ def render_xblock_course(request, course_id, usage_key_string):
         return show_student_profile_form(request, course, True)
 
     update_lms_course_usage(request, UsageKey.from_string(usage_key_string), course_key)
-    return render_xblock(request, usage_key_string)
+    return render_xblock(request, usage_key_string, show_bookmark_button=False)
 
 
 @require_http_methods(["GET"])
@@ -2063,7 +2068,7 @@ def launch_new_tab(request, course_id, usage_id):
         )
         raise Http404()
     update_lms_course_usage(request, usage_key, course_key)
-    return render_xblock(request, str(usage_key), check_if_enrolled=False)
+    return render_xblock(request, str(usage_key), check_if_enrolled=False, show_bookmark_button=False)
 
 
 def _get_browser_datetime(last_answer_datetime, timezone_offset=None, dt_format=None):
