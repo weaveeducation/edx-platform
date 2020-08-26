@@ -6,7 +6,10 @@ Instructor Dashboard Views
 import datetime
 import logging
 import uuid
+import hashlib
+import json
 from functools import reduce
+from urllib.parse import quote_plus
 
 import pytz
 import six
@@ -44,6 +47,7 @@ from lms.djangoapps.certificates.models import (
 from lms.djangoapps.courseware.access import has_access
 from lms.djangoapps.courseware.courses import get_course_by_id, get_studio_url
 from lms.djangoapps.courseware.module_render import get_module_by_usage_id
+from lms.djangoapps.instructor.models import InstructorAvailableSections
 from lms.djangoapps.discussion.django_comment_client.utils import available_division_schemes, has_forum_access
 from lms.djangoapps.grades.api import is_writable_gradebook_enabled
 from openedx.core.djangoapps.course_groups.cohorts import DEFAULT_COHORT_NAME, get_course_cohorts, is_course_cohorted
@@ -59,6 +63,8 @@ from student.roles import (
     CourseFinanceAdminRole, CourseInstructorRole,
     CourseSalesAdminRole, CourseStaffRole
 )
+from course_api.views import get_customer_info
+from credo_modules.models import Organization
 from util.json_request import JsonResponse
 from xmodule.html_module import HtmlBlock
 from xmodule.modulestore.django import modulestore
@@ -130,21 +136,27 @@ def instructor_dashboard_2(request, course_id):
     is_white_label = CourseMode.is_white_label(course_key)
 
     reports_enabled = configuration_helpers.get_value('SHOW_ECOMMERCE_REPORTS', False)
+    available_tabs = request.user.instructor_dashboard_tabs if hasattr(request.user, 'instructor_dashboard_tabs') \
+        else InstructorAvailableSections()
 
     sections = []
     if access['staff']:
-        sections.extend([
-            _section_course_info(course, access),
-            _section_membership(course, access),
-            _section_cohort_management(course, access),
-            _section_discussions_management(course, access),
-            _section_student_admin(course, access),
-        ])
-    if access['data_researcher']:
+        if available_tabs.show_course_info:
+            sections.append(_section_course_info(course, access, available_tabs))
+        if available_tabs.show_membership:
+            sections.append(_section_membership(course, access))
+        if available_tabs.show_cohort:
+            sections.append(_section_cohort_management(course, access))
+        if available_tabs.show_discussions_management:
+            sections.append(_section_discussions_management(course, access))
+        if available_tabs.show_student_admin:
+            sections.append(_section_student_admin(course, access))
+
+    if access['data_researcher'] and available_tabs.show_data_download:
         sections.append(_section_data_download(course, access))
 
     analytics_dashboard_message = None
-    if show_analytics_dashboard_message(course_key) and (access['staff'] or access['instructor']):
+    if available_tabs.show_analytics and show_analytics_dashboard_message(course_key) and (access['staff'] or access['instructor']):
         # Construct a URL to the external analytics dashboard
         analytics_dashboard_url = '{0}/courses/{1}'.format(settings.ANALYTICS_DASHBOARD_URL, six.text_type(course_key))
         link_start = HTML(u"<a href=\"{}\" rel=\"noopener\" target=\"_blank\">").format(analytics_dashboard_url)
@@ -174,7 +186,7 @@ def instructor_dashboard_2(request, course_id):
         sections.insert(3, _section_extensions(course))
 
     # Gate access to course email by feature flag & by course-specific authorization
-    if is_bulk_email_feature_enabled(course_key) and (access['staff'] or access['instructor']):
+    if available_tabs.show_email and is_bulk_email_feature_enabled(course_key) and (access['staff'] or access['instructor']):
         sections.append(_section_send_email(course, access))
 
     # Gate access to Ecommerce tab
@@ -201,18 +213,37 @@ def instructor_dashboard_2(request, course_id):
     # and enable self-generated certificates for a course.
     # Note: This is hidden for all CCXs
     certs_enabled = CertificateGenerationConfiguration.current().enabled and not hasattr(course_key, 'ccx')
-    if certs_enabled and access['admin']:
+    if available_tabs.show_certificates and certs_enabled and access['admin']:
         sections.append(_section_certificates(course))
 
-    openassessment_blocks = modulestore().get_items(
-        course_key, qualifiers={'category': 'openassessment'}
-    )
-    # filter out orphaned openassessment blocks
-    openassessment_blocks = [
-        block for block in openassessment_blocks if block.parent is not None
-    ]
-    if len(openassessment_blocks) > 0 and access['staff']:
-        sections.append(_section_open_response_assessment(request, course, openassessment_blocks, access))
+    if available_tabs.show_open_responses:
+        openassessment_blocks = modulestore().get_items(
+            course_key, qualifiers={'category': 'openassessment'}
+        )
+        # filter out orphaned openassessment blocks
+        openassessment_blocks = [
+            block for block in openassessment_blocks if block.parent is not None
+        ]
+        if len(openassessment_blocks) > 0 and access['staff']:
+            sections.append(_section_open_response_assessment(request, course, openassessment_blocks, access))
+
+    if available_tabs.show_lti_constructor:
+        sections.append(_section_lti_constructor(request, course))
+
+    display_credo_insights_link = True
+    try:
+        org = Organization.objects.get(org=course_key.org)
+        if org.org_type is not None:
+            display_credo_insights_link = org.org_type.instructor_dashboard_credo_insights
+    except Organization.DoesNotExist:
+        pass
+
+    if display_credo_insights_link and available_tabs.show_insights_link:
+        sections.append(_section_credo_insights(request, course))
+
+    site_support_nw_help = configuration_helpers.get_value('SHOW_NW_HELP', False)
+    if available_tabs.show_nw_help and site_support_nw_help:
+        sections.append(_section_nw_help(request, course))
 
     disable_buttons = not _is_small_course(course_key)
 
@@ -239,10 +270,11 @@ def instructor_dashboard_2(request, course_id):
 
     context = {
         'course': course,
-        'studio_url': get_studio_url(course, 'course'),
+        'studio_url': get_studio_url(course, 'course') if available_tabs.show_studio_link else None,
         'sections': sections,
         'disable_buttons': disable_buttons,
         'analytics_dashboard_message': analytics_dashboard_message,
+        'show_certificates': available_tabs.show_certificates,
         'certificate_white_list': certificate_white_list,
         'certificate_invalidations': certificate_invalidations,
         'generate_certificate_exceptions_url': generate_certificate_exceptions_url,
@@ -468,7 +500,7 @@ def set_course_mode_price(request, course_id):
     return JsonResponse({'message': _("CourseMode price updated successfully")})
 
 
-def _section_course_info(course, access):
+def _section_course_info(course, access, available_tabs):
     """ Provide data for the corresponding dashboard section """
     course_key = course.id
 
@@ -491,7 +523,7 @@ def _section_course_info(course, access):
     if settings.FEATURES.get('DISPLAY_ANALYTICS_ENROLLMENTS'):
         section_data['enrollment_count'] = CourseEnrollment.objects.enrollment_counts(course_key)
 
-    if show_analytics_dashboard_message(course_key):
+    if available_tabs.show_analytics and show_analytics_dashboard_message(course_key):
         #  dashboard_link is already made safe in _get_dashboard_link
         dashboard_link = _get_dashboard_link(course_key)
         #  so we can use Text() here so it's not double-escaped and rendering HTML on the front-end
@@ -555,7 +587,8 @@ def _section_membership(course, access):
             kwargs={'course_id': six.text_type(course_key)}
         ),
         'enrollment_role_choices': enrollment_role_choices,
-        'is_reason_field_enabled': configuration_helpers.get_value('ENABLE_MANUAL_ENROLLMENT_REASON_FIELD', False)
+        'is_reason_field_enabled': configuration_helpers.get_value('ENABLE_MANUAL_ENROLLMENT_REASON_FIELD', False),
+        'current_platform_name': configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
     }
     return section_data
 
@@ -653,6 +686,7 @@ def _section_student_admin(course, access):
             kwargs={'course_id': six.text_type(course_key)}
         ),
         'spoc_gradebook_url': reverse('spoc_gradebook', kwargs={'course_id': six.text_type(course_key)}),
+        'current_platform_name': configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
     }
     if is_writable_gradebook_enabled(course_key) and settings.WRITABLE_GRADEBOOK_URL:
         section_data['writable_gradebook_url'] = urljoin(settings.WRITABLE_GRADEBOOK_URL, '/' + text_type(course_key))
@@ -808,14 +842,17 @@ def _section_open_response_assessment(request, course, openassessment_blocks, ac
     for block in openassessment_blocks:
         block_parent_id = six.text_type(block.parent)
         result_item_id = six.text_type(block.location)
-        if block_parent_id not in parents:
-            parents[block_parent_id] = modulestore().get_item(block.parent)
+        if result_item_id not in parents:
+            vert, seq, chapter = _get_full_path_names(block)
+            parents[result_item_id] = (vert, seq, chapter)
         assessment_name = _("Team") + " : " + block.display_name if block.teams_enabled else block.display_name
         ora_items.append({
             'id': result_item_id,
             'name': assessment_name,
             'parent_id': block_parent_id,
-            'parent_name': parents[block_parent_id].display_name,
+            'parent_name': parents[result_item_id][0].display_name,
+            'seq_name': parents[result_item_id][1].display_name,
+            'chapter_name': parents[result_item_id][2].display_name,
             'staff_assessment': 'staff-assessment' in block.assessment_steps,
             'url_base': reverse('xblock_view', args=[course.id, block.location, 'student_view']),
             'url_grade_available_responses': reverse('xblock_view', args=[course.id, block.location,
@@ -847,3 +884,54 @@ def is_ecommerce_course(course_key):
     """
     sku_count = len([mode.sku for mode in CourseMode.modes_for_course(course_key) if mode.sku])
     return sku_count > 0
+
+
+def _section_lti_constructor(request, course):
+    customer_info = get_customer_info(request.user)
+    org_details = {}
+    for v in customer_info['details']:
+        if course.org == v['org']:
+            org_details = v
+
+    course_id_hash = str(course.id) + '_credo_lti_constructor'
+    section_data = {
+        'section_key': 'lti_constructor',
+        'section_display_name': _('Link Constructor'),
+        'course_id': str(course.id),
+        'constructor_url': configuration_helpers.get_value('CONSTRUCTOR_LINK', settings.CONSTRUCTOR_LINK),
+        'course_id_hash': hashlib.md5(course_id_hash.encode('utf-8')).hexdigest(),
+        'org_details': quote_plus(json.dumps(org_details)),
+    }
+    return section_data
+
+
+def _section_credo_insights(request, course):
+    current_platform_name = configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
+    section_data = {
+        'section_key': 'credo_insights',
+        'section_display_name': current_platform_name + ' Insights',
+        'course_id': str(course.id),
+        'credo_insights_url': settings.CREDO_INSIGHTS_LINK,
+        'current_platform_name': current_platform_name
+    }
+    return section_data
+
+
+def _get_full_path_names(block):
+    vert = modulestore().get_item(block.parent)
+    seq = modulestore().get_item(vert.parent)
+    chapter = modulestore().get_item(seq.parent)
+    return vert, seq, chapter
+
+
+def _section_nw_help(request, course):
+    help_url = configuration_helpers.get_value('NW_HELP_LINK', 'http://www.nimblywise.com/help-center/')
+    help_title = configuration_helpers.get_value('NW_HELP_TITLE', 'NimblyWise Help Center')
+    section_data = {
+        'section_key': 'nw_help',
+        'section_display_name': 'NimblyWise Help Center',
+        'course_id': str(course.id),
+        'help_url': help_url,
+        'help_title': help_title
+    }
+    return section_data
