@@ -187,21 +187,26 @@ def xblock_handler(request, usage_key_string):
             _delete_item(usage_key, request.user)
             return JsonResponse()
         else:  # Since we have a usage_key, we are updating an existing xblock.
-            return _save_xblock(
-                request.user,
-                _get_xblock(usage_key, request.user),
-                data=request.json.get('data'),
-                children_strings=request.json.get('children'),
-                metadata=request.json.get('metadata'),
-                nullout=request.json.get('nullout'),
-                grader_type=request.json.get('graderType'),
-                is_prereq=request.json.get('isPrereq'),
-                prereq_usage_key=request.json.get('prereqUsageKey'),
-                prereq_min_score=request.json.get('prereqMinScore'),
-                prereq_min_completion=request.json.get('prereqMinCompletion'),
-                publish=request.json.get('publish'),
-                fields=request.json.get('fields'),
-            )
+            copy_to_course = request.json.get('copy_to_course', None)
+            if copy_to_course:
+                copy_result = _copy_to_other_course(request.user, _get_xblock(usage_key, request.user), copy_to_course)
+                return JsonResponse(copy_result, encoder=EdxJSONEncoder)
+            else:
+                return _save_xblock(
+                    request.user,
+                    _get_xblock(usage_key, request.user),
+                    data=request.json.get('data'),
+                    children_strings=request.json.get('children'),
+                    metadata=request.json.get('metadata'),
+                    nullout=request.json.get('nullout'),
+                    grader_type=request.json.get('graderType'),
+                    is_prereq=request.json.get('isPrereq'),
+                    prereq_usage_key=request.json.get('prereqUsageKey'),
+                    prereq_min_score=request.json.get('prereqMinScore'),
+                    prereq_min_completion=request.json.get('prereqMinCompletion'),
+                    publish=request.json.get('publish'),
+                    fields=request.json.get('fields'),
+                )
     elif request.method in ('PUT', 'POST'):
         if 'duplicate_source_locator' in request.json:
             parent_usage_key = usage_key_with_run(request.json['parent_locator'])
@@ -238,6 +243,17 @@ def xblock_handler(request, usage_key_string):
             ):
                 raise PermissionDenied()
             return _move_item(move_source_usage_key, target_parent_usage_key, request.user, target_index)
+        if 'copy_source_locator' in request.json:
+            copy_source_usage_key = usage_key_with_run(request.json.get('copy_source_locator'))
+            target_parent_usage_key = usage_key_with_run(request.json.get('parent_locator'))
+            if (
+                    not has_studio_write_access(request.user, target_parent_usage_key.course_key) or
+                    not has_studio_read_access(request.user, target_parent_usage_key.course_key)
+            ):
+                raise PermissionDenied()
+            if copy_source_usage_key.category == 'library_content' and target_parent_usage_key.category == 'library':
+                return _copy_library_content_to_library(copy_source_usage_key, target_parent_usage_key, request.user)
+            return _copy_item(copy_source_usage_key, target_parent_usage_key, request.user)
 
         return JsonResponse({'error': 'Patch request did not recognise any parameters to handle.'}, status=400)
     else:
@@ -1596,3 +1612,90 @@ def _xblock_type_and_display_name(xblock):
     return _('{section_or_subsection} "{display_name}"').format(
         section_or_subsection=xblock_type_display_name(xblock),
         display_name=xblock.display_name_with_default)
+
+
+def _copy_item(source_usage_key, target_parent_usage_key, user):
+    parent_component_types = list(
+        set(name for name, class_ in XBlock.load_classes() if getattr(class_, 'has_children', False)) -
+        set(DIRECT_ONLY_CATEGORIES)
+    )
+
+    store = modulestore()
+    with store.bulk_operations(source_usage_key.course_key):
+        source_item = store.get_item(source_usage_key)
+        source_parent = source_item.get_parent()
+        target_parent = store.get_item(target_parent_usage_key)
+        source_type = source_item.category
+        target_parent_type = target_parent.category
+        error = None
+
+        # Store actual/initial index of the source item. This would be sent back with response,
+        # so that with Undo operation, it would easier to move back item to it's original/old index.
+        source_index = _get_source_index(source_usage_key, source_parent)
+
+        valid_move_type = {
+            'sequential': 'vertical',
+            'chapter': 'sequential',
+        }
+
+        if (valid_move_type.get(target_parent_type, '') != source_type and
+            target_parent_type not in parent_component_types):
+            error = _('You can not move {source_type} into {target_parent_type}.').format(
+                source_type=source_type,
+                target_parent_type=target_parent_type,
+            )
+        elif source_parent.location == target_parent.location or source_item.location in target_parent.children:
+            error = _('Item is already present in target location.')
+        elif source_item.location == target_parent.location:
+            error = _('You can not move an item into itself.')
+        elif is_source_item_in_target_parents(source_item, target_parent):
+            error = _('You can not move an item into it\'s child.')
+        elif target_parent_type == 'split_test':
+            error = _('You can not move an item directly into content experiment.')
+        elif source_index is None:
+            error = _('{source_usage_key} not found in {parent_usage_key}.').format(
+                source_usage_key=str(source_usage_key),
+                parent_usage_key=str(source_parent.location)
+            )
+
+        if error:
+            return JsonResponse({'error': error}, status=400)
+
+        _duplicate_item(target_parent_usage_key, source_usage_key, user=user, is_child=True,
+                        course_key=target_parent_usage_key.course_key)
+
+        log.info(
+            'COPY: %s copied from %s to %s',
+            str(source_usage_key),
+            str(source_parent.location),
+            str(target_parent_usage_key))
+
+        target_is_library = (target_parent_usage_key.category == 'library')
+
+        context = {
+            'copy_source_locator': str(source_usage_key),
+            'parent_locator': str(target_parent_usage_key.course_key) if target_is_library else str(target_parent_usage_key),
+            'source_index': 0,
+            'target_is_library': target_is_library
+        }
+        return JsonResponse(context)
+
+
+def _copy_library_content_to_library(copy_source_usage_key, target_parent_usage_key, user):
+    store = modulestore()
+
+    with store.bulk_operations(copy_source_usage_key.course_key):
+        lib_content_block = store.get_item(copy_source_usage_key)
+        for lib_child in lib_content_block.get_children():
+            _duplicate_item(target_parent_usage_key, lib_child.location, user=user, is_child=True,
+                            course_key=target_parent_usage_key.course_key)
+
+    target_is_library = (target_parent_usage_key.category == 'library')
+
+    context = {
+        'copy_source_locator': str(copy_source_usage_key),
+        'parent_locator': str(target_parent_usage_key.course_key) if target_is_library else str(target_parent_usage_key),
+        'source_index': 0,
+        'target_is_library': target_is_library
+    }
+    return JsonResponse(context)

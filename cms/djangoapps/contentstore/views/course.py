@@ -10,10 +10,12 @@ import random
 import re
 import string
 from collections import defaultdict
+from uuid import uuid4
 
 import django.utils
 import six
 from ccx_keys.locator import CCXLocator
+from django.db import transaction
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -25,7 +27,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods
 from milestones import api as milestones_api
 from opaque_keys import InvalidKeyError
-from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys.edx.locator import BlockUsageLocator
 from six import text_type
 from six.moves import filter
@@ -96,15 +98,18 @@ from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import DuplicateCourseError, ItemNotFoundError
 from xmodule.partitions.partitions import UserPartition
 from xmodule.tabs import CourseTab, CourseTabList, InvalidTabsException
+from credo_modules.models import CopySectionTask
 
 from .component import ADVANCED_COMPONENT_TYPES
-from .item import create_xblock_info
+from .item import create_xblock_info, copy_to_other_course
 from .library import LIBRARIES_ENABLED, get_library_creator_status
 
 log = logging.getLogger(__name__)
 
 
 __all__ = ['course_info_handler', 'course_handler', 'course_listing',
+           'course_listing_short', 'libraries_listing_short',
+           'copy_section_to_other_courses', 'copy_section_to_other_courses_result',
            'course_info_update_handler', 'course_search_index_handler',
            'course_rerun_handler',
            'settings_handler',
@@ -563,6 +568,104 @@ def course_listing(request):
         u'allow_course_reruns': settings.FEATURES.get(u'ALLOW_COURSE_RERUNS', True),
         u'optimization_enabled': optimization_enabled
     })
+
+
+@login_required
+@ensure_csrf_cookie
+def course_listing_short(request):
+    courses_iter, in_process_course_actions = get_courses_accessible_to_user(request)
+    split_archived = settings.FEATURES.get('ENABLE_SEPARATE_ARCHIVED_COURSES', False)
+    active_courses, _ = _process_courses_list(courses_iter, in_process_course_actions, split_archived)
+    return JsonResponse([course for course in active_courses])
+
+
+@login_required
+@ensure_csrf_cookie
+def libraries_listing_short(request):
+    optimization_enabled = GlobalStaff().has_user(request.user) and \
+                           WaffleSwitchNamespace(name=WAFFLE_NAMESPACE).is_enabled('enable_global_staff_optimization')
+    org = request.GET.get('org', '') if optimization_enabled else None
+    libraries = _accessible_libraries_iter(request.user, org) if LIBRARIES_ENABLED else []
+    return JsonResponse([{
+        'display_name': l.display_name,
+        'course_key': str(l.id),
+        'url': reverse_library_url('library_handler', l.id),
+        'course': l.id.course,
+        'org': l.id.org,
+        'location': str(l.location)
+    } for l in libraries])
+
+
+@login_required
+@ensure_csrf_cookie
+@require_http_methods(["POST"])
+@transaction.non_atomic_requests
+def copy_section_to_other_courses(request):
+    json_data = json.loads(request.body.decode('utf8'))
+    usage_key_string = json_data.get('usage_key')
+    copy_to_courses = json_data.get('copy_to_courses', [])
+
+    task_id = str(uuid4())
+
+    usage_key = ''
+    source_course_key = None
+    try:
+        usage_key = UsageKey.from_string(usage_key_string)
+        source_course_key = usage_key.course_key
+    except InvalidKeyError:
+        pass
+
+    if not source_course_key or not usage_key or not copy_to_courses\
+            or not has_studio_read_access(request.user, usage_key.course_key):
+        return JsonResponse({'task_id': None})
+
+    tasks_num = 0
+    for course_id in copy_to_courses:
+        try:
+            course_key = CourseKey.from_string(course_id)
+            if has_studio_write_access(request.user, course_key):
+                with transaction.atomic():
+                    section_task = CopySectionTask(
+                        task_id=task_id,
+                        block_id=usage_key_string,
+                        source_course_id=source_course_key,
+                        dst_course_id=course_key
+                    )
+                    section_task.save()
+                copy_to_other_course.delay(int(section_task.id), request.user.id,
+                                           usage_key_string, course_id)
+                tasks_num = tasks_num + 1
+        except InvalidKeyError:
+            pass
+
+    if tasks_num > 0:
+        return JsonResponse({'task_id': task_id})
+    else:
+        return JsonResponse({'task_id': None})
+
+
+@require_http_methods(["POST"])
+def copy_section_to_other_courses_result(request):
+    json_data = json.loads(request.body.decode('utf8'))
+    task_id = json_data.get('task_id')
+    if not task_id:
+        return HttpResponseBadRequest()
+
+    result = True
+    result_list = []
+
+    tasks = CopySectionTask.objects.filter(task_id=task_id)
+
+    for t in tasks:
+        if not t.is_finished():
+            result = False
+        result_list.append({
+            'title': str(t.dst_course_id),
+            'status': t.status,
+            'result': t.is_finished()
+        })
+
+    return JsonResponse({'result': result, 'courses': result_list})
 
 
 def _get_rerun_link_for_item(course_key):
