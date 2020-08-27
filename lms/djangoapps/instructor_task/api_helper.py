@@ -22,6 +22,7 @@ from lms.djangoapps.courseware.module_render import get_xqueue_callback_url_pref
 from lms.djangoapps.instructor_task.models import PROGRESS, InstructorTask
 from util.db import outer_atomic
 from xmodule.modulestore.django import modulestore
+from xmodule.modulestore.exceptions import ItemNotFoundError
 
 log = logging.getLogger(__name__)
 
@@ -340,7 +341,12 @@ def check_arguments_for_rescoring(usage_key):
     message on the instructor dashboard when a rescore is
     submitted for a non-rescorable block.
     """
-    descriptor = modulestore().get_item(usage_key)
+    try:
+        descriptor = modulestore().get_item(usage_key)
+    except ItemNotFoundError:
+        msg = _("Location of problem doesn't exist.")
+        raise NotImplementedError(msg)
+
     if not _supports_rescore(descriptor):
         msg = _("This component cannot be rescored.")
         raise NotImplementedError(msg)
