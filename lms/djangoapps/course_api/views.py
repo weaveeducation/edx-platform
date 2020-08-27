@@ -274,7 +274,7 @@ class CourseListView(DeveloperErrorViewMixin, ListAPIView):
             ]
     """
     class CourseListPageNumberPagination(LazyPageNumberPagination):
-        max_page_size = 100
+        max_page_size = 500
 
     pagination_class = CourseListPageNumberPagination
     serializer_class = CourseSerializer
