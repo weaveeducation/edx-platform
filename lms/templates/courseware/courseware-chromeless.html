@@ -3,6 +3,7 @@
 <%namespace name='static' file='/static_content.html'/>
 <%!
 from django.utils.translation import ugettext as _
+from django.conf import settings
 
 from openedx.core.djangolib.markup import HTML
 from openedx.core.djangolib.js_utils import js_escaped_string
@@ -13,13 +14,18 @@ from openedx.core.djangolib.js_utils import js_escaped_string
 </%def>
 <%include file="/dates_banner.html" />
 <%block name="bodyclass">view-in-course view-courseware courseware ${course.css_class or ''}</%block>
-<%block name="title"><title>
+<%block name="title"><title data-base-title="${static.get_platform_name()}">
     % if section_title:
 ${static.get_page_title_breadcrumbs(section_title, course_name())}
     % else:
 ${static.get_page_title_breadcrumbs(course_name())}
     %endif
 </title></%block>
+
+<%
+if course is not None:
+    include_special_exams = settings.FEATURES.get('ENABLE_SPECIAL_EXAMS', False) and (course.enable_proctored_exams or course.enable_timed_exams)
+%>
 
 <%block name="header_extras">
 % for template_name in ["image-modal"]:
@@ -65,15 +71,74 @@ ${static.get_page_title_breadcrumbs(course_name())}
   	<%include file="xqa_interface.html"/>
   % endif
 
-  <script type="text/javascript">
+<script type="text/javascript">
+    window.chromlessView = true;
     var $$course_id = "${course.id | n, js_escaped_string}";
-  </script>
+    var $$lastSentPostMessageValue = null;
+
+    function inIframe() {
+        try {
+            return window.self !== window.top;
+        } catch (e) {
+            return true;
+        }
+    }
+
+    function allVideosReady() {
+        var ready = true;
+
+        $('.xmodule_VideoModule').each(function() {
+             var cId = $(this).data('usage-id').split('@')[2];
+             if ((window.videoReady === undefined) || (window.videoReady.indexOf(cId) === -1)) {
+                 ready = false;
+             }
+        });
+
+        return ready;
+    }
+
+    function postMessageResize() {
+        if (inIframe()) {
+            // 15 - additional "magic" offset for height
+            var height = document.getElementById('content').offsetHeight + 15;
+            var width = document.getElementById('content').offsetWidth;
+            var newValue = "resize::" + height + ":" + width;
+            if (newValue !== $$lastSentPostMessageValue) {
+                $$lastSentPostMessageValue = newValue;
+                window.parent.postMessage($$lastSentPostMessageValue, "*");
+            }
+
+            // re-render parent window one more time later
+            // in case if not all ajax queries are finished or not all videos are rendered
+            if (($.active !== 0) || !allVideosReady()) {
+                window.setTimeout(postMessageResize, 300);
+            }
+        }
+    }
+
+    $(document).ready(function() {
+        var blockType = "${block_type}";
+        if (blockType !== 'sequential') {
+            postMessageResize();
+        }
+    });
+</script>
 
 ${HTML(fragment.foot_html())}
 
 </%block>
 
+<div class="proctored_exam_status"></div>
+<div class="scores-panel is-hidden"></div>
 <div class="course-wrapper chromeless">
+  % if include_special_exams is not UNDEFINED and include_special_exams:
+    <%static:js group='proctoring'/>
+    % for template_name in ["proctored-exam-status"]:
+        <script type="text/template" id="${template_name}-tpl">
+            <%static:include path="courseware/${template_name}.underscore" />
+        </script>
+    % endfor
+  % endif
   <section class="course-content" id="course-content"\
     % if enable_completion_on_view_service:
       data-enable-completion-on-view-service="true" \
