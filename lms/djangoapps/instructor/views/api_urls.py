@@ -45,6 +45,8 @@ urlpatterns = [
     url(r'^reset_due_date$', api.reset_due_date, name='reset_due_date'),
     url(r'^show_unit_extensions$', api.show_unit_extensions, name='show_unit_extensions'),
     url(r'^show_student_extensions$', api.show_student_extensions, name='show_student_extensions'),
+    url(r'^reset_progress_student$', api.reset_progress_student, name="reset_progress_student"),
+    url(r'^list_reset_progress_tasks$', api.list_reset_progress_tasks, name="list_reset_progress_tasks"),
 
     # proctored exam downloads...
     url(r'^get_proctored_exam_results$', api.get_proctored_exam_results, name='get_proctored_exam_results'),

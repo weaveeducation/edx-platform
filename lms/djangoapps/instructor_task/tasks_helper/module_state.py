@@ -9,6 +9,7 @@ from time import time
 
 import six
 from django.utils.translation import ugettext_noop
+from django.contrib.auth.models import User
 from opaque_keys.edx.keys import UsageKey
 from xblock.runtime import KvsFieldData
 from xblock.scorable import Score
@@ -19,6 +20,7 @@ from lms.djangoapps.courseware.model_data import DjangoKeyValueStore, FieldDataC
 from lms.djangoapps.courseware.models import StudentModule
 from lms.djangoapps.courseware.module_render import get_module_for_descriptor_internal
 from lms.djangoapps.grades.api import events as grades_events
+from lms.djangoapps.utils import _create_edx_user
 from student.models import get_user_by_username_or_email
 from track.event_transaction_utils import create_new_event_transaction_id, set_event_transaction_type
 from track.views import task_track
@@ -436,6 +438,61 @@ def _get_modules_to_update(course_id, usage_keys, student_identifier, filter_fcn
             for key in usage_keys
         ]
     return student_modules
+
+
+@outer_atomic
+def reset_progress_student(_xmodule_instance_args, _entry_id, course_id, _task_input, action_name):
+    start_time = time()
+
+    num_attempted = 1
+    num_total = 1
+
+    fmt = 'Task: {task_id}, InstructorTask ID: {entry_id}, Course: {course_id}, Input: {task_input}'
+    task_info_string = fmt.format(
+        task_id=_xmodule_instance_args.get('task_id') if _xmodule_instance_args is not None else None,
+        entry_id=_entry_id,
+        course_id=course_id,
+        task_input=_task_input
+    )
+    TASK_LOG.info('%s, Task type: %s, Starting task execution', task_info_string, action_name)
+
+    task_progress = TaskProgress(action_name, num_total, start_time)
+    task_progress.attempted = num_attempted
+
+    curr_step = {'step': "Creating user"}
+
+    TASK_LOG.info(
+        '%s, Task type: %s, Current step: %s for all submissions',
+        task_info_string,
+        action_name,
+        curr_step,
+    )
+
+    user = User.objects.get(id=_task_input['student'])
+
+    task_progress.succeeded = 1
+
+    curr_step = {'step': "Reseting progress"}
+    TASK_LOG.info(
+        '%s, Task type: %s, Current step: %s',
+        task_info_string,
+        action_name,
+        curr_step,
+    )
+    task_progress.update_task_state(extra_meta=curr_step)
+
+    update_reset_progress(user, course_id, initiator='instructor_dashboard_student_admin_tab')
+
+    curr_step = {'step': 'Finalizing reseting report'}
+    return task_progress.update_task_state(extra_meta=curr_step)
+
+
+def create_reset_user(user):
+    new_user = _create_edx_user(user.email, user.username, user.password, user)
+    new_profile = user.profile
+    new_profile.pk, new_profile.user = None, new_user
+    new_profile.save()
+    return new_user
 
 
 def update_reset_progress(user, course_key, block=None, initiator=None):

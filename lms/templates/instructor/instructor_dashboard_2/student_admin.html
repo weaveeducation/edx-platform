@@ -59,6 +59,25 @@
   <hr>
 </div>
 
+<div class="student-reset-progress-container action-type-container">
+    <h4 class="hd hd-4">${_("Reset a specific learner's progress")}</h4>
+    <div class="request-response-error"></div>
+    <label for="student-reset-progress">
+        ${_("Learner's {platform_name} email address or username *").format(platform_name=settings.PLATFORM_NAME)}
+    </label>
+    <br>
+    <input type="text" name="student-reset-progress" placeholder="${_('Learner email address or username')}" >
+    <br><br>
+    <input type="button" name="reset-progress" value="${_('Reset Student\'s Progress')}" data-endpoint="${ section_data['reset_progress_student_url'] }">
+    <br><br>
+    <h5 class="hd hd-5">${_("Task Status")}</h5>
+    <label for="reset-progress-history-single">${_("Show the status for the reseting tasks that you submitted for this learner")}</label>
+    <br>
+    <input type="button" name="reset-progress-history-single" value="${_('Show Task Status')}" data-endpoint="${ section_data['list_reset_progress_tasks_url'] }" aria-describedby="reset-progress-single-help">
+    <div class="reset-progress-table"></div>
+    <hr>
+</div>
+
 <div class="student-grade-container action-type-container">
     <h4 class="hd hd-4">${_("Adjust a learner's grade for a specific problem")}</h4>
     <div class="request-response-error"></div>

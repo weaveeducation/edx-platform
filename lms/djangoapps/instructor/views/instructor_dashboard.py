@@ -666,6 +666,9 @@ def _section_student_admin(course, access):
             'reset_student_attempts',
             kwargs={'course_id': six.text_type(course_key)}
         ),
+        'reset_progress_student_url': reverse('reset_progress_student', kwargs={'course_id': str(course_key)}),
+        'list_reset_progress_tasks_url': reverse('list_reset_progress_tasks',
+                                                 kwargs={'course_id': str(course_key)}),
         'reset_student_attempts_for_entrance_exam_url': reverse(
             'reset_student_attempts_for_entrance_exam',
             kwargs={'course_id': six.text_type(course_key)},

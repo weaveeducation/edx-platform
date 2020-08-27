@@ -229,9 +229,6 @@ FEATURES['ENABLE_COSMETIC_DISPLAY_PRICE'] = True
 ######################### Program Enrollments #####################
 FEATURES['ENABLE_ENROLLMENT_RESET'] = True
 
-######################### New Courseware MFE #####################
-FEATURES['ENABLE_COURSEWARE_MICROFRONTEND'] = True
-
 ########################## Third Party Auth #######################
 
 if FEATURES.get('ENABLE_THIRD_PARTY_AUTH') and 'third_party_auth.dummy.DummyBackend' not in AUTHENTICATION_BACKENDS:
@@ -242,7 +239,7 @@ ECOMMERCE_PUBLIC_URL_ROOT = 'http://localhost:18130'
 ECOMMERCE_API_URL = 'http://edx.devstack.ecommerce:18130/api/v2'
 
 ############## Comments CONFIGURATION SETTINGS ###############
-COMMENTS_SERVICE_URL = 'http://edx.devstack.forum:4567'
+#COMMENTS_SERVICE_URL = 'http://edx.devstack.forum:4567'
 
 ############## Credentials CONFIGURATION SETTINGS ###############
 CREDENTIALS_INTERNAL_SERVICE_URL = 'http://edx.devstack.credentials:18150'
@@ -321,7 +318,6 @@ ACCOUNT_MICROFRONTEND_URL = 'http://localhost:1997'
 
 FEATURES.update({
     'AUTOMATIC_AUTH_FOR_TESTING': False,
-    'ENABLE_DISCUSSION_SERVICE': True,
     'SHOW_HEADER_LANGUAGE_SELECTOR': True,
     'ENABLE_ENTERPRISE_INTEGRATION': False,
 })
