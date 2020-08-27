@@ -1696,6 +1696,7 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookma
         context = {
             'fragment': block.render('student_view', context=student_view_context),
             'course': course,
+            'block_type': usage_key.block_type,
             'disable_accordion': True,
             'allow_iframing': True,
             'disable_header': True,
