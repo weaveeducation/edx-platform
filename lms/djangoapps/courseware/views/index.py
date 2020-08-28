@@ -44,7 +44,6 @@ from openedx.features.course_experience import (
     default_course_url_name,
     RELATIVE_DATES_FLAG,
 )
-from credo_modules.models import Organization
 from openedx.features.course_experience.urls import COURSE_HOME_VIEW_NAME
 from openedx.features.course_experience.views.course_sock import CourseSockFragmentView
 from openedx.features.enterprise_support.api import data_sharing_consent_required
@@ -53,6 +52,8 @@ from util.views import ensure_valid_course_key
 from xmodule.course_module import COURSE_VISIBILITY_PUBLIC
 from xmodule.modulestore.django import modulestore
 from xmodule.x_module import PUBLIC_VIEW, STUDENT_VIEW
+from credo_modules.models import Organization
+from courseware.courses import update_lms_course_usage
 
 from ..access import has_access
 from ..access_utils import check_public_access
@@ -230,6 +231,8 @@ class CoursewareIndex(View):
             self._reset_section_to_exam_if_required()
             self.chapter = self._find_chapter()
             self.section = self._find_section()
+
+            update_lms_course_usage(request, self.section.location, self.course_key)
 
             if self.chapter and self.section:
                 self._redirect_if_not_requested_section()
