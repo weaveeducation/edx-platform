@@ -32,7 +32,7 @@ from django.contrib.sites.models import Site
 from django.core.cache import cache
 from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from django.core.validators import FileExtensionValidator, RegexValidator
-from django.db import IntegrityError, models
+from django.db import IntegrityError, models, transaction
 from django.db.models import Count, Index, Q
 from django.db.models.signals import post_save, pre_save
 from django.db.utils import ProgrammingError
@@ -183,11 +183,12 @@ def anonymous_id_for_user(user, course_id, save=True):
         return digest
 
     try:
-        AnonymousUserId.objects.get_or_create(
-            user=user,
-            course_id=course_id,
-            anonymous_user_id=digest,
-        )
+        with transaction.atomic():
+            AnonymousUserId.objects.get_or_create(
+                user=user,
+                course_id=course_id,
+                anonymous_user_id=digest,
+            )
     except IntegrityError:
         # Another thread has already created this entry, so
         # continue
