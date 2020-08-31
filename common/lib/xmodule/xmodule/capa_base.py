@@ -1733,7 +1733,7 @@ class CapaMixin(ScorableXBlockMixin, CapaFields):
         currently stored by the LCP.
         """
         lcp_score = lcp.calculate_score()
-        if self.lcp.disable_partial_credit and lcp_score['score'] != lcp_score['total']:
+        if lcp.disable_partial_credit and lcp_score['score'] != lcp_score['total']:
             return Score(raw_earned=0, raw_possible=lcp_score['total'])
         else:
             return Score(raw_earned=lcp_score['score'], raw_possible=lcp_score['total'])
