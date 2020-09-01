@@ -70,4 +70,4 @@ def get_block_versions(block_id):
                 block_version = None
         else:
             block_version = None
-    return result.values()
+    return list(result.values())
