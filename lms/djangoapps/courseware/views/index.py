@@ -81,6 +81,7 @@ from ..toggles import (
 from ..url_helpers import get_microfrontend_url
 
 from .views import CourseTabView, get_student_progress_images
+from credo_modules.decorators import credo_additional_profile
 
 
 log = logging.getLogger("edx.courseware.views.index")
@@ -103,6 +104,7 @@ class CoursewareIndex(View):
     @method_decorator(cache_control(no_cache=True, no_store=True, must_revalidate=True))
     @method_decorator(ensure_valid_course_key)
     @method_decorator(data_sharing_consent_required)
+    @credo_additional_profile
     def get(self, request, course_id, chapter=None, section=None, position=None):
         """
         Displays courseware accordion and associated content.  If course, chapter,
@@ -136,37 +138,34 @@ class CoursewareIndex(View):
         self.course = None
         self.url = request.path
 
-        try:
-            set_custom_metrics_for_course_key(self.course_key)
-            self._clean_position()
-            with modulestore().bulk_operations(self.course_key):
+        set_custom_metrics_for_course_key(self.course_key)
+        self._clean_position()
+        with modulestore().bulk_operations(self.course_key):
 
-                self.view = STUDENT_VIEW
+            self.view = STUDENT_VIEW
 
-                self.course = get_course_with_access(
-                    request.user, 'load', self.course_key,
-                    depth=CONTENT_DEPTH,
-                    check_if_enrolled=True,
-                    check_if_authenticated=True
-                )
-                self.course_overview = CourseOverview.get_from_id(self.course.id)
-                self.is_staff = has_access(request.user, 'staff', self.course)
+            self.course = get_course_with_access(
+                request.user, 'load', self.course_key,
+                depth=CONTENT_DEPTH,
+                check_if_enrolled=True,
+                check_if_authenticated=True
+            )
+            self.course_overview = CourseOverview.get_from_id(self.course.id)
+            self.is_staff = has_access(request.user, 'staff', self.course)
 
-                # There's only one situation where we want to show the public view
-                if (
-                        not self.is_staff and
-                        self.enable_unenrolled_access and
-                        self.course.course_visibility == COURSE_VISIBILITY_PUBLIC and
-                        not CourseEnrollment.is_enrolled(request.user, self.course_key)
-                ):
-                    self.view = PUBLIC_VIEW
+            # There's only one situation where we want to show the public view
+            if (
+                    not self.is_staff and
+                    self.enable_unenrolled_access and
+                    self.course.course_visibility == COURSE_VISIBILITY_PUBLIC and
+                    not CourseEnrollment.is_enrolled(request.user, self.course_key)
+            ):
+                self.view = PUBLIC_VIEW
 
-                self.can_masquerade = request.user.has_perm(MASQUERADE_AS_STUDENT, self.course)
-                self._setup_masquerade_for_effective_user()
+            self.can_masquerade = request.user.has_perm(MASQUERADE_AS_STUDENT, self.course)
+            self._setup_masquerade_for_effective_user()
 
-                return self.render(request)
-        except Exception as exception:  # pylint: disable=broad-except
-            return CourseTabView.handle_exceptions(request, self.course_key, self.course, exception)
+            return self.render(request)
 
     def _setup_masquerade_for_effective_user(self):
         """

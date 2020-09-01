@@ -44,6 +44,8 @@ from student.roles import BulkRoleCache
 from xmodule.modulestore.django import modulestore
 from xmodule.partitions.partitions_service import PartitionService
 from xmodule.split_test_module import get_split_user_partitions
+from credo_modules.models import CredoModulesUserProfile
+from credo_modules.views import StudentProfileField
 
 from .runner import TaskProgress
 from .utils import upload_csv_to_report_store
@@ -316,6 +318,7 @@ class _ProblemGradeReportContext(object):
         self.report_for_verified_only = generate_grade_report_for_verified_only()
         self.task_progress = TaskProgress(self.action_name, total=None, start_time=time())
         self.file_name = 'problem_grade_report'
+        self.course = get_course_by_id(course_id)
 
     @lazy
     def course(self):
@@ -406,6 +409,11 @@ class CourseGradeReport(object):
     # Batch size for chunking the list of enrollees in the course.
     USER_BATCH_SIZE = 100
 
+    def __init__(self):
+        self.additional_profile_fields = []
+        self.additional_profile_fields_title = []
+        self.users_with_additional_profile = {}
+
     @classmethod
     def generate(cls, _xmodule_instance_args, _entry_id, course_id, _task_input, action_name):
         """
@@ -420,6 +428,16 @@ class CourseGradeReport(object):
         Internal method for generating a grade report for the given context.
         """
         context.update_status(u'Starting grades')
+
+        # additional profile fields from credo modules
+        course = context.course
+        if course.credo_additional_profile_fields:
+            for k, v in StudentProfileField.init_from_course(course).iteritems():
+                self.additional_profile_fields.append(v.alias)
+                self.additional_profile_fields_title.append(v.title)
+            self.users_with_additional_profile = CredoModulesUserProfile.users_with_additional_profile(
+                context.course_id)
+
         success_headers = self._success_headers(context)
         error_headers = self._error_headers()
         batched_rows = self._batched_rows(context)
@@ -438,6 +456,7 @@ class CourseGradeReport(object):
         """
         return (
             ["Student ID", "Email", "Username"] +
+            self.additional_profile_fields_title +
             self._grades_header(context) +
             (['Cohort Name'] if context.cohorts_enabled else []) +
             [u'Experiment Group ({})'.format(partition.name) for partition in context.course_experiments] +
@@ -712,12 +731,19 @@ class CourseGradeReport(object):
                 collected_block_structure=context.course_structure,
                 course_key=context.course_id,
             ):
+                # additional profile fields from credo modules
+                row_additional_profile = []
+                if context.course.credo_additional_profile_fields:
+                    additional_student_fields = self.users_with_additional_profile.get(user.id, {})
+                    for field in self.additional_profile_fields:
+                        row_additional_profile.append(additional_student_fields.get(field, ''))
+
                 if not course_grade:
                     # An empty gradeset means we failed to grade a student.
                     error_rows.append([user.id, user.username, text_type(error)])
                 else:
                     success_rows.append(
-                        [user.id, user.email, user.username] +
+                        [user.id, user.email, user.username] + row_additional_profile +
                         self._user_grades(course_grade, context) +
                         self._user_cohort_group_names(user, context) +
                         self._user_experiment_group_names(user, context) +
@@ -772,8 +798,17 @@ class ProblemGradeReport(GradeReportBase):
         Returns:
             list: combined header and scorable blocks
         """
-        header_row = list(self._problem_grades_header().values()) + ['Enrollment Status', 'Grade']
-        return header_row + _flatten(list(context.graded_scorable_blocks_header.values()))
+        header_row = list(self._problem_grades_header().values())
+
+        # additional profile fields from credo modules
+        additional_profile_fields = OrderedDict()
+        if context.course.credo_additional_profile_fields:
+            additional_profile_fields = StudentProfileField.init_from_course(context.course)
+
+        if additional_profile_fields:
+            header_row += [v.title for k, v in additional_profile_fields.items() if not v.info]
+        header_row += ['Enrollment Status', 'Grade'] + _flatten(list(context.graded_scorable_blocks_header.values()))
+        return header_row
 
     def _error_headers(self):
         """
@@ -788,6 +823,14 @@ class ProblemGradeReport(GradeReportBase):
         Returns a list of rows for the given users for this report.
         """
         self.log_additional_info_for_testing(context, 'ProblemGradeReport: Starting to process new user batch.')
+
+        additional_profile_fields = OrderedDict()
+        users_with_additional_profile_dict = {}
+        if context.course.credo_additional_profile_fields:
+            users_with_additional_profile_dict = CredoModulesUserProfile.users_with_additional_profile(
+                context.course_id)
+            additional_profile_fields = StudentProfileField.init_from_course(context.course)
+
         success_rows, error_rows = [], []
         for student, course_grade, error in CourseGradeFactory().iter(
             users,
@@ -822,11 +865,16 @@ class ProblemGradeReport(GradeReportBase):
 
             context.task_progress.succeeded += 1
             enrollment_status = _user_enrollment_status(student, context.course_id)
-            success_rows.append(
-                [student.id, student.email, student.username] +
-                [enrollment_status, course_grade.percent] +
-                _flatten(earned_possible_values)
-            )
+            res = [student.id, student.email, student.username]
+            # additional profile fields from credo modules
+            if additional_profile_fields:
+                additional_student_fields = users_with_additional_profile_dict.get(student.id, {})
+                for field, field_item in additional_profile_fields.items():
+                    if not field_item.info:
+                        res.append(additional_student_fields.get(field, ''))
+            res += [enrollment_status, course_grade.percent]
+            res += _flatten(earned_possible_values)
+            success_rows.append(res)
 
         return success_rows, error_rows
 

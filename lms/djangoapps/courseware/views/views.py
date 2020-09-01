@@ -140,7 +140,7 @@ from ..context_processor import user_timezone_locale_prefs
 from ..entrance_exams import user_can_skip_entrance_exam
 from ..module_render import get_module, get_module_by_usage_id, get_module_for_descriptor
 from util.views import add_p3p_header
-from openedx.core.djangoapps.user_authn.views.login import register_login_and_enroll_anonymous_user,\
+from openedx.core.djangoapps.user_authn.views.custom import register_login_and_enroll_anonymous_user,\
     validate_credo_access
 from credo_modules.models import user_must_fill_additional_profile_fields,\
     Organization, CredoModulesUserProfile, SendScores, SendScoresMailing
@@ -413,6 +413,7 @@ def jump_to(_request, course_id, location):
 @ensure_csrf_cookie
 @ensure_valid_course_key
 @data_sharing_consent_required
+@login_required
 def course_info(request, course_id):
     """
     Display the course's info.html, or 404 if there is no such course.
@@ -619,20 +620,22 @@ class CourseTabView(EdxFragmentView):
         """
         course_key = CourseKey.from_string(course_id)
         with modulestore().bulk_operations(course_key):
+            course_obj = modulestore().get_course(course_key, depth=0)
+            if request.user.is_authenticated and is_user_credo_anonymous(request.user) \
+                and course_obj.allow_anonymous_access:
+                CourseEnrollment.enroll(request.user, course_key)
+
             course = get_course_with_access(request.user, 'load', course_key)
-            try:
-                # Render the page
-                tab = CourseTabList.get_tab_by_type(course.tabs, tab_type)
-                page_context = self.create_page_context(request, course=course, tab=tab, **kwargs)
+            # Render the page
+            tab = CourseTabList.get_tab_by_type(course.tabs, tab_type)
+            page_context = self.create_page_context(request, course=course, tab=tab, **kwargs)
 
-                # Show warnings if the user has limited access
-                # Must come after masquerading on creation of page context
-                self.register_user_access_warning_messages(request, course)
+            # Show warnings if the user has limited access
+            # Must come after masquerading on creation of page context
+            self.register_user_access_warning_messages(request, course)
 
-                set_custom_metrics_for_course_key(course_key)
-                return super(CourseTabView, self).get(request, course=course, page_context=page_context, **kwargs)
-            except Exception as exception:  # pylint: disable=broad-except
-                return CourseTabView.handle_exceptions(request, course_key, course, exception)
+            set_custom_metrics_for_course_key(course_key)
+            return super(CourseTabView, self).get(request, course=course, page_context=page_context, **kwargs)
 
     @staticmethod
     def url_to_enroll(course_key):

@@ -12,9 +12,10 @@ from django.urls import reverse
 from django.utils.translation import ugettext as _
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
+from django.http import HttpResponseBadRequest, HttpResponseForbidden
 
 import third_party_auth
-from edxmako.shortcuts import render_to_response
+from edxmako.shortcuts import render_to_response, render_to_string
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.user_api import accounts
 from openedx.core.djangoapps.user_api.accounts.utils import (
@@ -30,10 +31,15 @@ from openedx.features.enterprise_support.utils import (
     handle_enterprise_cookies_for_logistration,
     update_logistration_context_for_enterprise
 )
+from openedx.core.djangoapps.user_authn.views.custom import register_login_and_enroll_anonymous_user,\
+    validate_credo_access
 from student.helpers import get_next_url_for_login_page
 from third_party_auth import pipeline
 from third_party_auth.decorators import xframe_allow_whitelisted
 from util.password_policy_validators import DEFAULT_MAX_PASSWORD_LENGTH
+from opaque_keys.edx.keys import CourseKey
+from opaque_keys import InvalidKeyError
+from xmodule.modulestore.django import modulestore
 
 log = logging.getLogger(__name__)
 
@@ -147,6 +153,21 @@ def login_and_registration_form(request, initial_mode="login"):
 
     # Retrieve the form descriptions from the user API
     form_descriptions = _get_form_descriptions(request)
+
+    if redirect_to.startswith('/courses'):
+        redirect_parts = [redirect_part for redirect_part in redirect_to.split('/') if redirect_part]
+        if len(redirect_parts) > 1:
+            try:
+                course_key = CourseKey.from_string(redirect_parts[1])
+            except InvalidKeyError:
+                return HttpResponseBadRequest(_("Invalid course id."))
+            course = modulestore().get_course(course_key)
+            if course and course.credo_authentication:
+                credo_auth = validate_credo_access(request, redirect_to)
+                if not credo_auth:
+                    return HttpResponseForbidden(render_to_string('static_templates/invalid_credo_auth.html', {}))
+            if course and course.allow_anonymous_access:
+                return register_login_and_enroll_anonymous_user(request, course_key, redirect_to)
 
     # Our ?next= URL may itself contain a parameter 'tpa_hint=x' that we need to check.
     # If present, we display a login page focused on third-party auth with that provider.
