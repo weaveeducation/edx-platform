@@ -103,7 +103,7 @@ class ModuleStoreDraftAndPublished(six.with_metaclass(ABCMeta, BranchSettingMixi
         raise NotImplementedError
 
     @abstractmethod
-    def revert_to_published(self, location, user_id):
+    def revert_to_published(self, location, user_id, version_id=None):
         raise NotImplementedError
 
     @abstractmethod

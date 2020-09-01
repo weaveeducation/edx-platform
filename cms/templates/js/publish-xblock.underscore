@@ -126,6 +126,11 @@ var visibleToStaffOnly = visibilityState === 'staff_only';
                    href="" aria-disabled="<% if (!published || !hasChanges) { %>true<% } else { %>false<% } %>"><%- gettext("Discard Changes") %>
                 </a>
             </li>
+            <li class="action-item">
+                <a class="action-list-versions action-secondary" href="javascript: void(0);">List of Previously Published Versions</a>
+                <div class="versions-list">
+                </div>
+            </li>
         </ul>
     </div>
 </div>

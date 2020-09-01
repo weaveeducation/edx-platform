@@ -13,7 +13,7 @@ log = logging.getLogger("edx.courseware")
 @CELERY_APP.task
 def track_sequential_viewed_task(course_key_str, usage_key_str, user_id):
     user_id = int(user_id)
-    log.info(u"Task to send sequential_viewed event was started: course_key=%s, usage_key=%s, user_id=%d"
+    log.info("Task to send sequential_viewed event was started: course_key=%s, usage_key=%s, user_id=%d"
              % (course_key_str, usage_key_str, user_id))
 
     course_key = CourseKey.from_string(course_key_str)
@@ -60,5 +60,5 @@ def track_sequential_viewed_task(course_key_str, usage_key_str, user_id):
             with tracker.get_tracker().context('sequential_block.viewed', context):
                 tracker.emit('sequential_block.viewed', item_dict)
 
-    log.info(u"Task to send sequential_viewed event was finished: course_key=%s, usage_key=%s, user_id=%d"
+    log.info("Task to send sequential_viewed event was finished: course_key=%s, usage_key=%s, user_id=%d"
              % (course_key_str, usage_key_str, user_id))
