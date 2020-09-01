@@ -53,11 +53,11 @@ for log_name, log_level in LOG_OVERRIDES:
     logging.getLogger(log_name).setLevel(log_level)
 
 # Docker does not support the syslog socket at /dev/log. Rely on the console.
-LOGGING['handlers']['local'] = LOGGING['handlers']['tracking'] = {
+LOGGING['handlers']['local'] = LOGGING['handlers']['tracking'] = LOGGING['handlers']['credo_json'] = {
     'class': 'logging.NullHandler',
 }
 
-LOGGING['loggers']['tracking']['handlers'] = ['console']
+LOGGING['loggers']['tracking']['handlers'] = ['console', 'log_db']
 
 ################################ EMAIL ########################################
 
