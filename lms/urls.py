@@ -847,19 +847,10 @@ if settings.FEATURES.get('ENABLE_STUDENT_HISTORY_VIEW'):
 if settings.DEBUG or settings.FEATURES.get('ENABLE_DJANGO_ADMIN_SITE'):
     # Jasmine and admin
 
-    # The password pages in the admin tool are disabled so that all password
-    # changes go through our user portal and follow complexity requirements.
-    # The form to change another user's password is conditionally enabled
-    # for backwards compatibility.
-    if not settings.FEATURES.get('ENABLE_CHANGE_USER_PASSWORD_ADMIN'):
-        urlpatterns += [
-            url(r'^admin/auth/user/\d+/password/$', handler404),
-        ]
     urlpatterns += [
         url(r'^admin/configure-org-tags/(?P<org_id>\d+)', manage_org_tags, name='admin-manage-org-tags'),
         url(r'^admin/configure-org-tags-order/(?P<org_id>\d+)', manage_org_tags_sorting,
             name='admin-manage-org-tags-order'),
-        url(r'^admin/password_change/$', handler404),
         # We are enforcing users to login through third party auth in site's
         # login page so we are disabling the admin panel's login page.
         url(r'^admin/login/$', redirect_to_lms_login),
