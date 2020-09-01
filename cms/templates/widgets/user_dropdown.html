@@ -6,6 +6,9 @@
   from django.utils.translation import ugettext as _
   from edx_django_utils.monitoring import set_custom_metric
   from student.roles import GlobalStaff
+  from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+
+  lms_root_url = configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL)
 %>
 
 % if uses_pattern_library:
@@ -32,7 +35,7 @@
               </li>
           </%block>
           <li class="dropdown-item item has-block-link">
-            <a class="action action-signout" href="${settings.FRONTEND_LOGOUT_URL}">${_("Sign Out")}</a>
+            <a class="action action-signout" href="${lms_root_url}/logout">${_("Sign Out")}</a>
           </li>
       </ul>
   </div>
@@ -60,7 +63,7 @@
         </li>
         % endif
         <li class="nav-item nav-account-signout">
-          <a class="action action-signout" href="${settings.FRONTEND_LOGOUT_URL}">${_("Sign Out")}</a>
+          <a class="action action-signout" href="${lms_root_url}/logout">${_("Sign Out")}</a>
         </li>
       </ul>
     </div>

@@ -7,6 +7,7 @@ from django.conf import settings
 from django.shortcuts import redirect
 from django.utils.http import urlquote_plus
 from waffle.decorators import waffle_switch
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 from contentstore.config import waffle
 from edxmako.shortcuts import render_to_response
@@ -19,8 +20,11 @@ def register_redirect_to_lms(request):
     This view redirects to the LMS register view. It is used to temporarily keep the old
     Studio signup url alive.
     """
+    lms_root_url = configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL)
+    register_url = lms_root_url + '/register'
+
     register_url = '{register_url}{params}'.format(
-        register_url=settings.FRONTEND_REGISTER_URL,
+        register_url=register_url,
         params=_build_next_param(request),
     )
     return redirect(register_url, permanent=True)
@@ -31,8 +35,11 @@ def login_redirect_to_lms(request):
     This view redirects to the LMS login view. It is used for Django's LOGIN_URL
     setting, which is where unauthenticated requests to protected endpoints are redirected.
     """
+    lms_root_url = configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL)
+    login_url = lms_root_url + '/login'
+
     login_url = '{login_url}{params}'.format(
-        login_url=settings.FRONTEND_LOGIN_URL,
+        login_url=login_url,
         params=_build_next_param(request),
     )
     return redirect(login_url)

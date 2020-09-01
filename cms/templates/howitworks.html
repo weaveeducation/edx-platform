@@ -6,6 +6,10 @@
   from django.conf import settings
   from django.utils.translation import ugettext as _
   from openedx.core.djangolib.markup import HTML, Text
+  from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+
+  platform_name = configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
+  lms_root_url = configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL)
 %>
 
 <%block name="title">${_("Welcome")}</%block>
@@ -161,7 +165,7 @@
 
     <ul class="list-actions">
       <li class="action-item">
-        <a href="${settings.FRONTEND_REGISTER_URL}?next=${current_url}" class="action action-primary">${_("Sign Up & Start Making Your {platform_name} Course").format(platform_name=settings.PLATFORM_NAME)}</a>
+        <a href="${lms_root_url}/register?next=${current_url}" class="action action-primary">${_("Sign Up & Start Making Your {platform_name} Course").format(platform_name=platform_name)}</a>
       </li>
       <li class="action-item">
         <a href="${settings.LOGIN_URL}?next=${current_url}" class="action action-secondary">${_("Already have a {studio_name} Account? Sign In").format(studio_name=settings.STUDIO_SHORT_NAME)}</a>
