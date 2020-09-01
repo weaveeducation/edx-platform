@@ -76,6 +76,7 @@ from django.utils.encoding import python_2_unicode_compatible
 from six import text_type  # pylint: disable=ungrouped-imports
 
 from openedx.core.lib.mobile_utils import is_request_from_mobile_app
+from openedx.core.djangoapps.site_configuration.helpers import get_value
 
 log = getLogger(__name__)
 
@@ -468,7 +469,7 @@ def _delete_cookie(request, response):
         settings.SESSION_COOKIE_NAME,
         max_age=0,
         expires='Thu, 01-Jan-1970 00:00:00 GMT',
-        domain=settings.SESSION_COOKIE_DOMAIN,
+        domain=get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN),
         secure=settings.SESSION_COOKIE_SECURE or None,
         httponly=settings.SESSION_COOKIE_HTTPONLY or None,
     )

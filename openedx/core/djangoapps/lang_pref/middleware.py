@@ -12,6 +12,7 @@ from openedx.core.djangoapps.lang_pref import COOKIE_DURATION, LANGUAGE_HEADER, 
 from openedx.core.djangoapps.user_api.errors import UserAPIInternalError, UserAPIRequestError
 from openedx.core.djangoapps.user_api.preferences.api import get_user_preference, set_user_preference
 from openedx.core.lib.mobile_utils import is_request_from_mobile_app
+from openedx.core.djangoapps.site_configuration.helpers import get_value
 
 
 class LanguagePreferenceMiddleware(MiddlewareMixin):
@@ -70,19 +71,20 @@ class LanguagePreferenceMiddleware(MiddlewareMixin):
                     # If we can't find the user preferences, then don't modify the cookie
                     pass
 
+            sess_cookie_domain = get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN)
             # If set, set the user_pref in the LANGUAGE_COOKIE
             if user_pref and not is_request_from_mobile_app(request):
                 response.set_cookie(
                     settings.LANGUAGE_COOKIE,
                     value=user_pref,
-                    domain=settings.SESSION_COOKIE_DOMAIN,
+                    domain=sess_cookie_domain,
                     max_age=COOKIE_DURATION,
                     secure=request.is_secure()
                 )
             else:
                 response.delete_cookie(
                     settings.LANGUAGE_COOKIE,
-                    domain=settings.SESSION_COOKIE_DOMAIN
+                    domain=sess_cookie_domain
                 )
 
         return response

@@ -22,6 +22,7 @@ from openedx.core.djangoapps.oauth_dispatch.api import create_dot_access_token
 from openedx.core.djangoapps.oauth_dispatch.jwt import create_jwt_from_token
 from openedx.core.djangoapps.user_api.accounts.utils import retrieve_last_sitewide_block_completed
 from openedx.core.djangoapps.user_authn.exceptions import AuthFailedError
+from openedx.core.djangoapps.site_configuration.helpers import get_value
 from student.models import CourseEnrollment
 
 log = logging.getLogger(__name__)
@@ -76,7 +77,7 @@ def delete_logged_in_cookies(response):
         response.delete_cookie(
             cookie_name,
             path='/',
-            domain=settings.SESSION_COOKIE_DOMAIN
+            domain=get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN)
         )
 
     return response
@@ -86,7 +87,7 @@ def standard_cookie_settings(request):
     """ Returns the common cookie settings (e.g. expiration time). """
 
     cookie_settings = {
-        'domain': settings.SESSION_COOKIE_DOMAIN,
+        'domain': get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN),
         'path': '/',
         'httponly': None,
     }
