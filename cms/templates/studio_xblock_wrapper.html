@@ -44,11 +44,6 @@ library_block_is_hidden = str(xblock.location).startswith('lib-block-v1') and ge
 </script>
 
 % if not is_root:
-    % if library_block_is_hidden:
-    <li class="action-item">
-        <span class="icon fa fa-lock" aria-hidden="true"></span> Content is hidden
-    </li>
-    % endif
     % if is_reorderable:
     <li class="studio-xblock-wrapper is-draggable" data-locator="${xblock.location}" data-course-key="${xblock.location.course_key}">
     % else:
@@ -90,6 +85,11 @@ library_block_is_hidden = str(xblock.location).startswith('lib-block-v1') and ge
             <ul class="actions-list">
                 % if not is_root:
                     % if can_edit:
+                        % if library_block_is_hidden:
+                        <li class="action-item">
+                            <span class="icon fa fa-lock" aria-hidden="true"></span> Content is hidden
+                        </li>
+                        % endif
                         % if not show_inline:
                             % if root_xblock_is_library and not ability_edit_library_content:
                             &nbsp;
