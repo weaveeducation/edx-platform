@@ -67,8 +67,6 @@ def listen_for_course_publish(sender, course_key, **kwargs):  # pylint: disable=
 
         update_search_index.delay(six.text_type(course_key), datetime.now(UTC).isoformat())
 
-    clear_course_from_cache(course_key)
-
 
 @receiver(SignalHandler.library_updated)
 def listen_for_library_update(sender, library_key, **kwargs):  # pylint: disable=unused-argument
