@@ -14,6 +14,7 @@ from lms.djangoapps.courseware.entrance_exams import user_can_skip_entrance_exam
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.lib.course_tabs import CourseTabPluginManager
 from openedx.features.course_experience import RELATIVE_DATES_FLAG, UNIFIED_COURSE_TAB_FLAG, default_course_url_name
+from credo_modules.models import Organization
 from student.models import CourseEnrollment
 from xmodule.tabs import CourseTab, CourseTabList, course_reverse_func_from_name_func, key_checker
 
@@ -336,6 +337,16 @@ def get_course_tab_list(user, course):
     course_tab_list = []
     must_complete_ee = not user_can_skip_entrance_exam(user, course)
     for tab in xmodule_tab_list:
+        if tab.type == 'progress':
+            enable_extended_progress_page = False
+            try:
+                org = Organization.objects.get(org=course.id.org)
+                if org.org_type is not None:
+                    enable_extended_progress_page = org.org_type.enable_extended_progress_page
+            except Organization.DoesNotExist:
+                pass
+            if enable_extended_progress_page:
+                tab.name = _("My Skills")
         if must_complete_ee:
             # Hide all of the tabs except for 'Courseware'
             # Rename 'Courseware' tab to 'Entrance Exam'
