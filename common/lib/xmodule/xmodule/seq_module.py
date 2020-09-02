@@ -431,6 +431,7 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
             'summary_info_imgs': context.get('summary_info_imgs', {
                 'correct_icon': '',
                 'incorrect_icon': '',
+                'unanswered_icon': '',
                 'assessment_done_img': ''
             }),
             'exclude_units': context.get('exclude_units', False)
