@@ -620,6 +620,9 @@
                     }
                 }
 
+                // clear video items that are ready to display
+                window.videoReady = [];
+
                 // On Sequence change, fire custom event 'sequence:change' on element.
                 // Added for aborting video bufferization, see ../video/10_main.js
                 this.el.trigger('sequence:change');
@@ -661,6 +664,12 @@
                 sequenceLinks.click(this.goto);
 
                 this.sr_container.focus();
+
+                // in case of switch tab
+                // send to the parent frame information about new content width and height
+                if (window.chromlessView && window.postMessageResize) {
+                    window.postMessageResize();
+                }
             }
         };
 

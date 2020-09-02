@@ -1195,7 +1195,7 @@ def _progress(request, course_key, student_id, display_in_frame=False):
         pass
 
     if enable_extended_progress_page:
-        return _extended_progress_page(request, course, student)
+        return _extended_progress_page(request, course, student, student_id, is_frame=is_frame)
 
     # NOTE: To make sure impersonation by instructor works, use
     # student instead of request.user in the rest of the function.
