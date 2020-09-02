@@ -278,7 +278,7 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
                                 self.versionsData[val.id] = val;
                                 versionsHtml += '<div class="version-to-restore">' +
                                   '<div>' + val.datetime + '</div>' +
-                                  '<div>by ' + val.user + ' | <a href="javascript: void(0);" class="version-to-restore-link" data-version-id="' + val.id + '">Restore</a></div>' +
+                                  '<div>by ' + val.user + ' | <a href="javascript: void(0);" class="version-to-restore-link ' + (val.can_restore ? 'can-restore' : 'cant-restore') + '" data-version-id="' + val.id + '">Restore</a></div>' +
                                   '</div>';
                             });
                             self.$el.find('.versions-list').html(versionsHtml);
@@ -291,7 +291,7 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
 
             restoreVersion: function(e) {
                 var self = this;
-                if (this.versionsRestoreInProgress) {
+                if ((this.versionsRestoreInProgress) || ($(e.target).hasClass('cant-restore'))) {
                     return;
                 }
                 var versionId = $(e.target).data('version-id');
