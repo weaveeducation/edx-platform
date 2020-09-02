@@ -6,10 +6,6 @@
   from django.conf import settings
   from django.utils.translation import ugettext as _
   from openedx.core.djangolib.markup import HTML, Text
-  from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
-
-  platform_name = configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
-  lms_root_url = configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL)
 %>
 
 <%block name="title">${_("Welcome")}</%block>
