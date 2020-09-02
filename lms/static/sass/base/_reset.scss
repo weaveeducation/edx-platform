@@ -298,7 +298,6 @@ td { vertical-align: top; }
 @media print {
   * {
     background: transparent;
-    color: black !important;
     box-shadow: none !important;
     text-shadow: none !important;
     filter: none !important;
@@ -308,11 +307,6 @@ td { vertical-align: top; }
   html,
   body {
     background: transparent !important;
-  }
-
-  a,
-  a:visited {
-    text-decoration: underline;
   }
 
   abbr[title]::after { content: " (" attr(title) ")"; }
