@@ -38,6 +38,11 @@ from openedx.core.djangolib.markup import HTML, Text
 from openedx.core.lib.edx_six import get_gettext
 from xmodule.stringify import stringify_children
 
+try:
+    from django.utils.html import strip_spaces_between_tags
+except ImportError:
+    strip_spaces_between_tags = None
+
 # extra things displayed after "show answers" is pressed
 solution_tags = ['solution']
 
@@ -777,7 +782,7 @@ class LoncapaProblem(object):
             etree.tostring(self._extract_html(self.tree)).decode('utf-8'),
             self.context
         )
-        return html
+        return strip_spaces_between_tags(html) if strip_spaces_between_tags else html
 
     def handle_input_ajax(self, data):
         """
