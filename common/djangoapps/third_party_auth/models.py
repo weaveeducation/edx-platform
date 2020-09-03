@@ -225,6 +225,8 @@ class ProviderConfig(ConfigurationModel):
     def clean(self):
         """ Ensure that either `icon_class` or `icon_image` is set """
         super(ProviderConfig, self).clean()
+        if getattr(self, 'skip_icon_validation', False):
+            return
         if bool(self.icon_class) == bool(self.icon_image):
             raise ValidationError('Either an icon class or an icon image must be given (but not both)')
 
@@ -847,8 +849,9 @@ class LTIProviderConfig(ProviderConfig):
     backend_name = 'lti'
 
     # This provider is not visible to users
-    icon_class = None
-    icon_image = None
+    icon_class = ''
+    icon_image = ''
+    skip_icon_validation = True
     secondary = False
 
     # LTI login cannot be initiated by the tool provider
