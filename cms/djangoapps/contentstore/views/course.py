@@ -99,7 +99,7 @@ from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import DuplicateCourseError, ItemNotFoundError
 from xmodule.partitions.partitions import UserPartition
 from xmodule.tabs import CourseTab, CourseTabList, InvalidTabsException
-from credo_modules.models import CopySectionTask
+from credo_modules.models import CopySectionTask, get_inactive_orgs
 from credo_modules.mongo import get_block_versions
 
 from .component import ADVANCED_COMPONENT_TYPES
@@ -859,12 +859,15 @@ def _process_courses_list(courses_iter, in_process_course_actions, split_archive
     active_courses = []
     archived_courses = []
 
+    deactivated_orgs = get_inactive_orgs()
+
     for course in courses_iter:
         if isinstance(course, ErrorDescriptor) or (course.id in in_process_action_course_keys):
             continue
 
         formatted_course = format_course_for_view(course)
-        if split_archived and course.has_ended():
+
+        if split_archived and (course.has_ended() or course.location.course_key.org in deactivated_orgs):
             archived_courses.append(formatted_course)
         else:
             active_courses.append(formatted_course)
