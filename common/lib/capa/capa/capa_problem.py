@@ -661,9 +661,14 @@ class LoncapaProblem(object):
         """
         if isinstance(current_answer, list):
             # Multiple answers. This case happens e.g. in multiple choice problems
-            answer_text = ", ".join(
-                self.find_answer_text(answer_id, answer) for answer in current_answer
-            )
+            answer_text = ''
+            answer_lst = []
+            for answer in current_answer:
+                answer_id_text = self.find_answer_text(answer_id, answer)
+                if answer_id_text:
+                    answer_lst.append(answer_id_text)
+            if answer_lst:
+                answer_text = ", ".join(answer_lst)
 
         elif isinstance(current_answer, six.string_types) and current_answer.startswith('choice_'):
             # Many problem (e.g. checkbox) report "choice_0" "choice_1" etc.
