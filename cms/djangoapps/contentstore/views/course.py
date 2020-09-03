@@ -556,12 +556,31 @@ def course_listing(request):
     active_courses, archived_courses = _process_courses_list(courses_iter, in_process_course_actions, split_archived)
     in_process_course_actions = [format_in_process_course_view(uca) for uca in in_process_course_actions]
 
+    orgs = []
+    for c in active_courses:
+        if c['org'] not in orgs:
+            orgs.append(c['org'])
+    for c in archived_courses:
+        if c['org'] not in orgs:
+            orgs.append(c['org'])
+
+    libraries_result = [format_library_for_view(lib) for lib in libraries]
+    for l in libraries_result:
+        if l['org'] not in orgs:
+            orgs.append(l['org'])
+
+    if orgs:
+        orgs = sorted(orgs)
+
     return render_to_response(u'index.html', {
+        u'display_all_courses': False,
+        u'orgs': orgs,
+        u'orgs_json': json.dumps(orgs),
         u'courses': active_courses,
         u'archived_courses': archived_courses,
         u'in_process_course_actions': in_process_course_actions,
         u'libraries_enabled': LIBRARIES_ENABLED,
-        u'libraries': [format_library_for_view(lib) for lib in libraries],
+        u'libraries': libraries_result,
         u'show_new_library_button': get_library_creator_status(user),
         u'user': user,
         u'request_course_creator_url': reverse('request_course_creator'),

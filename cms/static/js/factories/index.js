@@ -37,5 +37,16 @@ define(['jquery.form', 'js/index'], function() {
                 .find('.label')
                 .text('Submitting Your Request');
         });
+
+        var ms = $('#orgs-input').magicSuggest({
+            data: window.orgsList,
+            width: 700,
+            allowFreeEntries: false,
+            maxSelection: 200,
+            emptyText: "Please, choose organizations..."
+        });
+        $(ms).on('selectionchange', function(e, m) {
+            $(document).trigger("orgs_changed", this.getValue());
+        });
     };
 });
