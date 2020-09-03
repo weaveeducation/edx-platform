@@ -2,7 +2,7 @@ import logging
 from lms import CELERY_APP
 from django.contrib.auth.models import User
 from xmodule.modulestore.django import modulestore
-from courseware.utils import get_block_children, CREDO_GRADED_ITEM_CATEGORIES
+from lms.djangoapps.courseware.utils import get_block_children, CREDO_GRADED_ITEM_CATEGORIES
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from credo_modules.models import get_student_properties_event_data
 from eventtracking import tracker

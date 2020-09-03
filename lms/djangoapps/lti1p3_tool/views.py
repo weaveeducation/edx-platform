@@ -28,8 +28,8 @@ from util.views import add_p3p_header
 from credo_modules.models import check_and_save_enrollment_attributes, get_enrollment_attributes
 from edxmako.shortcuts import render_to_string
 from mako.template import Template
-from courseware.courses import update_lms_course_usage
-from courseware.views.views import render_progress_page_frame
+from lms.djangoapps.courseware.courses import update_lms_course_usage
+from lms.djangoapps.courseware.views.views import render_progress_page_frame
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from .tool_conf import ToolConfDb

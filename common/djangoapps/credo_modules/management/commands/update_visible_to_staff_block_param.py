@@ -4,7 +4,7 @@ from openedx.core.djangoapps.content.block_structure.models import BlockToSequen
 from credo_modules.models import TrackingLog
 from credo_modules.mongo import get_course_structure
 from opaque_keys.edx.keys import CourseKey
-from courseware.utils import CREDO_GRADED_ITEM_CATEGORIES
+from lms.djangoapps.courseware.utils import CREDO_GRADED_ITEM_CATEGORIES
 
 
 class Command(BaseCommand):

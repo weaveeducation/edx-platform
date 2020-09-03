@@ -3,7 +3,7 @@ import logging
 import json
 
 from collections import OrderedDict
-from courseware.courses import get_course_by_id
+from lms.djangoapps.courseware.courses import get_course_by_id
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction

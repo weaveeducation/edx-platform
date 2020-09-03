@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from opaque_keys.edx.keys import CourseKey
 from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructureTags
-from courseware.utils import CREDO_GRADED_ITEM_CATEGORIES
+from lms.djangoapps.courseware.utils import CREDO_GRADED_ITEM_CATEGORIES
 
 
 class Command(BaseProcessLogsCommand):

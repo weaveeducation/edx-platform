@@ -33,7 +33,7 @@ from .utils import UNKNOWN_TASK_ID, UPDATE_STATUS_FAILED, UPDATE_STATUS_SKIPPED,
 from credo_modules.models import SequentialBlockAnswered
 from completion import waffle as completion_waffle
 from completion.models import BlockCompletion
-from courseware.utils import get_block_children
+from lms.djangoapps.courseware.utils import get_block_children
 
 
 TASK_LOG = logging.getLogger('edx.celery.task')

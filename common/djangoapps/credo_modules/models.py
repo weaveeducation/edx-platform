@@ -1071,7 +1071,7 @@ def get_inactive_orgs():
 @receiver(post_save, sender=ProctoredExamStudentAttempt)
 def start_new_attempt_after_exam_started(sender, instance, created, **kwargs):
     if created:
-        from courseware.tasks import track_sequential_viewed_task
+        from lms.djangoapps.courseware.tasks import track_sequential_viewed_task
 
         proctored_exam = instance.proctored_exam
         course_key_str = str(proctored_exam.course_id)

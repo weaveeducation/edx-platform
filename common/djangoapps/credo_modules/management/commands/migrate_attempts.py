@@ -5,7 +5,7 @@ from django.db import transaction
 from django.core.management import BaseCommand
 from django.utils.timezone import make_aware
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
-from courseware.models import StudentModule
+from lms.djangoapps.courseware.models import StudentModule
 from lti_provider.models import GradedAssignment
 from credo_modules.models import AttemptCourseMigration, AttemptUserMigration, DBLogEntry
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential

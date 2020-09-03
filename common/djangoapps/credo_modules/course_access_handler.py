@@ -3,7 +3,7 @@
 from django.conf import settings
 from django.core.cache import cache
 
-from courseware.access import has_access
+from lms.djangoapps.courseware.access import has_access
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from student.roles import CourseInstructorRole, CourseStaffRole, GlobalStaff
 from credo_modules.models import get_inactive_orgs

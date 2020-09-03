@@ -1,4 +1,4 @@
-from courseware.courses import get_course_by_id
+from lms.djangoapps.courseware.courses import get_course_by_id
 from credo_modules.models import user_must_fill_additional_profile_fields
 from django.shortcuts import reverse
 from django.http import HttpResponseRedirect

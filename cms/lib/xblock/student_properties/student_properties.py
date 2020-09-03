@@ -50,7 +50,7 @@ class StudentPropertiesAside(XBlockAside):
                 pass
 
         if user:
-            from courseware.tasks import track_sequential_viewed_task
+            from lms.djangoapps.courseware.tasks import track_sequential_viewed_task
             from lms.djangoapps.courseware.models import StudentModule
 
             block = BlockToSequential.objects.filter(course_id=str(self.runtime.course_id), block_id=usage_id).first()

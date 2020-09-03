@@ -53,7 +53,7 @@ from xmodule.course_module import COURSE_VISIBILITY_PUBLIC
 from xmodule.modulestore.django import modulestore
 from xmodule.x_module import PUBLIC_VIEW, STUDENT_VIEW
 from credo_modules.models import Organization
-from courseware.courses import update_lms_course_usage
+from lms.djangoapps.courseware.courses import update_lms_course_usage
 
 from ..access import has_access
 from ..access_utils import check_public_access
