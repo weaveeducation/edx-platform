@@ -542,7 +542,7 @@ def manage_org_tags_sorting(request, org_id):
                                                 tags_result=tags_result, tags_lst=tags_lst,
                                                 tags_lst_str=json.dumps(tags_lst))
     elif request.method == 'POST':
-        req_tags_data = json.loads(request.body)
+        req_tags_data = json.loads(request.body.decode('utf8'))
         tags_to_insert = []
         idx = 10
 

@@ -35,9 +35,9 @@ def turnitin_callback(request):
         return HttpResponseForbidden('Invalid request signature')
 
     try:
-        data = json.loads(request.body)
+        data = json.loads(request.body.decode('utf8'))
     except ValueError:
-        log_action('turnitin_callback', 'Invalid JSON body: ' + request.body)
+        log_action('turnitin_callback', 'Invalid JSON body: ' + request.body.decode('utf8'))
         return HttpResponseBadRequest('Invalid JSON body')
 
     if request_event_type == 'SUBMISSION_COMPLETE':

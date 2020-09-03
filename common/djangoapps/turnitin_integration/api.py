@@ -53,12 +53,12 @@ class TurnitinApi(object):
         try:
             content = r.json() if r.content else None
         except (ValueError, TypeError):
-            log_action('turnitin_api', 'API error: ' + r.content, status_code=r.status_code)
+            log_action('turnitin_api', 'API error: ' + r.content.decode("utf-8"), status_code=r.status_code)
             log_submitted = True
             content = None
 
         if not log_submitted and 400 <= r.status_code <= 500:
-            log_action('turnitin_api', 'API error: ' + r.content, status_code=r.status_code)
+            log_action('turnitin_api', 'API error: ' + r.content.decode("utf-8"), status_code=r.status_code)
 
         return r.status_code, content
 

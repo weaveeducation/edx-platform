@@ -13,7 +13,7 @@ log_json = logging.getLogger("credo_json")
 
 def generate_hmac256_signature(message):
     signature = hmac.new(
-        str(settings.TURNITIN_SIGNING_SECRET),
+        str(settings.TURNITIN_SIGNING_SECRET).encode('utf-8'),
         msg=message,
         digestmod=hashlib.sha256
     ).hexdigest()
