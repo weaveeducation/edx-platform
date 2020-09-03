@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import reverse
 from django import forms
 from django.conf import settings
+from django.utils.safestring import mark_safe
 from .models import RegistrationPropertiesPerOrg, EnrollmentPropertiesPerCourse,\
     Organization, OrganizationType, CourseExcludeInsights, CourseUsage, CustomUserRole, TagDescription
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
@@ -29,14 +30,13 @@ class OrganizationForm(admin.ModelAdmin):
             cms_base = 'http://' + cms_base
         else:
             cms_base = 'https://' + cms_base
-        return '<a href="' + cms_base + reverse('admin-manage-org-tags', kwargs={
+        return mark_safe('<a href="' + cms_base + reverse('admin-manage-org-tags', kwargs={
             "org_id": obj.id
         }) + '" target="blank">Configure Tags</a> | <a href="'\
                + cms_base + reverse('admin-manage-org-tags-order', kwargs={
                    "org_id": obj.id
-               }) + '" target="blank">Set Tags Order</a>'
+               }) + '" target="blank">Set Tags Order</a>')
 
-    custom_actions.allow_tags = True
     custom_actions.short_description = 'Actions'
 
 

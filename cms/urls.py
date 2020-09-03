@@ -18,6 +18,7 @@ from cms.djangoapps.contentstore.views.organization import OrganizationListView
 from openedx.core.djangoapps.password_policy import compliance as password_policy_compliance
 from openedx.core.djangoapps.password_policy.forms import PasswordPolicyAwareAdminAuthForm
 from openedx.core.apidocs import api_info
+from credo_modules.views import manage_org_tags, manage_org_tags_sorting
 
 
 django_autodiscover()
@@ -233,6 +234,9 @@ if settings.FEATURES.get('ENABLE_EXPORT_GIT'):
 if settings.FEATURES.get('ENABLE_SERVICE_STATUS'):
     urlpatterns.append(url(r'^status/', include('openedx.core.djangoapps.service_status.urls')))
 
+urlpatterns.append(url(r'^admin/configure-org-tags/(?P<org_id>\d+)', manage_org_tags, name='admin-manage-org-tags'))
+urlpatterns.append(url(r'^admin/configure-org-tags-order/(?P<org_id>\d+)', manage_org_tags_sorting,
+            name='admin-manage-org-tags-order'),)
 urlpatterns.append(url(r'^admin/', admin.site.urls))
 
 # enable entrance exams

@@ -491,7 +491,7 @@ def manage_org_tags(request, org_id):
 
     if request.method == 'GET':
         return _manage_org_tags_render_template(request, "admin/configure_tags_for_org.html",
-                                                _("Configure Tags"), org, tags_result=tags_result)
+                                                "Configure Tags", org, tags_result=tags_result)
     elif request.method == 'POST':
         return _manage_org_tags_update_data(request, org, tags_result)
     else:
@@ -538,7 +538,7 @@ def manage_org_tags_sorting(request, org_id):
         tags_lst = _convert_tags_dict_to_list(tags_result)
 
         return _manage_org_tags_render_template(request, "admin/configure_tags_order_for_org.html",
-                                                _("Configure Tags Order"), org,
+                                                "Configure Tags Order", org,
                                                 tags_result=tags_result, tags_lst=tags_lst,
                                                 tags_lst_str=json.dumps(tags_lst))
     elif request.method == 'POST':
