@@ -23,8 +23,8 @@ class LtiToolKey(models.Model):
 
     def _generate(self):
         key = RSA.generate(4096)
-        self.private_key = key.exportKey()
-        self.public_key = key.publickey().exportKey()
+        self.private_key = key.exportKey().decode("utf-8")
+        self.public_key = key.publickey().exportKey().decode("utf-8")
         self.public_jwk = Registration.get_jwk(self.public_key)
 
     def save(self, *args, **kwargs):

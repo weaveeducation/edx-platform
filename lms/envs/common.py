@@ -1489,7 +1489,7 @@ MIDDLEWARE = [
 
     # Avoid issue with https://blog.heroku.com/chrome-changes-samesite-cookie
     # Override was found here https://github.com/django/django/pull/11894
-    'django_cookies_samesite.middleware.CookiesSameSite',
+    #'django_cookies_samesite.middleware.CookiesSameSite',
 
     'crum.CurrentRequestUserMiddleware',
 

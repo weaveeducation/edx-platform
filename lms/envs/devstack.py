@@ -403,3 +403,4 @@ if os.path.isfile(join(dirname(abspath(__file__)), 'private.py')):
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 SESSION_COOKIE_SAMESITE = None
+X_FRAME_OPTIONS = 'ALLOW'
