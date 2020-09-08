@@ -113,7 +113,7 @@ class OraStructuredTagsAside(StructuredTagsAside):
         saved_tags = {}
 
         for av_tag in self.get_available_tags():
-            for rubric, rubric_tags in posted_data.iteritems():
+            for rubric, rubric_tags in posted_data.items():
                 if av_tag.name in rubric_tags and rubric_tags[av_tag.name]:
                     tag_available_values = av_tag.get_values()
                     tag_current_values = self.saved_tags.get(rubric, {}).get(av_tag.name, [])
