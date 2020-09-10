@@ -23,24 +23,6 @@ def get_countdown(attempt_num):
     return (int(2.71 ** attempt_num) + 5) * 60
 
 
-def _get_student_item_key(student_id, course_id, item_id, num=0):
-    student_item_dict = {
-        'student_id': student_id,
-        'course_id': course_id,
-        'item_id': item_id
-    }
-    num = int(num)
-    if num > 0:
-        student_item_dict['num'] = num
-        return u"{student_id}/{course_id}/{item_id}/{num}".format(
-            **student_item_dict
-        )
-    else:
-        return u"{student_id}/{course_id}/{item_id}".format(
-            **student_item_dict
-        )
-
-
 @CELERY_APP.task(name='turnitin_integration.tasks.turnitin_create_submissions',
                  max_retries=TURNITIN_TASKS_MAX_RETRIES, bind=True)
 def turnitin_create_submissions(self, key_id, submission_uuid, course_id, block_id, user_id):
@@ -132,8 +114,7 @@ def _create_submissions(key_id, submission_uuid, course_id, item_id, user_id):
                 content = data['text_response']
                 status_code2, resp2 = turnitin_api.upload_file(resp1['id'], filename, content.encode('utf-8'))
             else:
-                file_num = data['file_num']
-                s3_key = _get_student_item_key(anon_user.anonymous_user_id, course_id, item_id, file_num)
+                s3_key = data['file_key']
 
                 tf = tempfile.NamedTemporaryFile(delete=False)
                 try:

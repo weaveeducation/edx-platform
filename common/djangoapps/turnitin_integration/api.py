@@ -156,7 +156,7 @@ class TurnitinApi(object):
         webhook_host = settings.TURNITIN_WEBHOOK_HOST + reverse('turnitin_callback')
         data = {
             "allow_insecure": True,
-            "signing_secret": b64encode(settings.TURNITIN_SIGNING_SECRET),
+            "signing_secret": b64encode(settings.TURNITIN_SIGNING_SECRET.encode('utf-8')),
             "description": "Webhook " + str(self._key_id),
             "url": webhook_host,
             "event_types": [

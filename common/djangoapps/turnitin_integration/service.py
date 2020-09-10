@@ -41,7 +41,7 @@ def get_turnitin_key(org):
     return None
 
 
-def create_submissions(submission_uuid, student_item_dict, text_response_lst, file_names=None):
+def create_submissions(submission_uuid, student_item_dict, submission_answer):
     course_id = student_item_dict.get('course_id')
     anonymous_user_id = student_item_dict.get('student_id')
     item_id = student_item_dict.get('item_id')
@@ -64,6 +64,11 @@ def create_submissions(submission_uuid, student_item_dict, text_response_lst, fi
         return
 
     api = TurnitinApi(turnitin_key)
+    submission_answer_parts = submission_answer.get('parts', [])
+    file_keys = submission_answer.get('file_keys', [])
+    file_names = submission_answer.get('files_name', submission_answer.get('files_names', []))
+
+    text_response_lst = [p['text'] for p in submission_answer_parts if 'text' in p]
 
     if text_response_lst:
         text_response = "\n".join(text_response_lst)
@@ -84,10 +89,18 @@ def create_submissions(submission_uuid, student_item_dict, text_response_lst, fi
             })
             t_sub.save()
 
-    if file_names:
-        file_names = json.loads(file_names)
-        for idx, file_name in enumerate(file_names):
-            file_name_lst = file_name.split('.')
+    if file_keys:
+        for idx, key in enumerate(file_keys):
+            try:
+                file_name = file_names[idx].strip() if idx < len(file_names) else ''
+                if file_name:
+                    file_name_lst = file_name.split('.')
+                else:
+                    file_name_lst = []
+            except AttributeError:
+                file_name = ''
+                file_name_lst = []
+
             if file_name_lst:
                 ext = file_name_lst[-1]
                 if api.is_ext_supported(ext):
@@ -102,6 +115,7 @@ def create_submissions(submission_uuid, student_item_dict, text_response_lst, fi
                     )
                     t_sub.set_data({
                         'file_num': idx,
+                        'file_key': key
                     })
                     t_sub.save()
 

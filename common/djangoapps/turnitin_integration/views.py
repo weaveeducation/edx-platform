@@ -67,7 +67,6 @@ def turnitin_report(request, ora_submission_id, submission_id):
     turnitin_api = TurnitinApi(api_key)
     status_code, viewer_url = turnitin_api.create_viewer_launch_url(turnitin_submission.turnitin_submission_id,
                                                                     turnitin_user)
-
     if viewer_url:
         return redirect(viewer_url)
     else:
