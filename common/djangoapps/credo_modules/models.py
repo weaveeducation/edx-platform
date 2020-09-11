@@ -252,7 +252,7 @@ def deadlock_db_retry(func):
 
 class CourseUsage(models.Model):
     """
-    Deprecated model
+    Deprecated model. Please don't use it for insert new data
     """
     MODULE_TYPES = (('problem', 'problem'),
                     ('video', 'video'),
@@ -274,6 +274,9 @@ class CourseUsage(models.Model):
 
     class Meta:
         unique_together = (('user', 'course_id', 'block_id'),)
+
+
+class CourseUsageHelper(object):
 
     @classmethod
     def check_new_session(cls, request):
@@ -298,37 +301,6 @@ class CourseUsage(models.Model):
         request.session.modified = True
 
     @classmethod
-    @deadlock_db_retry
-    def _update_block_usage(cls, course_key, user_id, block_type, block_id):
-        CourseUsage.objects.get(
-            course_id=course_key,
-            user_id=user_id,
-            block_type=block_type,
-            block_id=block_id
-        )
-        with transaction.atomic():
-            CourseUsage.objects.filter(course_id=course_key, user_id=user_id,
-                                       block_id=block_id, block_type=block_type) \
-                    .update(last_usage_time=usage_dt_now(), usage_count=F('usage_count') + 1)
-
-    @classmethod
-    @deadlock_db_retry
-    def _add_block_usage(cls, course_key, user_id, block_type, block_id):
-        datetime_now = usage_dt_now()
-        with transaction.atomic():
-            cu = CourseUsage(
-                course_id=course_key,
-                user_id=user_id,
-                usage_count=1,
-                block_type=block_type,
-                block_id=block_id,
-                first_usage_time=datetime_now,
-                last_usage_time=datetime_now
-            )
-            cu.save()
-            return
-
-    @classmethod
     def update_block_usage(cls, request, course_key, block_id, student_properties=None):
         if not cls.is_viewed(request, block_id) and hasattr(request, 'user') and request.user.is_authenticated:
             if not isinstance(course_key, CourseKey):
@@ -338,19 +310,8 @@ class CourseUsage(models.Model):
             block_type = block_id.block_type
             block_id = str(block_id)
 
-            try:
-                cls._update_block_usage(course_key, request.user.id, block_type, block_id)
-                CourseUsageLogEntry.add_new_log(request.user.id, str(course_key), str(block_id), str(block_type),
-                                                student_properties)
-            except CourseUsage.DoesNotExist:
-                try:
-                    cls._add_block_usage(course_key, request.user.id, block_type, block_id)
-                    CourseUsageLogEntry.add_new_log(request.user.id, str(course_key), str(block_id), str(block_type),
-                                                    student_properties)
-                except IntegrityError:
-                    #cls._update_block_usage(course_key, request.user.id,
-                    #                        block_type, block_id, unique_user_id)
-                    pass
+            CourseUsageLogEntry.add_new_log(request.user.id, str(course_key), str(block_id), str(block_type),
+                                            student_properties)
             cls.mark_viewed(request, block_id)
 
 
@@ -890,6 +851,27 @@ class TrackingLogUserInfo(models.Model):
 class TrackingLogFile(models.Model):
     log_filename = models.CharField(max_length=255, null=False, db_index=True)
     status = models.CharField(max_length=255, null=False)
+
+
+class UsageLog(models.Model):
+    course_id = models.CharField(max_length=255, null=False)
+    org_id = models.CharField(max_length=80, null=False)
+    course = models.CharField(max_length=255, null=False)
+    run = models.CharField(max_length=80, null=False)
+    term = models.CharField(max_length=20, null=True, blank=True)
+    block_id = models.CharField(max_length=255, null=False, db_index=True)
+    block_type = models.CharField(max_length=80, null=False)
+    parent_path = models.CharField(max_length=6000, null=True, blank=True)
+    display_name = models.CharField(max_length=2048, null=True, blank=True)
+    user_id = models.IntegerField(db_index=True)
+    ts = models.IntegerField()
+    is_staff = models.SmallIntegerField(default=0)
+    course_user_id = models.CharField(max_length=255, null=True)
+    update_ts = models.IntegerField()
+    update_process_num = models.IntegerField(db_index=True, null=True)
+
+    class Meta(object):
+        index_together = (('org_id', 'ts'),)
 
 
 def usage_dt_now():

@@ -45,7 +45,7 @@ from util.date_utils import strftime_localized
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.x_module import STUDENT_VIEW
-from credo_modules.models import CourseUsage, get_student_properties
+from credo_modules.models import CourseUsageHelper, get_student_properties
 
 log = logging.getLogger(__name__)
 
@@ -661,7 +661,7 @@ def update_lms_course_usage(request, usage_key, course_key):
             student_properties = get_student_properties(request, course_key, item)
             if item.category == 'sequential':
                 add_vertical_usage(item, request, course_key, student_properties)
-        CourseUsage.update_block_usage(request, course_key, item.location, student_properties)
+        CourseUsageHelper.update_block_usage(request, course_key, item.location, student_properties)
         item = item.get_parent()
         block_type = item.category
         num_attempt = num_attempt + 1
@@ -673,7 +673,7 @@ def add_vertical_usage(item, request, course_key, student_properties=None):
         try:
             item_vertical = modulestore().get_item(UsageKey.from_string(activate_block_id))
             if item_vertical.category == 'vertical':
-                CourseUsage.update_block_usage(request, course_key, item_vertical.location, student_properties)
+                CourseUsageHelper.update_block_usage(request, course_key, item_vertical.location, student_properties)
                 return
         except ItemNotFoundError:
             pass
@@ -689,6 +689,6 @@ def add_vertical_usage(item, request, course_key, student_properties=None):
         real_position = (course_module.position - 1) if course_module.position else 0
         try:
             child = course_module.get_children()[real_position]
-            CourseUsage.update_block_usage(request, course_key, child.location, student_properties)
+            CourseUsageHelper.update_block_usage(request, course_key, child.location, student_properties)
         except IndexError:
             pass

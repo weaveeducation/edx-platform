@@ -1,9 +1,7 @@
 from credo.auth_helper import get_request_referer_from_other_domain, get_saved_referer, save_referer
-from credo_modules.models import CourseUsage, CourseUsageLogEntry, usage_dt_now, get_student_properties,\
+from credo_modules.models import CourseUsageHelper, CourseUsageLogEntry, get_student_properties,\
     update_unique_user_id_cookie, get_unique_user_id, get_inactive_orgs, UNIQUE_USER_ID_COOKIE
 from django.conf import settings
-from django.db import IntegrityError, transaction
-from django.db.models import F
 from django.http import HttpResponse
 from openedx.core.djangoapps.site_configuration.helpers import get_value
 from opaque_keys import InvalidKeyError
@@ -54,7 +52,7 @@ class CourseUsageMiddleware(object):
                     try:
                         child = item.get_children()[position]
                         student_properties = get_student_properties(request, course_key, child)
-                        CourseUsage.update_block_usage(request, course_key, child.location, student_properties)
+                        CourseUsageHelper.update_block_usage(request, course_key, child.location, student_properties)
                     except IndexError:
                         pass
 
@@ -113,41 +111,11 @@ class CourseUsageMiddleware(object):
                 response.set_cookie(UNIQUE_USER_ID_COOKIE, unique_user_id, path='/', domain=cookie_domain,
                                     secure=getattr(settings, 'SESSION_COOKIE_SECURE', False))
 
-            datetime_now = usage_dt_now()
-            if course_id and not CourseUsage.is_viewed(request, course_id):
+            if course_id and not CourseUsageHelper.is_viewed(request, course_id):
                 try:
                     course_key = CourseKey.from_string(course_id)
-                    CourseUsage.mark_viewed(request, course_id)
+                    CourseUsageHelper.mark_viewed(request, course_id)
                     student_properties = get_student_properties(request, course_key)
-
-                    try:
-                        CourseUsage.objects.get(
-                            course_id=course_key,
-                            user_id=request.user.id,
-                            block_type='course',
-                            block_id='course'
-                        )
-                        CourseUsage.objects.filter(course_id=course_key, user_id=request.user.id,
-                                                   block_type='course', block_id='course') \
-                            .update(last_usage_time=datetime_now, usage_count=F('usage_count') + 1)
-                    except CourseUsage.DoesNotExist:
-                        try:
-                            with transaction.atomic():
-                                cu = CourseUsage(
-                                    course_id=course_key,
-                                    user_id=request.user.id,
-                                    usage_count=1,
-                                    block_type='course',
-                                    block_id='course',
-                                    first_usage_time=datetime_now,
-                                    last_usage_time=datetime_now
-                                )
-                                cu.save()
-                        except IntegrityError:
-                            CourseUsage.objects.filter(course_id=course_key, user_id=request.user.id,
-                                                       block_type='course', block_id='course') \
-                                .update(last_usage_time=datetime_now, usage_count=F('usage_count') + 1)
-
                     CourseUsageLogEntry.add_new_log(request.user.id, str(course_key), 'course', 'course',
                                                     student_properties)
                 except InvalidKeyError:
