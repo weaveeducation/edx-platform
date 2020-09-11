@@ -42,6 +42,12 @@ def filter_properties(props_dict):
     return props_dict
 
 
+def get_timestamp_from_datetime(dt):
+    dt = dt.replace(tzinfo=pytz.utc)
+    dt2 = dt - datetime.datetime(1970, 1, 1).replace(tzinfo=pytz.utc)
+    return int(dt2.total_seconds())
+
+
 def get_prop_user_info(props_dict):
     email = None
     first_name = None
@@ -90,6 +96,39 @@ def prepare_text_for_column_db(txt, char_num=5000):
         char_num = char_num - 4
         txt = txt[:char_num] + '...'
     return txt
+
+
+def pull_value_from_student_properties(key, properties):
+    key_updated = key.strip().lower()
+    new_value = None
+    new_properties = properties.copy()
+
+    tmp_properties = {}
+    for k in new_properties:
+        tmp_properties[k.strip().lower()] = k
+    for tk, tv in tmp_properties.items():
+        if tk == key_updated:
+            new_value = new_properties[tv].replace('+', '-') \
+                    .replace("\n", "").replace("\t", "").replace("\r", "")
+            del new_properties[tv]
+    return new_value, new_properties
+
+
+def update_course_and_student_properties(course, student_properties):
+    overload_items = {
+        'course': {
+            'value': course,
+            'props': ['course', 'courses', 'course_title', 'course title',
+                      'course_name', 'course name', 'coursename', 'othercourse']
+        },
+    }
+    for k in overload_items:
+        for prop in overload_items[k]['props']:
+            new_value, new_properties = pull_value_from_student_properties(prop, student_properties)
+            if new_value:
+                overload_items[k]['value'], student_properties = new_value, new_properties
+
+    return overload_items['course']['value'], student_properties
 
 
 class EventCategory(object):
@@ -220,7 +259,7 @@ class EventParser(object):
         dtime = self.get_event_time(event)
         if dtime is None:
             return None
-        dtime_ts = self.get_timestamp_from_datetime(dtime)
+        dtime_ts = get_timestamp_from_datetime(dtime)
 
         course_id = self.get_course_id(event)
         user_id = self.user_info(event)
@@ -243,9 +282,9 @@ class EventParser(object):
         question_name = self.get_question_name(event, *args, **kwargs)
         question_text = self.get_question_text(event, *args, **kwargs)
         question_text_hash = self.get_question_text_hash(question_text)
-        student_properties = self.get_student_properites(event)
+        student_properties = self.get_student_properties(event)
         term = dtime.strftime("%B %Y")
-        course, student_properties = self._update_course_and_student_properties(course, student_properties)
+        course, student_properties = update_course_and_student_properties(course, student_properties)
         prop_user_email, prop_user_name = get_prop_user_info(student_properties)
 
         student_properties = filter_properties(student_properties)
@@ -316,21 +355,6 @@ class EventParser(object):
     def get_ora_user_answer(self, event):
         return None
 
-    def _update_course_and_student_properties(self, course, student_properties):
-        overload_items = {
-            'course': {'value': course, 'props': ['course', 'courses',
-                                                  'course_title', 'course title',
-                                                  'course_name', 'course name', 'coursename',
-                                                  'othercourse']},
-        }
-        for k in overload_items:
-            for prop in overload_items[k]['props']:
-                new_value, new_properties = self.pull_value_from_student_properties(prop, student_properties)
-                if new_value:
-                    overload_items[k]['value'], student_properties = new_value, new_properties
-
-        return overload_items['course']['value'], student_properties
-
     def convert_tags(self, saved_tags):
         tags_extended_lst = []
         for _, tag_val in saved_tags.items():
@@ -343,22 +367,7 @@ class EventParser(object):
                         tags_extended_lst.append(tag_new_val)
         return tags_extended_lst
 
-    def pull_value_from_student_properties(self, key, properties):
-        key_updated = key.strip().lower()
-        new_value = None
-        new_properties = properties.copy()
-
-        tmp_properties = {}
-        for k in new_properties:
-            tmp_properties[k.strip().lower()] = k
-        for tk, tv in tmp_properties.items():
-            if tk == key_updated:
-                new_value = new_properties[tv].replace('+', '-') \
-                    .replace("\n", "").replace("\t", "").replace("\r", "")
-                del new_properties[tv]
-        return new_value, new_properties
-
-    def get_student_properites(self, event):
+    def get_student_properties(self, event):
         result = {}
         tmp_result = {}
         tmp = event.get('context').get('asides', {}).get('student_properties_aside', {}) \
@@ -437,11 +446,6 @@ class EventParser(object):
             return course_id.strip()
         else:
             return course_id
-
-    def get_timestamp_from_datetime(self, dt):
-        dt = dt.replace(tzinfo=pytz.utc)
-        dt2 = dt - datetime.datetime(1970, 1, 1).replace(tzinfo=pytz.utc)
-        return int(dt2.total_seconds())
 
     def get_event_time(self, event):
         """Returns a datetime object from an event object, if present."""
@@ -1048,7 +1052,7 @@ class ViewedParser(EventParser):
     def is_block_view(self, event, *args, **kwargs):
         return True
 
-    def get_student_properites(self, event):
+    def get_student_properties(self, event):
         result = {}
         tmp_result = {}
         tmp = event.get('event').get('student_properties_aside', {}).get('student_properties', {})
