@@ -151,7 +151,7 @@ class CookiesSameSiteMiddleware(MiddlewareMixin):
 
         samesite_flag = getattr(
             settings,
-            'SESSION_COOKIE_SAMESITE',
+            'DCS_SESSION_COOKIE_SAMESITE',
             None
         )
 
@@ -163,7 +163,7 @@ class CookiesSameSiteMiddleware(MiddlewareMixin):
 
         samesite_force_all = getattr(
             settings,
-            'SESSION_COOKIE_SAMESITE_FORCE_ALL',
+            'DCS_SESSION_COOKIE_SAMESITE_FORCE_ALL',
             False
         )
         if samesite_force_all:

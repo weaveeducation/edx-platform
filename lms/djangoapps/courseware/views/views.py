@@ -2122,7 +2122,7 @@ def render_xblock_course(request, course_id, usage_key_string):
             'hash': '',
             'additional_url_params': additional_url_params,
             'time_exam': 1 if is_time_exam else 0,
-            'same_site': getattr(settings, 'SESSION_COOKIE_SAMESITE'),
+            'same_site': getattr(settings, 'DCS_SESSION_COOKIE_SAMESITE'),
             'show_bookmark_button': False
         }))
         return HttpResponse(template.render())

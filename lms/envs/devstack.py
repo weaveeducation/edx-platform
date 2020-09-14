@@ -373,7 +373,7 @@ ENTERPRISE_CUSTOMERS_EXCLUDED_FROM_CATALOG = ()
 #####################################################################
 
 # django-session-cookie middleware
-DCS_SESSION_COOKIE_SAMESITE = 'Lax'
+DCS_SESSION_COOKIE_SAMESITE = None
 DCS_SESSION_COOKIE_SAMESITE_FORCE_ALL = True
 
 #####################################################################
@@ -402,5 +402,4 @@ if os.path.isfile(join(dirname(abspath(__file__)), 'private.py')):
 
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
-SESSION_COOKIE_SAMESITE = None
 X_FRAME_OPTIONS = 'ALLOW'

@@ -997,5 +997,3 @@ if raven_dsn:
             event_level=logging.ERROR  # Send errors as events
         )]
     )
-
-SESSION_COOKIE_SAMESITE = ENV_TOKENS.get('SESSION_COOKIE_SAMESITE', SESSION_COOKIE_SAMESITE)

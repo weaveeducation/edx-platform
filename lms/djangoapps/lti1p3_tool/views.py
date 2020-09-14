@@ -183,7 +183,7 @@ def login(request):
             'hash': params_hash,
             'additional_url_params': request.META['QUERY_STRING'],
             'time_exam': 1 if is_time_exam else 0,
-            'same_site': getattr(settings, 'SESSION_COOKIE_SAMESITE'),
+            'same_site': getattr(settings, 'DCS_SESSION_COOKIE_SAMESITE'),
             'show_bookmark_button': False
         }))
         return HttpResponse(template.render())
