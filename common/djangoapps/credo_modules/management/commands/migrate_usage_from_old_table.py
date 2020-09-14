@@ -76,22 +76,28 @@ class Command(BaseCommand):
                 for usage_item in usage_items:
 
                     cnt = UsageLog.objects.filter(
-                        course_id=course_id,
                         block_id=usage_item.block_id,
-                        user_id=usage_item.user.id
+                        user_id=usage_item.user.id,
+                        course_id=course_id
                     ).count()
 
                     if cnt < usage_item.usage_count:
+                        cnt_diff = usage_item.usage_count - cnt
+
                         if usage_item.usage_count == 1:
                             self._copy_usage(usage_item, [usage_item.last_usage_time], data_to_insert)
                         else:
                             time_lst = [usage_item.first_usage_time]
                             dt_to_append = usage_item.first_usage_time
-                            if usage_item.last_usage_time < first_log_entry.time:
+                            cnt_diff = cnt_diff - 1
+
+                            if usage_item.last_usage_time < first_log_entry.time and cnt_diff > 0:
                                 time_lst.append(usage_item.last_usage_time)
                                 dt_to_append = usage_item.last_usage_time
-                            if usage_item.usage_count > 2:
-                                for x in range(usage_item.usage_count - 2):
+                                cnt_diff = cnt_diff - 1
+
+                            if cnt_diff > 0:
+                                for x in range(cnt_diff):
                                     time_lst.append(dt_to_append)
                             self._copy_usage(usage_item, time_lst, data_to_insert)
 
