@@ -40,20 +40,22 @@ class Migration(migrations.Migration):
                 'db_table': 'api_course_structure_lock',
             },
         ),
-        migrations.RunSQL(
-            "CREATE TABLE `api_course_structure_tags` (" +
-            "`id` int(11) NOT NULL AUTO_INCREMENT," +
-            "`course_id` varchar(255) NOT NULL," +
-            "`rubric` varchar(255) DEFAULT NULL," +
-            "`tag_name` varchar(255) NOT NULL," +
-            "`tag_value` varchar(255) NOT NULL," +
-            "`block_id` varchar(255) NOT NULL," +
-            "PRIMARY KEY (`id`)," +
-            "KEY `api_course_structure_block_id_f54c31ba_fk_api_cours` (`block_id`)," +
-            "KEY `api_course_structure_tags_course_id_474f4c0c` (`course_id`)," +
-            "KEY `api_course_structure_tags_tag_value_65d2ae95` (`tag_value`)," +
-            "CONSTRAINT `api_course_structure_block_id_f54c31ba_fk_api_cours` FOREIGN KEY (`block_id`) REFERENCES `api_course_structure` (`block_id`)" +
-            ") ENGINE=InnoDB DEFAULT CHARSET=utf8"
+        migrations.CreateModel(
+            name='ApiCourseStructureTags',
+            fields=[
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('course_id', models.CharField(db_index=True, max_length=255)),
+                ('rubric',
+                 models.CharField(help_text='Should be filled in only for ORA blocks', max_length=255, null=True)),
+                ('tag_name', models.CharField(max_length=255)),
+                ('tag_value', models.CharField(db_index=True, max_length=255)),
+                ('block',
+                 models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='block_structure.ApiCourseStructure',
+                                   to_field='block_id')),
+            ],
+            options={
+                'db_table': 'api_course_structure_tags',
+            },
         ),
         migrations.CreateModel(
             name='BlockToSequential',

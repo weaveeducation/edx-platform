@@ -855,7 +855,7 @@ class UsageLog(models.Model):
     term = models.CharField(max_length=20, null=True, blank=True)
     block_id = models.CharField(max_length=255, null=False, db_index=True)
     block_type = models.CharField(max_length=80, null=False)
-    parent_path = models.CharField(max_length=6000, null=True, blank=True)
+    section_path = models.CharField(max_length=6000, null=True, blank=True)
     display_name = models.CharField(max_length=2048, null=True, blank=True)
     user_id = models.IntegerField(db_index=True)
     ts = models.IntegerField()
