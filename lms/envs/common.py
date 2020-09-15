@@ -1484,12 +1484,11 @@ CREDIT_NOTIFICATION_CACHE_TIMEOUT = 5 * 60 * 60
 ################################# Middleware ###################################
 
 MIDDLEWARE = [
-    'credo_modules.middleware.CookiesSameSiteMiddleware',
     'openedx.core.lib.x_forwarded_for.middleware.XForwardedForMiddleware',
 
     # Avoid issue with https://blog.heroku.com/chrome-changes-samesite-cookie
     # Override was found here https://github.com/django/django/pull/11894
-    #'django_cookies_samesite.middleware.CookiesSameSite',
+    'django_cookies_samesite.middleware.CookiesSameSite',
 
     'crum.CurrentRequestUserMiddleware',
 
@@ -1596,10 +1595,6 @@ MIDDLEWARE = [
     # This must be last
     'openedx.core.djangoapps.site_configuration.middleware.SessionCookieDomainOverrideMiddleware',
 ]
-
-SESSION_COOKIE_SAMESITE_KEYS = {'edx-jwt-refresh-cookie', 'edx-jwt-cookie-signature', 'edx-jwt-cookie-header-payload',
-                                'credo-course-usage-id', 'edx-user-info', 'edxloggedin', 'experiments_is_enterprise',
-                                'openedx-language-preference', 'CREDO_HTTP_REFERER'}
 
 # Clickjacking protection can be disbaled by setting this to 'ALLOW'
 X_FRAME_OPTIONS = 'ALLOW'
