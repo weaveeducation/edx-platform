@@ -874,6 +874,23 @@ class UsageLog(models.Model):
         index_together = (('org_id', 'ts'),)
 
 
+class EnrollmentLog(models.Model):
+    course_id = models.CharField(max_length=255, null=False)
+    org_id = models.CharField(max_length=80, null=False)
+    course = models.CharField(max_length=255, null=False)
+    run = models.CharField(max_length=80, null=False)
+    term = models.CharField(max_length=20, null=True, blank=True)
+    user_id = models.IntegerField(db_index=True)
+    ts = models.IntegerField()
+    is_staff = models.SmallIntegerField(default=0)
+    course_user_id = models.CharField(max_length=255, null=True)
+    update_ts = models.IntegerField()
+    update_process_num = models.IntegerField(db_index=True, null=True)
+
+    class Meta(object):
+        index_together = (('org_id', 'ts'),)
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values

@@ -137,8 +137,7 @@ class PropertiesUpdater(object):
         self.update_prop_info(org, None, self._org_props[org])
         self._course_updated.append(course_id)
 
-    def update_props_for_course_and_user(self, course_id, user_id, org_props=None, course_props=None,
-                                         update_process_num=None):
+    def update_props_for_course_and_user(self, course_id, user_id, org_props=None, update_process_num=None):
 
         key = str(user_id) + '|' + course_id
         if key in self._users_updated:
@@ -152,12 +151,8 @@ class PropertiesUpdater(object):
         course_user_id = hashlib.md5(course_user_id_source.encode('utf-8')).hexdigest()
 
         if not org_props:
-            prop_obj1 = PropertiesInfo.objects.get(org=org, course_id=None)
-            org_props = json.loads(prop_obj1.data)
-
-        if not course_props:
-            prop_obj2 = PropertiesInfo.objects.get(org=org, course_id=course_id)
-            course_props = json.loads(prop_obj2.data)
+            prop_obj = PropertiesInfo.objects.get(org=org, course_id=None)
+            org_props = json.loads(prop_obj.data)
 
         props = get_student_properties_event_data(user, course_key, skip_user_profile=True)
         student_properties = props['student_properties']
@@ -194,9 +189,17 @@ class PropertiesUpdater(object):
 
         try:
             log_prop = TrackingLogProp.objects.get(course_user_id=course_user_id)
+            need_update = False
             for k, v in kwargs.items():
-                setattr(log_prop, k, v)
-            log_prop.save()
+                if k.startswith('prop'):
+                    old_value = getattr(log_prop, k, None)
+                    if old_value != v:
+                        setattr(log_prop, k, v)
+                        need_update = True
+            if need_update:
+                log_prop.update_process_num = update_process_num
+                log_prop.update_ts = int(time.time())
+                log_prop.save()
             return None
         except TrackingLogProp.DoesNotExist:
             log_prop = TrackingLogProp(**kwargs)

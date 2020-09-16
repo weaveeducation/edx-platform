@@ -15,6 +15,8 @@ from courseware.utils import CREDO_GRADED_ITEM_CATEGORIES
 
 class Command(BaseProcessLogsCommand):
 
+    update_props_process_num = None
+
     def handle(self, *args, **options):
         def filter_api_tag_helper(api_tag_item, api_tags_fields):
             block_id_idx = api_tags_fields.index('block_id')
@@ -32,9 +34,11 @@ class Command(BaseProcessLogsCommand):
             dt_from = datetime.datetime(year=2015, month=1, day=1, tzinfo=pytz.UTC)
 
         self.update_process_num = int(TrackingLogConfig.get_setting('update_process_num', 1))
+        self.update_props_process_num = int(TrackingLogConfig.get_setting('update_props_process_num', 1))
         last_update_time = int(TrackingLogConfig.get_setting('update_time', 0))
 
         print('Update process num: %d' % self.update_process_num)
+        print('Update props process num: %d' % self.update_props_process_num)
 
         b2s_cache = {}
         staff_cache = {
@@ -70,8 +74,7 @@ class Command(BaseProcessLogsCommand):
 
                 for log in logs:
                     log_prop = props_updater.update_props_for_course_and_user(
-                        log.course_id, log.user_id, org_props=None, course_props=None,
-                        update_process_num=self.update_process_num)
+                        log.course_id, log.user_id, org_props=None, update_process_num=self.update_props_process_num)
                     if log_prop:
                         props_to_insert.append(log_prop)
 
@@ -105,7 +108,7 @@ class Command(BaseProcessLogsCommand):
         vertica_dsn = TrackingLogConfig.get_setting('vertica_dsn')
 
         print('Try to update "credo_modules_trackinglogprop" in Vertica')
-        merge_data_into_vertica_table(TrackingLogProp, update_process_num=self.update_process_num,
+        merge_data_into_vertica_table(TrackingLogProp, update_process_num=self.update_props_process_num,
                                       vertica_dsn=vertica_dsn)
 
         print('Try to update "credo_modules_trackinglog" in Vertica')
@@ -132,6 +135,9 @@ class Command(BaseProcessLogsCommand):
             TrackingLogConfig.update_setting('last_log_time', new_last_log_time.strftime('%Y-%m-%d %H:%M:%S.%f'))
 
         new_update_process_num = self.update_process_num + 1
+        new_update_props_process_num = self.update_props_process_num + 1
         print("Set new 'update_process_num'/'update_time' conf values: %d" % new_update_process_num)
+        print("Set new 'update_props_process_num' conf values: %d" % new_update_props_process_num)
         TrackingLogConfig.update_setting('update_process_num', new_update_process_num)
+        TrackingLogConfig.update_setting('update_props_process_num', new_update_props_process_num)
         TrackingLogConfig.update_setting('update_time', current_update_time)

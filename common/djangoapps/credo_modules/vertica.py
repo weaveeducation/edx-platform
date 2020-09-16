@@ -12,7 +12,8 @@ def get_vertica_dsn():
 
 
 def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list=None,
-                                  course_ids_lst=None, vertica_dsn=None, filter_fn=None):
+                                  course_ids_lst=None, vertica_dsn=None, filter_fn=None,
+                                  skip_delete_step=False):
     table_name = model_class._meta.db_table
 
     print('Get data from DB to save into CSV')
@@ -98,13 +99,14 @@ def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list
             os.remove(tf.name)
             raise
 
-        print('Vertica DELETE operation')
-        sql2 = "DELETE FROM %s WHERE id in (SELECT id FROM %s)" % (table_name, table_name_copy_from)
-        print(sql2)
-        t1 = time.time()
-        cursor.execute(sql2)
-        t2 = time.time()
-        print('Vertica DELETE done: %s sec' % str(t2 - t1))
+        if not skip_delete_step:
+            print('Vertica DELETE operation')
+            sql2 = "DELETE FROM %s WHERE id in (SELECT id FROM %s)" % (table_name, table_name_copy_from)
+            print(sql2)
+            t1 = time.time()
+            cursor.execute(sql2)
+            t2 = time.time()
+            print('Vertica DELETE done: %s sec' % str(t2 - t1))
 
         print('Vertica INSERT operation')
         sql3 = "INSERT INTO %s SELECT * FROM %s" % (table_name, table_name_copy_from)

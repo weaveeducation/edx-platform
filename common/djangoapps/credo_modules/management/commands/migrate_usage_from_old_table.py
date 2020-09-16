@@ -23,9 +23,11 @@ class Command(BaseCommand):
         for tp in types:
             tmp_result.update(student_properties.get(tp, {}))
         for prop_key, prop_value in tmp_result.items():
-            if len(prop_value) > 255:
-                prop_value = prop_value[0:255]
-            result[prop_key.lower()] = prop_value
+            prop_value = prop_value.strip()
+            if prop_value:
+                if len(prop_value) > 255:
+                    prop_value = prop_value[0:255]
+                result[prop_key.lower()] = prop_value
         return result
 
     def _update_staff_cache(self, course_id):
