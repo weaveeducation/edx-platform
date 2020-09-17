@@ -143,7 +143,11 @@ class PropertiesUpdater(object):
         if key in self._users_updated:
             return None
 
-        user = User.objects.get(id=user_id)
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return None
+
         course_key = CourseKey.from_string(course_id)
         org = course_key.org
 
