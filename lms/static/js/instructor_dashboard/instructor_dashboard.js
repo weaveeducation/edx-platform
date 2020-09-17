@@ -123,7 +123,6 @@ such that the value can be defined later than this assignment (file load order).
                     if (sec) {
                         return $section.data('wrapper').onClickTitle();
                     }
-                    return $section.data('wrapper').onClickTitle();
                 });
                 if (!$section.is($activeSection)) {
                     if ($activeSection != null) {
