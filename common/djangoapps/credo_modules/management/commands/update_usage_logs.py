@@ -13,8 +13,6 @@ from opaque_keys.edx.keys import CourseKey
 
 class Command(BaseProcessUsageLogsCommand):
 
-    update_props_process_num = None
-
     def handle(self, *args, **options):
         current_update_time = int(time.time())
         dt_from = TrackingLogConfig.get_setting('last_usage_log_time')
@@ -73,7 +71,7 @@ class Command(BaseProcessUsageLogsCommand):
                 print('Process %d logs' % logs_count)
 
                 for log in logs:
-                    db_res = self._process_log(log)
+                    db_res = self._process_log(log, check_existence=True, update_process_num=self.update_process_num)
                     if db_res:
                         data_to_insert.append(db_res)
                     new_last_log_time = log.time

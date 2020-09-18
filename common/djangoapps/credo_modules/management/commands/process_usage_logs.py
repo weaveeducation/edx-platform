@@ -18,6 +18,7 @@ from opaque_keys.edx.keys import CourseKey
 class Command(BaseCommand):
     _staff_cache = None
     _course_structure_cache = None
+    update_process_num = None
 
     def _update_staff_cache(self, course_id):
         self._staff_cache[course_id] = []
@@ -40,7 +41,7 @@ class Command(BaseCommand):
                 result[prop_key.lower()] = prop_value
         return result
 
-    def _process_log(self, log):
+    def _process_log(self, log, check_existence=False, update_process_num=None):
         course_id_part = log.course_id.split(':')[1]
         org_id, course, run = course_id_part.split('+')
         json_data = json.loads(log.message)
@@ -72,6 +73,17 @@ class Command(BaseCommand):
             ts = get_timestamp_from_datetime(log.time)
             course_user_id_source = log.course_id + '|' + str(log.user_id)
             course_user_id = hashlib.md5(course_user_id_source.encode('utf-8')).hexdigest()
+            if check_existence:
+                try:
+                    usage_log = UsageLog.objects.get(
+                        user_id=log.user_id, ts=ts,course_id=log.course_id, block_id=log.block_id)
+                    if update_process_num and usage_log.update_process_num != update_process_num:
+                        usage_log.update_process_num = update_process_num
+                        usage_log.save()
+                    return None
+                except UsageLog.DoesNotExist:
+                    pass
+
             usage_log = UsageLog(
                 course_id=log.course_id,
                 org_id=org_id,
