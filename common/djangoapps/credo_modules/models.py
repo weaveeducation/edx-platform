@@ -275,9 +275,6 @@ class CourseUsage(models.Model):
     class Meta:
         unique_together = (('user', 'course_id', 'block_id'),)
 
-
-class CourseUsageHelper(object):
-
     @classmethod
     def check_new_session(cls, request):
         browser_unique_user_id = get_unique_user_id(request)
@@ -301,6 +298,37 @@ class CourseUsageHelper(object):
         request.session.modified = True
 
     @classmethod
+    @deadlock_db_retry
+    def _update_block_usage(cls, course_key, user_id, block_type, block_id):
+        CourseUsage.objects.get(
+            course_id=course_key,
+            user_id=user_id,
+            block_type=block_type,
+            block_id=block_id
+        )
+        with transaction.atomic():
+            CourseUsage.objects.filter(course_id=course_key, user_id=user_id,
+                                       block_id=block_id, block_type=block_type) \
+                    .update(last_usage_time=usage_dt_now(), usage_count=F('usage_count') + 1)
+
+    @classmethod
+    @deadlock_db_retry
+    def _add_block_usage(cls, course_key, user_id, block_type, block_id):
+        datetime_now = usage_dt_now()
+        with transaction.atomic():
+            cu = CourseUsage(
+                course_id=course_key,
+                user_id=user_id,
+                usage_count=1,
+                block_type=block_type,
+                block_id=block_id,
+                first_usage_time=datetime_now,
+                last_usage_time=datetime_now
+            )
+            cu.save()
+            return
+
+    @classmethod
     def update_block_usage(cls, request, course_key, block_id, student_properties=None):
         if not cls.is_viewed(request, block_id) and hasattr(request, 'user') and request.user.is_authenticated:
             if not isinstance(course_key, CourseKey):
@@ -310,8 +338,19 @@ class CourseUsageHelper(object):
             block_type = block_id.block_type
             block_id = str(block_id)
 
-            CourseUsageLogEntry.add_new_log(request.user.id, str(course_key), str(block_id), str(block_type),
-                                            student_properties)
+            try:
+                cls._update_block_usage(course_key, request.user.id, block_type, block_id)
+                CourseUsageLogEntry.add_new_log(request.user.id, str(course_key), str(block_id), str(block_type),
+                                                student_properties)
+            except CourseUsage.DoesNotExist:
+                try:
+                    cls._add_block_usage(course_key, request.user.id, block_type, block_id)
+                    CourseUsageLogEntry.add_new_log(request.user.id, str(course_key), str(block_id), str(block_type),
+                                                    student_properties)
+                except IntegrityError:
+                    # cls._update_block_usage(course_key, request.user.id,
+                    #                        block_type, block_id, unique_user_id)
+                    pass
             cls.mark_viewed(request, block_id)
 
 
