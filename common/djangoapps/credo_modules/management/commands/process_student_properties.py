@@ -16,8 +16,7 @@ class Command(BaseCommand):
         data_to_insert = []
 
         for enrollment in enrollments:
-            log_prop = self._props_updater.update_props_for_course_and_user(course_id, enrollment.user.id,
-                                                                            org_props, course_props)
+            log_prop = self._props_updater.update_props_for_course_and_user(course_id, enrollment.user.id, org_props)
             if log_prop:
                 data_to_insert.append(log_prop)
 

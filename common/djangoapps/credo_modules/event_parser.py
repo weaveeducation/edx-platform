@@ -376,9 +376,11 @@ class EventParser(object):
         for tp in types:
             tmp_result.update(tmp.get(tp, {}))
         for prop_key, prop_value in tmp_result.items():
-            if len(prop_value) > 255:
-                prop_value = prop_value[0:255]
-            result[prop_key.lower()] = prop_value
+            prop_value = prop_value.strip()
+            if prop_value:
+                if len(prop_value) > 255:
+                    prop_value = prop_value[0:255]
+                result[prop_key.lower()] = prop_value
         return result
 
     def get_saved_tags(self, event, **kwargs):
@@ -1060,7 +1062,11 @@ class ViewedParser(EventParser):
         for tp in types:
             tmp_result.update(tmp.get(tp, {}))
         for prop_key, prop_value in tmp_result.items():
-            result[prop_key.lower()] = prop_value
+            prop_value = prop_value.strip()
+            if prop_value:
+                if len(prop_value) > 255:
+                    prop_value = prop_value[0:255]
+                result[prop_key.lower()] = prop_value
         return result
 
 
