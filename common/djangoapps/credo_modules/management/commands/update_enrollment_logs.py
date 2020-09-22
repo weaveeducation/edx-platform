@@ -133,12 +133,12 @@ class Command(BaseProcessEnrollmentsLogsCommand):
         vertica_dsn = TrackingLogConfig.get_setting('vertica_dsn')
 
         print('Try to update "credo_modules_trackinglogprop" in Vertica')
-#        merge_data_into_vertica_table(TrackingLogProp, update_process_num=self.update_props_process_num,
-#                                      vertica_dsn=vertica_dsn)
+        merge_data_into_vertica_table(TrackingLogProp, update_process_num=self.update_props_process_num,
+                                      vertica_dsn=vertica_dsn)
 
         print('Try to update "credo_modules_enrollmentlog" in Vertica')
-#        merge_data_into_vertica_table(EnrollmentLog, update_process_num=self.update_process_num,
-#                                      vertica_dsn=vertica_dsn)
+        merge_data_into_vertica_table(EnrollmentLog, update_process_num=self.update_process_num,
+                                      vertica_dsn=vertica_dsn)
 
         new_update_process_num = self.update_process_num + 1
         new_update_props_process_num = self.update_props_process_num + 1
