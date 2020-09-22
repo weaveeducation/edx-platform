@@ -36,6 +36,8 @@ class Command(BaseProcessUsageLogsCommand):
             'global': []
         }
 
+        vertica_dsn = TrackingLogConfig.get_setting('vertica_dsn')
+
         superusers = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True))
         for superuser in superusers:
             self._staff_cache['global'].append(superuser.id)
@@ -84,6 +86,11 @@ class Command(BaseProcessUsageLogsCommand):
                 if data_to_insert:
                     print('Try to insert %d new log items' % len(data_to_insert))
                     UsageLog.objects.bulk_create(data_to_insert, 1000)
+
+                    print('Try to update "credo_modules_usagelog" in Vertica')
+                    merge_data_into_vertica_table(UsageLog, update_process_num=self.update_process_num,
+                                                  vertica_dsn=vertica_dsn, skip_delete_step=True)
+                    self.update_process_num = self.update_process_num + 1
                 else:
                     print('Nothing to insert (log items)')
 
@@ -92,15 +99,9 @@ class Command(BaseProcessUsageLogsCommand):
                 print('New logs are absent')
                 process = False
 
-        vertica_dsn = TrackingLogConfig.get_setting('vertica_dsn')
-
         print('Try to update "credo_modules_trackinglogprop" in Vertica')
         merge_data_into_vertica_table(TrackingLogProp, update_process_num=self.update_props_process_num,
                                       vertica_dsn=vertica_dsn)
-
-        print('Try to update "credo_modules_usagelog" in Vertica')
-        merge_data_into_vertica_table(UsageLog, update_process_num=self.update_process_num,
-                                      vertica_dsn=vertica_dsn, skip_delete_step=True)
 
         if new_last_log_time:
             print("Set 'last_usage_log_time' conf value: %s" % new_last_log_time.strftime('%Y-%m-%d %H:%M:%S.%f'))
