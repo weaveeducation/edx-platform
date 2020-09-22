@@ -19,6 +19,7 @@ class Command(BaseCommand):
     _staff_cache = None
     _course_structure_cache = None
     update_process_num = None
+    _cache_logs = {}
 
     def _update_staff_cache(self, course_id):
         self._staff_cache[course_id] = []
@@ -51,6 +52,7 @@ class Command(BaseCommand):
         is_staff = False
         student_properties = self._get_student_properties(json_data.get('student_properties', {}))
         course, student_properties = update_course_and_student_properties(course, student_properties)
+        ts = get_timestamp_from_datetime(log.time)
 
         if log.course_id not in self._staff_cache:
             self._update_staff_cache(log.course_id)
@@ -70,36 +72,40 @@ class Command(BaseCommand):
                 section_path, display_name = self._course_structure_cache[log.block_id]
 
         if section_path or log.block_type == 'course':
-            ts = get_timestamp_from_datetime(log.time)
             course_user_id_source = log.course_id + '|' + str(log.user_id)
             course_user_id = hashlib.md5(course_user_id_source.encode('utf-8')).hexdigest()
             if check_existence:
-                usage_logs = UsageLog.objects.filter(
-                    user_id=log.user_id, ts=ts, course_id=log.course_id, block_id=log.block_id)
-                if len(usage_logs) > 0:
-                    for usage_log in usage_logs:
-                        if update_process_num and usage_log.update_process_num != update_process_num:
-                            usage_log.update_process_num = update_process_num
-                            usage_log.save()
-                    return None
+                if org_id not in self._cache_logs:
+                    print('Prepare usage cache for org %s' % org_id)
+                    self._cache_logs[org_id] = []
+                    usage_logs = UsageLog.objects.filter(org_id=org_id, ts_gte=ts).order_by('ts')
+                    for ex_log in usage_logs:
+                        cache_key = str(ex_log.user_id) + '_' + str(ex_log.ts) + '_' + str(ex_log.course_id) + str(ex_log.block_id)
+                        self._cache_logs[org_id].append(cache_key)
+                    UsageLog.objects.filter(org_id=org_id, ts_gte=ts).update(
+                        update_process_num=update_process_num,
+                        update_ts=int(time.time())
+                    )
 
-            usage_log = UsageLog(
-                course_id=log.course_id,
-                org_id=org_id,
-                course=course,
-                run=run,
-                term=term,
-                block_id=log.block_id,
-                block_type=log.block_type,
-                section_path=section_path,
-                display_name=display_name,
-                user_id=log.user_id,
-                ts=ts,
-                is_staff=1 if is_staff else 0,
-                course_user_id=course_user_id,
-                update_ts=int(time.time())
-            )
-            return usage_log
+            log_key = str(log.user_id) + '_' + str(ts) + '_' + str(log.course_id) + str(log.block_id)
+            if org_id not in self._cache_logs or log_key not in self._cache_logs[org_id]:
+                usage_log = UsageLog(
+                    course_id=log.course_id,
+                    org_id=org_id,
+                    course=course,
+                    run=run,
+                    term=term,
+                    block_id=log.block_id,
+                    block_type=log.block_type,
+                    section_path=section_path,
+                    display_name=display_name,
+                    user_id=log.user_id,
+                    ts=ts,
+                    is_staff=1 if is_staff else 0,
+                    course_user_id=course_user_id,
+                    update_ts=int(time.time())
+                )
+                return usage_log
         return None
 
     def handle(self, *args, **options):
