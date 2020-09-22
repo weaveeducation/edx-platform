@@ -19,6 +19,7 @@ class Command(BaseCommand):
     _staff_cache = None
     _course_structure_cache = None
     update_process_num = None
+    _cache_logs = []
 
     def _update_staff_cache(self, course_id):
         self._staff_cache[course_id] = []
@@ -41,7 +42,7 @@ class Command(BaseCommand):
                 result[prop_key.lower()] = prop_value
         return result
 
-    def _process_log(self, log, check_existence=False, update_process_num=None):
+    def _process_log(self, log, update_process_num=None, remove_ts=None):
         course_id_part = log.course_id.split(':')[1]
         org_id, course, run = course_id_part.split('+')
         json_data = json.loads(log.message)
@@ -51,6 +52,7 @@ class Command(BaseCommand):
         is_staff = False
         student_properties = self._get_student_properties(json_data.get('student_properties', {}))
         course, student_properties = update_course_and_student_properties(course, student_properties)
+        ts = get_timestamp_from_datetime(log.time)
 
         if log.course_id not in self._staff_cache:
             self._update_staff_cache(log.course_id)
@@ -70,18 +72,13 @@ class Command(BaseCommand):
                 section_path, display_name = self._course_structure_cache[log.block_id]
 
         if section_path or log.block_type == 'course':
-            ts = get_timestamp_from_datetime(log.time)
             course_user_id_source = log.course_id + '|' + str(log.user_id)
             course_user_id = hashlib.md5(course_user_id_source.encode('utf-8')).hexdigest()
-            if check_existence:
-                usage_logs = UsageLog.objects.filter(
-                    user_id=log.user_id, ts=ts, course_id=log.course_id, block_id=log.block_id)
-                if len(usage_logs) > 0:
-                    for usage_log in usage_logs:
-                        if update_process_num and usage_log.update_process_num != update_process_num:
-                            usage_log.update_process_num = update_process_num
-                            usage_log.save()
-                    return None
+            if remove_ts:
+                if org_id not in self._cache_logs:
+                    print('Remove usage data for org %s and ts > %d' % (org_id, remove_ts))
+                    UsageLog.objects.filter(org_id=org_id, ts__gt=remove_ts).delete()
+                    self._cache_logs.append(org_id)
 
             usage_log = UsageLog(
                 course_id=log.course_id,
@@ -97,7 +94,8 @@ class Command(BaseCommand):
                 ts=ts,
                 is_staff=1 if is_staff else 0,
                 course_user_id=course_user_id,
-                update_ts=int(time.time())
+                update_ts=int(time.time()),
+                update_process_num=update_process_num
             )
             return usage_log
         return None
@@ -143,7 +141,7 @@ class Command(BaseCommand):
                 dt_from = dt_from + datetime.timedelta(hours=4)
 
                 if last_log_time:
-                    TrackingLogConfig.update_setting('last_usage_log_time', last_log_time.strftime('%Y-%m-%d %H:%M:%S.%f'))
+                    TrackingLogConfig.update_setting('last_usage_log_time', last_log_time.isoformat().replace('T', ' '))
 
         TrackingLogConfig.update_setting('update_usage_process_num', '1')
         TrackingLogConfig.update_setting('update_usage_time', int(time.time()))

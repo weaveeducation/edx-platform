@@ -24,6 +24,10 @@ class Command(BaseProcessUsageLogsCommand):
         self.update_process_num = int(TrackingLogConfig.get_setting('update_usage_process_num', 1))
         self.update_props_process_num = int(TrackingLogConfig.get_setting('update_props_process_num', 1))
 
+        usage_remove_ts = TrackingLogConfig.get_setting('usage_remove_ts')
+        if usage_remove_ts:
+            usage_remove_ts = int(usage_remove_ts)
+
         print('Update process num: %d' % self.update_process_num)
         print('Update props process num: %d' % self.update_props_process_num)
 
@@ -71,7 +75,8 @@ class Command(BaseProcessUsageLogsCommand):
                 print('Process %d logs' % logs_count)
 
                 for log in logs:
-                    db_res = self._process_log(log, check_existence=True, update_process_num=self.update_process_num)
+                    db_res = self._process_log(log, update_process_num=self.update_process_num,
+                                               remove_ts=usage_remove_ts)
                     if db_res:
                         data_to_insert.append(db_res)
                     new_last_log_time = log.time
