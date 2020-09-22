@@ -144,7 +144,7 @@ class Command(BaseCommand):
                 dt_from = dt_from + datetime.timedelta(hours=4)
 
                 if last_log_time:
-                    TrackingLogConfig.update_setting('last_usage_log_time', last_log_time.isoformat().replace('T', ' '))
+                    TrackingLogConfig.update_setting('last_usage_log_time', last_log_time.strftime('%Y-%m-%d %H:%M:%S.%f'))
 
         TrackingLogConfig.update_setting('update_usage_process_num', '1')
         TrackingLogConfig.update_setting('update_usage_time', int(time.time()))

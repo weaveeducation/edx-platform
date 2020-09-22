@@ -9,7 +9,7 @@ from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.db import models, IntegrityError, OperationalError, transaction
 from django.db.models import F
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from opaque_keys.edx.django.models import CourseKeyField
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.exceptions import ValidationError
@@ -108,7 +108,15 @@ ENROLLMENT_PROPERTIES_MAP = {
 
 
 def check_and_save_enrollment_attributes(properties, user, course_id):
+    course_id_str = str(course_id)
     CredoStudentProperties.objects.filter(course_id=course_id, user=user).delete()
+    tr = EnrollmentTrigger(
+        user_id=user.id,
+        course_id=course_id_str,
+        event_type='update_props'
+    )
+    tr.save()
+
     for k, v in properties.items():
         prop_name = ENROLLMENT_PROPERTIES_MAP[k] if k in ENROLLMENT_PROPERTIES_MAP else k
         CredoStudentProperties(user=user, course_id=course_id, name=prop_name, value=v).save()
@@ -917,11 +925,19 @@ class EnrollmentLog(models.Model):
     ts = models.IntegerField()
     is_staff = models.SmallIntegerField(default=0)
     course_user_id = models.CharField(max_length=255, null=True)
-    update_ts = models.IntegerField()
+    update_ts = models.IntegerField(db_index=True)
     update_process_num = models.IntegerField(db_index=True, null=True)
 
     class Meta(object):
         index_together = (('org_id', 'ts'),)
+        unique_together = (('course_id', 'user_id'),)
+
+
+class EnrollmentTrigger(models.Model):
+    event_type = models.CharField(max_length=255, null=False)
+    course_id = models.CharField(max_length=255, null=False)
+    user_id = models.IntegerField(db_index=True)
+    time = models.DateTimeField(auto_now_add=True, db_index=True)
 
 
 def usage_dt_now():
@@ -1133,3 +1149,40 @@ def start_new_attempt_after_exam_started(sender, instance, created, **kwargs):
 
         transaction.on_commit(lambda: track_sequential_viewed_task.delay(course_key_str, usage_key_str,
                                                                          instance.user.id))
+
+
+@receiver(post_save, sender=CourseEnrollment)
+def enrollment_trigger_after_save_course_enrollment(sender, instance, created, **kwargs):
+    if created:
+        course_id = str(instance.course_id)
+        user_id = instance.user_id
+        tr = EnrollmentTrigger(
+            event_type='enrollment',
+            course_id=course_id,
+            user_id=user_id
+        )
+        tr.save()
+
+
+@receiver(post_save, sender=CourseAccessRole)
+def enrollment_trigger_after_save_course_access_role(sender, instance, created, **kwargs):
+    user_id = instance.user_id
+    course_id = str(instance.course_id)
+    tr = EnrollmentTrigger(
+        event_type='staff_added',
+        course_id=course_id,
+        user_id=user_id
+    )
+    tr.save()
+
+
+@receiver(post_delete, sender=CourseAccessRole)
+def enrollment_trigger_after_delete_course_access_role(sender, instance, **kwargs):
+    user = instance.user
+    course_id = str(instance.course_id)
+    tr = EnrollmentTrigger(
+        event_type='staff_removed',
+        course_id=course_id,
+        user_id=user.id
+    )
+    tr.save()
