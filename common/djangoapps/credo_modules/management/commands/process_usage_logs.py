@@ -78,6 +78,7 @@ class Command(BaseCommand):
                 if org_id not in self._cache_logs:
                     print('Remove usage data for org %s and ts > %d' % (org_id, remove_ts))
                     UsageLog.objects.filter(org_id=org_id, ts__gt=remove_ts).delete()
+                    self._cache_logs.append(org_id)
 
             usage_log = UsageLog(
                 course_id=log.course_id,
