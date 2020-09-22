@@ -74,15 +74,14 @@ class Command(BaseCommand):
             course_user_id_source = log.course_id + '|' + str(log.user_id)
             course_user_id = hashlib.md5(course_user_id_source.encode('utf-8')).hexdigest()
             if check_existence:
-                try:
-                    usage_log = UsageLog.objects.get(
-                        user_id=log.user_id, ts=ts,course_id=log.course_id, block_id=log.block_id)
-                    if update_process_num and usage_log.update_process_num != update_process_num:
-                        usage_log.update_process_num = update_process_num
-                        usage_log.save()
+                usage_logs = UsageLog.objects.filter(
+                    user_id=log.user_id, ts=ts, course_id=log.course_id, block_id=log.block_id)
+                if len(usage_logs) > 0:
+                    for usage_log in usage_logs:
+                        if update_process_num and usage_log.update_process_num != update_process_num:
+                            usage_log.update_process_num = update_process_num
+                            usage_log.save()
                     return None
-                except UsageLog.DoesNotExist:
-                    pass
 
             usage_log = UsageLog(
                 course_id=log.course_id,
