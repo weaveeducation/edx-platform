@@ -515,7 +515,7 @@ class CourseGradeReport(object):
         grades_header = ["Grade"]
         for assignment_info in six.itervalues(graded_assignments):
             if assignment_info['separate_subsection_avg_headers']:
-                for subsection_headers in assignment_info['subsection_headers'].itervalues():
+                for subsection_block_id, subsection_headers in assignment_info['subsection_headers'].items():
                     grades_header.append(subsection_headers)
                     grades_header.append('%s Timestamp (UTC)' % subsection_headers)
             grades_header.append(assignment_info['average_header'])
