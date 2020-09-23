@@ -89,7 +89,7 @@ class Command(BaseProcessUsageLogsCommand):
 
                     print('Try to update "credo_modules_usagelog" in Vertica')
                     merge_data_into_vertica_table(UsageLog, update_process_num=self.update_process_num,
-                                                  vertica_dsn=vertica_dsn, skip_delete_step=True)
+                                                  vertica_dsn=vertica_dsn, skip_delete_step=True, delimiter='$')
                     self.update_process_num = self.update_process_num + 1
                 else:
                     print('Nothing to insert (log items)')

@@ -249,7 +249,7 @@ def _update_course_structure(course_id, published_on):
                         block_id=block_id,
                         block_type=item.category,
                         course_id=course_id,
-                        display_name=item.display_name.strip(),
+                        display_name=item.display_name.strip().replace('|', ' ').replace('$', ' '),
                         graded=graded,
                         parent_id=str(item.parent),
                         section_path=_get_section_path(item, structure_dict)
@@ -258,10 +258,11 @@ def _update_course_structure(course_id, published_on):
                 else:
                     block_item = existing_structure_items_dict[block_id]
                     section_path = _get_section_path(item, structure_dict)
-                    if block_item.display_name != item.display_name.strip()\
+                    item_display_name = item.display_name.strip().replace('|', ' ').replace('$', ' ')
+                    if block_item.display_name != item_display_name\
                       or block_item.graded != item.graded\
                       or block_item.section_path != section_path:
-                        block_item.display_name = item.display_name.strip()
+                        block_item.display_name = item_display_name
                         block_item.graded = item.graded
                         block_item.section_path = section_path
                         block_item.save()
@@ -434,7 +435,7 @@ def _process_display_name(block):
     display_name = ''
     if block.display_name:
         display_name = block.display_name.strip() or ''
-    return display_name.replace('|', ' ')
+    return display_name.replace('|', ' ').replace('$', ' ')
 
 
 def _get_parent_sequential(block, structure_dict):
