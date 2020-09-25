@@ -13,8 +13,10 @@ def get_vertica_dsn():
 
 def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list=None,
                                   course_ids_lst=None, vertica_dsn=None, filter_fn=None,
-                                  skip_delete_step=False):
+                                  skip_delete_step=False, delimiter=None):
     table_name = model_class._meta.db_table
+    if not delimiter:
+        delimiter = '|'
 
     print('Get data from DB to save into CSV')
     if update_process_num:
@@ -57,7 +59,7 @@ def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list
         tf = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
         print('Save CSV into file: %s' % tf.name)
 
-        csvwriter = csv.writer(tf, delimiter='|')
+        csvwriter = csv.writer(tf, delimiter=delimiter)
         new_rows_num = 0
 
         for model_item in model_data:
@@ -90,8 +92,8 @@ def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list
         print('Vertica COPY operation')
         try:
             with open(tf.name, "rb") as fs:
-                sql1 = "COPY %s (%s) FROM STDIN DELIMITER '|' ABORT ON ERROR"\
-                       % (table_name_copy_from, insert_columns_sql)
+                sql1 = "COPY %s (%s) FROM STDIN DELIMITER '%s' ABORT ON ERROR"\
+                       % (table_name_copy_from, insert_columns_sql, delimiter)
                 print(sql1)
                 cursor.copy(sql1, fs, buffer_size=65536)
             os.remove(tf.name)
