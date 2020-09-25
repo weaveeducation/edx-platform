@@ -232,7 +232,7 @@ def _update_course_structure(course_id, published_on):
                 block_id=course_location,
                 block_type='course',
                 course_id=course_id,
-                display_name=course.display_name.strip(),
+                display_name=course.display_name.strip().replace('|', ' ').replace('$', ' '),
                 graded=0,
                 parent_id=None,
                 section_path=None
