@@ -86,13 +86,24 @@ class Command(BaseProcessUsageLogsCommand):
                 if data_to_insert:
                     print('Try to insert %d new log items' % len(data_to_insert))
                     UsageLog.objects.bulk_create(data_to_insert, 1000)
-
-                    print('Try to update "credo_modules_usagelog" in Vertica')
-                    merge_data_into_vertica_table(UsageLog, update_process_num=self.update_process_num,
-                                                  vertica_dsn=vertica_dsn, skip_delete_step=True, delimiter='$')
-                    self.update_process_num = self.update_process_num + 1
                 else:
                     print('Nothing to insert (log items)')
+
+                print('Try to update "credo_modules_usagelog" in Vertica')
+                merge_data_into_vertica_table(UsageLog, update_process_num=self.update_process_num,
+                                              vertica_dsn=vertica_dsn, skip_delete_step=True, delimiter='$')
+
+                if new_last_log_time:
+                    print("Set 'last_usage_log_time' conf value: %s" % new_last_log_time.strftime(
+                        '%Y-%m-%d %H:%M:%S.%f'))
+                    TrackingLogConfig.update_setting('last_usage_log_time',
+                                                     new_last_log_time.strftime('%Y-%m-%d %H:%M:%S.%f'))
+
+                self.update_process_num = self.update_process_num + 1
+                print("Set new 'update_usage_process_num'/'update_usage_time' conf values: %d / %d"
+                      % (self.update_process_num, current_update_time))
+                TrackingLogConfig.update_setting('update_usage_process_num', self.update_process_num)
+                TrackingLogConfig.update_setting('update_usage_time', current_update_time)
 
                 dt_from = dt_from + datetime.timedelta(hours=4)
             else:
@@ -103,14 +114,6 @@ class Command(BaseProcessUsageLogsCommand):
         merge_data_into_vertica_table(TrackingLogProp, update_process_num=self.update_props_process_num,
                                       vertica_dsn=vertica_dsn)
 
-        if new_last_log_time:
-            print("Set 'last_usage_log_time' conf value: %s" % new_last_log_time.strftime('%Y-%m-%d %H:%M:%S.%f'))
-            TrackingLogConfig.update_setting('last_usage_log_time', new_last_log_time.strftime('%Y-%m-%d %H:%M:%S.%f'))
-
-        new_update_process_num = self.update_process_num + 1
         new_update_props_process_num = self.update_props_process_num + 1
-        print("Set new 'update_usage_process_num'/'update_usage_time' conf values: %d" % new_update_process_num)
         print("Set new 'update_props_process_num' conf values: %d" % new_update_props_process_num)
-        TrackingLogConfig.update_setting('update_usage_process_num', new_update_process_num)
         TrackingLogConfig.update_setting('update_props_process_num', new_update_props_process_num)
-        TrackingLogConfig.update_setting('update_usage_time', current_update_time)
