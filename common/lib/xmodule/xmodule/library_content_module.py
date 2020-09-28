@@ -469,7 +469,8 @@ class LibraryContentDescriptor(LibraryContentFields, MakoModuleDescriptor, XmlDe
         user_perms = self.runtime.service(self, 'studio_user_permissions')
         if not self.tools:
             raise RuntimeError("Library tools unavailable, duplication will not be sane!")
-        self.tools.update_children(self, user_id, user_perms, version=self.source_library_version)
+        self.tools.update_children(self, user_id, user_perms, version=self.source_library_version,
+                                   check_permissions=False)
 
         self._copy_overrides(store, user_id, source_block, self)
 

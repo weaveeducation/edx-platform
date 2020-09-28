@@ -125,7 +125,7 @@ class LibraryToolsService(object):
         """
         return self.store.check_supports(block.location.course_key, 'copy_from_template')
 
-    def update_children(self, dest_block, user_id, user_perms=None, version=None):
+    def update_children(self, dest_block, user_id, user_perms=None, version=None, check_permissions=True):
         """
         This method is to be used when the library that a LibraryContentModule
         references has been updated. It will re-fetch all matching blocks from
@@ -144,6 +144,9 @@ class LibraryToolsService(object):
             dest_block.source_library_version = ""
             return
 
+        if check_permissions is None:
+            check_permissions = True
+
         source_blocks = []
         library_key = dest_block.source_library_key
         if version:
@@ -151,7 +154,7 @@ class LibraryToolsService(object):
         library = self._get_library(library_key)
         if library is None:
             raise ValueError("Requested library {0} not found.".format(library_key))
-        if user_perms and not user_perms.can_read(library_key):
+        if check_permissions and user_perms and not user_perms.can_read(library_key):
             raise PermissionDenied()
         filter_children = (dest_block.capa_type != ANY_CAPA_TYPE_VALUE)
         if filter_children:
