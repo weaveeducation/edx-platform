@@ -1799,6 +1799,9 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookma
                 }
 
         missed_deadlines, enrollment_mode = dates_banner_should_display(course_key, request)
+        http_referer = request.META.get('HTTP_REFERER', '')
+        if http_referer is None:
+            http_referer = ''
 
         context = {
             'fragment': block.render('student_view', context=student_view_context),
@@ -1818,7 +1821,7 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookma
             'web_app_course_url': reverse(COURSE_HOME_VIEW_NAME, args=[course.id]),
             'on_courseware_page': True,
             'verified_upgrade_link': verified_upgrade_deadline_link(request.user, course=course),
-            'is_learning_mfe': request.META.get('HTTP_REFERER', '').startswith(settings.LEARNING_MICROFRONTEND_URL),
+            'is_learning_mfe': http_referer.startswith(settings.LEARNING_MICROFRONTEND_URL),
         }
         return render_to_response('courseware/courseware-chromeless.html', context)
 
