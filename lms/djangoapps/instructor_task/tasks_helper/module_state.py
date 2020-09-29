@@ -513,6 +513,6 @@ def update_reset_progress(user, course_key, block=None, initiator=None):
             course_id=str(course_key), sequential_id=str(block.location), user_id=user.id).delete()
 
         if completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
-            BlockCompletion.objects.filter(user=user, course_key=course_key, block_key__in=items).delete()
+            BlockCompletion.objects.filter(user=user, context_key=course_key, block_key__in=items).delete()
     block_id_reset = str(block.location) if block else None
     StudentModule.log_reset_progress(user.id, str(course_key), initiator=initiator, block_id=block_id_reset)

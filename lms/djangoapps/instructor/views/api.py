@@ -2209,7 +2209,7 @@ def list_reset_progress_tasks(request, course_id):
     }
     if student_id is not None:
         tasks = task_api.get_running_instructor_tasks(course_id)
-        response_payload['tasks'] = map(extract_task_features, tasks)
+        response_payload['tasks'] = list(map(extract_task_features, tasks))
 
     return JsonResponse(response_payload)
 
