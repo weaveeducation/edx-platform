@@ -78,6 +78,11 @@ class _Check(object):
         return inner
 
 
+class AlwaysChangedForm(forms.ModelForm):
+    def has_changed(self):
+        return True
+
+
 class CourseAccessRoleForm(forms.ModelForm):
     """Form for adding new Course Access Roles view the Django Admin Panel."""
 
@@ -301,6 +306,7 @@ class CourseEnrollmentAdmin(admin.ModelAdmin):
 class UserProfileInline(admin.StackedInline):
     """ Inline admin interface for UserProfile model. """
     model = UserProfile
+    form = AlwaysChangedForm
     can_delete = False
     verbose_name_plural = _('User profile')
 
