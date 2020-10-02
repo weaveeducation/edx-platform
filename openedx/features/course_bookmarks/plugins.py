@@ -8,6 +8,7 @@ from django.utils.translation import ugettext as _
 
 from lms.djangoapps.courseware.permissions import EDIT_BOOKMARK
 from openedx.features.course_experience.course_tools import CourseTool
+from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous
 from student.models import CourseEnrollment
 
 
@@ -29,6 +30,8 @@ class CourseBookmarksTool(CourseTool):
         """
         if request.user.has_perm(EDIT_BOOKMARK, course_key):
             return True
+        if request.user.is_authenticated and is_user_credo_anonymous(request.user):
+            return False
         return CourseEnrollment.is_enrolled(request.user, course_key)
 
     @classmethod

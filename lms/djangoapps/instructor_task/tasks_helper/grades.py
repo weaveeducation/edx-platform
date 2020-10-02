@@ -432,7 +432,7 @@ class CourseGradeReport(object):
         # additional profile fields from credo modules
         course = context.course
         if course.credo_additional_profile_fields:
-            for k, v in StudentProfileField.init_from_course(course).iteritems():
+            for k, v in StudentProfileField.init_from_course(course).items():
                 self.additional_profile_fields.append(v.alias)
                 self.additional_profile_fields_title.append(v.title)
             self.users_with_additional_profile = CredoModulesUserProfile.users_with_additional_profile(

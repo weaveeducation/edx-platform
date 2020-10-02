@@ -250,6 +250,12 @@ def log_lti(action, user_id, message, course_id, is_error,
             assignment=None, grade=None, task_id=None, response_body=None, request_body=None,
             lis_outcome_service_url=None, lti_version='1.1', **kwargs):
     hostname = platform.node().split(".")[0]
+
+    if request_body and isinstance(request_body, bytes):
+        request_body = request_body.decode("utf-8")
+    if response_body and isinstance(response_body, bytes):
+        response_body = response_body.decode("utf-8")
+
     data = {
         'type': 'lti_task',
         'task_id': task_id,

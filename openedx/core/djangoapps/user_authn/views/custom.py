@@ -107,14 +107,14 @@ def validate_credo_access(request, redirect_to=None):
         try:
             jwt_data = jwt.decode(jwt_token, jwt_secret)
             if isinstance(jwt_data, dict) and 'client_id' in jwt_data and jwt_data['client_id']:
-                log.info(u'Successfully authentication with jwt token (%s): %s', str(jwt_token), str(jwt_data))
+                log.info('Successfully authentication with jwt token (%s): %s', str(jwt_token), str(jwt_data))
                 jwt_auth_success = True
                 auth_success = True
             else:
-                jwt_auth_error = u'Unsuccessfully authentication with jwt token (%s): %s' % (jwt_token, str(jwt_data))
+                jwt_auth_error = 'Unsuccessfully authentication with jwt token (%s): %s' % (jwt_token, str(jwt_data))
                 log.info(jwt_auth_error)
         except jwt.DecodeError:
-            jwt_auth_error = u'Unsuccessfully authentication with jwt token (%s): decode error' % jwt_token
+            jwt_auth_error = 'Unsuccessfully authentication with jwt token (%s): decode error' % jwt_token
             log.info(jwt_auth_error)
 
     if not jwt_auth_success:
@@ -122,20 +122,20 @@ def validate_credo_access(request, redirect_to=None):
 
         try:
             res, ip_param_passed_to_api = ip_helper.authenticate_by_ip_address(request)
-            log.info(u'Authenticate by ip address: %s', str(res))
+            log.info('Authenticate by ip address: %s', str(res))
             if res:
                 api_ip_response = res.copy()
 
             if not res or ('data' not in res) or ('data' in res and not res['data']):
                 res, referrer_param_passed_to_api, referrer_taken_from = ip_helper.authenticate_by_referrer(request)
-                log.info(u'Authenticate by referrer: %s', str(res))
+                log.info('Authenticate by referrer: %s', str(res))
                 if res:
                     api_referrer_response = res.copy()
 
             if res and 'data' in res and res['data']:
                 auth_success = True
         except ApiRequestError as e:
-            msg = u'Validate Credo Access: ApiRequestError raised (HTTP code: %s, Message: %s)' % (
+            msg = 'Validate Credo Access: ApiRequestError raised (HTTP code: %s, Message: %s)' % (
             e.http_code, e.http_msg)
             if not api_ip_response:
                 api_ip_response = msg
