@@ -2182,7 +2182,7 @@ def reset_student_attempts_for_entrance_exam(request, course_id):
 @transaction.non_atomic_requests
 @ensure_csrf_cookie
 @cache_control(no_cache=True, no_store=True, must_revalidate=True)
-@require_course_permission(permissions.CAN_RESEARCH)
+@require_course_permission(permissions.OVERRIDE_GRADES)
 @require_post_params(
     student_id="email or username of student for whom to get progress url"
 )
@@ -2200,7 +2200,7 @@ def reset_progress_student(request, course_id):
 @require_POST
 @ensure_csrf_cookie
 @cache_control(no_cache=True, no_store=True, must_revalidate=True)
-@require_course_permission(permissions.CAN_RESEARCH)
+@require_course_permission(permissions.OVERRIDE_GRADES)
 def list_reset_progress_tasks(request, course_id):
     course_id = CourseKey.from_string(course_id)
     student_id = request.POST.get('student_id', None)
