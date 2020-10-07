@@ -4,6 +4,8 @@ import json
 import re
 import pytz
 from collections import namedtuple
+from bs4 import BeautifulSoup
+from django.utils.html import strip_tags
 
 
 CorrectData = namedtuple('CorrectData', ['is_correct', 'earned_grade', 'max_grade', 'correctness'])
@@ -46,6 +48,41 @@ def get_timestamp_from_datetime(dt):
     dt = dt.replace(tzinfo=pytz.utc)
     dt2 = dt - datetime.datetime(1970, 1, 1).replace(tzinfo=pytz.utc)
     return int(dt2.total_seconds())
+
+
+def get_answer_from_text(answers_text):
+    answers_wo_tags = strip_tags(answers_text)
+    answers_wo_tags = answers_wo_tags.strip()
+    if answers_wo_tags:
+        return answers_wo_tags
+    elif '<img' in answers_text:
+        html_block = BeautifulSoup(answers_text)
+        images = html_block.findAll('img')
+        if len(images) > 0:
+            img_item = images[0]
+            img_title = ''
+            try:
+                img_attr_title = img_item['title']
+                img_title = img_attr_title.strip()
+            except KeyError:
+                pass
+            try:
+                img_attr_alt = img_item['alt']
+                img_title = img_attr_alt.strip()
+            except KeyError:
+                pass
+            try:
+                img_attr_src = img_item['src'].strip()
+            except KeyError:
+                return ''
+            if '?' in img_attr_src:
+                img_src = img_attr_src.split('?')[0].strip()
+            else:
+                img_src = img_attr_src.strip()
+            if img_title:
+                img_src = img_src + ' (' + img_title + ')'
+            return img_src
+    return ''
 
 
 def get_prop_user_info(props_dict):
@@ -192,7 +229,8 @@ class EventData(object):
         self.question_hash = None
         self.question_text_hash = question_text_hash
         if answers:
-            self.answers = prepare_text_for_column_db(answers)
+            answers_text = get_answer_from_text(answers)
+            self.answers = prepare_text_for_column_db(answers_text)
         else:
             self.answers = ""
         self.answers_hash = None
@@ -221,25 +259,6 @@ class EventData(object):
             v = self.__dict__[key]
             sb.append(key + '=' + v)
         return '<EventData ' + ', '.join(sb) + '>'
-
-    def get_properties_json_list(self):
-        if not self.student_properties:
-            return ''
-        lst = []
-        for prop_key, prop_value in self.student_properties.items():
-            lst.append(prop_key + ':' + prop_value)
-        return json.dumps(lst) if lst else ''
-
-    @property
-    def parsed_submit_info(self):
-        return json.loads(self.submit_info) if self.submit_info else None
-
-    @property
-    def ora_with_rubrics(self):
-        return not self.is_ora_empty_rubrics and self.ora_block
-
-    def get_earned_points(self):
-        return sum([ans['points'] for ans in self.answers])
 
 
 class EventParser(object):
