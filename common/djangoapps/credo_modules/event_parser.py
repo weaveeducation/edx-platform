@@ -128,7 +128,7 @@ def get_prop_user_info(props_dict):
 
 def prepare_text_for_column_db(txt, char_num=5000):
     txt = txt.strip().replace("\n", " ").replace("\t", " ").replace('"', '\'').replace("|", " ")
-    txt = txt.encode('utf-8').decode('ascii', errors='ignore').encode('ascii')
+    txt = txt.encode('utf-8').decode('ascii', errors='ignore')
     if len(txt) > char_num:
         char_num = char_num - 4
         txt = txt[:char_num] + '...'
