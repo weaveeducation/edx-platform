@@ -92,11 +92,8 @@ class Command(BaseProcessEnrollmentsLogsCommand):
                     ts = int(dt2.total_seconds())
                     course_user_id_source = course_id + '|' + str(user_id)
                     course_user_id = hashlib.md5(course_user_id_source.encode('utf-8')).hexdigest()
-                    try:
-                        enroll_log = EnrollmentLog.objects.filter(
-                            course_id=course_id, user_id=user_id
-                        ).first()
-                    except EnrollmentLog.DoesNotExist:
+                    enroll_log = EnrollmentLog.objects.filter(course_id=course_id, user_id=user_id).first()
+                    if not enroll_log:
                         enroll_log = EnrollmentLog(
                             course_id=course_id,
                             org_id=org_id,
