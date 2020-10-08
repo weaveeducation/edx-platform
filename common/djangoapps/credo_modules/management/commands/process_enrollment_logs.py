@@ -83,7 +83,7 @@ class Command(BaseCommand):
         }
 
         dt_from = datetime.datetime(year=2015, month=12, day=21, tzinfo=pytz.UTC)
-        last_usage_log = CourseEnrollment.objects.all().order_by('-created').first()
+        last_enroll_log = CourseEnrollment.objects.all().order_by('-created').first()
         update_time = int(time.time())
 
         superusers = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True))
@@ -106,10 +106,10 @@ class Command(BaseCommand):
                             data_to_insert.append(usage_log)
                     EnrollmentLog.objects.bulk_create(data_to_insert, 1000)
 
-                if dt_to > last_usage_log.created:
+                if dt_to > last_enroll_log.created:
                     process = False
                 dt_from = dt_from + datetime.timedelta(hours=4)
 
         TrackingLogConfig.update_setting('update_enrollment_process_num', '1')
         TrackingLogConfig.update_setting(
-            'update_enrollment_time', last_usage_log.created.strftime('%Y-%m-%d %H:%M:%S.%f'))
+            'update_enrollment_time', last_enroll_log.created.strftime('%Y-%m-%d %H:%M:%S.%f'))
