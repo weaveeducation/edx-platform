@@ -56,7 +56,7 @@ def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list
         print(sql0)
         cursor.execute(sql0)
 
-        tf = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
+        tf = tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.csv')
         print('Save CSV into file: %s' % tf.name)
 
         csvwriter = csv.writer(tf, delimiter=delimiter)
