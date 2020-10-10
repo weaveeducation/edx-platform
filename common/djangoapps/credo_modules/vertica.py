@@ -71,7 +71,8 @@ def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list
             row_to_insert = []
             for v in model_item:
                 if isinstance(v, str):
-                    row_to_insert.append(v.strip().replace("\n", " ").replace("\t", " ").encode("utf-8"))
+                    row_to_insert.append(v.strip().replace("\n", " ").replace("\t", " ")
+                                         .encode("utf-8").decode('ascii', errors='ignore'))
                 elif isinstance(v, bool):
                     row_to_insert.append('1' if v else '0')
                 elif v is None:
@@ -91,7 +92,7 @@ def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list
 
         print('Vertica COPY operation')
         try:
-            with open(tf.name, "rb") as fs:
+            with open(tf.name, "r") as fs:
                 sql1 = "COPY %s (%s) FROM STDIN DELIMITER '%s' ABORT ON ERROR"\
                        % (table_name_copy_from, insert_columns_sql, delimiter)
                 print(sql1)
