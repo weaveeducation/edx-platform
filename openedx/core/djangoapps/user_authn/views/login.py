@@ -445,7 +445,7 @@ def login_user(request):
         set_custom_metric('login_user_redirect_url', redirect_url)
         return response
     except AuthFailedError as error:
-        log.exception(error.get_response())
+        #log.exception(error.get_response())
         response = JsonResponse(error.get_response(), status=400)
         set_custom_metric('login_user_auth_failed_error', True)
         set_custom_metric('login_user_response_status', response.status_code)
