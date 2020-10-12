@@ -42,7 +42,7 @@ class Command(BaseCommand):
                 result[prop_key.lower()] = prop_value
         return result
 
-    def _process_log(self, log, update_process_num=None, remove_ts=None):
+    def _process_log(self, log, update_process_num=None):
         course_id_part = log.course_id.split(':')[1]
         org_id, course, run = course_id_part.split('+')
         json_data = json.loads(log.message)
@@ -74,12 +74,6 @@ class Command(BaseCommand):
         if section_path or log.block_type == 'course':
             course_user_id_source = log.course_id + '|' + str(log.user_id)
             course_user_id = hashlib.md5(course_user_id_source.encode('utf-8')).hexdigest()
-            if remove_ts:
-                if org_id not in self._cache_logs:
-                    print('Remove usage data for org %s and ts > %d' % (org_id, remove_ts))
-                    UsageLog.objects.filter(org_id=org_id, ts__gt=remove_ts).delete()
-                    self._cache_logs.append(org_id)
-
             usage_log = UsageLog(
                 course_id=log.course_id,
                 org_id=org_id,
