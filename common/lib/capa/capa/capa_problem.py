@@ -554,7 +554,10 @@ class LoncapaProblem(object):
         if answer_text:
             return answer_id[0]
         if xml_element.tag == 'optioninput':
-            return xml_element.xpath('@correct')[0]
+            try:
+                return xml_element.xpath('@correct')[0]
+            except IndexError:
+                return
         return ', '.join(xml_element.xpath('*[@correct="true"]/text()'))
 
     def find_question_label(self, answer_id):
