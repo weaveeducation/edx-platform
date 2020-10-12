@@ -944,7 +944,7 @@ class EnrollmentTrigger(models.Model):
 class EdxApiToken(models.Model):
     title = models.CharField(max_length=255, unique=True)
     is_active = models.BooleanField(default=False)
-    header_value = models.CharField(max_length=32, unique=True, default=short_token)
+    header_value = models.CharField(max_length=255, unique=True, default=short_token)
 
 
 def usage_dt_now():
