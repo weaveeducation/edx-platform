@@ -146,7 +146,7 @@ def pull_value_from_student_properties(key, properties):
     for tk, tv in tmp_properties.items():
         if tk == key_updated:
             new_value = new_properties[tv].replace('+', '-') \
-                    .replace("\n", "").replace("\t", "").replace("\r", "")
+                    .replace("\n", "").replace("\t", "").replace("\r", "").replace("|", " ")
             del new_properties[tv]
     return new_value, new_properties
 
@@ -675,7 +675,7 @@ class ProblemParser(EventParser):
                     submission['answer']]
                 processed_answers = []
                 for item in answers_text:
-                    item_upd = item.replace("\n", "").replace("\t", "").replace("\r", "")
+                    item_upd = item.replace("\n", "").replace("\t", "").replace("\r", "").replace("|", " ")
                     item_upd = re.sub(r'<choicehint\s*(selected=\"true\")*>.*?</choicehint>', '', item_upd)
                     item_upd = re.sub(r'<choicehint\s*(selected=\"false\")*>.*?</choicehint>', '', item_upd)
                     item_upd = item_upd.strip()
@@ -796,7 +796,7 @@ class OraParser(EventParser):
 
         if prompts_list:
             question_text = u". ".join(prompts_list)
-        return question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
+        return question_text.replace("\n", " ").replace("\t", " ").replace("\r", "").replace("|", " ")
 
     def get_display_name(self, event, *args, **kwargs):
         return event.get('context').get('module', {}).get('display_name', '')
@@ -875,7 +875,7 @@ class OraWithoutCriteriaParser(EventParser):
 
         if prompts_list:
             question_text = u". ".join(prompts_list)
-        return question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
+        return question_text.replace("\n", " ").replace("\t", " ").replace("\r", "").replace("|", " ")
 
     def get_display_name(self, event, *args, **kwargs):
         return event.get('context').get('module', {}).get('display_name', '')
@@ -1048,7 +1048,7 @@ class ViewedParser(EventParser):
         return 'No answer'
 
     def get_question_text(self, event, *args, **kwargs):
-        return event.get('event').get('question_text', '').replace("\n", " ").replace("\t", " ").replace("\r", "")
+        return event.get('event').get('question_text', '').replace("\n", " ").replace("\t", " ").replace("\r", "").replace("|", " ")
 
     def get_display_name(self, event, *args, **kwargs):
         return event.get('event').get('display_name', '')
