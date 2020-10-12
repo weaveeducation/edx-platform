@@ -720,6 +720,7 @@ def _section_extensions(course):
             'show_student_extensions',
             kwargs={'course_id': six.text_type(course.id)}
         ),
+        'current_platform_name': configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
     }
     return section_data
 
