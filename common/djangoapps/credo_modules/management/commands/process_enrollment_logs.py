@@ -78,6 +78,7 @@ class Command(BaseCommand):
             return enrollment_log
 
     def handle(self, *args, **options):
+        current_update_time = int(time.time())
         self._staff_cache = {
             'global': []
         }
@@ -112,4 +113,5 @@ class Command(BaseCommand):
 
         TrackingLogConfig.update_setting('update_enrollment_process_num', '1')
         TrackingLogConfig.update_setting(
-            'update_enrollment_time', last_enroll_log.created.strftime('%Y-%m-%d %H:%M:%S.%f'))
+            'last_enrollment_log_time', last_enroll_log.created.strftime('%Y-%m-%d %H:%M:%S.%f'))
+        TrackingLogConfig.update_setting('update_enrollment_time', current_update_time)

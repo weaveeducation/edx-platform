@@ -17,7 +17,8 @@ from .process_enrollment_logs import Command as BaseProcessEnrollmentsLogsComman
 class Command(BaseProcessEnrollmentsLogsCommand):
 
     def handle(self, *args, **options):
-        dt_from = TrackingLogConfig.get_setting('update_enrollment_time')
+        current_update_time = int(time.time())
+        dt_from = TrackingLogConfig.get_setting('last_enrollment_log_time')
         if dt_from:
             dt_from = datetime.datetime.strptime(dt_from, '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=pytz.utc)
         else:
@@ -139,9 +140,12 @@ class Command(BaseProcessEnrollmentsLogsCommand):
 
         new_update_process_num = self.update_process_num + 1
         new_update_props_process_num = self.update_props_process_num + 1
-        print("Set new 'update_enrollment_process_num'/'update_enrollment_time' conf values: %d" % new_update_process_num)
+        print("Set new 'update_enrollment_process_num' conf values: %d" % new_update_process_num)
         print("Set new 'update_props_process_num' conf values: %d" % new_update_props_process_num)
         TrackingLogConfig.update_setting('update_enrollment_process_num', new_update_process_num)
         TrackingLogConfig.update_setting('update_props_process_num', new_update_props_process_num)
         if last_update_ts:
-            TrackingLogConfig.update_setting('update_enrollment_time', last_update_ts)
+            print("Set new 'last_enrollment_log_time' conf values: %s" % str(last_update_ts))
+            TrackingLogConfig.update_setting('last_enrollment_log_time', last_update_ts)
+        print("Set new 'update_enrollment_time' conf values: %d" % current_update_time)
+        TrackingLogConfig.update_setting('update_enrollment_time', current_update_time)
