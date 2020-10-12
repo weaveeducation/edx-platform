@@ -517,7 +517,7 @@ class CourseExportCCManager(ExportManager):
             export_fs = OSFS(self.root_dir)
             xmlns_link = "http://www.imsglobal.org/xsd/imsccv1p3/imscp_v1p1"
             format_num = "I_{:0>6}"
-            with export_fs.open(u'imsmanifest.xml', 'w') as course_xml:
+            with export_fs.open('imsmanifest.xml', 'w') as course_xml:
                 minifest_doc = self.__imsmanifest_entry().format(title=self.courselike_key.course,
                                                                  xmlns_link=xmlns_link)
                 tree = lxml.etree.ElementTree(element=None, file=StringIO(minifest_doc))
@@ -545,8 +545,9 @@ class CourseExportCCManager(ExportManager):
                         filename = filename_fmt.format(i)
 
                         chapter_root.append(lxml.etree.fromstring(
-                            self._items_entry().format(counter=format_num.format(i),
-                                                       title=display_name.encode('utf-8')),
+                            self._items_entry().format(
+                                counter=format_num.format(i),
+                                title=display_name.encode('utf-8').decode('ascii', errors='ignore')),
                             parser=lxml.etree.XMLParser(recover=True, encoding='utf-8')))
                         resources_root.append(lxml.etree.XML(
                             self._resource_entry().format(counter=format_num.format(i),
@@ -554,12 +555,11 @@ class CourseExportCCManager(ExportManager):
 
                         if not os.path.isdir(os.path.join(self.root_dir, filename)):
                             os.makedirs(os.path.join(self.root_dir, filename))
-                        with OSFS(os.path.join(self.root_dir, filename)).open(u'BasicLTI.xml', 'w') as resource_file:
-                            where_to_write = self._resource_file_entry().format(title=display_name.encode('utf-8'),
-                                                                                lti_link=self.lti_link_fmt.format(
-                                                                                    str(self.courselike_key),
-                                                                                    str(s.location)))
+                        with OSFS(os.path.join(self.root_dir, filename)).open('BasicLTI.xml', 'w') as resource_file:
+                            where_to_write = self._resource_file_entry().format(
+                                title=display_name.encode('utf-8').decode('ascii', errors='ignore'),
+                                lti_link=self.lti_link_fmt.format(str(self.courselike_key), str(s.location)))
                             resource_file.write(str(where_to_write))
                     i += 1
 
-                course_xml.write(str(lxml.etree.tostring(root, pretty_print=True)))
+                course_xml.write(lxml.etree.tostring(root, encoding='unicode', pretty_print=True))

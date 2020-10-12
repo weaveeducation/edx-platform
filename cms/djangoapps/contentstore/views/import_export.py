@@ -475,7 +475,7 @@ def create_export_tarball_cc(course_module, course_key, context):
     try:
         export_course_to_xml_cc(modulestore(), contentstore(), course_module.id, root_dir, name, settings.BASE_LTI_LINK)
 
-        logging.debug(u'tar file being generated at %s', export_file.name)
+        logging.debug('tar file being generated at %s', export_file.name)
         zipf = zipfile.ZipFile(export_file.name, 'w', zipfile.ZIP_DEFLATED)
         for root, dirs, files in os.walk(root_dir):
             for item in files:
@@ -483,7 +483,7 @@ def create_export_tarball_cc(course_module, course_key, context):
         zipf.close()
 
     except SerializationError as exc:
-        log.exception(u'There was an error exporting %s', course_key)
+        log.exception('There was an error exporting %s', course_key)
         unit = None
         failed_item = None
         parent = None
