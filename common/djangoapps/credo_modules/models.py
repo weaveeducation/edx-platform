@@ -23,6 +23,7 @@ from student.models import CourseEnrollment, CourseAccessRole, ENROLL_STATUS_CHA
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
 from edx_proctoring.models import ProctoredExamStudentAttempt
 from organizations.models import Organization as EdxOrganization
+from openedx.core.lib.hash_utils import short_token
 
 
 log = logging.getLogger("course_usage")
@@ -938,6 +939,12 @@ class EnrollmentTrigger(models.Model):
     course_id = models.CharField(max_length=255, null=False)
     user_id = models.IntegerField(db_index=True)
     time = models.DateTimeField(auto_now_add=True, db_index=True)
+
+
+class EdxApiToken(models.Model):
+    title = models.CharField(max_length=255, unique=True)
+    is_active = models.BooleanField(default=False)
+    header_value = models.CharField(max_length=32, unique=True, default=short_token)
 
 
 def usage_dt_now():

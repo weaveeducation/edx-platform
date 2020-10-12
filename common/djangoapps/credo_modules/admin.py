@@ -4,7 +4,7 @@ from django import forms
 from django.conf import settings
 from django.utils.safestring import mark_safe
 from .models import RegistrationPropertiesPerOrg, EnrollmentPropertiesPerCourse,\
-    Organization, OrganizationType, CourseExcludeInsights, CustomUserRole, TagDescription
+    Organization, OrganizationType, CourseExcludeInsights, CustomUserRole, TagDescription, EdxApiToken
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 
@@ -86,6 +86,10 @@ class TagDescriptionForm(admin.ModelAdmin):
     list_display = ('id', 'tag_name', 'description')
 
 
+class EdxApiTokenForm(admin.ModelAdmin):
+    list_display = ('id', 'title', 'is_active')
+
+
 admin.site.register(RegistrationPropertiesPerOrg, RegistrationPropertiesPerOrgForm)
 admin.site.register(EnrollmentPropertiesPerCourse, EnrollmentPropertiesPerCourseForm)
 admin.site.register(Organization, OrganizationForm)
@@ -93,3 +97,4 @@ admin.site.register(OrganizationType, OrganizationTypeForm)
 admin.site.register(CourseExcludeInsights, CourseExcludeInsightsAdmin)
 admin.site.register(CustomUserRole, CustomUserRoleForm)
 admin.site.register(TagDescription, TagDescriptionForm)
+admin.site.register(EdxApiToken, EdxApiTokenForm)
