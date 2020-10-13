@@ -152,7 +152,7 @@ def get_logger_config(log_dir,
                 'address': (syslog_host, syslog_port) if syslog_host else '/dev/log',
                 'socktype': socket.SOCK_STREAM if syslog_use_tcp else socket.SOCK_DGRAM,
                 'facility': SysLogHandler.LOG_LOCAL1,
-                'formatter': 'syslog_format',
+                'formatter': 'raw',
             },
             'log_db': {
                 'level': 'INFO',
