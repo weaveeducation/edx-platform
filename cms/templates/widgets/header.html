@@ -11,6 +11,8 @@
   from cms.djangoapps.contentstore.utils import feature_is_available
 
   disable_register_button = configuration_helpers.get_value('DISABLE_REGISTER_BUTTON', False)
+  studio_logo_url = configuration_helpers.get_value('studio_logo_image_url', 'images/studio-logo.png')
+  studio_logo_url_is_abs = studio_logo_url.startswith('http')
 %>
 <div class="wrapper-header wrapper" id="view-top">
   <header class="primary" role="banner">
@@ -18,7 +20,11 @@
     <div class="wrapper wrapper-l">
       <h1 class="branding">
         <a class="brand-link" href="/">
-          <img class="brand-image" src="${static.url('images/studio-logo.png')}" alt="${settings.STUDIO_NAME}" />
+          % if studio_logo_url_is_abs:
+          <img class="brand-image" src="${studio_logo_url}" alt="${settings.STUDIO_NAME}" />
+          % else:
+          <img class="brand-image" src="${static.url(studio_logo_url)}" alt="${settings.STUDIO_NAME}" />
+          % endif
         </a>
       </h1>
 
