@@ -39,7 +39,7 @@ class Command(BaseProcessEnrollmentsLogsCommand):
             self._staff_cache['global'].append(superuser.id)
 
         props_updater = PropertiesUpdater(show_logs=False)
-        logs = EnrollmentTrigger.objects.filter(time__gt=dt_from).order_by('time')
+        logs = EnrollmentTrigger.objects.filter(time__gt=dt_from, course_id__startswith='course-v1').order_by('time')
         logs_count = len(logs)
         last_update_ts = None
 
