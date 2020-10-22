@@ -5,7 +5,7 @@
   <script type="text/javascript">
     $(document).ready(function() {
         var currentTimestamp = (!Date.now ? +new Date() : Date.now());
-        var newCookie = "test_cookie=" + currentTimestamp + "; path=/";
+        var newCookie = "nw_test_cookie=" + currentTimestamp + "; path=/";
         var sameSite = "${same_site if same_site else ''}";
         if (sameSite !== '') {
             newCookie = newCookie + '; SameSite=' + sameSite;
