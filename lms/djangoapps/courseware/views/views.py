@@ -2162,11 +2162,13 @@ def render_xblock_course(request, course_id, usage_key_string):
 def cookie_check(request):
     test_cookie_val = request.COOKIES.get('nw_test_cookie', None)
     request_ts = request.GET.get('ts', None)
+    cookies_from_request = request.headers.get('Cookie')
     cookie_sent = True if request_ts and test_cookie_val and request_ts == test_cookie_val else False
     return HttpResponse(json.dumps({
         'cookie_sent': cookie_sent,
         'test_cookie_val': test_cookie_val,
-        'request_ts': request_ts
+        'request_ts': request_ts,
+        'cookies_from_request': cookies_from_request
     }), content_type='application/json')
 
 
