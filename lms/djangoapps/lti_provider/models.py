@@ -13,6 +13,7 @@ import time
 import datetime
 import json
 import platform
+import re
 
 from django.contrib.auth.models import User
 from django.db import models, IntegrityError, transaction
@@ -32,6 +33,13 @@ LTI_VERSIONS = (
     (LTI1p1, 'LTI 1.1'),
     (LTI1p3, 'LTI 1.3'),
 )
+
+
+class LmsType(object):
+    CANVAS = 'canvas'
+    SAKAI = 'sakai'
+    BLACKBOARD = 'blackboard'
+    UNKNOWN = 'unknown'
 
 
 class LtiConsumer(models.Model):
@@ -303,3 +311,47 @@ def log_lti_launch(course_id, usage_id, http_response, user_id=None, assignment=
             pk = 'lti_user_id' if k == 'user_id' else k
             data[pk] = '%s' % v
     log_json.info(json.dumps(data))
+
+
+def detect_lms_type(post_data):
+    if LmsType.CANVAS in post_data.get('tool_consumer_instance_guid', ''):
+        return LmsType.CANVAS
+    elif LmsType.BLACKBOARD in post_data.get('lis_outcome_service_url', '')\
+            or LmsType.BLACKBOARD in post_data.get('launch_presentation_return_url', ''):
+        return LmsType.BLACKBOARD
+    elif LmsType.SAKAI in post_data.get('tool_consumer_info_product_family_code', '')\
+            or LmsType.SAKAI in post_data.get('ext_lms', ''):
+        return LmsType.SAKAI
+
+
+def get_rutgers_code(post_data):
+    lms_type = detect_lms_type(post_data)
+    context_label = post_data.get('context_label', '')
+
+    if lms_type == LmsType.SAKAI:
+        # Sakai - lis_course_offier_sourcedid ( Example: 2020:9:01:090:220:08: )
+        lis_course_offering_sourcedid = post_data.get('lis_course_offering_sourcedid', '')
+        if lis_course_offering_sourcedid:
+            lis_course_offering_sourcedid_lst = lis_course_offering_sourcedid.split(':')
+            if len(lis_course_offering_sourcedid_lst) > 2:
+                return lis_course_offering_sourcedid_lst[2]
+    elif lms_type == LmsType.CANVAS:
+        # Canvas - context_label ( Example: 01:355:303:06 WRTG FOR BUS&PROFESS )
+        if context_label:
+            context_label_lst = context_label.split(':')
+            if len(context_label_lst) > 1:
+                return context_label_lst[0]
+    elif lms_type == LmsType.BLACKBOARD:
+        # Blackboard - context_label ( Example: 202092152525462 )
+        if context_label and len(context_label) > 6:
+            return context_label[5:7]
+
+    if context_label:
+        # RBHS campus, examples:
+        # EPID0652J030 (Epid of Chronic Diseases)
+        # HVAD5020G001 (HIV SM II DOC DT HLT IMP HIV C)
+        context_label_lst = context_label.split(' ')
+        for cl in context_label_lst:
+            if len(cl) == 12 and re.match('^[a-zA-Z]{4}[0-9]{4}[a-zA-Z]{1}[0-9]{3}$', cl):
+                return 'rbhs'
+    return None

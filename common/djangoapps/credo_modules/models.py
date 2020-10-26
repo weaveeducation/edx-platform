@@ -947,6 +947,12 @@ class EdxApiToken(models.Model):
     header_value = models.CharField(max_length=255, unique=True, default=short_token)
 
 
+class RutgersCampusMapping(models.Model):
+    num = models.CharField(max_length=255, null=False, db_index=True)
+    school = models.CharField(max_length=255, null=False)
+    campus = models.CharField(max_length=255, null=False)
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values
@@ -1084,6 +1090,8 @@ def get_student_properties_event_data(user, course_id, is_ora=False, parent_id=N
 
     if 'context_id' in result['enrollment']:
         result['enrollment'].pop('context_id', None)
+    if 'lis_course_offier_sourcedid' in result['enrollment']:
+        result['enrollment'].pop('lis_course_offier_sourcedid', None)
 
     for prop_original_name, prop_updated_name in ENROLLMENT_PROPERTIES_MAP.items():
         if prop_original_name in result['enrollment']:
