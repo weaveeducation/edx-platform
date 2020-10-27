@@ -2183,6 +2183,9 @@ CELERY_BROKER_HOSTNAME = 'localhost'
 CELERY_BROKER_USER = 'celery'
 CELERY_BROKER_PASSWORD = 'celery'
 
+CELERY_ACKS_LATE = True
+CELERYD_PREFETCH_MULTIPLIER = 1
+
 ################################ Block Structures ###################################
 
 BLOCK_STRUCTURES_SETTINGS = dict(

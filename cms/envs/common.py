@@ -1253,6 +1253,9 @@ CELERY_BROKER_VHOST = ''
 CELERY_BROKER_USE_SSL = False
 CELERY_EVENT_QUEUE_TTL = None
 
+CELERY_ACKS_LATE = True
+CELERYD_PREFETCH_MULTIPLIER = 1
+
 ############################## Video ##########################################
 
 YOUTUBE = {
@@ -1689,6 +1692,11 @@ ADVANCED_PROBLEM_TYPES = [
     {
         'component': 'openassessment',
         'boilerplate_name': None,
+    },
+    {
+        'component': 'openassessment',
+        'boilerplate_name': 'ora_additional_rubric.yaml',
+        'component_display_name': 'Open Response Assessment: Additional Rubric'
     },
     {
         'component': 'drag-and-drop-v2',
