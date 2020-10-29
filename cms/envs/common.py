@@ -1694,11 +1694,6 @@ ADVANCED_PROBLEM_TYPES = [
         'boilerplate_name': None,
     },
     {
-        'component': 'openassessment',
-        'boilerplate_name': 'ora_additional_rubric.yaml',
-        'component_display_name': 'Open Response Assessment: Additional Rubric'
-    },
-    {
         'component': 'drag-and-drop-v2',
         'boilerplate_name': None
     },
