@@ -290,7 +290,8 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                                             'section_id': items[item_block_location]['section_id'],
                                             'display_name': problem_block.display_name + ': ' + criterion,
                                             'question_text': problem_detailed_info['question_text'],
-                                            'question_text_safe': problem_detailed_info['question_text_safe']
+                                            'question_text_safe': problem_detailed_info['question_text_safe'],
+                                            'hidden': problem_detailed_info['hidden']
                                         }
                                         tags[tag_k]['problems'].append(problem)
                                         tags[tag_k]['sections'][section_id]['problems'].append(problem)
@@ -390,7 +391,7 @@ def assessments_progress(courseware_summary, problems_dict=None):
 
                     if problems_dict is not None:
                         key_str = str(key)
-                        if key_str in problems_dict:
+                        if key_str in problems_dict and not problems_dict[key_str]['hidden']:
                             vertical_id = problems_dict[key_str]['vertical_id']
                             vertical_name = problems_dict[key_str]['vertical_name']
                             problem_display_name = problems_dict[key_str]['display_name']
@@ -408,8 +409,6 @@ def assessments_progress(courseware_summary, problems_dict=None):
                                 'num': str(current_elements_num + 1),
                                 'display_name': problem_display_name
                             })
-                        else:
-                            raise Exception("Can't find block " + key_str + " in course structure")
 
                 percent_correct = 0
                 if num_questions_calculate:
@@ -516,9 +515,12 @@ def progress_grades_page(request, course, student):
         problems_dict[str(pr.location)] = {
             'display_name': pr.display_name,
             'vertical_id': None,
-            'vertical_name': ''
+            'vertical_name': '',
+            'hidden': False
         }
         parent = pr.get_parent()
+        if pr.category == 'openassessment':
+            problems_dict[str(pr.location)]['hidden'] = pr.is_hidden()
         if parent.category == 'vertical':
             problems_dict[str(pr.location)]['vertical_id'] = str(parent.location)
             problems_dict[str(pr.location)]['vertical_name'] = parent.display_name

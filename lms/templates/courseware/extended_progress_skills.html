@@ -102,6 +102,7 @@ username = get_enterprise_learner_generic_name(request) or student.username
                                     </div>
                                     <div class="progress-tags-assessments-item-assessment-questions closed">
                                         % for problem in section['problems']:
+                                        % if not problem['hidden']:
                                         <div class="progress-tags-assessments-item-assessment-question">
                                             <table class="seq-grade-details-item-table">
                                             <tbody>
@@ -133,6 +134,7 @@ username = get_enterprise_learner_generic_name(request) or student.username
                                             </tbody>
                                             </table>
                                         </div>
+                                        % endif
                                         % endfor
                                     </div>
                                 </div>

@@ -76,6 +76,9 @@ class VerticalBlock(SequenceFields, XModuleFields, StudioEditableBlock, XmlParse
 
         # pylint: disable=no-member
         for child in child_blocks:
+            if child.category == 'openassessment' and child.is_hidden():
+                continue
+
             child_block_context = copy(child_context)
             if child in list(child_blocks_to_complete_on_view):
                 child_block_context['wrap_xblock_data'] = {

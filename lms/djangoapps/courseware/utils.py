@@ -127,6 +127,7 @@ def get_problem_detailed_info(item, parent_name, add_correctness=True):
         res['question_text'] = ''
         res['question_text_safe'] = ''
         res['category'] = item.category
+        res['hidden'] = False
 
         if item.category == 'problem':
             if add_correctness:
@@ -153,6 +154,7 @@ def get_problem_detailed_info(item, parent_name, add_correctness=True):
             elif len(prompts) == 1:
                 res['question_text'] = prompts[0].replace('\n', '<br />')
                 res['question_text_safe'] = prompts[0]
+            res['hidden'] = item.is_hidden()
 
         elif item.category == 'drag-and-drop-v2':
             res['question_text'] = item.question_text

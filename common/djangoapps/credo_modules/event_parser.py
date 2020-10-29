@@ -221,7 +221,7 @@ class EventData(object):
                  answers, submit_info=None, is_ora_empty_rubrics=False, is_block_view=False, possible_points=None,
                  ora_block=False, is_new_attempt=False, block_seq=None, criterion_name=None,
                  correctness=None, is_correct=False, term=None, answer_id=None,
-                 prop_user_name=None, prop_user_email=None, ora_user_answer=None):
+                 prop_user_name=None, prop_user_email=None, ora_user_answer=None, graded=None):
         self.category = category
         self.course_id = course_id
         self.course = course
@@ -269,6 +269,7 @@ class EventData(object):
         course_user_id_source = course_id + '|' + str(self.user_id)
         self.course_user_id = hashlib.md5(course_user_id_source.encode('utf-8')).hexdigest()
         self.ora_user_answer = prepare_text_for_column_db(ora_user_answer, 500) if ora_user_answer else None
+        self.graded = graded
 
     def __str__(self):
         sb = []
@@ -345,6 +346,8 @@ class EventParser(object):
             answer_id = answer_id + '-' + criterion_name
         answer_id = self._get_md5(answer_id)
 
+        graded = self.get_graded(event, *args, **kwargs)
+
         return EventData(
             category=self.get_category(event),
             course_id=course_id,
@@ -378,7 +381,8 @@ class EventParser(object):
             answer_id=answer_id,
             prop_user_name=prop_user_name,
             prop_user_email=prop_user_email,
-            ora_user_answer=ora_user_answer
+            ora_user_answer=ora_user_answer,
+            graded=graded
         )
 
     def user_info(self, event):
@@ -508,6 +512,9 @@ class EventParser(object):
             return timestamp
         except Exception:  # pylint: disable=broad-except
             return None
+
+    def get_graded(self, event, *args, **kwargs):
+        return None
 
     def parse(self, event_data):
         raise NotImplementedError()
@@ -825,6 +832,9 @@ class OraParser(EventParser):
     def is_block_view(self, event, *args, **kwargs):
         return False
 
+    def get_graded(self, event, *args, **kwargs):
+        return ora_is_graded(event)
+
 
 class OraWithoutCriteriaParser(EventParser):
 
@@ -897,6 +907,9 @@ class OraWithoutCriteriaParser(EventParser):
 
     def is_block_view(self, event, *args, **kwargs):
         return False
+
+    def get_graded(self, event, *args, **kwargs):
+        return ora_is_graded(event)
 
 
 class DndParser(EventParser):
@@ -1083,6 +1096,11 @@ class ViewedParser(EventParser):
         tmp = event.get('event').get('student_properties_aside', {}).get('student_properties', {})
         return combine_student_properties(tmp)
 
+    def get_graded(self, event, *args, **kwargs):
+        if self._is_ora(event):
+            return ora_is_graded(event)
+        return None
+
 
 def parse_course_id(course_id):
     return list(course_id[len('course-v1:'):].split('+') + ([None] * 3))[:3]
@@ -1136,3 +1154,13 @@ def update_user_info(org_id, user_id, prop_email, prop_full_name, users_processe
         log_user_info.save()
         if create_new:
             users_processed_cache[token] = log_user_info
+
+
+def ora_is_graded(event):
+    event_data = event.get('event', {})
+    if 'is_additional_rubric' in event_data and 'ungraded' in event_data:
+        is_additional_rubric = event_data.get('is_additional_rubric', None)
+        ungraded = event_data.get('ungraded', None)
+        if is_additional_rubric is True and ungraded is True:
+            return False
+    return None
