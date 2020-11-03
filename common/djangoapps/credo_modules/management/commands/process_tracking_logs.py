@@ -11,8 +11,8 @@ from django.conf import settings
 from django.core.management import BaseCommand
 from django.contrib.auth.models import User
 from django.db.models import Q
-from credo_modules.event_parser import EventProcessor, prepare_text_for_column_db
-from credo_modules.models import DBLogEntry, TrackingLog, TrackingLogUserInfo, TrackingLogFile, TrackingLogConfig,\
+from credo_modules.event_parser import EventProcessor, prepare_text_for_column_db, update_user_info
+from credo_modules.models import DBLogEntry, TrackingLog, TrackingLogFile, TrackingLogConfig,\
     SequentialBlockAttempt
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
 from student.models import CourseAccessRole
@@ -105,55 +105,6 @@ class Command(BaseCommand):
         course_access_roles = CourseAccessRole.objects.filter(role__in=('instructor', 'staff'), course_id=course_key)
         for role in course_access_roles:
             staff_cache[course_id].append(role.user_id)
-
-    def _update_user_info(self, org_id, user_id, prop_email, prop_full_name, users_processed_cache):
-        token = org_id + '|' + str(user_id)
-        create_new = False
-
-        if token in users_processed_cache:
-            log_user_info = users_processed_cache[token]
-        else:
-            try:
-                log_user_info = TrackingLogUserInfo.objects.get(org_id=org_id, user_id=user_id)
-                users_processed_cache[token] = log_user_info
-            except TrackingLogUserInfo.DoesNotExist:
-                log_user_info = TrackingLogUserInfo(org_id=org_id, user_id=user_id)
-                create_new = True
-
-        email_to_set = ''
-        full_name_to_set = ''
-
-        if create_new:
-            try:
-                user = User.objects.get(id=user_id)
-                email_to_set = user.email
-                if user.first_name and user.last_name:
-                    full_name_to_set = user.first_name + ' ' + user.last_name
-                elif user.first_name and not user.last_name:
-                    full_name_to_set = user.first_name
-                elif not user.first_name and user.last_name:
-                    full_name_to_set = user.last_name
-            except User.DoesNotExist:
-                pass
-
-        if prop_email:
-            email_to_set = prop_email
-        if prop_full_name:
-            full_name_to_set = prop_full_name
-
-        changed = False
-        if email_to_set and log_user_info.email != email_to_set:
-            log_user_info.email = email_to_set
-            changed = True
-        if full_name_to_set and log_user_info.full_name != full_name_to_set:
-            log_user_info.full_name = full_name_to_set
-            changed = True
-
-        if create_new or changed:
-            log_user_info.update_search_token()
-            log_user_info.save()
-            if create_new:
-                users_processed_cache[token] = log_user_info
 
     def _update_tr_log(self, tr_log, e, is_view, answer_id, real_timestamp, attempt_ts, is_last_attempt):
         tr_log.course_id = e.course_id
@@ -306,7 +257,7 @@ class Command(BaseCommand):
             if is_view and visible_to_staff_only and not e.is_staff:
                 return
 
-            self._update_user_info(e.org_id, e.user_id, e.prop_user_email, e.prop_user_name, users_processed_cache)
+            update_user_info(e.org_id, e.user_id, e.prop_user_email, e.prop_user_name, users_processed_cache)
 
             question_token = e.question_name
             if sequential_name:

@@ -4,7 +4,8 @@ import time
 
 from django.contrib.auth.models import User
 from opaque_keys.edx.keys import CourseKey
-from credo_modules.event_parser import EXCLUDE_PROPERTIES, COURSE_PROPERTIES
+from credo_modules.event_parser import EXCLUDE_PROPERTIES, COURSE_PROPERTIES, update_user_info,\
+    get_prop_user_info, combine_student_properties
 from credo_modules.models import RegistrationPropertiesPerMicrosite, RegistrationPropertiesPerOrg,\
     EnrollmentPropertiesPerCourse, PropertiesInfo, TrackingLogProp, get_student_properties_event_data
 from credo_modules.mongo import get_course_structure
@@ -17,6 +18,7 @@ class PropertiesUpdater(object):
     _course_updated = None
     _users_updated = None
     _show_logs = None
+    _users_processed_cache = None
 
     def __init__(self, show_logs=True):
         self._org_common_props = {}
@@ -24,6 +26,7 @@ class PropertiesUpdater(object):
         self._course_updated = []
         self._users_updated = []
         self._show_logs = show_logs
+        self._users_processed_cache = {}
 
     def _log(self, msg):
         if self._show_logs:
@@ -137,7 +140,8 @@ class PropertiesUpdater(object):
         self.update_prop_info(org, None, self._org_props[org])
         self._course_updated.append(course_id)
 
-    def update_props_for_course_and_user(self, course_id, user_id, org_props=None, update_process_num=None):
+    def update_props_for_course_and_user(self, course_id, user_id, org_props=None, update_tracking_log_user_info=False,
+                                         update_process_num=None):
 
         key = str(user_id) + '|' + course_id
         if key in self._users_updated:
@@ -172,6 +176,11 @@ class PropertiesUpdater(object):
         if len(org_props) > TrackingLogProp.MAX_PROPS_COUNT_PER_ORG:
             raise Exception('Count of props exceeds '
                             'permissible max props count: ' + TrackingLogProp.MAX_PROPS_COUNT_PER_ORG)
+
+        if update_tracking_log_user_info:
+            tmp_props = combine_student_properties(student_properties)
+            prop_user_email, prop_user_name = get_prop_user_info(tmp_props)
+            update_user_info(org, user_id, prop_user_email, prop_user_name, self._users_processed_cache)
 
         for i in range(TrackingLogProp.MAX_PROPS_COUNT_PER_ORG):
             prop_key = 'prop' + str(i)

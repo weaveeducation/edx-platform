@@ -6,6 +6,8 @@ import pytz
 from collections import namedtuple
 from bs4 import BeautifulSoup
 from django.utils.html import strip_tags
+from django.contrib.auth.models import User
+from credo_modules.models import TrackingLogUserInfo
 
 
 CorrectData = namedtuple('CorrectData', ['is_correct', 'earned_grade', 'max_grade', 'correctness'])
@@ -166,6 +168,21 @@ def update_course_and_student_properties(course, student_properties):
                 overload_items[k]['value'], student_properties = new_value, new_properties
 
     return overload_items['course']['value'], student_properties
+
+
+def combine_student_properties(props):
+    result = {}
+    tmp_result = {}
+    types = ['registration', 'enrollment']
+    for tp in types:
+        tmp_result.update(props.get(tp, {}))
+    for prop_key, prop_value in tmp_result.items():
+        prop_value = prop_value.strip()
+        if prop_value:
+            if len(prop_value) > 255:
+                prop_value = prop_value[0:255]
+            result[prop_key.lower()] = prop_value
+    return result
 
 
 class EventCategory(object):
@@ -387,20 +404,9 @@ class EventParser(object):
         return tags_extended_lst
 
     def get_student_properties(self, event):
-        result = {}
-        tmp_result = {}
         tmp = event.get('context').get('asides', {}).get('student_properties_aside', {}) \
             .get('student_properties', {})
-        types = ['registration', 'enrollment']
-        for tp in types:
-            tmp_result.update(tmp.get(tp, {}))
-        for prop_key, prop_value in tmp_result.items():
-            prop_value = prop_value.strip()
-            if prop_value:
-                if len(prop_value) > 255:
-                    prop_value = prop_value[0:255]
-                result[prop_key.lower()] = prop_value
-        return result
+        return combine_student_properties(tmp)
 
     def get_saved_tags(self, event, **kwargs):
         # pylint: disable=unused-argument
@@ -1074,20 +1080,59 @@ class ViewedParser(EventParser):
         return True
 
     def get_student_properties(self, event):
-        result = {}
-        tmp_result = {}
         tmp = event.get('event').get('student_properties_aside', {}).get('student_properties', {})
-        types = ['registration', 'enrollment']
-        for tp in types:
-            tmp_result.update(tmp.get(tp, {}))
-        for prop_key, prop_value in tmp_result.items():
-            prop_value = prop_value.strip()
-            if prop_value:
-                if len(prop_value) > 255:
-                    prop_value = prop_value[0:255]
-                result[prop_key.lower()] = prop_value
-        return result
+        return combine_student_properties(tmp)
 
 
 def parse_course_id(course_id):
     return list(course_id[len('course-v1:'):].split('+') + ([None] * 3))[:3]
+
+
+def update_user_info(org_id, user_id, prop_email, prop_full_name, users_processed_cache):
+    token = org_id + '|' + str(user_id)
+    create_new = False
+
+    if token in users_processed_cache:
+        log_user_info = users_processed_cache[token]
+    else:
+        try:
+            log_user_info = TrackingLogUserInfo.objects.get(org_id=org_id, user_id=user_id)
+            users_processed_cache[token] = log_user_info
+        except TrackingLogUserInfo.DoesNotExist:
+            log_user_info = TrackingLogUserInfo(org_id=org_id, user_id=user_id)
+            create_new = True
+
+    email_to_set = ''
+    full_name_to_set = ''
+
+    if create_new:
+        try:
+            user = User.objects.get(id=user_id)
+            email_to_set = user.email
+            if user.first_name and user.last_name:
+                full_name_to_set = user.first_name + ' ' + user.last_name
+            elif user.first_name and not user.last_name:
+                full_name_to_set = user.first_name
+            elif not user.first_name and user.last_name:
+                full_name_to_set = user.last_name
+        except User.DoesNotExist:
+            pass
+
+    if prop_email:
+        email_to_set = prop_email
+    if prop_full_name:
+        full_name_to_set = prop_full_name
+
+    changed = False
+    if email_to_set and log_user_info.email != email_to_set:
+        log_user_info.email = email_to_set
+        changed = True
+    if full_name_to_set and log_user_info.full_name != full_name_to_set:
+        log_user_info.full_name = full_name_to_set
+        changed = True
+
+    if create_new or changed:
+        log_user_info.update_search_token()
+        log_user_info.save()
+        if create_new:
+            users_processed_cache[token] = log_user_info

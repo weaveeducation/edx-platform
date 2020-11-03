@@ -54,7 +54,8 @@ class Command(BaseProcessEnrollmentsLogsCommand):
 
             for log in logs:
                 log_prop = props_updater.update_props_for_course_and_user(
-                    log.course_id, log.user_id, org_props=None, update_process_num=self.update_props_process_num)
+                    log.course_id, log.user_id, org_props=None, update_tracking_log_user_info=True,
+                    update_process_num=self.update_props_process_num)
                 if log_prop:
                     props_to_insert.append(log_prop)
 
