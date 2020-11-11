@@ -610,8 +610,7 @@ class SendScoresMailing(models.Model):
     class Meta(object):
         db_table = "credo_send_scores_mailing"
 
-
-class CopySectionTask(TimeStampedModel, models.Model):
+class CopyBlockTask(TimeStampedModel, models.Model):
     NOT_STARTED = 'not_started'
     STARTED = 'started'
     FINISHED = 'finished'
@@ -623,10 +622,9 @@ class CopySectionTask(TimeStampedModel, models.Model):
         (ERROR, 'Error'),
     )
 
-    task_id = models.CharField(max_length=255, db_index=True)
-    block_id = models.CharField(max_length=255)
-    source_course_id = CourseKeyField(max_length=255, db_index=True)
-    dst_course_id = CourseKeyField(max_length=255)
+    task_id = models.CharField(max_length=255, unique=True)
+    block_ids = models.TextField()
+    dst_location = models.CharField(max_length=255, db_index=True)
     status = models.CharField(
         max_length=255,
         choices=STATUSES,
@@ -644,10 +642,6 @@ class CopySectionTask(TimeStampedModel, models.Model):
 
     def is_finished(self):
         return self.status == self.FINISHED
-
-    class Meta(object):
-        db_table = "copy_section_task"
-        unique_together = (('task_id', 'block_id', 'dst_course_id'),)
 
 
 class SequentialViewedTask(TimeStampedModel, models.Model):

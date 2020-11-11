@@ -22,6 +22,9 @@ define(['jquery', 'underscore', 'js/views/xblock_outline', 'common/js/components
             render: function() {
                 var renderResult = XBlockOutlineView.prototype.render.call(this);
                 this.makeContentDraggable(this.el);
+
+                this.$('#selected-state').prop('checked', this.model.get('selected'));
+
                 return renderResult;
             },
 
@@ -135,6 +138,7 @@ define(['jquery', 'underscore', 'js/views/xblock_outline', 'common/js/components
             },
 
             onChildDeleted: function(childView) {
+                this.stopListening(childView.model, 'change:selected', this.onChildSelectChange);
                 var xblockInfo = this.model,
                     children = xblockInfo.get('child_info') && xblockInfo.get('child_info').children;
                 // If deleting a section that isn't the final one, just remove it for efficiency
@@ -144,6 +148,14 @@ define(['jquery', 'underscore', 'js/views/xblock_outline', 'common/js/components
                     children.splice(children.indexOf(childView.model), 1);
                 } else {
                     this.refresh();
+                }
+            },
+
+            onChildSelectChange: function () {
+                if (this.model.hasSelectedChildren()) {
+                    this.$('.copy-to-library-button').removeClass('is-disabled');
+                } else {
+                    this.$('.copy-to-library-button').addClass('is-disabled');
                 }
             },
 
@@ -211,6 +223,24 @@ define(['jquery', 'underscore', 'js/views/xblock_outline', 'common/js/components
                 }
             },
 
+            copyUnitsToLibrary: function() {
+                var modal = CourseOutlineModalsFactory.getModal('copy-to-library', this.model, {
+                    onSave: this.refresh.bind(this),
+                    xblockType: XBlockViewUtils.getXBlockType(
+                        this.model.get('category'), this.parentView.model, true
+                    )
+                });
+
+                if (modal) {
+                    modal.show();
+                }
+            },
+
+            toggleXBlockSelectedState: function() {
+                this.model.set('selected', !this.model.get('selected'));
+                this.$('#selected-state').prop('checked', this.model.get('selected'));
+            },
+
             highlightsXBlock: function() {
                 var modal = CourseOutlineModalsFactory.getModal('highlights', this.model, {
                     onSave: this.refresh.bind(this),
@@ -223,6 +253,11 @@ define(['jquery', 'underscore', 'js/views/xblock_outline', 'common/js/components
                     window.analytics.track('edx.bi.highlights.modal_open');
                     modal.show();
                 }
+            },
+
+            addChildView: function(childView, xblockElement) {
+                XBlockOutlineView.prototype.addChildView.apply(this, arguments);
+                this.listenTo(childView.model, 'change:selected', this.onChildSelectChange);  
             },
 
             addButtonActions: function(element) {
@@ -244,6 +279,13 @@ define(['jquery', 'underscore', 'js/views/xblock_outline', 'common/js/components
                 element.find('.copy-to-other-course-button').click(function(event) {
                     event.preventDefault();
                     this.copyXBlockToOtherCourse();
+                }.bind(this));
+                element.find('.copy-to-library-button').click(function(event) {
+                    event.preventDefault();
+                    this.copyUnitsToLibrary();
+                }.bind(this));
+                element.find('.unit-header-checkbox input').click(function(event) {
+                    this.toggleXBlockSelectedState();
                 }.bind(this));
             },
 
