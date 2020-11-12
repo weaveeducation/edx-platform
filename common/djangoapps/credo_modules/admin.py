@@ -4,7 +4,8 @@ from django import forms
 from django.conf import settings
 from django.utils.safestring import mark_safe
 from .models import RegistrationPropertiesPerOrg, EnrollmentPropertiesPerCourse,\
-    Organization, OrganizationType, CourseExcludeInsights, CustomUserRole, TagDescription, EdxApiToken
+    Organization, OrganizationType, CourseExcludeInsights, CustomUserRole, TagDescription, EdxApiToken,\
+    RutgersCampusMapping
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 
@@ -90,6 +91,10 @@ class EdxApiTokenForm(admin.ModelAdmin):
     list_display = ('id', 'title', 'is_active')
 
 
+class RutgersCampusMappingForm(admin.ModelAdmin):
+    list_display = ('id', 'num', 'school', 'campus')
+
+
 admin.site.register(RegistrationPropertiesPerOrg, RegistrationPropertiesPerOrgForm)
 admin.site.register(EnrollmentPropertiesPerCourse, EnrollmentPropertiesPerCourseForm)
 admin.site.register(Organization, OrganizationForm)
@@ -98,3 +103,4 @@ admin.site.register(CourseExcludeInsights, CourseExcludeInsightsAdmin)
 admin.site.register(CustomUserRole, CustomUserRoleForm)
 admin.site.register(TagDescription, TagDescriptionForm)
 admin.site.register(EdxApiToken, EdxApiTokenForm)
+admin.site.register(RutgersCampusMapping, RutgersCampusMappingForm)

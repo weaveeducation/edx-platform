@@ -18,7 +18,7 @@ from opaque_keys.edx.keys import CourseKey, UsageKey
 from django.core.cache import caches
 from django.shortcuts import reverse
 
-from lti_provider.models import LtiConsumer, log_lti_launch
+from lti_provider.models import LtiConsumer, log_lti_launch, get_rutgers_code
 from lti_provider.outcomes import store_outcome_parameters
 from lti_provider.signature_validator import SignatureValidator
 from lti_provider.users import UserService, update_lti_user_data
@@ -27,7 +27,7 @@ from openedx.core.lib.url_utils import unquote_slashes
 from student.models import CourseEnrollment
 from student.roles import CourseStaffRole
 from util.views import add_p3p_header
-from credo_modules.models import check_and_save_enrollment_attributes, get_enrollment_attributes
+from credo_modules.models import check_and_save_enrollment_attributes, get_enrollment_attributes, RutgersCampusMapping
 from edxmako.shortcuts import render_to_string
 from mako.template import Template
 from lms.djangoapps.courseware.courses import update_lms_course_usage
@@ -95,6 +95,7 @@ def _lti_launch(request, course_id, usage_id=None):
     return_url = request_params.get('launch_presentation_return_url', None)
     context_id = request_params.get('context_id', None)
     context_label = request_params.get('context_label', None)
+    lis_course_offier_sourcedid = request_params.get('lis_course_offier_sourcedid', None)
 
     if not params:
         log_lti_launch(course_id, usage_id, 400, params=request_params)
@@ -201,7 +202,14 @@ def _lti_launch(request, course_id, usage_id=None):
     us = UserService()
     us.authenticate_lti_user(request, params['user_id'], lti_consumer, lti_params)
 
-    enrollment_attributes = get_enrollment_attributes(request_params, course_key, context_label=context_label)
+    enroll_kwargs = {}
+    if context_label:
+        enroll_kwargs['context_label'] = context_label
+    if lis_course_offier_sourcedid:
+        enroll_kwargs['lis_course_offier_sourcedid'] = lis_course_offier_sourcedid
+
+    enrollment_attributes = get_enrollment_attributes(request_params, course_key, **enroll_kwargs)
+    enrollment_attributes = extend_enrollment_properties(enrollment_attributes, course_key, request_params)
 
     if request.user.is_authenticated:
         roles = params.get('roles', None) if lti_consumer.allow_to_add_instructors_via_lti else None
@@ -450,3 +458,17 @@ def set_user_roles(edx_user, course_key, roles):
     external_roles = ['SysAdmin', 'Administrator', 'Instructor', 'Staff']
     if any(role in roles for role in external_roles):
         CourseStaffRole(course_key).add_users(edx_user)
+
+
+def extend_enrollment_properties(properties, course_key, request_params):
+    # hack for Rutgers
+    if course_key.org in ['Rutgers', 'Rutgers-University']:
+        rutgers_code = get_rutgers_code(request_params)
+        rut_obj = None
+        if rutgers_code:
+            rut_obj = RutgersCampusMapping.objects.filter(num=rutgers_code).first()
+        if rut_obj:
+            properties['campus'] = rut_obj.campus
+            if rut_obj.num != 'rbhs':
+                properties['school'] = rut_obj.school
+    return properties
