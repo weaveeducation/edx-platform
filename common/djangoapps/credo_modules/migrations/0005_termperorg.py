@@ -15,10 +15,10 @@ class Migration(migrations.Migration):
             name='TermPerOrg',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('org', models.CharField(max_length=255, verbose_name=b'Org', db_index=True)),
-                ('term', models.CharField(max_length=255, verbose_name=b'Term')),
-                ('start_date', models.DateField(verbose_name=b'Start Date')),
-                ('end_date', models.DateField(verbose_name=b'End Date')),
+                ('org', models.CharField(max_length=255, verbose_name='Org', db_index=True)),
+                ('term', models.CharField(max_length=255, verbose_name='Term')),
+                ('start_date', models.DateField(verbose_name='Start Date')),
+                ('end_date', models.DateField(verbose_name='End Date')),
             ],
         ),
     ]

@@ -12,7 +12,7 @@ data = {
         ['11', 'School of Environmental and Biological Sciences'],
         ['14', 'School of Engineering'],
         ['15', 'Graduate School of Education'],
-        ['16', 'Graduate School–New Brunswick'],
+        ['16', 'Graduate School-New Brunswick'],
         ['17', 'School of Communication and Information'],
         ['18', 'Graduate School of Applied and Professional Psychology'],
         ['19', 'School of Social Work'],
@@ -29,26 +29,26 @@ data = {
     'Rutgers-Newark': [
         ['20', 'School of Public Affairs and Administration'],
         ['21', 'Newark College of Arts and Sciences'],
-        ['22', 'Rutgers Business School–Newark'],
-        ['23', 'Rutgers School of Law–Newark'],
+        ['22', 'Rutgers Business School-Newark'],
+        ['23', 'Rutgers School of Law-Newark'],
         ['25', 'School of Nursing'],
-        ['26', 'Graduate School–Newark'],
+        ['26', 'Graduate School-Newark'],
         ['27', 'School of Criminal Justice: Graduate'],
         ['29', 'School of Business'],
         ['40', 'Public Affairs'],
         ['45', 'College of Nursing: Graduate'],
         ['47', 'School of Criminal Justice'],
-        ['62', 'University College–Newark']
+        ['62', 'University College-Newark']
     ],
     'Rutgers-Camden': [
-        ['24', 'Rutgers School of Law–Camden'],
+        ['24', 'Rutgers School of Law-Camden'],
         ['50', 'Camden College of Arts and Sciences'],
-        ['52', 'School of Business–Camden'],
+        ['52', 'School of Business-Camden'],
         ['53', 'Graduate School of Business'],
-        ['56', 'Graduate School–Camden'],
-        ['57', 'School of Nursing–Camden'],
+        ['56', 'Graduate School-Camden'],
+        ['57', 'School of Nursing-Camden'],
         ['58', 'Graduate School of Nursing'],
-        ['64', 'University College–Camden']
+        ['64', 'University College-Camden']
     ],
     'RBHS': [
         ['rbhs', 'Other']

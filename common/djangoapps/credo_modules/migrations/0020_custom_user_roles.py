@@ -31,17 +31,24 @@ class Migration(migrations.Migration):
             name='CustomUserRole',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(max_length=255, unique=True, verbose_name=b'Title')),
-                ('alias', models.SlugField(max_length=255, unique=True, verbose_name=b'Slug')),
-                ('course_outline_create_new_section', models.BooleanField(default=True, verbose_name=b'Course Outline: Can create new Section')),
-                ('course_outline_create_new_subsection', models.BooleanField(default=True, verbose_name=b'Course Outline: Can create new Subsection')),
-                ('course_outline_duplicate_section', models.BooleanField(default=True, verbose_name=b'Course Outline: Can duplicate Section')),
-                ('course_outline_duplicate_subsection', models.BooleanField(default=True, verbose_name=b'Course Outline: Can duplicate Subsection')),
-                ('course_outline_copy_to_other_course', models.BooleanField(default=True, verbose_name=b'Course Outline: Can copy Section to other course')),
-                ('top_menu_tools', models.BooleanField(default=True, verbose_name=b'Top Menu: Tools Dropdown menu')),
-                ('unit_add_advanced_component', models.BooleanField(default=True, verbose_name=b'Unit: Can add advanced components to a unit')),
-                ('unit_add_discussion_component', models.BooleanField(default=True, verbose_name=b'Unit: Can add discussion components to a unit')),
-                ('view_tags', models.BooleanField(default=True, verbose_name=b'Unit: Can view tags')),
+                ('title', models.CharField(max_length=255, unique=True, verbose_name='Title')),
+                ('alias', models.SlugField(max_length=255, unique=True, verbose_name='Slug')),
+                ('course_outline_create_new_section', models.BooleanField(
+                    default=True, verbose_name='Course Outline: Can create new Section')),
+                ('course_outline_create_new_subsection', models.BooleanField(
+                    default=True, verbose_name='Course Outline: Can create new Subsection')),
+                ('course_outline_duplicate_section', models.BooleanField(
+                    default=True, verbose_name='Course Outline: Can duplicate Section')),
+                ('course_outline_duplicate_subsection', models.BooleanField(
+                    default=True, verbose_name='Course Outline: Can duplicate Subsection')),
+                ('course_outline_copy_to_other_course', models.BooleanField(
+                    default=True, verbose_name='Course Outline: Can copy Section to other course')),
+                ('top_menu_tools', models.BooleanField(default=True, verbose_name='Top Menu: Tools Dropdown menu')),
+                ('unit_add_advanced_component', models.BooleanField(
+                    default=True, verbose_name='Unit: Can add advanced components to a unit')),
+                ('unit_add_discussion_component', models.BooleanField(
+                    default=True, verbose_name='Unit: Can add discussion components to a unit')),
+                ('view_tags', models.BooleanField(default=True, verbose_name='Unit: Can view tags')),
             ],
             options={
                 'ordering': ['title'],

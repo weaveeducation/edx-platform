@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='instructoravailablesections',
             name='show_open_responses',
-            field=models.BooleanField(default=True, verbose_name=b'Show "Open responses" section'),
+            field=models.BooleanField(default=True, verbose_name='Show "Open responses" section'),
         ),
     ]
 

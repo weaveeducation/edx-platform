@@ -15,6 +15,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='organizationtype',
             name='enable_extended_progress_page',
-            field=models.BooleanField(default=False, verbose_name=b'Enable Extended Progress Page'),
+            field=models.BooleanField(default=False, verbose_name='Enable Extended Progress Page'),
         ),
     ]

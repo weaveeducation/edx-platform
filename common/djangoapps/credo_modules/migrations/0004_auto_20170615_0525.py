@@ -18,7 +18,8 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('course_id', CourseKeyField(max_length=255, db_index=True)),
-                ('data', models.TextField(help_text=b'Config in JSON format', verbose_name=b'Enrollment Properties', validators=[credo_modules.models.validate_json_props])),
+                ('data', models.TextField(help_text='Config in JSON format', verbose_name='Enrollment Properties',
+                                          validators=[credo_modules.models.validate_json_props])),
             ],
             options={
                 'db_table': 'credo_enrollment_properties',
@@ -29,7 +30,8 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='registrationpropertiespermicrosite',
             name='data',
-            field=models.TextField(help_text=b'Config in JSON format', verbose_name=b'Registration Properties', validators=[credo_modules.models.validate_json_props]),
+            field=models.TextField(help_text='Config in JSON format', verbose_name='Registration Properties',
+                                   validators=[credo_modules.models.validate_json_props]),
         ),
     ]
 

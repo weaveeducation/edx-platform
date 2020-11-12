@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='instructoravailablesections',
             name='show_lti_constructor',
-            field=models.BooleanField(default=True, verbose_name=b'Show "Link Constructor" section'),
+            field=models.BooleanField(default=True, verbose_name='Show "Link Constructor" section'),
         ),
     ]

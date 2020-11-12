@@ -15,6 +15,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='instructoravailablesections',
             name='show_discussions_management',
-            field=models.BooleanField(default=True, verbose_name=b'Show Discussions Management'),
+            field=models.BooleanField(default=True, verbose_name='Show Discussions Management'),
         ),
     ]

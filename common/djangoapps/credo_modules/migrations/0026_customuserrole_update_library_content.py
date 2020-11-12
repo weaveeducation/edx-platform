@@ -15,6 +15,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='customuserrole',
             name='update_library_content',
-            field=models.BooleanField(default=False, verbose_name=b'Unit: Access to "Update Now" button for Library Content'),
+            field=models.BooleanField(default=False,
+                                      verbose_name='Unit: Access to "Update Now" button for Library Content'),
         ),
     ]

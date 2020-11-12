@@ -15,9 +15,9 @@ class Migration(migrations.Migration):
             name='RegistrationPropertiesPerMicrosite',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('org', models.CharField(unique=True, max_length=255, verbose_name=b'Org')),
-                ('domain', models.CharField(unique=True, max_length=255, verbose_name=b'Microsite Domain Name')),
-                ('data', models.TextField(help_text=b'Config in JSON format', verbose_name=b'Registration Properties')),
+                ('org', models.CharField(unique=True, max_length=255, verbose_name='Org')),
+                ('domain', models.CharField(unique=True, max_length=255, verbose_name='Microsite Domain Name')),
+                ('data', models.TextField(help_text='Config in JSON format', verbose_name='Registration Properties')),
             ],
             options={
                 'db_table': 'credo_registration_properties',

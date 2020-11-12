@@ -15,6 +15,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='organizationtype',
             name='my_skills_page_lti_access',
-            field=models.BooleanField(default=False, verbose_name=b'Display LTI link for My Skills/Progress LMS page in Constructor'),
+            field=models.BooleanField(default=False,
+                                      verbose_name='Display LTI link for My Skills/Progress LMS page in Constructor'),
         ),
     ]

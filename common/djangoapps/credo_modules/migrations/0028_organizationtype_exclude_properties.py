@@ -15,6 +15,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='organizationtype',
             name='exclude_properties',
-            field=models.TextField(blank=True, help_text=b'Values should be separated by commas', verbose_name=b'Excluded property names in Insights'),
+            field=models.TextField(blank=True, help_text='Values should be separated by commas',
+                                   verbose_name='Excluded property names in Insights'),
         ),
     ]

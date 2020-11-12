@@ -19,6 +19,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='organizationtype',
             name='enable_new_carousel_view',
-            field=models.BooleanField(default=False, verbose_name=b'Enable new carousel view (horizontal nav bar)'),
+            field=models.BooleanField(default=False, verbose_name='Enable new carousel view (horizontal nav bar)'),
         ),
     ]

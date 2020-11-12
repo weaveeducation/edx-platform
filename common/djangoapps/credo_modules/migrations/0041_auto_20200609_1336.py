@@ -16,9 +16,10 @@ class Migration(migrations.Migration):
             name='PropertiesInfo',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('org', models.CharField(max_length=255, verbose_name=b'Org')),
-                ('course_id', models.CharField(max_length=255, null=True, verbose_name=b'Course ID')),
-                ('data', models.TextField(help_text=b'Config in JSON format', verbose_name=b'List of available properties')),
+                ('org', models.CharField(max_length=255, verbose_name='Org')),
+                ('course_id', models.CharField(max_length=255, null=True, verbose_name='Course ID')),
+                ('data', models.TextField(help_text='Config in JSON format',
+                                          verbose_name='List of available properties')),
                 ('update_ts', models.IntegerField(db_index=True)),
             ],
         ),
