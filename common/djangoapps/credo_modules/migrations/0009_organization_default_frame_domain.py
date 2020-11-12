@@ -14,6 +14,8 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='organization',
             name='default_frame_domain',
-            field=models.CharField(help_text=b'Default value is https://frame.credocourseware.com in case of empty field', max_length=255, null=True, verbose_name=b'Domain for LTI/Iframe/etc', blank=True),
+            field=models.CharField(
+                help_text='Default value is https://frame.credocourseware.com in case of empty field',
+                max_length=255, null=True, verbose_name='Domain for LTI/Iframe/etc', blank=True),
         ),
     ]

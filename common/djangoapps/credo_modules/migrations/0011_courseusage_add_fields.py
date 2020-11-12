@@ -19,7 +19,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='courseusage',
             name='block_type',
-            field=models.CharField(max_length=32, null=True, choices=[(b'problem', b'problem'), (b'video', b'video'), (b'html', b'html'), (b'course', b'course'), (b'chapter', b'Section'), (b'sequential', b'Subsection'), (b'vertical', b'Vertical'), (b'library_content', b'Library Content')]),
+            field=models.CharField(max_length=32, null=True,
+                                   choices=[('problem', 'problem'), ('video', 'video'),
+                                            ('html', 'html'), ('course', 'course'), ('chapter', 'Section'),
+                                            ('sequential', 'Subsection'), ('vertical', 'Vertical'),
+                                            ('library_content', 'Library Content')]),
         ),
         migrations.AddField(
             model_name='courseusage',

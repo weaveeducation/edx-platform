@@ -15,10 +15,10 @@ class Migration(migrations.Migration):
             name='Organization',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('org', models.CharField(unique=True, max_length=255, verbose_name=b'Org')),
-                ('is_courseware_customer', models.BooleanField(default=False, verbose_name=b'Courseware customer')),
-                ('is_skill_customer', models.BooleanField(default=False, verbose_name=b'SKILL customer')),
-                ('is_modules_customer', models.BooleanField(default=False, verbose_name=b'Modules customer')),
+                ('org', models.CharField(unique=True, max_length=255, verbose_name='Org')),
+                ('is_courseware_customer', models.BooleanField(default=False, verbose_name='Courseware customer')),
+                ('is_skill_customer', models.BooleanField(default=False, verbose_name='SKILL customer')),
+                ('is_modules_customer', models.BooleanField(default=False, verbose_name='Modules customer')),
             ],
         ),
     ]

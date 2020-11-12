@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             name='OrgUsageMigration',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('org', models.CharField(max_length=255, unique=True, verbose_name=b'Org')),
+                ('org', models.CharField(max_length=255, unique=True, verbose_name='Org')),
                 ('updated_ids', models.TextField()),
             ],
         ),

@@ -25,7 +25,9 @@ class Migration(migrations.Migration):
                 ('block_id', models.CharField(max_length=255)),
                 ('source_course_id', opaque_keys.edx.django.models.CourseKeyField(db_index=True, max_length=255)),
                 ('dst_course_id', opaque_keys.edx.django.models.CourseKeyField(max_length=255)),
-                ('status', models.CharField(choices=[(b'not_started', b'Not Started'), (b'started', b'Started'), (b'finished', b'Finished'), (b'error', b'Error')], default=b'not_started', max_length=255)),
+                ('status', models.CharField(choices=[('not_started', 'Not Started'),
+                                                     ('started', 'Started'), ('finished', 'Finished'),
+                                                     ('error', 'Error')], default='not_started', max_length=255)),
             ],
             options={
                 'db_table': 'copy_section_task',

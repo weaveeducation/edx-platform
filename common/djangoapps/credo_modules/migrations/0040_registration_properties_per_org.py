@@ -17,8 +17,10 @@ class Migration(migrations.Migration):
             name='RegistrationPropertiesPerOrg',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('org', models.CharField(max_length=255, unique=True, verbose_name=b'Org')),
-                ('data', models.TextField(help_text=b'Config in JSON format', validators=[credo_modules.models.validate_json_props], verbose_name=b'Registration Properties')),
+                ('org', models.CharField(max_length=255, unique=True, verbose_name='Org')),
+                ('data', models.TextField(help_text='Config in JSON format',
+                                          validators=[credo_modules.models.validate_json_props],
+                                          verbose_name='Registration Properties')),
             ],
             options={
                 'db_table': 'credo_registration_properties_v2',

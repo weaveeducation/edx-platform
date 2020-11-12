@@ -17,9 +17,10 @@ class Migration(migrations.Migration):
             name='OrganizationTagOrder',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('tag_name', models.CharField(max_length=255, verbose_name=b'Tag name')),
-                ('order_num', models.IntegerField(verbose_name=b'Order num')),
-                ('org', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='credo_modules.Organization')),
+                ('tag_name', models.CharField(max_length=255, verbose_name='Tag name')),
+                ('order_num', models.IntegerField(verbose_name='Order num')),
+                ('org', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE,
+                                          to='credo_modules.Organization')),
             ],
             options={
                 'ordering': ('order_num', 'tag_name'),

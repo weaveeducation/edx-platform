@@ -25,6 +25,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='propertiesinfo',
             name='org',
-            field=models.CharField(db_index=True, max_length=255, verbose_name=b'Org'),
+            field=models.CharField(db_index=True, max_length=255, verbose_name='Org'),
         ),
     ]

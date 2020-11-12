@@ -333,6 +333,7 @@ class ApiCourseStructureTags(models.Model):
     ts = models.IntegerField(null=True, db_index=True)
 
     class Meta:
+        managed = False
         db_table = 'api_course_structure_tags'
 
 

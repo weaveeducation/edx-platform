@@ -63,31 +63,42 @@ class Migration(migrations.Migration):
             name='OrganizationType',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('title', models.CharField(unique=True, max_length=255, verbose_name=b'Title')),
-                ('constructor_lti_link', models.BooleanField(default=True, verbose_name=b'Display LTI link in Constructor')),
-                ('constructor_embed_code', models.BooleanField(default=True, verbose_name=b'Display embed code field in Constructor')),
-                ('constructor_direct_link', models.BooleanField(default=True, verbose_name=b'Display direct link in Constructor')),
-                ('insights_learning_outcomes', models.BooleanField(default=True, verbose_name=b'Display LO report in Credo Insights')),
-                ('insights_assessments', models.BooleanField(default=True, verbose_name=b'Display Assessment report in Credo Insights')),
-                ('insights_enrollment', models.BooleanField(default=True, verbose_name=b'Display Enrollment report in Credo Insights')),
-                ('insights_engagement', models.BooleanField(default=True, verbose_name=b'Display Engagement report in Credo Insights')),
-                ('instructor_dashboard_credo_insights', models.BooleanField(default=True, verbose_name=b'Show Credo Insights link in the Instructor Dashboard')),
+                ('title', models.CharField(unique=True, max_length=255, verbose_name='Title')),
+                ('constructor_lti_link', models.BooleanField(default=True,
+                                                             verbose_name='Display LTI link in Constructor')),
+                ('constructor_embed_code', models.BooleanField(default=True,
+                                                               verbose_name='Display embed code field in Constructor')),
+                ('constructor_direct_link', models.BooleanField(default=True,
+                                                                verbose_name='Display direct link in Constructor')),
+                ('insights_learning_outcomes', models.BooleanField(default=True,
+                                                                   verbose_name='Display LO report in Credo Insights')),
+                ('insights_assessments', models.BooleanField(
+                    default=True, verbose_name='Display Assessment report in Credo Insights')),
+                ('insights_enrollment', models.BooleanField(
+                    default=True, verbose_name='Display Enrollment report in Credo Insights')),
+                ('insights_engagement', models.BooleanField(
+                    default=True, verbose_name='Display Engagement report in Credo Insights')),
+                ('instructor_dashboard_credo_insights', models.BooleanField(
+                    default=True, verbose_name='Show Credo Insights link in the Instructor Dashboard')),
             ],
         ),
         migrations.AlterField(
             model_name='organization',
             name='default_frame_domain',
-            field=models.CharField(validators=[django.core.validators.URLValidator()], max_length=255, blank=True, help_text=b'Default value is https://frame.credocourseware.com in case of empty field', null=True, verbose_name=b'Domain for LTI/Iframe/etc'),
+            field=models.CharField(
+                validators=[django.core.validators.URLValidator()], max_length=255, blank=True,
+                help_text='Default value is https://frame.credocourseware.com in case of empty field',
+                null=True, verbose_name='Domain for LTI/Iframe/etc'),
         ),
         migrations.AlterField(
             model_name='organization',
             name='is_skill_customer',
-            field=models.BooleanField(default=False, verbose_name=b'K12 with assessment'),
+            field=models.BooleanField(default=False, verbose_name='K12 with assessment'),
         ),
         migrations.AddField(
             model_name='organization',
             name='org_type',
-            field=models.ForeignKey(related_name='org_type', null=True, on_delete=django.db.models.deletion.SET_NULL, blank=True, to='credo_modules.OrganizationType', verbose_name=b'Org Type'),
+            field=models.ForeignKey(related_name='org_type', null=True, on_delete=django.db.models.deletion.SET_NULL, blank=True, to='credo_modules.OrganizationType', verbose_name='Org Type'),
         ),
         migrations.RunPython(
             update_types,

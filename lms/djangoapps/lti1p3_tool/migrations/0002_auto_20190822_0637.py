@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='ltitool',
             name='allow_to_add_instructors_via_lti',
-            field=models.NullBooleanField(help_text=b"Automatically adds instructor role to the user who came through the LTI if some of these parameters: 'Administrator', 'Instructor', 'Staff' was passed. Choose 'Yes' to enable this feature. "),
+            field=models.NullBooleanField(help_text="Automatically adds instructor role to the user who came through the LTI if some of these parameters: 'Administrator', 'Instructor', 'Staff' was passed. Choose 'Yes' to enable this feature. "),
         ),
         migrations.AlterField(
             model_name='ltitool',

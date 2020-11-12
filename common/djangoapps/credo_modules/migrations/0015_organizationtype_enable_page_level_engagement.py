@@ -15,6 +15,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='organizationtype',
             name='enable_page_level_engagement',
-            field=models.BooleanField(default=False, verbose_name=b'Enable Page Level for Engagement Statistic in Insights'),
+            field=models.BooleanField(default=False,
+                                      verbose_name='Enable Page Level for Engagement Statistic in Insights'),
         ),
     ]

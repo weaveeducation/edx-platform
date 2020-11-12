@@ -17,10 +17,11 @@ class Migration(migrations.Migration):
             name='OrganizationTag',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('tag_name', models.CharField(max_length=255, verbose_name=b'Tag name')),
-                ('insights_view', models.BooleanField(default=True, verbose_name=b'Display on the Insights')),
-                ('progress_view', models.BooleanField(default=True, verbose_name=b'Display on the My Skills page')),
-                ('org', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='credo_modules.Organization')),
+                ('tag_name', models.CharField(max_length=255, verbose_name='Tag name')),
+                ('insights_view', models.BooleanField(default=True, verbose_name='Display on the Insights')),
+                ('progress_view', models.BooleanField(default=True, verbose_name='Display on the My Skills page')),
+                ('org', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE,
+                                          to='credo_modules.Organization')),
             ],
             options={
                 'ordering': ('org', 'tag_name'),

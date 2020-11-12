@@ -15,6 +15,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='organizationtype',
             name='enable_item_analysis_reports',
-            field=models.BooleanField(default=False, verbose_name=b'Enable Item Analysis Reports'),
+            field=models.BooleanField(default=False, verbose_name='Enable Item Analysis Reports'),
         ),
     ]

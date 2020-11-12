@@ -23,10 +23,10 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('is_active', models.BooleanField(default=False)),
-                ('key', models.CharField(max_length=255, verbose_name=b'Authorization token')),
-                ('url_part', models.CharField(max_length=30, validators=[django.core.validators.RegexValidator(b'^[a-z]+$', b'Only a-z characters are allowed')], verbose_name=b'XXX url part in the "xxx.turnitin.com" hostname')),
-                ('use_sandbox', models.BooleanField(default=False, verbose_name=b'Use xxx.tii-sandbox.com instead of xxx.turnitin.com')),
-                ('webhook_id', models.CharField(blank=True, max_length=255, null=True, verbose_name=b'Webhook ID')),
+                ('key', models.CharField(max_length=255, verbose_name='Authorization token')),
+                ('url_part', models.CharField(max_length=30, validators=[django.core.validators.RegexValidator('^[a-z]+$', 'Only a-z characters are allowed')], verbose_name='XXX url part in the "xxx.turnitin.com" hostname')),
+                ('use_sandbox', models.BooleanField(default=False, verbose_name='Use xxx.tii-sandbox.com instead of xxx.turnitin.com')),
+                ('webhook_id', models.CharField(blank=True, max_length=255, null=True, verbose_name='Webhook ID')),
                 ('org', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to='credo_modules.Organization')),
             ],
             options={
@@ -43,7 +43,7 @@ class Migration(migrations.Migration):
                 ('turnitin_submission_id', models.CharField(blank=True, db_index=True, max_length=255, null=True)),
                 ('status', models.CharField(max_length=30)),
                 ('data', models.TextField(blank=True, null=True)),
-                ('report_status', models.CharField(default=b'-', max_length=30)),
+                ('report_status', models.CharField(default='-', max_length=30)),
                 ('creation_time', models.DateTimeField(auto_now_add=True, null=True)),
                 ('update_time', models.DateTimeField(auto_now=True, null=True)),
                 ('api_key', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='turnitin_integration.TurnitinApiKey')),

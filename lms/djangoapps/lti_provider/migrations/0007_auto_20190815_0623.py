@@ -15,12 +15,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='gradedassignmentlock',
             name='lti_version',
-            field=models.CharField(choices=[(b'1.1', b'LTI 1.1'), (b'1.3', b'LTI 1.3')], default=b'1.1', max_length=10),
+            field=models.CharField(choices=[('1.1', 'LTI 1.1'), ('1.3', 'LTI 1.3')], default='1.1', max_length=10),
         ),
         migrations.AddField(
             model_name='lticontextid',
             name='lti_version',
-            field=models.CharField(choices=[(b'1.1', b'LTI 1.1'), (b'1.3', b'LTI 1.3')], default=b'1.1', max_length=10),
+            field=models.CharField(choices=[('1.1', 'LTI 1.1'), ('1.3', 'LTI 1.3')], default='1.1', max_length=10),
         ),
         migrations.AlterField(
             model_name='gradedassignmentlock',
