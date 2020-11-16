@@ -65,6 +65,14 @@ class PropertiesUpdater(object):
                 except klass.DoesNotExist:
                     pass
 
+        if org in ['Rutgers', 'Rutgers-University']:
+            custom_properties = ['campus', 'school']
+            for cust_prop in custom_properties:
+                if cust_prop not in self._org_props[org]:
+                    self._org_props[org].append(cust_prop)
+                if cust_prop not in self._org_common_props[org]:
+                    self._org_common_props[org].append(cust_prop)
+
     def update_prop_info(self, org, course_id, props_lst):
         prop_obj_data = []
         try:
