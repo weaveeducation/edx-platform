@@ -3,17 +3,13 @@
 Structured Tagging based on XBlockAsides
 """
 
-import json
 from xblock.core import XBlockAside, XBlock
 from web_fragments.fragment import Fragment
 from xblock.fields import Scope, Dict
 from xmodule.x_module import AUTHOR_VIEW
-from xmodule.capa_module import ProblemBlock
 from edxmako.shortcuts import render_to_string
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
-from django.core.exceptions import ObjectDoesNotExist
 from webob import Response
 
 
@@ -28,24 +24,12 @@ class StructuredTagsAside(XBlockAside):
                       scope=Scope.content,
                       default={},)
 
-    def get_available_tags(self):
+    def _get_available_tags(self):
         """
         Return available tags
         """
-        from .models import TagCategories
-        from credo_modules.models import Organization
-
-        org_type_id = None
-        try:
-            cr_org = Organization.objects.get(org=self.scope_ids.usage_id.course_key.org)
-            if cr_org.org_type is not None:
-                org_type_id = cr_org.org_type.id
-        except Organization.DoesNotExist:
-            pass
-
-        if org_type_id:
-            return TagCategories.objects.filter(Q(org_types__org_type=None) | Q(org_types__org_type=org_type_id))
-        return TagCategories.objects.filter(org_types__org_type=None)
+        from credo_modules.tagging import get_available_tags
+        return get_available_tags(self.scope_ids.usage_id.course_key.org)
 
     def _get_studio_resource_url(self, relative_url):
         """
@@ -54,21 +38,10 @@ class StructuredTagsAside(XBlockAside):
         return settings.STATIC_URL + relative_url
 
     def _check_user_access(self, role, user=None):
-        from student.auth import user_has_role
-        from student.roles import CourseStaffRole, CourseInstructorRole
-        roles = {
-            CourseStaffRole.ROLE: CourseStaffRole,
-            CourseInstructorRole.ROLE: CourseInstructorRole
-        }
-
-        if not user:
-            return False
-        elif self.runtime.user_is_superuser:
-            return True
-        elif role in roles:
-            return user_has_role(user, roles[role](self.runtime.course_id))
-
-        return False
+        from credo_modules.tagging import check_user_access
+        return check_user_access(
+            role, self.runtime.course_id, user=user, user_is_superuser=self.runtime.user_is_superuser
+        )
 
     @XBlockAside.aside_for(AUTHOR_VIEW)
     def student_view_aside(self, block, context):  # pylint: disable=unused-argument
@@ -76,55 +49,16 @@ class StructuredTagsAside(XBlockAside):
         Display the tag selector with specific categories and allowed values,
         depending on the context.
         """
-        from student.models import User
+        from credo_modules.tagging import get_tags
 
-        if isinstance(block, ProblemBlock) or block.category in ['html', 'video', 'drag-and-drop-v2', 'image-explorer'] or \
+        if block.category in ['problem', 'html', 'video', 'drag-and-drop-v2', 'image-explorer'] or \
                 (block.category == 'openassessment' and len(block.rubric_criteria) == 0):
-            tags = []
-            user = None
-            has_access_any_tag = False
 
-            for tag in self.get_available_tags():
-                course_id = None
-                org = None
+            tags, has_access_any_tag = get_tags(
+                self.scope_ids.usage_id.course_key, self.scope_ids.usage_id.course_key.org, self.runtime.user_id,
+                self.saved_tags, self.runtime.user_is_superuser
+            )
 
-                if tag.scoped_by:
-                    if tag.scoped_by == 'course':
-                        course_id = self.scope_ids.usage_id.course_key
-                    elif tag.scoped_by == 'org':
-                        org = self.scope_ids.usage_id.course_key.org
-
-                values = tag.get_values(course_id=course_id, org=org)
-                current_values = self.saved_tags.get(tag.name, [])
-
-                if isinstance(current_values, str):
-                    current_values = [current_values]
-
-                values_not_exists = [cur_val for cur_val in current_values if cur_val not in values]
-                has_access_this_tag = True
-
-                if tag.role:
-                    if not user:
-                        try:
-                            user = User.objects.get(pk=self.runtime.user_id)
-                        except ObjectDoesNotExist:
-                            pass
-                    has_access_this_tag = self._check_user_access(tag.role, user)
-                    if has_access_this_tag:
-                        has_access_any_tag = True
-                else:
-                    has_access_any_tag = True
-
-                tags.append({
-                    'key': tag.name,
-                    'title': tag.title,
-                    'values': values,
-                    'values_json': json.dumps(values),
-                    'current_values': values_not_exists + current_values,
-                    'current_values_json': json.dumps(values_not_exists + current_values),
-                    'editable': tag.editable_in_studio,
-                    'has_access': has_access_this_tag,
-                })
             fragment = Fragment(render_to_string('structured_tags_block.html', {'tags': tags,
                                                                                 'tags_count': len(tags),
                                                                                 'block_location': block.location,
@@ -174,7 +108,7 @@ class StructuredTagsAside(XBlockAside):
     def update_values(self, request=None, suffix=None):  # pylint: disable=unused-argument
         with transaction.atomic():
             for tag_key in request.POST:
-                for tag in self.get_available_tags():
+                for tag in self._get_available_tags():
                     if tag.name == tag_key:
                         course_id = None
                         org = None
@@ -229,7 +163,7 @@ class StructuredTagsAside(XBlockAside):
         posted_data = request.params.dict_of_lists()
         saved_tags = {}
 
-        for av_tag in self.get_available_tags():
+        for av_tag in self._get_available_tags():
             tag_key = '%s[]' % av_tag.name
             if tag_key in posted_data and len(posted_data[tag_key]) > 0:
                 saved_tags[av_tag.name] = posted_data[tag_key]

@@ -38,7 +38,7 @@ class OraStructuredTagsAside(StructuredTagsAside):
 
             rubrics = [rubric['label'].strip() for rubric in block.rubric_criteria]
 
-            for tag in self.get_available_tags():
+            for tag in self._get_available_tags():
                 course_id = None
                 org = None
 
@@ -112,7 +112,7 @@ class OraStructuredTagsAside(StructuredTagsAside):
 
         saved_tags = {}
 
-        for av_tag in self.get_available_tags():
+        for av_tag in self._get_available_tags():
             for rubric, rubric_tags in posted_data.items():
                 if av_tag.name in rubric_tags and rubric_tags[av_tag.name]:
                     tag_available_values = av_tag.get_values()
