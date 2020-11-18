@@ -221,7 +221,7 @@ def library_blocks_view(library, user, response_format):
     component_templates = get_component_templates(library, library=True) if can_edit else []
 
     tags, has_access_any_tag = get_tags(
-        library.location.library_key, library.location.library_key.org, user, user_is_superuser=user.is_superuser)
+        library.location.library_key, library.location.library_key.org, user.id, user_is_superuser=user.is_superuser)
 
     return render_to_response('library.html', {
         'can_edit': can_edit,
