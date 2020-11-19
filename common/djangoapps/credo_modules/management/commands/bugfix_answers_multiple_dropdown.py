@@ -55,10 +55,12 @@ class Command(BaseCommand):
                                   % (str(e.answer_id), str(e.dtime_ts)))
 
                 cache.set(cache_key, dt_to.strftime('%Y-%m-%d %H:%M:%S.%f'), 60 * 60 * 12)
+                print('num_to_update: ', str(num_to_update))
                 if num_to_update >= items_to_update:
                     merge_data_into_vertica_table(TrackingLog, update_process_num=update_process_num)
                     num_to_update = 0
                     TrackingLog.objects.filter(update_process_num=update_process_num).update(update_process_num=1)
+                dt_from = dt_from + datetime.timedelta(hours=4)
 
         if num_to_update > 0:
             merge_data_into_vertica_table(TrackingLog, update_process_num=update_process_num)
