@@ -320,8 +320,10 @@ def detect_lms_type(post_data):
             or LmsType.BLACKBOARD in post_data.get('launch_presentation_return_url', ''):
         return LmsType.BLACKBOARD
     elif LmsType.SAKAI in post_data.get('tool_consumer_info_product_family_code', '')\
-            or LmsType.SAKAI in post_data.get('ext_lms', ''):
+            or LmsType.SAKAI in post_data.get('ext_lms', '')\
+            or LmsType.SAKAI in post_data.get('tool_consumer_instance_guid', ''):
         return LmsType.SAKAI
+    return None
 
 
 def get_rutgers_code(post_data):
