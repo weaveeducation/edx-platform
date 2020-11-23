@@ -35,6 +35,7 @@ from util.json_request import JsonResponse, JsonResponseBadRequest, expect_json
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import DuplicateCourseError
+from credo_modules.tagging import get_tags
 
 from .component import CONTAINER_TEMPLATES, get_component_templates
 from .user import user_with_role
@@ -219,12 +220,17 @@ def library_blocks_view(library, user, response_format):
     xblock_info = create_xblock_info(library, include_ancestor_info=False, graders=[])
     component_templates = get_component_templates(library, library=True) if can_edit else []
 
+    tags, has_access_any_tag = get_tags(
+        library.location.library_key, library.location.library_key.org, user.id, user_is_superuser=user.is_superuser)
+
     return render_to_response('library.html', {
         'can_edit': can_edit,
         'context_library': library,
         'component_templates': component_templates,
         'xblock_info': xblock_info,
         'templates': CONTAINER_TEMPLATES,
+        'tags': tags,
+        'tags_count': len(tags)
     })
 
 

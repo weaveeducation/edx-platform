@@ -36,6 +36,9 @@ def register_special_exams(course_key):
         # if feature is not enabled then do a quick exit
         return
 
+    if not course_key.is_course:
+        return
+
     course = modulestore().get_course(course_key)
     if course is None:
         raise ItemNotFoundError(u"Course {} does not exist", six.text_type(course_key))

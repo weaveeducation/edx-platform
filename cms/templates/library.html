@@ -53,7 +53,7 @@ from openedx.core.djangolib.markup import HTML, Text
             </div>
         </div>
 
-        <nav class="nav-actions" aria-label="${_('Page Actions')}">
+        <nav class="nav-actions" aria-label="${_('Page Actions')}" style="top: 0px !important;">
             <h3 class="sr">${_("Page Actions")}</h3>
             <ul>
                 <li class="nav-item">
@@ -69,6 +69,24 @@ from openedx.core.djangolib.markup import HTML, Text
                 </li>
             </ul>
         </nav>
+        % if tags_count:
+        <div class="tagging" style="clear:both;">
+            % for tag in tags:
+                % if len(tag['values']) > 0:
+                <div>
+                    <div><label for="tags_${tag['key']}_filter">${tag['title']}</label>:</div>
+                    % if tag['has_access']:
+                        <div style="width: 700px;">
+                        <input id="tags_${tag['key']}_filter" name="${tag['key']}" type="text"
+                               data-values="${tag['values_json'] | h}" class="tag-filter" />
+                        </div>
+                    % endif
+                </div>
+                % endif
+            % endfor
+            <div style="padding-top: 10px;"><button class="tags_clear_all">Clear all</button></div>
+        </div>
+        % endif
     </header>
 </div>
 
@@ -78,7 +96,7 @@ from openedx.core.djangolib.markup import HTML, Text
 
             <div class="content-primary">
                 <div class="container-message wrapper-message"></div>
-                <div class="wrapper-xblock level-page is-hidden studio-xblock-wrapper" data-locator="${context_library.location}" data-course-key="${context_library.location.library_key}">
+                <div class="wrapper-xblock level-page is-hidden studio-xblock-wrapper library-main-listing" data-locator="${context_library.location}" data-course-key="${context_library.location.library_key}">
                 </div>
                 <div class="ui-loading">
                     <p><span class="spin"><span class="icon fa fa-refresh" aria-hidden="true"></span></span><span class="copy">${_("Loading")}</span></p>
@@ -104,4 +122,8 @@ from openedx.core.djangolib.markup import HTML, Text
         </div>
     </div>
 </div>
+</%block>
+
+<%block name="page_bundle_extra">
+<script type="text/javascript" src="${static.url('cms/js/magicsuggest-1.3.1.js')}"></script>
 </%block>
