@@ -75,7 +75,7 @@ from xmodule.contentstore.django import contentstore
 from xmodule.exceptions import NotFoundError
 from xmodule.tabs import CourseTabList
 from xmodule.x_module import AUTHOR_VIEW, PREVIEW_VIEWS, STUDENT_VIEW, STUDIO_VIEW
-from credo_modules.models import CopySectionTask
+from credo_modules.models import CopyBlockTask
 
 __all__ = [
     'orphan_handler', 'xblock_handler', 'xblock_view_handler', 'xblock_outline_handler', 'xblock_container_handler'
@@ -519,8 +519,8 @@ def _update_with_callback(xblock, user, old_metadata=None, old_content=None):
 @task()
 def copy_to_other_course(task_id, user_id, usage_key_string, destination_course_key_string):
     try:
-        copy_task = CopySectionTask.objects.get(id=task_id)
-    except CopySectionTask.DoesNotExist:
+        copy_task = CopyBlockTask.objects.get(id=task_id)
+    except CopyBlockTask.DoesNotExist:
         return
 
     try:
@@ -544,6 +544,37 @@ def copy_to_other_course(task_id, user_id, usage_key_string, destination_course_
         copy_task.save()
         raise
 
+@task()
+def copy_unit_to_library(task_id, user_id, usage_keys_strings, destination_course_key_string):
+    try:
+        copy_task = CopyBlockTask.objects.get(id=task_id)
+    except CopyBlockTask.DoesNotExist:
+        return
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        copy_task.set_error()
+        copy_task.save()
+        return
+
+    try:
+        copy_task.set_started()
+        copy_task.save()
+
+        xblocks = []
+
+        for usage_key_string in usage_keys_strings:
+            xblocks.append(_get_xblock(UsageKey.from_string(usage_key_string), user))
+
+        _copy_unit_to_library(user, xblocks, destination_course_key_string)
+
+        copy_task.set_finished()
+        copy_task.save()
+    except:
+        copy_task.set_error()
+        copy_task.save()
+        raise
 
 def _copy_to_other_course(user, xblock, course_dst_id):
     broken_blocks = {}
@@ -553,6 +584,19 @@ def _copy_to_other_course(user, xblock, course_dst_id):
     _duplicate_item(duplicate_source_usage_key, xblock.location, user, xblock.display_name, course_key=course_key,
                     broken_blocks=broken_blocks)
     return {'id': str(xblock.location), 'broken_blocks': broken_blocks}
+
+def _copy_unit_to_library(user, xblocks, library_dst_id):
+    broken_blocks = {}
+    library_key = usage_key_with_run(library_dst_id)
+    course_key = library_key.course_key
+    processed_ids = []
+    for xblock in xblocks:
+        for xblock_child in xblock.get_children():
+            if xblock_child.category in ['problem', 'html', 'video']:
+                processed_ids.append(xblock_child.location)
+                _duplicate_item(library_key, xblock_child.location, user=user, display_name=xblock_child.display_name, course_key=course_key,
+                                broken_blocks=broken_blocks)
+    return {'ids': processed_ids, 'broken_blocks': broken_blocks}
 
 
 def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, nullout=None,
