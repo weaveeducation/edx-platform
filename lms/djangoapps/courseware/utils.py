@@ -178,7 +178,7 @@ def _get_dnd_answer_values(item_state, zones):
         res = []
         result[str(idx)] = '--'
         for k, v in item_state.items():
-            if z['uid'] == v['zone']:
+            if z['uid'] == v['zone'] and str(k) in items:
                 res.append(items[str(k)])
         if res:
             result[str(idx)] = ', '.join(sorted(res))

@@ -3,7 +3,7 @@ import hashlib
 import json
 import re
 import pytz
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from bs4 import BeautifulSoup
 from django.utils.html import strip_tags
 from django.contrib.auth.models import User
@@ -680,8 +680,14 @@ class ProblemParser(EventParser):
     def get_answers(self, event, correctness, timestamp, *args, **kwargs):
         answer_display = []
         event_data = event['event']
-        submissions = event_data.get('submission', {})
         allowed_input_types = ['choicegroup', 'checkboxgroup', 'textline', 'formulaequationinput', 'optioninput']
+
+        submissions_raw = event_data.get('submission', {})
+        submissions = OrderedDict()
+        submissions_raw_keys = sorted(list(submissions_raw.keys()))
+        for sk in submissions_raw_keys:
+            submissions[sk] = submissions_raw[sk]
+
         for answer_id, submission in submissions.items():
             if submission['input_type'] and submission['input_type'] in allowed_input_types:
                 answers_text = submission['answer'] if isinstance(submission['answer'], list) else [

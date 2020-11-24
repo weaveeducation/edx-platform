@@ -320,31 +320,16 @@ def detect_lms_type(post_data):
             or LmsType.BLACKBOARD in post_data.get('launch_presentation_return_url', ''):
         return LmsType.BLACKBOARD
     elif LmsType.SAKAI in post_data.get('tool_consumer_info_product_family_code', '')\
-            or LmsType.SAKAI in post_data.get('ext_lms', ''):
+            or LmsType.SAKAI in post_data.get('ext_lms', '')\
+            or LmsType.SAKAI in post_data.get('tool_consumer_instance_guid', ''):
         return LmsType.SAKAI
+    return None
 
 
-def get_rutgers_code(post_data):
-    lms_type = detect_lms_type(post_data)
+def get_rutgers_code(post_data, lms_type=None):
+    if not lms_type:
+        lms_type = detect_lms_type(post_data)
     context_label = post_data.get('context_label', '')
-
-    if lms_type == LmsType.SAKAI:
-        # Sakai - lis_course_offier_sourcedid ( Example: 2020:9:01:090:220:08: )
-        lis_course_offering_sourcedid = post_data.get('lis_course_offering_sourcedid', '')
-        if lis_course_offering_sourcedid:
-            lis_course_offering_sourcedid_lst = lis_course_offering_sourcedid.split(':')
-            if len(lis_course_offering_sourcedid_lst) > 2:
-                return lis_course_offering_sourcedid_lst[2]
-    elif lms_type == LmsType.CANVAS:
-        # Canvas - context_label ( Example: 01:355:303:06 WRTG FOR BUS&PROFESS )
-        if context_label:
-            context_label_lst = context_label.split(':')
-            if len(context_label_lst) > 1:
-                return context_label_lst[0]
-    elif lms_type == LmsType.BLACKBOARD:
-        # Blackboard - context_label ( Example: 202092152525462 )
-        if context_label and len(context_label) > 6:
-            return context_label[5:7]
 
     if context_label:
         # RBHS campus, examples:
@@ -354,4 +339,27 @@ def get_rutgers_code(post_data):
         for cl in context_label_lst:
             if len(cl) == 12 and re.match('^[a-zA-Z]{4}[0-9]{4}[a-zA-Z]{1}[0-9]{3}$', cl):
                 return 'rbhs'
+
+    rcode = None
+    if lms_type == LmsType.SAKAI:
+        # Sakai - lis_course_offier_sourcedid ( Example: 2020:9:01:090:220:08: )
+        lis_course_offering_sourcedid = post_data.get('lis_course_offering_sourcedid', '')
+        if lis_course_offering_sourcedid:
+            lis_course_offering_sourcedid_lst = lis_course_offering_sourcedid.split(':')
+            if len(lis_course_offering_sourcedid_lst) > 2:
+                rcode = lis_course_offering_sourcedid_lst[2]
+    elif lms_type == LmsType.CANVAS:
+        # Canvas - context_label ( Example: 01:355:303:06 WRTG FOR BUS&PROFESS )
+        if context_label:
+            context_label_lst = context_label.split(':')
+            if len(context_label_lst) > 1:
+                rcode = context_label_lst[0]
+    elif lms_type == LmsType.BLACKBOARD:
+        # Blackboard - context_label ( Example: 202092152525462 )
+        if context_label and len(context_label) > 6:
+            rcode = context_label[5:7]
+
+    if rcode and rcode.isnumeric() and len(rcode) == 2:
+        return rcode
+
     return None

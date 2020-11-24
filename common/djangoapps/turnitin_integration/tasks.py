@@ -6,9 +6,8 @@ from django.core.cache import caches
 from django.contrib.auth.models import User
 from django.db import transaction
 from lms import CELERY_APP
-from opaque_keys.edx.keys import CourseKey, UsageKey
+from opaque_keys.edx.keys import UsageKey
 from xmodule.modulestore.django import modulestore
-from student.models import AnonymousUserId
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
 from openassessment.fileupload.backends.s3 import Backend as S3Backend
 from .models import TurnitinApiKey, TurnitinSubmission, TurnitinUser, TurnitinReportStatus
@@ -42,7 +41,6 @@ def turnitin_generate_report(self, turnitin_submission_id):
 
 
 def _create_submissions(key_id, submission_uuid, course_id, item_id, user_id):
-    course_key = CourseKey.from_string(course_id)
     usage_key = UsageKey.from_string(item_id)
     block = modulestore().get_item(usage_key)
     user = User.objects.get(id=int(user_id))
@@ -75,8 +73,6 @@ def _create_submissions(key_id, submission_uuid, course_id, item_id, user_id):
         )
         turnitin_user.save()
 
-    anon_user = AnonymousUserId.objects.get(user=user, course_id=course_key)
-
     s3_backend = S3Backend()
     turnitin_api = TurnitinApi(api_key)
 
@@ -92,12 +88,18 @@ def _create_submissions(key_id, submission_uuid, course_id, item_id, user_id):
     if not eula_version:
         eula_version, eula_url = turnitin_api.get_eula_version()
 
+    submissions_to_remove = []
     for sub in submissions:
         with transaction.atomic():
             is_text_response = False if sub.file_name else True
             filename = sub.file_name if sub.file_name else 'text_response.txt'
             title = block_display_name + ' [' + filename + ']'
             data = sub.get_data()
+            if not is_text_response:
+                s3_key_exists = s3_backend.check_key_exists(data['file_key'])
+                if not s3_key_exists:
+                    submissions_to_remove.append(sub.id)
+                    continue
 
             status_code1, resp1 = turnitin_api.create_submission(turnitin_user, title, eula_version)
             success = True if resp1 else False
@@ -138,6 +140,9 @@ def _create_submissions(key_id, submission_uuid, course_id, item_id, user_id):
             sub.turnitin_submission_id = resp1['id']
             sub.status = resp1['status']
             sub.save()
+
+    if submissions_to_remove:
+        TurnitinSubmission.objects.filter(id__in=submissions_to_remove).delete()
 
 
 def _generate_report(turnitin_submission_id):
