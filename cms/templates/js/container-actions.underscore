@@ -1,0 +1,15 @@
+<div class="section-header-actions">
+    <div class="left-block">
+        <p class="selected-text">Selected: <span class="selected-count"><%- selected_children_count %></span></p>
+    </div>
+    <div class="right-block">
+        <ul class="actions-list">                
+            <li class="action-item action-copy-to-other-course">
+                <a href="#" data-tooltip="Copy to other course" class="copy-to-other-course-button action-button <%- selected_children_count ? '' : 'is-disabled' %>">
+                    <span class="icon fa fa-share-square-o" aria-hidden="true"></span>
+                    <span class="sr action-button-text">Copy to other libraries</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
