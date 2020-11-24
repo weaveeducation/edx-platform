@@ -98,6 +98,43 @@
       }
     }
 
+    .container-actions {
+      height: 20px;
+      padding: 10px 10px 0px;
+
+      .section-header-actions {
+        .left-block {
+          @include float(left);
+
+          .selected-text {
+            font-size: 12px;
+            color: #666;
+
+            .selected-count {
+              font-weight: 600;
+            }
+          }
+        }
+
+        .right-block {
+          @include float(right);
+
+          margin-top: -($baseline/4);
+
+          @include text-align(right);
+
+          .actions-list {
+            @extend %actions-list;
+            @extend %t-action2;
+
+            .action-button.is-disabled {
+              color: #bbb8b8;
+            }
+          }
+        }
+      }
+    }
+
     // dragging bits
     .ui-sortable-helper {
       article {
