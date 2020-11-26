@@ -610,6 +610,7 @@ class SendScoresMailing(models.Model):
     class Meta(object):
         db_table = "credo_send_scores_mailing"
 
+
 class CopyBlockTask(TimeStampedModel, models.Model):
     NOT_STARTED = 'not_started'
     STARTED = 'started'
@@ -622,7 +623,7 @@ class CopyBlockTask(TimeStampedModel, models.Model):
         (ERROR, 'Error'),
     )
 
-    task_id = models.CharField(max_length=255, unique=True)
+    task_id = models.CharField(max_length=255, db_index=True)
     block_ids = models.TextField()
     dst_location = models.CharField(max_length=255, db_index=True)
     status = models.CharField(
