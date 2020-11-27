@@ -28,7 +28,7 @@ export default class Main extends React.Component {
     return (
       <div className="problem-browser">
         <Button onClick={this.handleToggleDropdown} label={gettext('Select a section or problem')} />
-        <input type="text" name="problem-location" value={selectedBlock} disabled />
+        <input type="text" name="problem-location" aria-label={gettext('Select a section or problem')} value={selectedBlock} disabled />
         {this.state.showDropdown &&
         <BlockBrowser onSelectBlock={(blockId) => {
           this.hideDropdown();

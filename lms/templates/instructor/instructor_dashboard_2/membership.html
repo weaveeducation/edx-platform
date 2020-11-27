@@ -64,7 +64,7 @@ from openedx.core.djangolib.markup import HTML, Text
         <input type="button" name="enrollment-button" class="enrollment-button" value="${pgettext('someone','Enroll')}" data-endpoint="${ section_data['enroll_button_url'] }" data-action="enroll" >
         <input type="button" name="enrollment-button" class="enrollment-button" value="${_("Unenroll")}" data-endpoint="${ section_data['unenroll_button_url'] }" data-action="unenroll" >
     </div>
-    <div class="request-response"></div>
+    <div class="request-response" role="status"></div>
     <div class="request-response-error"></div>
 </fieldset>
 
@@ -130,7 +130,7 @@ from openedx.core.djangolib.markup import HTML, Text
         <input type="button" name="beta-testers" class="enrollment-button" value="${_("Add beta testers")}" data-endpoint="${ section_data['modify_beta_testers_button_url'] }" data-action="add" >
         <input type="button" name="beta-testers" class="enrollment-button" value="${_("Remove beta testers")}" data-endpoint="${ section_data['modify_beta_testers_button_url'] }" data-action="remove" >
     </div>
-    <div class="request-response"></div>
+    <div class="request-response" role="status"></div>
     <div class="request-response-error"></div>
 </fieldset>
 

@@ -92,7 +92,8 @@ def get_password_reset_form():
         restrictions={
             "min_length": accounts.EMAIL_MIN_LENGTH,
             "max_length": accounts.EMAIL_MAX_LENGTH,
-        }
+        },
+        autocomplete="email"
     )
 
     return form_desc

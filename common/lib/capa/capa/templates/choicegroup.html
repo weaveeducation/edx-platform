@@ -57,6 +57,6 @@ import six
     <div class="capa_alert">${submitted_message}</div>
     %endif
     % if msg:
-    <span class="message" aria-describedby="${id}-legend" tabindex="-1">${HTML(msg)}</span>
+    <span class="message" role="status" aria-describedby="${id}-legend" tabindex="-1">${HTML(msg)}</span>
     % endif
 </div>

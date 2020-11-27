@@ -109,7 +109,8 @@
                 value: $(this).data('current-values'),
                 allowFreeEntries: false,
                 disabled: $(this).is('[readonly]') ? true : false,
-                maxSelection: 1000
+                maxSelection: 1000,
+                inputCfg: {"aria-label": $(this).attr('name')}
             });
         });
 
