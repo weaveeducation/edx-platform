@@ -110,6 +110,7 @@
             'jquery.iframe-transport': 'js/vendor/jQuery-File-Upload/js/jquery.iframe-transport',
             'jquery.inputnumber': 'js/vendor/html5-input-polyfills/number-polyfill',
             'jquery.immediateDescendents': 'js/src/jquery.immediateDescendents',
+            'jquery.multiselect': 'cms/js/jquery.multiselect-2.4.12',
             'datepair': 'js/vendor/timepicker/datepair',
             'date': 'js/vendor/date',
             moment: 'common/js/vendor/moment-with-locales',
@@ -135,7 +136,6 @@
             'hls': 'common/js/vendor/hls',
             'lang_edx': 'js/src/lang_edx',
             'jquery_extend_patch': 'js/src/jquery_extend_patch',
-            'jquery-multiselect': 'cms/js/jquery.multiselect-2.4.12',
 
             // externally hosted files
             mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@2.7.5/MathJax.js?config=TeX-MML-AM_HTMLorMML&delayStartupUntil=configured',  // eslint-disable-line max-len
@@ -214,6 +214,10 @@
             'jquery.tinymce': {
                 deps: ['jquery', 'tinymce'],
                 exports: 'jQuery.fn.tinymce'
+            },
+            'jquery.multiselect': {
+                deps: ['jquery'],
+                exports: 'jQuery.fn.multiselect'
             },
             'datepair': {
                 deps: ['jquery.ui', 'jquery.timepicker']

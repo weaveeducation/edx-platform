@@ -103,7 +103,7 @@ from credo_modules.models import CopyBlockTask, get_inactive_orgs
 from credo_modules.mongo import get_block_versions
 
 from .component import ADVANCED_COMPONENT_TYPES
-from .item import create_xblock_info, copy_to_other_course, copy_unit_to_library
+from .item import create_xblock_info, copy_to_other_course, copy_unit_to_library, copy_components_to_library
 from .library import LIBRARIES_ENABLED, get_library_creator_status
 
 log = logging.getLogger(__name__)
@@ -113,6 +113,7 @@ __all__ = ['course_info_handler', 'course_handler', 'course_listing',
            'course_listing_short', 'libraries_listing_short',
            'copy_section_to_other_courses', 'copy_section_to_other_courses_result',
            'copy_units_to_libraries', 'copy_units_to_libraries_result',
+           'copy_components_to_libraries', 'copy_components_to_libraries_result',
            'course_info_update_handler', 'course_search_index_handler',
            'course_rerun_handler',
            'settings_handler',
@@ -754,8 +755,85 @@ def copy_units_to_libraries_result(request):
     for t in tasks:
         if not t.is_finished():
             result = False
+        library = modulestore().get_library(UsageKey.from_string(t.dst_location).course_key)
         result_list.append({
-            'title': t.dst_location,
+            'title': library.display_name,
+            'location': t.dst_location,
+            'status': t.status,
+            'result': t.is_finished()
+        })
+
+    return JsonResponse({'result': result, 'libraries': result_list})
+
+
+@login_required
+@ensure_csrf_cookie
+@require_http_methods(["POST"])
+@transaction.non_atomic_requests
+def copy_components_to_libraries(request):
+    json_data = json.loads(request.body.decode('utf8'))
+    usage_keys_strings = json_data.get('usage_keys', [])
+    copy_to_libraries = json_data.get('copy_to_libraries', [])
+
+    task_id = str(uuid4())
+
+    usage_keys = []
+
+    for usage_key_string in usage_keys_strings:
+        try:
+            usage_key = UsageKey.from_string(usage_key_string)
+            if has_studio_read_access(request.user, usage_key.course_key):
+                usage_keys.append(usage_key_string)
+        except InvalidKeyError:
+            pass
+
+    if not usage_keys or not copy_to_libraries:
+        return JsonResponse({'task_id': None})
+
+    tasks_num = 0
+
+    for library_key_string in copy_to_libraries:
+        try:
+            library_key = UsageKey.from_string(library_key_string)
+            if has_studio_write_access(request.user, library_key):
+                with transaction.atomic():
+                    section_task = CopyBlockTask(
+                        task_id=task_id,
+                        block_ids=usage_keys,
+                        dst_location=library_key_string
+                    )
+                    section_task.save()
+                copy_components_to_library.delay(int(section_task.id), request.user.id,
+                                            usage_keys, library_key_string)
+                tasks_num = tasks_num + 1
+        except InvalidKeyError:
+            pass
+
+    if tasks_num > 0:
+        return JsonResponse({'task_id': task_id})
+    else:
+        return JsonResponse({'task_id': None})
+
+
+@require_http_methods(["POST"])
+def copy_components_to_libraries_result(request):
+    json_data = json.loads(request.body.decode('utf8'))
+    task_id = json_data.get('task_id')
+    if not task_id:
+        return HttpResponseBadRequest()
+
+    result = True
+    result_list = []
+
+    tasks = CopyBlockTask.objects.filter(task_id=task_id)
+
+    for t in tasks:
+        if not t.is_finished():
+            result = False
+        library = modulestore().get_library(UsageKey.from_string(t.dst_location).course_key)
+        result_list.append({
+            'title': library.display_name,
+            'location': t.dst_location,
             'status': t.status,
             'result': t.is_finished()
         })

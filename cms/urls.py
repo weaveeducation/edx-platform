@@ -113,6 +113,10 @@ urlpatterns = [
         name='copy_units_to_libraries'),
     url(r'^copy_units_to_libraries_result/?$', contentstore.views.copy_units_to_libraries_result,
         name='copy_units_to_libraries_result'),
+    url(r'^copy_components_to_libraries/?$', contentstore.views.copy_components_to_libraries,
+        name='copy_components_to_libraries'),
+    url(r'^copy_components_to_libraries_result/?$', contentstore.views.copy_components_to_libraries_result,
+        name='copy_components_to_libraries_result'),
     url(r'^libraries_listing/?$', contentstore.views.libraries_listing_short,
         name='libraries_listing_short'),
 

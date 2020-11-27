@@ -1,0 +1,6 @@
+<select name="copy-to-libraries" multiple="multiple" class="copy-to-libraries" style="width: 600px; text-overflow: ellipsis;">
+    <% _.each(libraries, function(library) { %>
+    <option value="<%- library.id %>"><%- library.name %></option>
+    <% }); %>
+</select>
+<div class="copy-to-libraries-result" style="padding-top: 10px;"></div>

@@ -169,7 +169,8 @@ function(Backbone, _, str, ModuleUtils) {
             highlights_preview_only: true,
             highlights_doc_url: '',
 
-            selected: false
+            selected: false,
+            selected_children: []
         },
 
         initialize: function() {

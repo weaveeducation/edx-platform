@@ -25,8 +25,14 @@ library_block_is_hidden = str(xblock.location).startswith('lib-block-v1') and ge
 <script type="text/template" id="xblock-validation-messages-tpl">
     <%static:include path="js/xblock-validation-messages.underscore" />
 </script>
+<script type="text/template" id="course-outline-modal-tpl">
+    <%static:include path="js/course-outline-modal.underscore" />
+</script>
 <script type="text/template" id="copy-to-other-course-tpl">
     <%static:include path="js/copy-to-other-course-unit.underscore" />
+</script>
+<script type="text/template" id="copy-to-libraries-tpl">
+    <%static:include path="js/copy-to-libraries.underscore" />
 </script>
 <script type="text/template" id="move-xblock-modal-tpl">
     <%static:include path="js/move-xblock-modal.underscore" />
@@ -67,6 +73,11 @@ library_block_is_hidden = str(xblock.location).startswith('lib-block-v1') and ge
         is-collapsed
     % endif
     ">
+        % if not is_root and root_xblock_is_library:
+            <div class="header-select">
+                <input type="checkbox" id="${xblock.scope_ids.usage_id}" class="field-input input-checkbox">
+            </div>
+        % endif
         <div class="header-details">
             % if show_inline:
             <a href="#" data-tooltip="${_('Expand or Collapse')}" class="action expand-collapse collapse">
@@ -91,7 +102,7 @@ library_block_is_hidden = str(xblock.location).startswith('lib-block-v1') and ge
                         </li>
                         % endif
                         % if not show_inline:
-                            % if root_xblock_is_library and not ability_edit_library_content:
+                            % if root_xblock_is_library_content and not ability_edit_library_content:
                             &nbsp;
                             % else:
                             <li class="action-item action-edit">

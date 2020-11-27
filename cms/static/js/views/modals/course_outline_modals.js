@@ -8,10 +8,9 @@
 define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
     'js/views/modals/base_modal', 'date', 'js/views/utils/xblock_utils',
     'js/utils/date_utils', 'edx-ui-toolkit/js/utils/html-utils',
-    'edx-ui-toolkit/js/utils/string-utils', 'jquery-multiselect'
+    'edx-ui-toolkit/js/utils/string-utils', 'jquery.multiselect'
 ], function(
-    $, Backbone, _, gettext, BaseView, BaseModal, date, XBlockViewUtils, DateUtils, HtmlUtils, StringUtils,
-    jquerymultiselect
+    $, Backbone, _, gettext, BaseView, BaseModal, date, XBlockViewUtils, DateUtils, HtmlUtils, StringUtils
 ) {
     'use strict';
     var CourseOutlineXBlockModal, SettingsXBlockModal, PublishXBlockModal, HighlightsXBlockModal,
