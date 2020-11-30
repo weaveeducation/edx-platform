@@ -20,14 +20,14 @@
 
 <div class="student-enrollment-status-container action-type-container">
     <h4 class="hd hd-4">${_("View a specific learner's enrollment status")}</h4>
-    <div class="request-response-error"></div>
+    <div class="request-response-error" role="status"></div>
     <label for="student-select-enrollment-status">
         ${_("Learner's {platform_name} email address or username *").format(platform_name=section_data['current_platform_name'])}
     </label>
     <br>
-    <input type="text" name="student-select-enrollment-status" placeholder="${_('Learner email address or username')}" >
+    <input type="text" id="student-select-enrollment-status" name="student-select-enrollment-status" placeholder="${_('Learner email address or username')}" >
 
-    <blockquote class="student-enrollment-status"></blockquote>
+    <blockquote class="student-enrollment-status" role="status"></blockquote>
 
     <br><br>
     <div class="enrollment-status-link-wrapper">
@@ -42,12 +42,12 @@
 
 <div class="student-progress-container action-type-container">
     <h4 class="hd hd-4">${_("View a specific learner's grades and progress")}</h4>
-    <div class="request-response-error"></div>
+    <div class="request-response-error" role="status"></div>
     <label for="student-select-progress">
         ${_("Learner's {platform_name} email address or username").format(platform_name=section_data['current_platform_name'])}
     </label>
     <br>
-    <input type="text" name="student-select-progress" placeholder="${_('Learner email address or username')}" >
+    <input type="text" id="student-select-progress" name="student-select-progress" placeholder="${_('Learner email address or username')}" >
     <br><br>
     <div class="progress-link-wrapper">
         <span name="progress-link">
@@ -61,31 +61,31 @@
 
 <div class="student-reset-progress-container action-type-container">
     <h4 class="hd hd-4">${_("Reset a specific learner's progress")}</h4>
-    <div class="request-response-error"></div>
+    <div class="request-response-error" role="status"></div>
     <label for="student-reset-progress">
         ${_("Learner's {platform_name} email address or username *").format(platform_name=section_data['current_platform_name'])}
     </label>
     <br>
-    <input type="text" name="student-reset-progress" placeholder="${_('Learner email address or username')}" >
+    <input type="text" id="student-reset-progress" name="student-reset-progress" placeholder="${_('Learner email address or username')}" >
     <br><br>
     <input type="button" name="reset-progress" value="${_('Reset Student\'s Progress')}" data-endpoint="${ section_data['reset_progress_student_url'] }">
     <br><br>
     <h5 class="hd hd-5">${_("Task Status")}</h5>
     <label for="reset-progress-history-single">${_("Show the status for the reseting tasks that you submitted for this learner")}</label>
     <br>
-    <input type="button" name="reset-progress-history-single" value="${_('Show Task Status')}" data-endpoint="${ section_data['list_reset_progress_tasks_url'] }" aria-describedby="reset-progress-single-help">
+    <input type="button" id="reset-progress-history-single" name="reset-progress-history-single" value="${_('Show Task Status')}" data-endpoint="${ section_data['list_reset_progress_tasks_url'] }" aria-label="${_('Reset Progress Task Status')}">
     <div class="reset-progress-table"></div>
     <hr>
 </div>
 
 <div class="student-grade-container action-type-container">
     <h4 class="hd hd-4">${_("Adjust a learner's grade for a specific problem")}</h4>
-    <div class="request-response-error"></div>
+    <div class="request-response-error" role="status"></div>
     <label for="student-select-grade">
         ${_("Learner's {platform_name} email address or username").format(platform_name=section_data['current_platform_name'])}
     </label>
     <br>
-    <input type="text" name="student-select-grade" placeholder="${_('Learner email address or username')}">
+    <input type="text" id="student-select-grade" name="student-select-grade" placeholder="${_('Learner email address or username')}">
     </label>
     <br><br>
 
@@ -94,7 +94,7 @@
         <span class="location-example">${_("Example")}: block-v1:edX+DemoX+2015+type@problem+block@618c5933b8b544e4a4cc103d3e508378</span>
     </label>
     <br>
-    <input type="text" name="problem-select-single" placeholder="${_('Problem location')}">
+    <input type="text" id="problem-select-single" name="problem-select-single" placeholder="${_('Problem location')}">
     <br><br><br>
 
     <h5 class="hd hd-5">${_("Attempts")}</h5>
@@ -124,7 +124,7 @@
             ${_("New score for problem, out of the total points available for the problem")}<br>
         </label>
         <br>
-        <input type="text" name="score-select-single" placeholder="${_('Score')}">
+        <input type="text" id="score-select-single" name="score-select-single" placeholder="${_('Score')}">
         <br><br>
         <span name="override-actions-single">
             <input type="button" name="override-problem-score-single" value="${_('Override Learner\'s Score')}" data-endpoint="${ section_data['override_problem_score_url'] }">
@@ -144,7 +144,7 @@
         <h5 class="hd hd-5">${_("Task Status")}</h5>
         <label for="task-history-single">${_("Show the status for the rescoring tasks that you submitted for this learner and problem.")}</label>
         <br>
-        <input type="button" name="task-history-single" value="${_('Show Task Status')}" data-endpoint="${ section_data['list_instructor_tasks_url'] }" aria-describedby="task-history-single-help">
+        <input type="button" name="task-history-single" value="${_('Show Task Status')}" data-endpoint="${ section_data['list_instructor_tasks_url'] }" aria-label="${_('Show Task Status')}">
         <div class="task-history-single-table"></div>
     %endif
   <hr>
@@ -153,7 +153,7 @@
 % if course.entrance_exam_enabled:
 <div class="entrance-exam-grade-container action-type-container">
     <h4 class="hd hd-4">${_("Adjust a learner's entrance exam results")}</h4>
-    <div class="request-response-error"></div>
+    <div class="request-response-error" role="status"></div>
 
     <label for="entrance-exam-student-select-grade">
         ${_("Learner's {platform_name} email address or username").format(platform_name=section_data['current_platform_name'])}
@@ -202,7 +202,7 @@
             ${_("Show the status for the rescoring tasks that you submitted for this learner and entrance exam.")}
         </label>
         <br>
-        <p><input type="button" name="entrance-exam-task-history" value="${_('Show Task Status')}" data-endpoint="${ section_data['list_entrace_exam_instructor_tasks_url'] }" aria-describedby="entrance-exam-task-history-help"></p>
+        <p><input type="button" name="entrance-exam-task-history" value="${_('Show Task Status')}" data-endpoint="${ section_data['list_entrace_exam_instructor_tasks_url'] }" aria-label="${_('Show Task Status')}"></p>
         <div class="entrance-exam-task-history-table"></div>
     %endif
     <hr>
@@ -215,14 +215,14 @@
 %if settings.FEATURES.get('ENABLE_INSTRUCTOR_BACKGROUND_TASKS'):
 <div class="course-specific-container action-type-container">
     <h4 class="hd hd-4">${_("Adjust all enrolled learners' grades for a specific problem")}</h4>
-    <div class="request-response-error"></div>
+    <div class="request-response-error" role="status"></div>
 
     <label for="problem-select-all">
         ${_("Location of problem in course")}<br>
         <span class="location-example">${_("Example")}: block-v1:edX+DemoX+2015+type@problem+block@618c5933b8b544e4a4cc103d3e508378</span>
     </label>
     <br>
-    <input type="text" name="problem-select-all" placeholder="${_('Problem location')}">
+    <input type="text" id="problem-select-all" name="problem-select-all" placeholder="${_('Problem location')}">
     <br><br><br>
 
     <h5 class="hd hd-5">${_("Attempts")}</h5>
@@ -243,7 +243,7 @@
     <h5 class="hd hd-5">${_("Task Status")}</h5>
     <label for="task-history-all">${_("Show the status for the tasks that you submitted for this problem.")}</label>
     <br>
-    <input type="button" name="task-history-all" value="${_('Show Task Status')}" data-endpoint="${ section_data['list_instructor_tasks_url'] }" aria-describedby="task-history-all-help">
+    <input type="button" name="task-history-all" value="${_('Show Task Status')}" data-endpoint="${ section_data['list_instructor_tasks_url'] }" aria-label="${_('Rescore Task Status')}">
     <div class="task-history-all-table"></div>
     <hr>
 </div>

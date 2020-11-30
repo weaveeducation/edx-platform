@@ -11,14 +11,17 @@ from django.utils.translation import ugettext as _
         "taken; you cannot use this tool to make an assignment due earlier for a "
         "particular student.")}
   </p>
-  <p>
+  <p><label for="student_name">
     ${_("Specify the {platform_name} email address or username of a student "
         "here:").format(platform_name=section_data['current_platform_name'])}
-    <input type="text" name="student" placeholder="${_("Student Email or Username")}">
+      </label>
+    <input type="text" id="student_name" name="student" placeholder="${_("Student Email or Username")}">
   </p>
   <p>
+      <label for="url_value">
     ${_("Choose the graded subsection:")}
-    <select name="url">
+      </label>
+    <select name="url" id="url_value">
       <option value="">Choose one</option>
       %for title, url in section_data['units_with_due_dates']:
       <option value="${url}">${title}</option>
@@ -29,8 +32,8 @@ from django.utils.translation import ugettext as _
   <p>
     ## Translators: "format_string" is the string MM/DD/YYYY HH:MM, as that is the format the system requires.
     ${_("Specify the extension due date and time (in UTC; please specify {format_string}).").format(format_string=format_string)}</p>
-  <p><input type="text" name="due_datetime"
-           placeholder="${format_string}"/> <input type="text" name="reason" placeholder="${_('Reason for extension')}" size=40 />
+  <p><input type="text" name="due_datetime" aria-label="Due Datetime"
+           placeholder="${format_string}"/> <input type="text" aria-label="Reason" name="reason" placeholder="${_('Reason for extension')}" size=40 />
   </p>
   <p class="request-response"></p>
   <p class="request-response-error"></p>
@@ -52,8 +55,8 @@ from django.utils.translation import ugettext as _
         "students who have extensions for the given subsection.")}
   </p>
   <p>
-    ${_("Choose the graded subsection:")}
-    <select name="url">
+      <label for="url_value_2">${_("Choose the graded subsection:")}</label>
+    <select name="url" id="url_value_2">
       <option value="">Choose one</option>
       %for title, url in section_data['units_with_due_dates']:
       <option value="${url}">${title}</option>
@@ -64,12 +67,12 @@ from django.utils.translation import ugettext as _
            data-endpoint="${section_data['show_unit_extensions_url']}">
   </p>
   <p>
-    ${_("Specify a student to see all of that student's extensions.")}
+      <label for="student_name_2">${_("Specify a student to see all of that student's extensions.")}</label>
   </p>
   <p>
     ${_("Specify the {platform_name} email address or username of a student "
         "here:").format(platform_name=section_data['current_platform_name'])}
-    <input type="text" name="student" placeholder="${_("Student Email or Username")}">
+    <input type="text" name="student" id="student_name_2" placeholder="${_("Student Email or Username")}">
     <input type="button" name="show-student-extensions"
            value="${_("List date extensions for student")}"
            data-endpoint="${section_data['show_student_extensions_url']}">
@@ -90,19 +93,19 @@ from django.utils.translation import ugettext as _
         "student back to the problem's original due date.")}
   </p>
   <p>
-    ${_("Specify the {platform_name} email address or username of a student "
-        "here:").format(platform_name=section_data['current_platform_name'])}
-    <input type="text" name="student" placeholder="${_("Student Email or Username")}">
+    <label for="student_name_3">${_("Specify the {platform_name} email address or username of a student "
+        "here:").format(platform_name=section_data['current_platform_name'])}</label>
+    <input type="text" id="student_name_3" name="student" placeholder="${_("Student Email or Username")}">
   </p>
   <p>
-    ${_("Choose the graded subsection:")}
-    <select name="url">
+      <label for="url_value_3">${_("Choose the graded subsection:")}</label>
+    <select name="url" id="url_value_3">
       <option value="">Choose one</option>
       %for title, url in section_data['units_with_due_dates']:
       <option value="${url}">${title}</option>
       %endfor
     </select>
-    <input type="text" name="reason" placeholder="${_('Reason for reset')}" size=40 />
+    <input type="text" name="reason" aria-label="${_('Reason for reset')}" placeholder="${_('Reason for reset')}" size=40 />
   </p>
   <p class="request-response"></p>
   <p class="request-response-error"></p>
