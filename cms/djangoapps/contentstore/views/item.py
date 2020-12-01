@@ -3,10 +3,12 @@
 
 import hashlib
 import logging
+import io
 from collections import OrderedDict
 from datetime import datetime
 from functools import partial
 from uuid import uuid4
+import xml.etree.ElementTree as ET
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -623,6 +625,10 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
         old_content = xblock.get_explicitly_set_fields_by_scope(Scope.content)
 
         if data:
+            validate_res, validate_err = _validate_xml(data)
+            if not validate_res:
+                return JsonResponse({"error": 'XML Error: ' + validate_err}, 400)
+
             # TODO Allow any scope.content fields not just "data" (exactly like the get below this)
             xblock.data = data
         else:
@@ -1750,3 +1756,29 @@ def _copy_library_content_to_library(copy_source_usage_key, target_parent_usage_
         'target_is_library': target_is_library
     }
     return JsonResponse(context)
+
+
+def _validate_xml(xmlstring):
+    f = io.StringIO(xmlstring)
+    try:
+        tree = ET.parse(f)
+        options = tree.findall(".//option")
+        for option in options:
+            correct_attr = option.attrib.get('correct')
+            if not correct_attr:
+                return False, '"correct" attribute for tag <option> is not set'
+            if correct_attr.lower()  not in ('true', 'false'):
+                return False, 'Invalid value "' + correct_attr + '" for attribute "correct" in tag <option>. ' \
+                                                                 'Valid options: "True"/"False".'
+
+        choices = tree.findall(".//choice")
+        for choice in choices:
+            correct_attr = choice.attrib.get('correct')
+            if not correct_attr:
+                return False, '"correct" attribute for tag <choice> is not set'
+            if correct_attr.lower() not in ('true', 'false'):
+                return False, 'Invalid option "' + correct_attr + '" for attribute "correct" in tag <choice>. ' \
+                                                                  'Valid options: "true"/"false".'
+    except ET.ParseError:
+        pass
+    return True, None
