@@ -224,21 +224,21 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                   and "staff-assessment" in problem_block.assessment_steps:
                     criterions = {}
                     for rub in problem_block.rubric_criteria:
-                        criterions[rub['label']] = {
+                        criterions[rub['label'].strip()] = {
                             'possible': 0,
                             'earned': 0,
-                            'label': rub['label'],
-                            'name': rub['name']
+                            'label': rub['label'].strip(),
+                            'name': rub['name'].strip()
                         }
                         for opt in rub['options']:
-                            if opt['points'] > criterions[rub['label']]['possible']:
-                                criterions[rub['label']]['possible'] = opt['points']
+                            if opt['points'] > criterions[rub['label'].strip()]['possible']:
+                                criterions[rub['label'].strip()]['possible'] = opt['points']
 
                     if submission_uuid:
                         staff_assessment = staff_api.get_latest_staff_assessment(submission_uuid)
                         if staff_assessment:
                             for part in staff_assessment['parts']:
-                                criterions[part['option']['criterion']['label']]['earned'] = part["option"]['points']
+                                criterions[part['option']['criterion']['label'].strip()]['earned'] = part["option"]['points']
 
                     for criterion, tags_dict in aside.saved_tags.items():
                         if criterion in criterions:

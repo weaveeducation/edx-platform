@@ -371,7 +371,7 @@ def get_course_tab_list(user, course):
     course_tab_list += _get_dynamic_tabs(course, user)
 
     for tab_item in course_tab_list:
-        if tab_item.type in course.course_tab_names:
+        if hasattr(course, 'course_tab_names') and tab_item.type in course.course_tab_names:
             tab_item.name = course.course_tab_names[tab_item.type]
 
     return course_tab_list
