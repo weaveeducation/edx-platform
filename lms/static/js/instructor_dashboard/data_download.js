@@ -346,7 +346,7 @@
                     data = {
                         browser_tz_offset: (-1) * tzOffset,
                         timestamp_from: Math.floor(timestampFrom.getTime() / 1000),
-                        timestamp_to: Math.floor(timestampTo.getTime() / 1000)
+                        timestamp_to: Math.floor(timestampTo.getTime() / 1000) + 24 * 60 * 60 - 1
                     };
                 }
                 return $.ajax({
