@@ -1072,7 +1072,7 @@ class CourseEnrollmentManager(models.Manager):
 
         return is_course_full
 
-    def users_enrolled_in(self, course_id, include_inactive=False, verified_only=False):
+    def users_enrolled_in(self, course_id, include_inactive=False, verified_only=False, **kwargs):
         """
         Return a queryset of User for every user enrolled in the course.
 
@@ -1091,6 +1091,8 @@ class CourseEnrollmentManager(models.Manager):
             filter_kwargs['courseenrollment__is_active'] = True
         if verified_only:
             filter_kwargs['courseenrollment__mode'] = CourseMode.VERIFIED
+        if kwargs:
+            filter_kwargs.update(kwargs)
         return User.objects.filter(**filter_kwargs)
 
     def enrollment_counts(self, course_id):

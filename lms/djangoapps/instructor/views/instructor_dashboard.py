@@ -64,7 +64,7 @@ from student.roles import (
     CourseSalesAdminRole, CourseStaffRole
 )
 from course_api.views import get_customer_info
-from credo_modules.models import Organization
+from credo_modules.models import Organization, Feature
 from util.json_request import JsonResponse
 from xmodule.html_module import HtmlBlock
 from xmodule.modulestore.django import modulestore
@@ -163,7 +163,7 @@ def _get_instructor_dashboard_2(request, course_id):
             sections.append(_section_student_admin(course, access))
 
     if access['data_researcher'] and available_tabs.show_data_download:
-        sections.append(_section_data_download(course, access))
+        sections.append(_section_data_download(course, access, request.user))
 
     analytics_dashboard_message = None
     if available_tabs.show_analytics and show_analytics_dashboard_message(course_key) and (access['staff'] or access['instructor']):
@@ -725,7 +725,7 @@ def _section_extensions(course):
     return section_data
 
 
-def _section_data_download(course, access):
+def _section_data_download(course, access, user=None):
     """ Provide data for the corresponding dashboard section """
     course_key = course.id
 
@@ -761,6 +761,7 @@ def _section_data_download(course, access):
             'get_course_survey_results', kwargs={'course_id': six.text_type(course_key)}
         ),
         'export_ora2_data_url': reverse('export_ora2_data', kwargs={'course_id': six.text_type(course_key)}),
+        'reports_datapicker': Feature.is_published(Feature.INSTRUCTOR_DASHBOARD_REPORTS_DATAPICKER, user)
     }
     if not access.get('data_researcher'):
         section_data['is_hidden'] = True

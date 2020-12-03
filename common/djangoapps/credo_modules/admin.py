@@ -5,7 +5,7 @@ from django.conf import settings
 from django.utils.safestring import mark_safe
 from .models import RegistrationPropertiesPerOrg, EnrollmentPropertiesPerCourse,\
     Organization, OrganizationType, CourseExcludeInsights, CustomUserRole, TagDescription, EdxApiToken,\
-    RutgersCampusMapping
+    RutgersCampusMapping, Feature, FeatureBetaTester
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 
@@ -95,6 +95,15 @@ class RutgersCampusMappingForm(admin.ModelAdmin):
     list_display = ('id', 'num', 'school', 'campus')
 
 
+class FeatureForm(admin.ModelAdmin):
+    list_display = ('id', 'feature_name', 'status')
+
+
+class FeatureBetaTesterForm(admin.ModelAdmin):
+    list_display = ('id', 'feature', 'user')
+    raw_id_fields = ('user',)
+
+
 admin.site.register(RegistrationPropertiesPerOrg, RegistrationPropertiesPerOrgForm)
 admin.site.register(EnrollmentPropertiesPerCourse, EnrollmentPropertiesPerCourseForm)
 admin.site.register(Organization, OrganizationForm)
@@ -104,3 +113,5 @@ admin.site.register(CustomUserRole, CustomUserRoleForm)
 admin.site.register(TagDescription, TagDescriptionForm)
 admin.site.register(EdxApiToken, EdxApiTokenForm)
 admin.site.register(RutgersCampusMapping, RutgersCampusMappingForm)
+admin.site.register(Feature, FeatureForm)
+admin.site.register(FeatureBetaTester, FeatureBetaTesterForm)
