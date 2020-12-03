@@ -2,8 +2,8 @@
  * Subviews (usually small side panels) for XBlockContainerPage.
  */
 define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/components/utils/view_utils',
-    'js/views/utils/xblock_utils', 'js/views/utils/move_xblock_utils', 'edx-ui-toolkit/js/utils/html-utils'],
-    function($, _, gettext, BaseView, ViewUtils, XBlockViewUtils, MoveXBlockUtils, HtmlUtils) {
+    'js/views/utils/xblock_utils', 'js/views/utils/move_xblock_utils', 'js/views/modals/copy_to_libraries', 'edx-ui-toolkit/js/utils/html-utils'],
+    function($, _, gettext, BaseView, ViewUtils, XBlockViewUtils, MoveXBlockUtils, CopyToLibraryModal, HtmlUtils) {
         'use strict';
 
         var disabledCss = 'is-disabled';
@@ -30,6 +30,42 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
             },
 
             render: function() {}
+        });
+
+        var ContainerActionsView = BaseView.extend({
+            events: {
+                'click .copy-to-libraries-button': 'onCopyToLibraries',
+            },
+
+            initialize: function() {
+                this.template = this.loadTemplate('container-actions');
+                this.model.on('change:selected_children', this.render, this);
+            },
+
+            render: function() {
+                HtmlUtils.setHtml(
+                    this.$el,
+                    HtmlUtils.HTML(
+                        this.template({
+                            selected_children_count: this.model.get('selected_children').length
+                        })
+                    )
+                );
+                return this;
+            },
+
+            onCopyToLibraries: function(event) {
+                // var xblockElement = this.findXBlockElement(event.target),
+                    // parentXBlockElement = xblockElement.parents('.studio-xblock-wrapper'),
+                var modal = new CopyToLibraryModal({
+                    model: this.model,
+                    selectedXblocks: this.model.get('selected_children')
+                    // onSave: this.refresh.bind(this),
+                });
+
+                event.preventDefault();
+                modal.show();
+            }
         });
 
         var ContainerAccess = ContainerStateListenerView.extend({
@@ -362,6 +398,7 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
             ViewLiveButtonController: ViewLiveButtonController,
             Publisher: Publisher,
             PublishHistory: PublishHistory,
-            ContainerAccess: ContainerAccess
+            ContainerAccess: ContainerAccess,
+            ContainerActionsView: ContainerActionsView
         };
     }); // end define();
