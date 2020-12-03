@@ -948,6 +948,51 @@ class RutgersCampusMapping(models.Model):
     campus = models.CharField(max_length=255, null=False)
 
 
+class FeatureStatus(object):
+    HIDDEN = 'hidden'
+    BETA = 'beta'
+    PUBLISHED = 'published'
+
+
+class Feature(models.Model):
+    INSTRUCTOR_DASHBOARD_REPORTS_DATAPICKER = 'instructor_dashboard_reports_datapicker'
+
+    feature_name = models.CharField(max_length=255, db_index=True)
+    status = models.CharField(
+        max_length=20,
+        choices=(
+            (FeatureStatus.HIDDEN, _('Is hidden for all')),
+            (FeatureStatus.BETA, _('Published only for beta testers')),
+            (FeatureStatus.PUBLISHED, _('Published for all')),
+        ), default=FeatureStatus.HIDDEN,
+    )
+
+    class Meta(object):
+        ordering = ['feature_name']
+
+    def __str__(self):
+        return self.feature_name
+
+    @classmethod
+    def is_published(cls, feature_name, user=None):
+        f = cls.objects.filter(feature_name=feature_name).first()
+        if f:
+            if f.status == FeatureStatus.PUBLISHED:
+                return True
+            if f.status == FeatureStatus.BETA and user and FeatureBetaTester.user_is_beta_tester(f, user):
+                return True
+        return False
+
+
+class FeatureBetaTester(models.Model):
+    feature = models.ForeignKey(Feature, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    @classmethod
+    def user_is_beta_tester(cls, feature, user):
+        return cls.objects.filter(feature=feature, user=user).exists()
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values

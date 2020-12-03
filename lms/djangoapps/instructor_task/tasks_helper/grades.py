@@ -72,6 +72,22 @@ def _flatten(iterable):
     return list(chain.from_iterable(iterable))
 
 
+def _get_enrollments_params(context):
+    res = {}
+    if not context:
+        context = {}
+    timestamp_from = context.get('dt_from')
+    timestamp_to = context.get('dt_to')
+    browser_tz_offset = context.get('browser_tz_offset')
+    if timestamp_from and browser_tz_offset:
+        timestamp_from = timestamp_from + (browser_tz_offset * 60)
+        res['courseenrollment__created__gte'] = datetime.fromtimestamp(timestamp_from).replace(tzinfo=UTC)
+    if timestamp_to and browser_tz_offset:
+        timestamp_to = timestamp_to + (browser_tz_offset * 60)
+        res['courseenrollment__created__lt'] = datetime.fromtimestamp(timestamp_to).replace(tzinfo=UTC)
+    return res
+
+
 class GradeReportBase(object):
     """
     Base class for grade reports (ProblemGradeReport and CourseGradeReport).
@@ -81,10 +97,12 @@ class GradeReportBase(object):
         """
         Returns count of number of learner enrolled in course.
         """
+        enroll_params = _get_enrollments_params(context.task_input)
         return CourseEnrollment.objects.users_enrolled_in(
             course_id=context.course_id,
             include_inactive=True,
             verified_only=context.report_for_verified_only,
+            query_kwargs=enroll_params
         ).count()
 
     def log_task_info(self, context, message):
@@ -131,7 +149,7 @@ class GradeReportBase(object):
             args = [iter(iterable)] * chunk_size
             return zip_longest(*args, fillvalue=fillvalue)
 
-        def get_enrolled_learners_for_course(course_id, verified_only=False):
+        def get_enrolled_learners_for_course(course_id, verified_only=False, task_input=None):
             """
             Get all the enrolled users in a course chunk by chunk.
             This generator method fetches & loads the enrolled user objects on demand which in chunk
@@ -145,6 +163,9 @@ class GradeReportBase(object):
             filter_kwargs = {
                 'courseenrollment__course_id': course_id,
             }
+            enroll_params = _get_enrollments_params(task_input)
+            filter_kwargs.update(enroll_params)
+
             if verified_only:
                 filter_kwargs['courseenrollment__mode'] = CourseMode.VERIFIED
 
@@ -164,7 +185,8 @@ class GradeReportBase(object):
                 yield users
 
         course_id = context.course_id
-        return get_enrolled_learners_for_course(course_id=course_id, verified_only=context.report_for_verified_only)
+        return get_enrolled_learners_for_course(course_id=course_id, verified_only=context.report_for_verified_only,
+                                                task_input=context.task_input)
 
     def _compile(self, context, batched_rows):
         """
@@ -224,6 +246,7 @@ class _CourseGradeReportContext(object):
         self.action_name = action_name
         self.course_id = course_id
         self.task_progress = TaskProgress(self.action_name, total=None, start_time=time())
+        self.task_input = _task_input
 
     @lazy
     def course(self):
@@ -532,7 +555,7 @@ class CourseGradeReport(object):
             args = [iter(iterable)] * chunk_size
             return zip_longest(*args, fillvalue=fillvalue)
 
-        def get_enrolled_learners_for_course(course_id, verified_only=False):
+        def get_enrolled_learners_for_course(course_id, verified_only=False, task_input=None):
             """
             Get enrolled learners in a course.
             Arguments:
@@ -541,27 +564,29 @@ class CourseGradeReport(object):
             """
             if optimize_get_learners_switch_enabled():
                 TASK_LOG.info(u'%s, Creating Course Grade with optimization', task_log_message)
-                return users_for_course_v2(course_id, verified_only=verified_only)
+                return users_for_course_v2(course_id, verified_only=verified_only, task_input=task_input)
 
             TASK_LOG.info(u'%s, Creating Course Grade without optimization', task_log_message)
-            return users_for_course(course_id, verified_only=verified_only)
+            return users_for_course(course_id, verified_only=verified_only, task_input=task_input)
 
-        def users_for_course(course_id, verified_only=False):
+        def users_for_course(course_id, verified_only=False, task_input=None):
             """
             Get all the enrolled users in a course.
             This method fetches & loads the enrolled user objects at once which may cause
             out-of-memory errors in large courses. This method will be removed when
             `OPTIMIZE_GET_LEARNERS_FOR_COURSE` waffle flag is removed.
             """
+            enroll_params = _get_enrollments_params(task_input)
             users = CourseEnrollment.objects.users_enrolled_in(
                 course_id,
                 include_inactive=True,
                 verified_only=verified_only,
+                query_kwargs=enroll_params
             )
             users = users.select_related('profile')
             return grouper(users)
 
-        def users_for_course_v2(course_id, verified_only=False):
+        def users_for_course_v2(course_id, verified_only=False, task_input=None):
             """
             Get all the enrolled users in a course chunk by chunk.
             This generator method fetches & loads the enrolled user objects on demand which in chunk
@@ -572,7 +597,8 @@ class CourseGradeReport(object):
             }
             if verified_only:
                 filter_kwargs['courseenrollment__mode'] = CourseMode.VERIFIED
-
+            enroll_params = _get_enrollments_params(task_input)
+            filter_kwargs.update(enroll_params)
             user_ids_list = get_user_model().objects.filter(**filter_kwargs).values_list('id', flat=True).order_by('id')
             user_chunks = grouper(user_ids_list)
             for user_ids in user_chunks:
@@ -589,7 +615,8 @@ class CourseGradeReport(object):
         course_id = context.course_id
         task_log_message = '{}, Task type: {}'.format(context.task_info_string, context.action_name)
         report_for_verified_only = generate_grade_report_for_verified_only()
-        return get_enrolled_learners_for_course(course_id=course_id, verified_only=report_for_verified_only)
+        return get_enrolled_learners_for_course(course_id=course_id, verified_only=report_for_verified_only,
+                                                task_input=context.task_input)
 
     def _user_grades(self, course_grade, context):
         """

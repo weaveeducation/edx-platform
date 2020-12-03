@@ -354,7 +354,11 @@ def submit_calculate_grades_csv(request, course_key):
     """
     task_type = 'grade_course'
     task_class = calculate_grades_csv
-    task_input = {}
+    task_input = {
+        'browser_tz_offset': request.POST.get('browser_tz_offset'),
+        'timestamp_from': request.POST.get('timestamp_from'),
+        'timestamp_to': request.POST.get('timestamp_to'),
+    }
     task_key = ""
 
     return submit_task(request, task_type, task_class, course_key, task_input, task_key)
@@ -367,7 +371,11 @@ def submit_problem_grade_report(request, course_key):
     """
     task_type = 'grade_problems'
     task_class = calculate_problem_grade_report
-    task_input = {}
+    task_input = {
+        'browser_tz_offset': request.POST.get('browser_tz_offset'),
+        'timestamp_from': request.POST.get('timestamp_from'),
+        'timestamp_to': request.POST.get('timestamp_to'),
+    }
     task_key = ""
     return submit_task(request, task_type, task_class, course_key, task_input, task_key)
 
@@ -477,7 +485,11 @@ def submit_export_ora2_data(request, course_key):
     """
     task_type = 'export_ora2_data'
     task_class = export_ora2_data
-    task_input = {}
+    task_input = {
+        'browser_tz_offset': request.POST.get('browser_tz_offset'),
+        'timestamp_from': request.POST.get('timestamp_from'),
+        'timestamp_to': request.POST.get('timestamp_to'),
+    }
     task_key = ''
 
     return submit_task(request, task_type, task_class, course_key, task_input, task_key)
