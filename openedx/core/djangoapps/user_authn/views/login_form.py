@@ -111,7 +111,8 @@ def get_login_session_form(request):
         restrictions={
             "min_length": accounts.EMAIL_MIN_LENGTH,
             "max_length": accounts.EMAIL_MAX_LENGTH,
-        }
+        },
+        autocomplete="email"
     )
 
     # Translators: This label appears above a field on the login form
@@ -122,7 +123,8 @@ def get_login_session_form(request):
         "password",
         label=password_label,
         field_type="password",
-        restrictions={'max_length': DEFAULT_MAX_PASSWORD_LENGTH}
+        restrictions={'max_length': DEFAULT_MAX_PASSWORD_LENGTH},
+        autocomplete="current-password"
     )
 
     return form_desc

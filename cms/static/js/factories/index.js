@@ -43,7 +43,8 @@ define(['jquery.form', 'js/index'], function() {
             width: 700,
             allowFreeEntries: false,
             maxSelection: 200,
-            emptyText: "Please, choose organizations..."
+            emptyText: "Please, choose organizations...",
+            inputCfg: {"aria-label": "Please, choose organizations..."}
         });
         $(ms).on('selectionchange', function(e, m) {
             $(document).trigger("orgs_changed", this.getValue());

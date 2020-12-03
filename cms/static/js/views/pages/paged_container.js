@@ -60,7 +60,8 @@ define(['jquery', 'underscore', 'gettext', 'js/views/pages/container', 'js/views
                         data: $(this).data('values'),
                         width: 700,
                         allowFreeEntries: false,
-                        maxSelection: 1000
+                        maxSelection: 1000,
+                        inputCfg: {"aria-label": tagName}
                     });
                     self.tagSelectors[tagName] = ms;
                     $(ms).on('selectionchange', function(e, m) {

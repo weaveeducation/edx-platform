@@ -93,6 +93,10 @@ from openedx.core.djangolib.markup import HTML, Text
 
   %if settings.FEATURES.get('ALLOW_COURSE_STAFF_GRADE_DOWNLOADS') or section_data['access']['admin']:
     <p>${_("Click to generate a CSV grade report for all currently enrolled students.")}</p>
+    %if section_data['reports_datapicker']:
+    <p>Only include students enrolled in this time period in grade and problem grade reports:</p>
+    <p><input type="text" id="report-enroll-date-from"> - <input type="text" id="report-enroll-date-to"></p>
+    %endif
     <p>
       <input type="button" name="calculate-grades-csv" class="async-report-btn" value="${_("Generate Grade Report")}" data-endpoint="${ section_data['calculate_grades_csv_url'] }"/>
       <input type="button" name="problem-grade-report" class="async-report-btn" value="${_("Generate Problem Grade Report")}" data-endpoint="${ section_data['problem_grade_report_url'] }"/>
@@ -100,8 +104,8 @@ from openedx.core.djangolib.markup import HTML, Text
     </p>
   %endif
 
-    <div class="request-response msg msg-confirm copy" id="report-request-response"></div>
-    <div class="request-response-error msg msg-error copy" id="report-request-response-error"></div>
+    <div class="request-response msg msg-confirm copy" role="status" id="report-request-response"></div>
+    <div class="request-response-error msg msg-error copy" role="status" id="report-request-response-error"></div>
     <br>
 
     <h3 class="hd hd-3">${_("Reports Available for Download")}</h3>

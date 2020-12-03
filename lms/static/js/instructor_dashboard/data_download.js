@@ -104,6 +104,15 @@
             this.$list_problem_responses_csv_btn = this.$section.find("input[name='list-problem-responses-csv']");
             this.$list_anon_btn = this.$section.find("input[name='list-anon-ids']");
             this.$grade_config_btn = this.$section.find("input[name='dump-gradeconf']");
+            this.$report_enroll_date_from = null;
+            if (this.$section.find("#report-enroll-date-from").length > 0) {
+                this.$report_enroll_date_from = this.$section.find("#report-enroll-date-from").datepicker()
+                  .datepicker("setDate", moment().subtract(1, 'months').format('MM/DD/YYYY'));
+            }
+            if (this.$section.find("#report-enroll-date-to").length > 0) {
+                this.$report_enroll_date_to = this.$section.find("#report-enroll-date-to").datepicker()
+                  .datepicker("setDate", moment().format('MM/DD/YYYY'));
+            }
             this.$calculate_grades_csv_btn = this.$section.find("input[name='calculate-grades-csv']");
             this.$problem_grade_report_csv_btn = this.$section.find("input[name='problem-grade-report']");
             this.$async_report_btn = this.$section.find("input[class='async-report-btn']");
@@ -322,10 +331,28 @@
             this.$async_report_btn.click(function(e) {
                 var url = $(e.target).data('endpoint');
                 var errorMessage = '';
+                var tzOffset = new Date().getTimezoneOffset();
+                var timestampFrom = null;
+                var timestampTo = null;
+                var data = {};
+                if (dataDownloadObj.$report_enroll_date_from) {
+                    timestampFrom = dataDownloadObj.$report_enroll_date_from.datepicker("getDate");
+                }
+                if (dataDownloadObj.$report_enroll_date_to) {
+                    timestampTo = dataDownloadObj.$report_enroll_date_to.datepicker("getDate");
+                }
                 dataDownloadObj.clear_display();
+                if (timestampFrom && timestampTo) {
+                    data = {
+                        browser_tz_offset: (-1) * tzOffset,
+                        timestamp_from: Math.floor(timestampFrom.getTime() / 1000),
+                        timestamp_to: Math.floor(timestampTo.getTime() / 1000)
+                    };
+                }
                 return $.ajax({
                     type: 'POST',
                     dataType: 'json',
+                    data: data,
                     url: url,
                     error: function(error) {
                         if (error.responseText) {
