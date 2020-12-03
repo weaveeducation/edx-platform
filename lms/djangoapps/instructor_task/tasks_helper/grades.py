@@ -102,7 +102,7 @@ class GradeReportBase(object):
             course_id=context.course_id,
             include_inactive=True,
             verified_only=context.report_for_verified_only,
-            **enroll_params
+            query_kwargs=enroll_params
         ).count()
 
     def log_task_info(self, context, message):
@@ -581,7 +581,7 @@ class CourseGradeReport(object):
                 course_id,
                 include_inactive=True,
                 verified_only=verified_only,
-                **enroll_params
+                query_kwargs=enroll_params
             )
             users = users.select_related('profile')
             return grouper(users)
