@@ -223,11 +223,23 @@ def xblock_handler(request, usage_key_string):
             ):
                 raise PermissionDenied()
 
+            def copy_ora(md):
+                if md and 'block_unique_id' in md:
+                    md.pop('block_unique_id', None)
+                if md and 'support_multiple_rubrics' in md:
+                    md.pop('support_multiple_rubrics', None)
+                return md
+
+            metadata_filter_fn = None
+            if duplicate_source_usage_key.block_type == 'openassessment':
+                metadata_filter_fn = copy_ora
+
             dest_usage_key = _duplicate_item(
                 parent_usage_key,
                 duplicate_source_usage_key,
                 request.user,
                 request.json.get('display_name'),
+                metadata_filter_fn=metadata_filter_fn
             )
             return JsonResponse({
                 'locator': text_type(dest_usage_key),
@@ -1003,7 +1015,7 @@ def _get_breadcrumbs(item):
 
 
 def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_name=None, is_child=False,
-                    course_key=None, broken_blocks=None):
+                    course_key=None, broken_blocks=None, metadata_filter_fn=None):
     """
     Duplicate an existing xblock as a child of the supplied parent_usage_key.
     """
@@ -1053,6 +1065,9 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
             for field in aside.fields.values():
                 if field.scope not in (Scope.settings, Scope.content,):
                     field.delete_from(aside)
+
+        if metadata_filter_fn is not None:
+            duplicate_metadata = metadata_filter_fn(duplicate_metadata)
 
         dest_module = store.create_item(
             user.id,

@@ -14,6 +14,11 @@ def get_vertica_dsn():
 def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list=None,
                                   course_ids_lst=None, vertica_dsn=None, filter_fn=None,
                                   skip_delete_step=False, delimiter=None):
+
+    if settings.DEBUG:
+        print('It is debug mode. Skip merge')
+        return
+
     table_name = model_class._meta.db_table
     if not delimiter:
         delimiter = '|'

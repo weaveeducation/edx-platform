@@ -2284,7 +2284,7 @@ def _get_block_student_progress(request, course_id, usage_id, timezone_offset=No
 
                         for key, score in section.problem_scores.items():
                             item = children_dict.get(str(key))
-                            if item and item['category'] in CREDO_GRADED_ITEM_CATEGORIES:
+                            if item and not item['hidden'] and item['category'] in CREDO_GRADED_ITEM_CATEGORIES:
                                 submission_uuid = None
                                 if item['category'] == 'openassessment':
                                     submission_uuid = item['data'].submission_uuid

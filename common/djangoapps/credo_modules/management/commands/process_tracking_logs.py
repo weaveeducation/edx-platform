@@ -137,7 +137,10 @@ class Command(BaseCommand):
             tr_log.is_incorrect = 0 if e.is_correct else 1
         tr_log.sequential_name = prepare_text_for_column_db(e.sequential_name) if e.sequential_name else None
         tr_log.sequential_id = e.sequential_id
-        tr_log.sequential_graded = 1 if e.sequential_graded else 0
+        if e.graded is not None:
+            tr_log.sequential_graded = 1 if e.graded else 0
+        else:
+            tr_log.sequential_graded = 1 if e.sequential_graded else 0
         tr_log.is_staff = 1 if e.is_staff else 0
         tr_log.attempt_ts = attempt_ts
         tr_log.is_last_attempt = 1 if is_last_attempt else 0
