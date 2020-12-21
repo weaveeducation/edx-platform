@@ -208,7 +208,8 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                                     'section_id': section_id,
                                     'display_name': problem_block.display_name,
                                     'question_text': problem_detailed_info['question_text'],
-                                    'question_text_safe': problem_detailed_info['question_text_safe']
+                                    'question_text_safe': problem_detailed_info['question_text_safe'],
+                                    'hidden': problem_detailed_info['hidden']
                                 }
                                 tags[tag_key]['problems'].append(problem)
                                 tags[tag_key]['sections'][section_id]['problems'].append(problem)
