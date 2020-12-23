@@ -7,6 +7,7 @@ import logging
 import time
 import json
 from django.db import transaction
+from django.utils.html import strip_tags
 
 from celery.task import task
 from django.conf import settings
@@ -21,7 +22,7 @@ from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore import ModuleStoreEnum
 from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure, ApiCourseStructureTags,\
-    ApiCourseStructureLock, BlockToSequential, CourseAuthProfileFieldsCache
+    ApiCourseStructureLock, BlockToSequential, CourseAuthProfileFieldsCache, OraBlockStructure
 
 log = logging.getLogger('edx.celery.task')
 
@@ -211,6 +212,9 @@ def _update_course_structure(course_id, published_on):
     block_to_sequential_items = BlockToSequential.objects.filter(course_id=str(course_id))
     block_to_sequential_items_dict = {b2s.block_id: b2s for b2s in block_to_sequential_items}
 
+    ora_blocks = OraBlockStructure.objects.filter(course_id=str(course_id))
+    ora_blocks_dict = {o.block_id: o for o in ora_blocks}
+
     t3 = time.time()
 
     structure_dict = {}
@@ -220,10 +224,12 @@ def _update_course_structure(course_id, published_on):
             structure_dict[str(item.location)] = item
 
     items_to_insert = []
+    ora_to_insert = []
     tags_to_insert = []
     b2s_to_insert = []
     items_updated = 0
     b2s_updated = 0
+    ora_items_updated = 0
     course_location = str(course.location)
 
     if course_location not in existing_structure_items_dict:
@@ -267,6 +273,40 @@ def _update_course_structure(course_id, published_on):
                         block_item.section_path = section_path
                         block_item.save()
                         items_updated += 1
+
+                if item.category == 'openassessment':
+                    ora_rubric_criteria = json.dumps(item.rubric_criteria)
+                    is_ora_empty_rubrics = len(item.rubric_criteria) == 0
+                    ora_prompt = _get_ora_question_text(item)
+                    ora_item = ora_blocks_dict.get(block_id)
+
+                    if not ora_item:
+                        ora_item = OraBlockStructure(
+                            course_id=course_id,
+                            org_id=course_key.org,
+                            block_id=block_id,
+                            is_ora_empty_rubrics=is_ora_empty_rubrics,
+                            support_multiple_rubrics=item.support_multiple_rubrics,
+                            is_additional_rubric=item.is_additional_rubric,
+                            prompt=ora_prompt,
+                            rubric_criteria=ora_rubric_criteria,
+                            display_rubric_step_to_students=item.display_rubric_step_to_students
+                        )
+                        ora_to_insert.append(ora_item)
+                    elif is_ora_empty_rubrics != ora_item.is_ora_empty_rubrics\
+                      or item.support_multiple_rubrics != ora_item.support_multiple_rubrics\
+                      or item.is_additional_rubric != ora_item.is_additional_rubric\
+                      or item.prompt != ora_prompt\
+                      or item.rubric_criteria != ora_rubric_criteria\
+                      or item.display_rubric_step_to_students != ora_item.display_rubric_step_to_students:
+                        ora_item.is_ora_empty_rubrics = is_ora_empty_rubrics
+                        ora_item.support_multiple_rubrics = item.support_multiple_rubrics
+                        ora_item.is_additional_rubric = item.is_additional_rubric
+                        ora_item.prompt = ora_prompt
+                        ora_item.rubric_criteria = ora_rubric_criteria
+                        ora_item.display_rubric_step_to_students = item.display_rubric_step_to_students
+                        ora_item.save()
+                        ora_items_updated += 1
 
                 if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer', 'openassessment'):
                     parent = _get_parent_sequential(item, structure_dict)
@@ -399,6 +439,16 @@ def _update_course_structure(course_id, published_on):
         if tags_to_insert:
             ApiCourseStructureTags.objects.bulk_create(tags_to_insert)
 
+        ora_to_remove = []
+        for ora_id, ora_item in ora_blocks_dict.items():
+            if ora_id not in structure_dict:
+                ora_to_remove.append(ora_item.id)
+        if ora_to_remove:
+            OraBlockStructure.objects.filter(id__in=ora_to_remove).delete()
+
+        if ora_to_insert:
+            OraBlockStructure.objects.bulk_create(ora_to_insert)
+
         t4 = time.time()
         time_total = t4 - t1
         time_to_get_structure_from_mongo = t2 - t1
@@ -444,3 +494,18 @@ def _get_parent_sequential(block, structure_dict):
     parent_id = str(block.parent)
     parent = structure_dict.get(parent_id)
     return _get_parent_sequential(parent, structure_dict) if parent else None
+
+
+def _get_ora_question_text(ora_block):
+    prompts = []
+    brs_tags = ['<br>', '<br/>', '<br />']
+    for pr in ora_block.prompts:
+        pr_descr = pr['description']
+        for br_val in brs_tags:
+            pr_descr = pr_descr.replace(br_val, "\n")
+        prompts.append(strip_tags(pr_descr).strip())
+
+    if len(prompts) > 1:
+        return "\n".join(prompts)
+    elif len(prompts) == 1:
+        return prompts[0]

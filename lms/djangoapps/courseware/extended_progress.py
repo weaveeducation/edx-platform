@@ -4,12 +4,14 @@ from collections import OrderedDict
 from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
 from lms.djangoapps.courseware.utils import get_problem_detailed_info, get_answer_and_correctness, get_score_points,\
     CREDO_GRADED_ITEM_CATEGORIES
+from lms.djangoapps.courseware.models import StudentModule
 from lms.djangoapps.courseware.user_state_client import DjangoXBlockUserStateClient
 from openassessment.assessment.api import staff as staff_api
 from submissions.api import get_submissions
-from student.models import anonymous_id_for_user
+from student.models import anonymous_id_for_user, CourseEnrollment
 from xmodule.modulestore.django import modulestore
 from credo_modules.models import OrganizationTag, TagDescription
+from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructureTags, BlockToSequential
 
 
 def _tag_title(tag):
@@ -507,6 +509,23 @@ def progress_skills_page(request, course, student):
         'tags_assessments': tags_assessments
     }
     return context
+
+
+def progress_global_page(request, student):
+    enrollments = CourseEnrollment.objects.filter(user=student, is_active=True)
+    course_ids = []
+    course_keys = []
+    for enroll in enrollments:
+        course_ids.append(str(enroll.course_id))
+        course_keys.append(enroll.course_id)
+
+    tags = ApiCourseStructureTags.objects.filter(course_id__in=course_ids, is_parent=0)
+    b2s = BlockToSequential.objects.filter(
+        course_id__in=course_ids, visible_to_staff_only=False, graded=1, deleted=False)
+    modules_raw_data = StudentModule.objects.filter(
+        course_id__in=course_keys, module_type__in=CREDO_GRADED_ITEM_CATEGORIES, student=student)
+
+
 
 
 def progress_grades_page(request, course, student):

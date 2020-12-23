@@ -6,9 +6,11 @@ import datetime
 import pytz
 
 from submissions import api as sub_api
-from credo_modules.models import SequentialBlockAnswered, SequentialBlockAttempt, get_student_properties_event_data
+from credo_modules.models import SequentialBlockAnswered, SequentialBlockAttempt, OraBlockScore, OraScoreType,\
+    get_student_properties_event_data
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 from student.models import User, AnonymousUserId
 from xblock.core import XBlockAside
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
@@ -31,8 +33,16 @@ class StudentPropertiesAside(XBlockAside):
         usage_id = None
 
         if event_type in event_types_lst and 'submission_uuid' in event:
+            course_id = str(self.runtime.course_id)
+            org_id = self.runtime.course_id.org
             usage_id = str(self.scope_ids.usage_id.usage_key)
             is_ora = True
+            text_response = ''
+            submission_answer_parts = event["answer"].get('parts', [])
+            text_response_lst = [p['text'] for p in submission_answer_parts if 'text' in p]
+            if text_response_lst:
+                text_response = "\n".join(text_response_lst).strip()
+
             try:
                 submission = sub_api.get_submission_and_student(event['submission_uuid'])
                 student_id = submission['student_item']['student_id']
@@ -40,6 +50,41 @@ class StudentPropertiesAside(XBlockAside):
                 user = anonymous_user.user
             except ObjectDoesNotExist:
                 pass
+
+            score_type = None
+            remove_prev_data = False
+            if event['score_type'] == 'PE':
+                score_type = OraScoreType.PEER
+            elif event['score_type'] == 'ST':
+                score_type = OraScoreType.STAFF
+                remove_prev_data = True
+            elif event['score_type'] == 'SE':
+                score_type = OraScoreType.SELF
+                remove_prev_data = True
+
+            if remove_prev_data:
+                OraBlockScore.objects.filter(
+                    course_id=course_id, block_id=usage_id, user=user,
+                    score_type=score_type).delete()
+
+            if score_type:
+                for crit in event['parts']:
+                    ora_score = OraBlockScore(
+                        course_id=course_id,
+                        org_id=org_id,
+                        block_id=usage_id,
+                        user=user,
+                        answer=text_response,
+                        score_type=score_type,
+                        criterion=crit.get('criterion').get('name').strip(),
+                        option_label=crit.get('option').get('name').strip(),
+                        points_possible=crit.get('criterion').get('points_possible'),
+                        points_earned=crit.get('option').get('points'),
+                        created=timezone.now(),
+                        grader_id=self.runtime.user_id
+                    )
+                    ora_score.save()
+
         elif event_type in ("problem_check", "edx.drag_and_drop_v2.item.dropped",
                             "xblock.image-explorer.hotspot.opened") or \
                 (event_type == 'openassessmentblock.create_submission' and 'submission_uuid' in event):
@@ -53,7 +98,8 @@ class StudentPropertiesAside(XBlockAside):
             from lms.djangoapps.courseware.tasks import track_sequential_viewed_task
             from lms.djangoapps.courseware.models import StudentModule
 
-            block = BlockToSequential.objects.filter(course_id=str(self.runtime.course_id), block_id=usage_id).first()
+            course_id = str(self.runtime.course_id)
+            block = BlockToSequential.objects.filter(course_id=course_id, block_id=usage_id).first()
             if block:
                 parent_id = block.sequential_id
             else:
@@ -80,9 +126,8 @@ class StudentPropertiesAside(XBlockAside):
             if new_attempt:
                 try:
                     with transaction.atomic():
-                        course_key_str = str(self.runtime.course_id)
                         seq_user_block = SequentialBlockAnswered(
-                            course_id=course_key_str,
+                            course_id=course_id,
                             sequential_id=parent_id,
                             first_answered_block_id=usage_id,
                             user_id=user.id
@@ -90,15 +135,15 @@ class StudentPropertiesAside(XBlockAside):
                         seq_user_block.save()
                         attempt_created = attempt_created - datetime.timedelta(seconds=60)
                         seq_block_attempt = SequentialBlockAttempt(
-                            course_id=course_key_str,
+                            course_id=course_id,
                             sequential_id=parent_id,
                             user_id=user.id,
                             dt=attempt_created
                         )
                         seq_block_attempt.save()
 
-                        StudentModule.log_start_new_attempt(user.id, course_key_str, parent_id)
-                        track_sequential_viewed_task.delay(course_key_str, parent_id, user.id)
+                        StudentModule.log_start_new_attempt(user.id, course_id, parent_id)
+                        track_sequential_viewed_task.delay(course_id, parent_id, user.id)
                 except IntegrityError:
                     pass
 
