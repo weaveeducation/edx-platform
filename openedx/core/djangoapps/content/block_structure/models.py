@@ -399,3 +399,18 @@ class CourseAuthProfileFieldsCache(models.Model):
         if self.data:
             return json.loads(self.data)
         return None
+
+
+class OraBlockStructure(models.Model):
+    course_id = models.CharField(max_length=255, null=False, db_index=True)
+    org_id = models.CharField(max_length=80, null=False, db_index=True)
+    block_id = models.CharField(max_length=255, null=False, db_index=True)
+    is_ora_empty_rubrics = models.BooleanField(default=False)
+    support_multiple_rubrics = models.BooleanField(default=False)
+    is_additional_rubric = models.BooleanField(default=False)
+    prompt = models.TextField(null=True)
+    rubric_criteria = models.TextField(null=True)
+    display_rubric_step_to_students = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'ora_block_structure'

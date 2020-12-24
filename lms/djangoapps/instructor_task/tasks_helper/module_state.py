@@ -30,7 +30,7 @@ from xmodule.modulestore.django import modulestore
 from ..exceptions import UpdateProblemModuleStateError
 from .runner import TaskProgress
 from .utils import UNKNOWN_TASK_ID, UPDATE_STATUS_FAILED, UPDATE_STATUS_SKIPPED, UPDATE_STATUS_SUCCEEDED
-from credo_modules.models import SequentialBlockAnswered
+from credo_modules.models import SequentialBlockAnswered, OraBlockScore
 from completion import waffle as completion_waffle
 from completion.models import BlockCompletion
 from lms.djangoapps.courseware.utils import get_block_children
@@ -481,7 +481,7 @@ def reset_progress_student(_xmodule_instance_args, _entry_id, course_id, _task_i
     )
     task_progress.update_task_state(extra_meta=curr_step)
 
-    update_reset_progress(user, course_id, initiator='instructor_dashboard_student_admin_tab')
+    reset_user_progress(user, course_id, initiator='instructor_dashboard_student_admin_tab')
 
     curr_step = {'step': 'Finalizing reseting report'}
     return task_progress.update_task_state(extra_meta=curr_step)
@@ -495,22 +495,29 @@ def create_reset_user(user):
     return new_user
 
 
-def update_reset_progress(user, course_key, block=None, initiator=None):
+def reset_user_progress(user, course_key, block=None, initiator=None):
     if not block:
         StudentModule.objects.filter(course_id=course_key, student=user).delete()
         SequentialBlockAnswered.objects.filter(course_id=str(course_key), user_id=user.id).delete()
+        OraBlockScore.objects.filter(course_id=str(course_key), user_id=user.id).delete()
 
         if completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
             BlockCompletion.objects.clear_completion(user, course_key)
     else:
         children_dict = get_block_children(block, block.display_name, add_correctness=False)
         items = [block.location]
+        ora_items = []
         for k, v in children_dict.items():
             items.append(UsageKey.from_string(k))
+            if v['category'] == 'openassessment':
+                ora_items.append(str(k))
 
         StudentModule.objects.filter(course_id=course_key, module_state_key__in=items, student=user).delete()
         SequentialBlockAnswered.objects.filter(
             course_id=str(course_key), sequential_id=str(block.location), user_id=user.id).delete()
+        if ora_items:
+            OraBlockScore.objects.filter(
+                course_id=str(course_key), user_id=user.id, block_id__in=ora_items).delete()
 
         if completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
             BlockCompletion.objects.filter(user=user, context_key=course_key, block_key__in=items).delete()

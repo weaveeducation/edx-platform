@@ -993,6 +993,33 @@ class FeatureBetaTester(models.Model):
         return cls.objects.filter(feature=feature, user=user).exists()
 
 
+class OraScoreType:
+    PEER = 'peer'
+    SELF = 'self'
+    STAFF = 'staff'
+
+
+class OraBlockScore(models.Model):
+    SCORE_TYPE_CHOICES = (
+        (OraScoreType.PEER, OraScoreType.PEER),
+        (OraScoreType.SELF, OraScoreType.SELF),
+        (OraScoreType.STAFF, OraScoreType.STAFF),
+    )
+
+    course_id = models.CharField(max_length=255, null=False, db_index=True)
+    org_id = models.CharField(max_length=80, null=False, db_index=True)
+    block_id = models.CharField(max_length=255, null=False, db_index=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    answer = models.TextField(null=True)
+    score_type = models.CharField(max_length=10, choices=SCORE_TYPE_CHOICES)
+    criterion = models.CharField(max_length=255)
+    option_label = models.CharField(max_length=255, null=True)
+    points_possible = models.IntegerField(default=0)
+    points_earned = models.IntegerField(default=0)
+    created = models.DateTimeField(null=True)
+    grader_id = models.IntegerField(null=True)
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values
