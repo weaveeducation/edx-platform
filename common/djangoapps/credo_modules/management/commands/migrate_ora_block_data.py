@@ -128,6 +128,9 @@ class Command(BaseCommand):
                         )
                         ora_to_insert.append(ora_item)
 
+                        if is_ora_empty_rubrics:
+                            continue
+
                         ora_data = TrackingLog.objects.filter(
                             course_id=course_id, block_id=block_id,
                             is_last_attempt=1, is_ora_empty_rubrics=False, is_view=False
@@ -172,4 +175,4 @@ class Command(BaseCommand):
 
         if grades_to_insert:
             print('>>>>>> grades_to_insert:', len(grades_to_insert))
-            OraBlockScore.objects.bulk_create(ora_to_insert, batch_size=1000)
+            OraBlockScore.objects.bulk_create(grades_to_insert, batch_size=1000)
