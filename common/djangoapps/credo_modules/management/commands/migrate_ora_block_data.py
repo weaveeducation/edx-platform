@@ -7,6 +7,7 @@ from openedx.core.djangoapps.content.course_overviews.models import CourseOvervi
 from openedx.core.djangoapps.content.block_structure.models import OraBlockStructure
 from credo_modules.mongo import get_course_structure
 from credo_modules.models import TrackingLog, OraBlockScore, OraScoreType, AttemptCourseMigration
+from django.contrib.auth.models import User
 from django.conf import settings
 from django.utils.html import strip_tags
 from pymongo import MongoClient
@@ -14,6 +15,8 @@ from pymongo.database import Database
 
 
 class Command(BaseCommand):
+
+    _user_cache = {}
 
     def handle(self, *args, **options):
         connection = MongoClient(host=settings.CONTENTSTORE['DOC_STORE_CONFIG']['host'],
@@ -48,6 +51,7 @@ class Command(BaseCommand):
                 if block['block_type'] == 'openassessment':
                     definition = definitions.find_one({'_id': block['definition']})
                     block_id = 'block-v1:%s+%s+%s+type@openassessment+block@%s' % (org, course, run, block['block_id'])
+                    print('---- process block: ', block_id)
                     if definition:
                         ora_prompt = ''
                         ora_item = ora_blocks_dict.get(block_id)
@@ -121,21 +125,33 @@ class Command(BaseCommand):
                             ora_option_label = ora_tracking_log['answer'].strip()
                             dt_object = datetime.fromtimestamp(ora_tracking_log['ts']).replace(tzinfo=pytz.utc)
                             if ora_criterion_name in criteria_points and ora_option_label in criteria_points[ora_criterion_name]:
-                                grades_to_insert.append(OraBlockScore(
-                                    course_id=course_id,
-                                    org_id=org,
-                                    block_id=block_id,
-                                    user_id=ora_tracking_log['user_id'],
-                                    answer=ora_tracking_log['ora_answer'],
-                                    score_type=OraScoreType.STAFF,
-                                    criterion=ora_criterion_name,
-                                    option_label=ora_option_label,
-                                    points_possible=int(ora_tracking_log['max_grade']),
-                                    points_earned=criteria_points[ora_criterion_name][ora_option_label],
-                                    created=dt_object
-                                ))
+                                user_id = ora_tracking_log['user_id']
+                                user = None
+                                if user_id not in self._user_cache:
+                                    user = User.objects.filter(id=user_id).first()
+                                    if user:
+                                        self._user_cache[user_id] = user
+                                else:
+                                    user = self._user_cache[user_id]
+
+                                if user:
+                                    grades_to_insert.append(OraBlockScore(
+                                        course_id=course_id,
+                                        org_id=org,
+                                        block_id=block_id,
+                                        user=user,
+                                        answer=ora_tracking_log['ora_answer'],
+                                        score_type=OraScoreType.STAFF,
+                                        criterion=ora_criterion_name,
+                                        option_label=ora_option_label,
+                                        points_possible=int(ora_tracking_log['max_grade']),
+                                        points_earned=criteria_points[ora_criterion_name][ora_option_label],
+                                        created=dt_object
+                                    ))
+                                else:
+                                    print('>>>>> User not found: ', user_id)
                             else:
-                                print('>>>>> ora_criterion_name not found')
+                                print('>>>>> ora_criterion_name not found: ', ora_criterion_name, criteria_points)
 
         if ora_to_insert:
             print('>>>>>> ora_to_insert:', len(ora_to_insert))
