@@ -275,8 +275,20 @@ def _update_course_structure(course_id, published_on):
                         items_updated += 1
 
                 if item.category == 'openassessment':
-                    ora_rubric_criteria = json.dumps(item.rubric_criteria)
                     is_ora_empty_rubrics = len(item.rubric_criteria) == 0
+                    ora_rubric_criteria = json.dumps(item.rubric_criteria)
+                    ora_steps_lst = []
+
+                    if not is_ora_empty_rubrics:
+                        for step in item.rubric_assessments:
+                            if step['name'] == 'peer-assessment':
+                                ora_steps_lst.append('peer')
+                            elif step['name'] == 'self-assessment':
+                                ora_steps_lst.append('self')
+                            elif step['name'] == 'staff-assessment':
+                                ora_steps_lst.append('staff')
+                    ora_steps = json.dumps(sorted(ora_steps_lst))
+
                     ora_prompt = _get_ora_question_text(item)
                     ora_item = ora_blocks_dict.get(block_id)
 
@@ -290,21 +302,24 @@ def _update_course_structure(course_id, published_on):
                             is_additional_rubric=item.is_additional_rubric,
                             prompt=ora_prompt,
                             rubric_criteria=ora_rubric_criteria,
-                            display_rubric_step_to_students=item.display_rubric_step_to_students
+                            display_rubric_step_to_students=item.display_rubric_step_to_students,
+                            steps=ora_steps
                         )
                         ora_to_insert.append(ora_item)
                     elif is_ora_empty_rubrics != ora_item.is_ora_empty_rubrics\
                       or item.support_multiple_rubrics != ora_item.support_multiple_rubrics\
                       or item.is_additional_rubric != ora_item.is_additional_rubric\
                       or item.prompt != ora_prompt\
-                      or item.rubric_criteria != ora_rubric_criteria\
-                      or item.display_rubric_step_to_students != ora_item.display_rubric_step_to_students:
+                      or item.display_rubric_step_to_students != ora_item.display_rubric_step_to_students \
+                      or ora_rubric_criteria != ora_item.rubric_criteria \
+                      or ora_steps != ora_item.steps:
                         ora_item.is_ora_empty_rubrics = is_ora_empty_rubrics
                         ora_item.support_multiple_rubrics = item.support_multiple_rubrics
                         ora_item.is_additional_rubric = item.is_additional_rubric
                         ora_item.prompt = ora_prompt
                         ora_item.rubric_criteria = ora_rubric_criteria
                         ora_item.display_rubric_step_to_students = item.display_rubric_step_to_students
+                        ora_item.steps = ora_steps
                         ora_item.save()
                         ora_items_updated += 1
 

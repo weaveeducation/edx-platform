@@ -411,6 +411,13 @@ class OraBlockStructure(models.Model):
     prompt = models.TextField(null=True)
     rubric_criteria = models.TextField(null=True)
     display_rubric_step_to_students = models.BooleanField(default=False)
+    steps = models.TextField(null=True)
 
     class Meta:
         db_table = 'ora_block_structure'
+
+    def get_rubric_criteria(self):
+        return json.loads(self.rubric_criteria)
+
+    def get_steps(self):
+        return json.loads(self.steps)

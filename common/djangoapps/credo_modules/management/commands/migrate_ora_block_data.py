@@ -74,6 +74,18 @@ class Command(BaseCommand):
                         support_multiple_rubrics = block['fields'].get('support_multiple_rubrics', False)
                         is_additional_rubric = block['fields'].get('is_additional_rubric', False)
                         display_rubric_step_to_students = block['fields'].get('display_rubric_step_to_students', False)
+                        rubric_assessments = definition['fields'].get('rubric_assessments', [])
+                        ora_steps_lst = []
+                        if not is_ora_empty_rubrics:
+                            for step in rubric_assessments:
+                                if step['name'] == 'peer-assessment':
+                                    ora_steps_lst.append('peer')
+                                elif step['name'] == 'self-assessment':
+                                    ora_steps_lst.append('self')
+                                elif step['name'] == 'staff-assessment':
+                                    ora_steps_lst.append('staff')
+                        ora_steps = json.dumps(sorted(ora_steps_lst))
+
                         if 'prompt' in definition['fields']:
                             try:
                                 base_prompts = json.loads(definition['fields']['prompt'])
@@ -111,7 +123,8 @@ class Command(BaseCommand):
                             is_additional_rubric=is_additional_rubric,
                             prompt=ora_prompt,
                             rubric_criteria=ora_rubric_criteria,
-                            display_rubric_step_to_students=display_rubric_step_to_students
+                            display_rubric_step_to_students=display_rubric_step_to_students,
+                            steps=ora_steps
                         )
                         ora_to_insert.append(ora_item)
 
