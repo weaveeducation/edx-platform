@@ -60,7 +60,7 @@ class Command(BaseCommand):
                             crit_label = rubric_criteria[i]['label'].strip()
                             rubric_criteria[i]['label'] = crit_label
                             criteria_points[crit_label] = {}
-                            for j, option in crit['options'].items():
+                            for j, option in enumerate(crit['options']):
                                 option_label = rubric_criteria[i]['options'][j]['label'].strip()
                                 rubric_criteria[i]['options'][j]['label'] = option_label
                                 criteria_points[crit_label][option_label] = option['points']
@@ -127,6 +127,8 @@ class Command(BaseCommand):
                                     points_earned=criteria_points[ora_criterion_name][ora_option_label],
                                     created=dt_object
                                 ))
+                            else:
+                                print('>>>>> ora_criterion_name not found')
 
         if ora_to_insert:
             print('>>>>>> ora_to_insert:', len(ora_to_insert))
