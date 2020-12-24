@@ -31,6 +31,7 @@ class Command(BaseCommand):
             course_obj = AttemptCourseMigration.objects.filter(course_id=str(course_overview.id)).first()
             if not course_obj:
                 self._process_course(course_overview.id, definitions)
+                AttemptCourseMigration(course_id=str(course_overview.id), done=True).save()
 
     def _process_course(self, course_key, definitions):
         org = course_key.org
