@@ -70,12 +70,19 @@ class Command(BaseCommand):
                         support_multiple_rubrics = block['fields'].get('support_multiple_rubrics', False)
                         is_additional_rubric = block['fields'].get('is_additional_rubric', False)
                         display_rubric_step_to_students = block['fields'].get('display_rubric_step_to_students', False)
-                        try:
-                            base_prompts = json.loads(definition['fields']['prompt'])
-                        except ValueError:
+                        if 'prompt' in definition['fields']:
+                            try:
+                                base_prompts = json.loads(definition['fields']['prompt'])
+                            except ValueError:
+                                base_prompts = [
+                                    {
+                                        'description': definition['fields']['prompt'],
+                                    }
+                                ]
+                        else:
                             base_prompts = [
                                 {
-                                    'description': definition['fields']['prompt'],
+                                    'description': '--',
                                 }
                             ]
                         prompts = []
