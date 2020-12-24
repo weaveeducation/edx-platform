@@ -6,7 +6,7 @@ from django.core.management import BaseCommand
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.djangoapps.content.block_structure.models import OraBlockStructure
 from credo_modules.mongo import get_course_structure
-from credo_modules.models import TrackingLog, OraBlockScore, OraScoreType
+from credo_modules.models import TrackingLog, OraBlockScore, OraScoreType, AttemptCourseMigration
 from django.conf import settings
 from django.utils.html import strip_tags
 from pymongo import MongoClient
@@ -25,7 +25,9 @@ class Command(BaseCommand):
 
         course_overviews = CourseOverview.objects.all().order_by('id')
         for course_overview in course_overviews:
-            self._process_course(course_overview.id, definitions)
+            course_obj = AttemptCourseMigration.objects.filter(course_id=str(course_overview.id)).first()
+            if not course_obj:
+                self._process_course(course_overview.id, definitions)
 
     def _process_course(self, course_key, definitions):
         org = course_key.org
