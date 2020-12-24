@@ -12,6 +12,7 @@ from django.conf import settings
 from django.utils.html import strip_tags
 from pymongo import MongoClient
 from pymongo.database import Database
+from openassessment.xblock.openassessmentblock import DEFAULT_RUBRIC_CRITERIA, DEFAULT_ASSESSMENT_MODULES
 
 
 class Command(BaseCommand):
@@ -60,7 +61,7 @@ class Command(BaseCommand):
                             continue
 
                         criteria_points = {}
-                        rubric_criteria = definition['fields']['rubric_criteria']
+                        rubric_criteria = definition['fields'].get('rubric_criteria', DEFAULT_RUBRIC_CRITERIA)
                         for i, crit in enumerate(rubric_criteria):
                             crit_label = rubric_criteria[i]['label'].strip()
                             rubric_criteria[i]['label'] = crit_label
@@ -71,11 +72,11 @@ class Command(BaseCommand):
                                 criteria_points[crit_label][option_label] = option['points']
 
                         ora_rubric_criteria = json.dumps(rubric_criteria)
-                        is_ora_empty_rubrics = len(definition['fields']['rubric_criteria']) == 0
+                        is_ora_empty_rubrics = len(rubric_criteria) == 0
                         support_multiple_rubrics = block['fields'].get('support_multiple_rubrics', False)
                         is_additional_rubric = block['fields'].get('is_additional_rubric', False)
                         display_rubric_step_to_students = block['fields'].get('display_rubric_step_to_students', False)
-                        rubric_assessments = definition['fields'].get('rubric_assessments', [])
+                        rubric_assessments = definition['fields'].get('rubric_assessments', DEFAULT_ASSESSMENT_MODULES)
                         ora_steps_lst = []
                         if not is_ora_empty_rubrics:
                             for step in rubric_assessments:
@@ -168,7 +169,8 @@ class Command(BaseCommand):
                                 else:
                                     print('>>>>> User not found: ', user_id)
                             else:
-                                print('>>>>> ora_criterion_name not found: ', ora_criterion_name, criteria_points)
+                                print('>>>>> ora_criterion_name not found. ora_criterion_name: ', ora_criterion_name,
+                                      ', ora_option_label: ', ora_option_label, ', criteria_points: ', criteria_points)
 
         if ora_to_insert:
             print('>>>>>> ora_to_insert:', len(ora_to_insert))
