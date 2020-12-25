@@ -412,6 +412,7 @@ class OraBlockStructure(models.Model):
     rubric_criteria = models.TextField(null=True)
     display_rubric_step_to_students = models.BooleanField(default=False)
     steps = models.TextField(null=True)
+    ungraded = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'ora_block_structure'

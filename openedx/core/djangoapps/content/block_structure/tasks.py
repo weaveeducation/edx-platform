@@ -303,7 +303,8 @@ def _update_course_structure(course_id, published_on):
                             prompt=ora_prompt,
                             rubric_criteria=ora_rubric_criteria,
                             display_rubric_step_to_students=item.display_rubric_step_to_students,
-                            steps=ora_steps
+                            steps=ora_steps,
+                            ungraded=item.ungraded
                         )
                         ora_to_insert.append(ora_item)
                     elif is_ora_empty_rubrics != ora_item.is_ora_empty_rubrics\
@@ -311,6 +312,7 @@ def _update_course_structure(course_id, published_on):
                       or item.is_additional_rubric != ora_item.is_additional_rubric\
                       or item.prompt != ora_prompt\
                       or item.display_rubric_step_to_students != ora_item.display_rubric_step_to_students \
+                      or item.ungraded != ora_item.ungraded\
                       or ora_rubric_criteria != ora_item.rubric_criteria \
                       or ora_steps != ora_item.steps:
                         ora_item.is_ora_empty_rubrics = is_ora_empty_rubrics
@@ -320,6 +322,7 @@ def _update_course_structure(course_id, published_on):
                         ora_item.rubric_criteria = ora_rubric_criteria
                         ora_item.display_rubric_step_to_students = item.display_rubric_step_to_students
                         ora_item.steps = ora_steps
+                        ora_item.ungraded = item.ungraded
                         ora_item.save()
                         ora_items_updated += 1
 
