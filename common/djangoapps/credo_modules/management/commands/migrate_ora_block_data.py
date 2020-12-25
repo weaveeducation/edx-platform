@@ -67,8 +67,8 @@ class Command(BaseCommand):
                 option_label=ora_option_label,
                 points_possible=points_possible,
                 points_earned=points_earned,
-                created=part['scored_at'],
-                grader_id=self._get_grader_id(part['scorer_id'])
+                created=assessment['scored_at'],
+                grader_id=self._get_grader_id(assessment['scorer_id'])
             ))
         return res
 
