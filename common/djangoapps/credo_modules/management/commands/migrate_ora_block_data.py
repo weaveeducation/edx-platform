@@ -1,18 +1,22 @@
 import json
-from datetime import datetime
-import pytz
 
 from django.core.management import BaseCommand
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.djangoapps.content.block_structure.models import OraBlockStructure
 from credo_modules.mongo import get_course_structure
-from credo_modules.models import TrackingLog, OraBlockScore, OraScoreType, AttemptCourseMigration
-from django.contrib.auth.models import User
+from credo_modules.models import OraBlockScore, OraScoreType, AttemptCourseMigration
 from django.conf import settings
 from django.utils.html import strip_tags
 from pymongo import MongoClient
 from pymongo.database import Database
 from openassessment.xblock.openassessmentblock import DEFAULT_RUBRIC_CRITERIA, DEFAULT_ASSESSMENT_MODULES
+from lms.djangoapps.courseware.models import StudentModule
+from submissions import api as sub_api
+from openassessment.assessment.api import staff as staff_api
+from openassessment.assessment.api import self as self_api
+from openassessment.assessment.api import peer as peer_api
+from opaque_keys.edx.keys import UsageKey
+from student.models import AnonymousUserId
 
 
 class Command(BaseCommand):
@@ -34,6 +38,40 @@ class Command(BaseCommand):
                 self._process_course(course_overview.id, definitions)
                 AttemptCourseMigration(course_id=str(course_overview.id), done=True).save()
 
+    def _get_grader_id(self, scorer_id):
+        if scorer_id in self._user_cache:
+            return self._user_cache[scorer_id]
+        anon = AnonymousUserId.objects.filter(anonymous_user_id=scorer_id).first()
+        if anon:
+            grader_id = anon.user_id
+            self._user_cache[scorer_id] = grader_id
+            return grader_id
+        return None
+
+    def _get_ora_block_score(self, score_type, assessment, course_id, org, block_id, module_item, ora_answer):
+        res = []
+        for part in assessment['parts']:
+            ora_criterion_name = part['option']['criterion']['label'].strip()
+            ora_option_label = part['option']['label'].strip()
+            points_possible = part['option']['criterion']['points_possible']
+            points_earned = part["option"]['points']
+
+            res.append(OraBlockScore(
+                course_id=course_id,
+                org_id=org,
+                block_id=block_id,
+                user=module_item.student,
+                answer=ora_answer,
+                score_type=score_type,
+                criterion=ora_criterion_name,
+                option_label=ora_option_label,
+                points_possible=points_possible,
+                points_earned=points_earned,
+                created=part['scored_at'],
+                grader_id=self._get_grader_id(part['scorer_id'])
+            ))
+        return res
+
     def _process_course(self, course_key, definitions):
         org = course_key.org
         course = course_key.course
@@ -53,6 +91,7 @@ class Command(BaseCommand):
                 if block['block_type'] == 'openassessment':
                     definition = definitions.find_one({'_id': block['definition']})
                     block_id = 'block-v1:%s+%s+%s+type@openassessment+block@%s' % (org, course, run, block['block_id'])
+                    usage_key = UsageKey.from_string(block_id)
                     print('---- process block: ', block_id)
                     if definition:
                         ora_prompt = ''
@@ -133,44 +172,42 @@ class Command(BaseCommand):
                         if is_ora_empty_rubrics:
                             continue
 
-                        ora_data = TrackingLog.objects.filter(
-                            course_id=course_id, block_id=block_id,
-                            is_last_attempt=1, is_ora_empty_rubrics=False, is_view=False
-                        ).values('user_id', 'ora_criterion_name', 'grade', 'max_grade', 'answer', 'ora_answer', 'ts')
+                        modules_raw_data = StudentModule.objects.filter(
+                            course_id=course_key, module_state_key=usage_key, module_type='openassessment')
+                        for module_item in modules_raw_data:
+                            module_data = json.loads(module_item.state)
+                            if 'submission_uuid' in module_data:
+                                submission_uuid = module_data['submission_uuid']
+                                submission = sub_api.get_submission_and_student(submission_uuid)
+                                if not submission:
+                                    continue
+                                ora_answer_lst = []
+                                for part in submission['answer']['parts']:
+                                    ora_answer_lst.append(part['text'])
+                                ora_answer = '\n'.join(ora_answer_lst)
 
-                        for ora_tracking_log in ora_data:
-                            ora_criterion_name = ora_tracking_log['ora_criterion_name'].strip()
-                            ora_option_label = ora_tracking_log['answer'].strip()
-                            dt_object = datetime.fromtimestamp(ora_tracking_log['ts']).replace(tzinfo=pytz.utc)
-                            if ora_criterion_name in criteria_points and ora_option_label in criteria_points[ora_criterion_name]:
-                                user_id = ora_tracking_log['user_id']
-                                user = None
-                                if user_id not in self._user_cache:
-                                    user = User.objects.filter(id=user_id).first()
-                                    if user:
-                                        self._user_cache[user_id] = user
-                                else:
-                                    user = self._user_cache[user_id]
-
-                                if user:
-                                    grades_to_insert.append(OraBlockScore(
-                                        course_id=course_id,
-                                        org_id=org,
-                                        block_id=block_id,
-                                        user=user,
-                                        answer=ora_tracking_log['ora_answer'],
-                                        score_type=OraScoreType.STAFF,
-                                        criterion=ora_criterion_name,
-                                        option_label=ora_option_label,
-                                        points_possible=int(ora_tracking_log['max_grade']),
-                                        points_earned=criteria_points[ora_criterion_name][ora_option_label],
-                                        created=dt_object
-                                    ))
-                                else:
-                                    print('>>>>> User not found: ', user_id)
-                            else:
-                                print('>>>>> ora_criterion_name not found. ora_criterion_name: ', ora_criterion_name,
-                                      ', ora_option_label: ', ora_option_label, ', criteria_points: ', criteria_points)
+                                for step in ora_steps_lst:
+                                    if step == 'staff':
+                                        staff_assessment = staff_api.get_latest_staff_assessment(submission_uuid)
+                                        if staff_assessment:
+                                            grades_to_insert.extend(
+                                                self._get_ora_block_score(OraScoreType.STAFF, staff_assessment,
+                                                                          course_id, org, block_id, module_item,
+                                                                          ora_answer))
+                                    elif step == 'self':
+                                        self_assessment = self_api.get_assessment(submission_uuid)
+                                        if self_assessment:
+                                            grades_to_insert.extend(
+                                                self._get_ora_block_score(OraScoreType.SELF, self_assessment, course_id,
+                                                                          org, block_id, module_item, ora_answer))
+                                    elif step == 'peer':
+                                        assessments = peer_api.get_assessments(submission_uuid)
+                                        if assessments:
+                                            for peer_assessment in assessments:
+                                                grades_to_insert.extend(
+                                                    self._get_ora_block_score(OraScoreType.PEER, peer_assessment,
+                                                                              course_id, org, block_id, module_item,
+                                                                              ora_answer))
 
         if ora_to_insert:
             print('>>>>>> ora_to_insert:', len(ora_to_insert))
