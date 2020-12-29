@@ -196,7 +196,8 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                                 if section_id not in tags[tag_key]['sections']:
                                     tags[tag_key]['sections'][section_id] = {
                                         'display_name': items[item_block_location]['section_display_name'],
-                                        'problems': []
+                                        'problems': [],
+                                        'section_id': section_id
                                     }
                                 problem = {
                                     'problem_id': item_block_location,
@@ -271,7 +272,8 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                                         if section_id not in tags[tag_k]['sections']:
                                             tags[tag_k]['sections'][section_id] = {
                                                 'display_name': items[item_block_location]['section_display_name'],
-                                                'problems': []
+                                                'problems': [],
+                                                'section_id': section_id
                                             }
 
                                         if criterions[criterion]['earned'] == 0:
@@ -354,7 +356,6 @@ def _process_tag_section_info(section_val, sections):
     section_val['num_questions'] = section_num_questions
     section_val['percent_correct'] = section_percent_correct
     sections.append(section_val)
-
 
 
 def assessments_progress(courseware_summary, problems_dict=None):
@@ -526,7 +527,11 @@ def progress_skills_page(request, course, student):
 
     context = {
         'tags': tags,
-        'tags_assessments': tags_assessments
+        'tags_assessments': tags_assessments,
+        'url_api_get_tag_data': '',
+        'url_api_get_tag_section_data': '',
+        'api_student_id': 0,
+        'api_org': ''
     }
     return context
 

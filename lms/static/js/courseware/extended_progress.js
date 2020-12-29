@@ -205,7 +205,7 @@ function displayAssessmentsChart(chartEl, passValue, data) {
                     borderColor: 'rgb(99, 99, 99)',
                     borderWidth: 0,
                     label: {
-                        enabled: false,
+                        enabled: false
                     }
                 }]
             }
@@ -217,10 +217,15 @@ function displayAssessmentsTree() {
     var currentOrderBy = $('.progress-assessments-body').data('current-order-by');
     var currentSort = -1;
 
-    $('.progress-assessments-expand-link').click(function() {
+    $('.progress-assessments-expand-link').live("click", function() {
         var blockType = $(this).data('block-type');
+        var loaded = parseInt($(this).attr('data-loaded'));
         var opened = $(this).hasClass('opened');
         var parent = null;
+        var contentEl = null;
+        var postParams = null;
+        var dataApiUrl = '';
+        var self = this;
 
         if (opened) {
             $(this).removeClass('opened');
@@ -239,10 +244,42 @@ function displayAssessmentsTree() {
 
             if (blockType === 'assessments') {
                 parent = $(this).closest(".progress-tags-assessments-item");
-                $(parent).find('.progress-tags-assessments-item-assessments').removeClass('closed');
+                contentEl = $(parent).find('.progress-tags-assessments-item-assessments');
+                contentEl.removeClass('closed');
             } else if (blockType === 'questions') {
                 parent = $(this).closest(".progress-tags-assessments-item-assessment");
-                $(parent).find('.progress-tags-assessments-item-assessment-questions').removeClass('closed');
+                contentEl = $(parent).find('.progress-tags-assessments-item-assessment-questions');
+                contentEl.removeClass('closed');
+            }
+
+            if ((loaded === 0) && contentEl) {
+                postParams = {
+                    "student_id": window.extendedProgressAPI.api_student_id,
+                    "org": window.extendedProgressAPI.api_org
+                };
+                if (blockType === 'assessments') {
+                    dataApiUrl = window.extendedProgressAPI.urlApiGetTagData;
+                    postParams['tag'] = $(this).data('tag-title');
+                } else if (blockType === 'questions') {
+                    dataApiUrl = window.extendedProgressAPI.urlApiGetTagSectionData;
+                    postParams['tag'] = $(this).data('tag-title');
+                    postParams['section_id'] = $(this).data('section-id');
+                }
+
+                if (dataApiUrl) {
+                    contentEl.html('<div style="padding: 20px 0px 20px 0px;">Loading...</div>');
+
+                    $.ajax({
+                        url: dataApiUrl,
+                        type: 'POST',
+                        data: postParams,
+                        dataType: "html",
+                        success: function(res) {
+                            contentEl.html(res);
+                            $(self).attr("data-loaded", "1");
+                        }
+                    });
+                }
             }
         }
     });

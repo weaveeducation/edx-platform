@@ -3,7 +3,8 @@ from collections import OrderedDict
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.http import Http404
+from django.views.decorators.http import require_POST
+from django.http import Http404, HttpResponse
 from django.urls import reverse
 from lms.djangoapps.courseware.utils import CREDO_GRADED_ITEM_CATEGORIES
 from lms.djangoapps.courseware.models import StudentModule
@@ -13,7 +14,7 @@ from credo_modules.models import OrganizationTag, TagDescription, OraBlockScore,
 from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructureTags, BlockToSequential, \
     OraBlockStructure
 from edxmako.shortcuts import render_to_response
-from opaque_keys.edx.keys import UsageKey
+from opaque_keys.edx.keys import UsageKey, CourseKey
 from .extended_progress import get_tag_values, get_tags_summary_data, get_tag_title, get_tag_title_short,\
     convert_into_tree
 
@@ -35,13 +36,33 @@ class GradeInfo:
         self.question_text = question_text
 
 
-def get_tags_global_data(student, orgs, course_ids, course_keys, group_tags=False, group_by_course=False):
+def get_tags_global_data(student, orgs, course_ids, tag_value=None, group_tags=False, group_by_course=False):
     tags = {}
     blocks = {}
+    tags_to_hide = []
+    tag_descriptions = {}
+
+    if tag_value:
+        tags_raw_data = ApiCourseStructureTags.objects.filter(course_id__in=course_ids, is_parent=0,
+                                                              tag_value=tag_value) \
+            .order_by('tag_value').values('course_id', 'block_id', 'rubric', 'tag_value')
+        tag_course_ids = []
+        for tmp_tag_item in tags_raw_data:
+            if tmp_tag_item['course_id'] not in tag_course_ids:
+                tag_course_ids.append(tmp_tag_item['course_id'])
+        for course_id in course_ids:
+            if course_id not in tag_course_ids:
+                course_ids.remove(course_id)
+    else:
+        tags_raw_data = ApiCourseStructureTags.objects.filter(course_id__in=course_ids, is_parent=0)\
+            .order_by('tag_value').values('block_id', 'rubric', 'tag_value')
 
     org_tags = OrganizationTag.get_orgs_tags(orgs)
-    tags_to_hide = [t.tag_name for t in org_tags if not t.progress_view]
-    tag_descriptions = {t.tag_name: t.description for t in TagDescription.objects.all()}
+    course_keys = [CourseKey.from_string(ci) for ci in course_ids]
+
+    if not tag_value:
+        tags_to_hide = [t.tag_name for t in org_tags if not t.progress_view]
+        tag_descriptions = {t.tag_name: t.description for t in TagDescription.objects.all()}
 
     blocks_raw_data = BlockToSequential.objects.filter(
         course_id__in=course_ids, graded=1, deleted=False,
@@ -138,8 +159,6 @@ def get_tags_global_data(student, orgs, course_ids, course_keys, group_tags=Fals
             grades_data[block_id] = GradeInfo(points_earned=points_earned, points_possible=points_possible,
                                               answered=answered)
 
-    tags_raw_data = ApiCourseStructureTags.objects.filter(course_id__in=course_ids, is_parent=0)\
-        .order_by('tag_value').values('block_id', 'rubric', 'tag_value')
     for tag in tags_raw_data:
         is_ora = bool(tag['rubric'])
         tag_block_id = str(tag['block_id'])
@@ -199,13 +218,15 @@ def get_tags_global_data(student, orgs, course_ids, course_keys, group_tags=Fals
             if section_id not in tags[tag_key]['sections']:
                 tags[tag_key]['sections'][section_id] = {
                     'display_name': sequential_name,
-                    'problems': []
+                    'problems': [],
+                    'section_id': section_id
                 }
 
             if section_id not in tags[tag_key]['courses'][course_label]['sections']:
                 tags[tag_key]['courses'][course_label]['sections'][section_id] = {
                     'display_name': sequential_name,
-                    'problems': []
+                    'problems': [],
+                    'section_id': section_id
                 }
 
             problem = {
@@ -243,20 +264,10 @@ def get_student_name(student):
     return student_name
 
 
-@login_required
-def global_skills_page(request):
+def _get_global_skills_context(request, user_id, org):
     user = request.user
-    user_id = request.GET.get('user_id')
-    org = request.GET.get('org')
-    page = request.GET.get('page')
     additional_params = []
     student = user
-    group_tags = False
-    group_by_course = False
-
-    if page == 'skills':
-        group_tags = True
-        group_by_course = True
 
     if user.is_superuser and user_id:
         student = User.objects.filter(id=user_id).first()
@@ -269,7 +280,6 @@ def global_skills_page(request):
 
     enrollments = CourseEnrollment.objects.filter(user=student, is_active=True)
     course_ids = []
-    course_keys = []
     orgs = []
 
     for enroll in enrollments:
@@ -278,7 +288,7 @@ def global_skills_page(request):
 
     orgs_access_extended_progress_page = [o.org for o in Organization.objects.filter(
         org__in=orgs, org_type__enable_extended_progress_page=True)
-    ]
+                                          ]
     if org:
         if org in orgs_access_extended_progress_page:
             additional_params.append('org=' + org)
@@ -291,9 +301,23 @@ def global_skills_page(request):
         enroll_org = enroll.course_id.org
         if enroll_org in orgs_access_extended_progress_page and (not org or org == enroll_org):
             course_ids.append(str(enroll.course_id))
-            course_keys.append(enroll.course_id)
             if enroll.course_id.org not in orgs:
                 orgs.append(enroll.course_id.org)
+
+    return user_id, student, course_ids, orgs, org, additional_params
+
+
+@login_required
+def global_skills_page(request):
+    user_id = request.GET.get('user_id')
+    org = request.GET.get('org')
+    page = request.GET.get('page')
+    group_tags = False
+
+    if page == 'skills':
+        group_tags = True
+
+    user_id, student, course_ids, orgs, org, additional_params = _get_global_skills_context(request, user_id, org)
 
     if len(course_ids) > MAX_COURSES_PER_USER and len(orgs) > 1 and not org:
         return render_to_response('courseware/extended_progress_choose_org.html', {
@@ -312,11 +336,14 @@ def global_skills_page(request):
         'student': student,
         'student_name': get_student_name(student),
         'current_url': reverse('global_skills'),
+        'url_api_get_tag_data': reverse('global_skills_api_get_tag_data'),
+        'url_api_get_tag_section_data': reverse('global_skills_api_get_tag_section_data'),
+        'api_student_id': student.id,
+        'api_org': org,
         'current_url_additional_params': '&'.join(additional_params) if additional_params else ''
     }
 
-    tags = get_tags_global_data(student, orgs, course_ids, course_keys, group_tags=group_tags,
-                                group_by_course=group_by_course)
+    tags = get_tags_global_data(student, orgs, course_ids, group_tags=group_tags)
     if page == 'skills':
         tags_assessments = [v.copy() for v in tags if v['tag_is_last']]
         tags = convert_into_tree(tags)
@@ -335,3 +362,29 @@ def global_skills_page(request):
             'assessments': []
         })
         return render_to_response('courseware/extended_progress.html', context)
+
+
+@login_required
+@require_POST
+def api_get_global_tag_data(request):
+    user_id = request.POST.get('student_id')
+    org = request.POST.get('org')
+    tag_value = request.POST.get('tag')
+    if not tag_value:
+        raise Http404
+
+    user_id, student, course_ids, orgs, org, additional_params = _get_global_skills_context(request, user_id, org)
+    tags = get_tags_global_data(student, orgs, course_ids, tag_value=tag_value, group_tags=False, group_by_course=True)
+
+    return render_to_response('courseware/extended_progress_skills_tag_block.html', {
+        'tag': list(tags)[0] if len(tags) else None
+    })
+
+
+@login_required
+@require_POST
+def api_get_global_tag_section_data(request):
+    return HttpResponse('')
+
+
+

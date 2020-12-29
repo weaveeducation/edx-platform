@@ -45,22 +45,36 @@ ${_("All Skills")}
 <%block name="js_extra">
 <script type="text/javascript" src="${static.url('js/vendor/tooltipsy.min.js')}"></script>
 <script type="text/javascript" src="${static.url('js/courseware/extended_progress.js')}"></script>
+<script type="text/javascript">
+window.extendedProgressAPI = {
+    "urlApiGetTagData": "${url_api_get_tag_data}",
+    "urlApiGetTagSectionData": "${url_api_get_tag_section_data}",
+    "api_student_id": ${api_student_id},
+    "api_org": "${api_org if api_org else ''}"
+};
+</script>
 </%block>
 
 % if course:
 <%include file="/courseware/course_navigation.html" args="active_page='progress'" />
 % endif
 
-<%def name="tag_section_block(section)">
+<%def name="tag_section_block(section, display_problems=True, tag_value=None)">
 <div class="progress-tags-assessments-item-assessment">
     <div class="progress-tags-assessments-item-assessment-header">
         <div class="progress-assessments-cell skill">
-            <a href="javascript: void(0);" data-block-type="questions" class="progress-assessments-expand-link"><i class="fa fa-chevron-right header-icon" aria-hidden="true"></i>${section['display_name']}</a>
+            <a href="javascript: void(0);"
+               data-block-type="questions"
+               data-loaded="${'1' if display_problems else '0'}"
+               data-tag-title="${tag_value if tag_value else ''}"
+               data-section-id="${section['section_id'] if section['section_id'] else ''}"
+               class="progress-assessments-expand-link"><i class="fa fa-chevron-right header-icon" aria-hidden="true"></i>${section['display_name']}</a>
         </div>
         <div class="progress-assessments-cell answers-submitted">${section['answers']}</div>
         <div class="progress-assessments-cell average-performance">${section['percent_correct']}%</div>
     </div>
     <div class="progress-tags-assessments-item-assessment-questions closed">
+    % if display_problems:
     % for problem in section['problems']:
         % if not problem['hidden']:
         <div class="progress-tags-assessments-item-assessment-question">
@@ -96,6 +110,7 @@ ${_("All Skills")}
         </div>
         % endif
     % endfor
+    % endif
     </div>
 </div>
 </%def>
@@ -137,7 +152,7 @@ ${_("All Skills")}
                              data-percent-correct="${tag['percent_correct']}">
                             <div class="progress-tags-assessments-item-header">
                                 <div class="progress-assessments-cell skill">
-                                    <a href="javascript: void(0);" data-block-type="assessments" class="progress-assessments-expand-link"><i class="fa fa-chevron-right header-icon" aria-hidden="true"></i>${tag['tag_title']}</a>
+                                    <a href="javascript: void(0);" data-block-type="assessments" data-tag-title="${tag['tag']}" data-loaded="${'1' if course else '0'}" class="progress-assessments-expand-link"><i class="fa fa-chevron-right header-icon" aria-hidden="true"></i>${tag['tag_title']}</a>
                                 </div>
                                 <div class="progress-assessments-cell answers-submitted">${tag['answers']}</div>
                                 <div class="progress-assessments-cell average-performance">${tag['percent_correct']}%</div>
@@ -150,18 +165,7 @@ ${_("All Skills")}
                                         <div class="progress-assessments-cell average-performance">Average Performance</div>
                                     </div>
                                     % for section in tag['sections']:
-                                    ${tag_section_block(section)}
-                                    % endfor
-                                % else:
-                                    % for course_label, course_data in tag['courses'].items():
-                                        <div class="progress-tags-assessments-item-subheader">
-                                            <div class="progress-assessments-cell skill">${course_label}</div>
-                                            <div class="progress-assessments-cell answers-submitted"></div>
-                                            <div class="progress-assessments-cell average-performance"></div>
-                                        </div>
-                                        % for section in course_data['sections']:
-                                        ${tag_section_block(section)}
-                                        % endfor
+                                    ${tag_section_block(section, display_problems=True, tag_value=tag['tag'])}
                                     % endfor
                                 % endif
                             </div>
