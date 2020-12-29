@@ -273,7 +273,8 @@ def global_skills_page(request):
     orgs = []
 
     for enroll in enrollments:
-        orgs.append(enroll.course_id.org)
+        if enroll.course_id.org not in orgs:
+            orgs.append(enroll.course_id.org)
 
     orgs_access_extended_progress_page = [o.org for o in Organization.objects.filter(
         org__in=orgs, org_type__enable_extended_progress_page=True)
