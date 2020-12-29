@@ -550,6 +550,10 @@ class OrganizationTag(models.Model):
 
         return cls.objects.filter(org=org_obj)
 
+    @classmethod
+    def get_orgs_tags(cls, org_lst):
+        return cls.objects.filter(org__org__in=org_lst)
+
 
 class OrganizationTagOrder(models.Model):
     org = models.ForeignKey(Organization, on_delete=models.CASCADE)

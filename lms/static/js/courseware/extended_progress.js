@@ -1,4 +1,4 @@
-function getTooltipHtml(label, description, percentCorrect, value, total) {
+function getTooltipHtml(label, description, percentCorrect, value, total, coursesNum) {
     var displayTotal = ((total !== null) && (total !== undefined));
     var html = '<div class="tags-tooltip-block">' +
             ((description !== '') ? ('<div class="tags-description">' + description + '</div>') : '') +
@@ -7,10 +7,12 @@ function getTooltipHtml(label, description, percentCorrect, value, total) {
             '<tr>' +
             '<td class="tags-percentage">' + percentCorrect + '%</td>' +
             '<td class="tags-percentage">' + (displayTotal ? (value + '/' + total) : value) + '</td>' +
+            ((coursesNum > 0) ? ('<td class="tags-percentage">' + coursesNum + '</td>') : '') +
             '</tr>' +
             '<tr>' +
             '<td class="tags-help">Percent Correct</td>' +
             '<td class="tags-help">' + (displayTotal ? 'Correct/Total Questions' : 'Answers Submitted') + '</td>' +
+            ((coursesNum > 0) ? ('<td class="tags-help">Courses</td>') : '') +
             '</tr>' +
             '</table>' +
             '</div>';
@@ -171,7 +173,8 @@ function displayAssessmentsChart(chartEl, passValue, data) {
                         var idx = tooltipModel.dataPoints[0].index;
                         var val = data[idx];
                         var tableRoot = tooltipEl.querySelector('.progress-tooltip');
-                        var html = getTooltipHtml(val.title, '', val.percent_correct, val.correct, val.total);
+                        var html = getTooltipHtml(val.title, '', val.percent_correct, val.correct,
+                          val.total, 0);
                         tableRoot.innerHTML = '<div style="background-color: #ffffff; ' +
                             'border: 1px solid #c8c8c8; ' +
                             'max-width: 500px; ' +
@@ -295,12 +298,13 @@ $(document).ready(function() {
         var label = $(this).data('label'),
             percentCorrect = $(this).data('percent-correct'),
             answers = $(this).data('answers'),
-            description = $(this).data('description');
+            description = $(this).data('description'),
+            coursesNum = parseInt($(this).data('courses-num'));
         $(this).tooltipsy({
             alignTo: 'cursor',
             offset: [0, 1],
             delay: 200,
-            content: getTooltipHtml(label, description, percentCorrect, answers, null),
+            content: getTooltipHtml(label, description, percentCorrect, answers, null, coursesNum),
             css: {
                 'padding': '20px',
                 'max-width': '500px',

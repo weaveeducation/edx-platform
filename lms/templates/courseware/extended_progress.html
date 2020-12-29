@@ -31,22 +31,32 @@ username = get_enterprise_learner_generic_name(request) or student.username
 </style>
 </%block>
 
-<%block name="pagetitle">${_("{course_number} | My Skills").format(course_number=course.display_number_with_default)}</%block>
+<%block name="pagetitle">
+% if course:
+${_("{course_number} | My Skills").format(course_number=course.display_number_with_default)}
+% else:
+${_("All Skills")}
+% endif
+</%block>
 
 <%block name="js_extra">
+% if assessments_display:
 <script type="text/javascript">
 window.extendedProgressChart = {
     data: ${assessments['data_str'] | n},
     passValue: 50
 };
 </script>
+% endif
 <script type="text/javascript" src="${static.url('js/vendor/tooltipsy.min.js')}"></script>
 <script type="text/javascript" src="${static.url('js/vendor/chartjs.min.js')}"></script>
 <script type="text/javascript" src="${static.url('js/vendor/chartjs-plugin-annotation.min.js')}"></script>
 <script type="text/javascript" src="${static.url('js/courseware/extended_progress.js')}"></script>
 </%block>
 
+% if course:
 <%include file="/courseware/course_navigation.html" args="active_page='progress'" />
+% endif
 
 <main id="main" aria-label="Content" tabindex="-1">
     <div class="container">
@@ -62,19 +72,21 @@ window.extendedProgressChart = {
                     <div class="progress-tags-summary">
                         % if len(top5tags) > 0:
                         <div class="progress-tags-summary-block progress-tags-summary-top5">
-                            <%include file="/courseware/extended_progress_tags_block.html" args="tags=top5tags,icon='top5',display_sort_block='n',short_title='n',nested_block='n',course_id=course.id" />
+                            <%include file="/courseware/extended_progress_tags_block.html" args="tags=top5tags,icon='top5',display_sort_block='n',short_title='n',nested_block='n',course_id=course_id" />
                         </div>
                         % endif
                         % if len(lowest5tags) > 0:
                         <div class="progress-tags-summary-block progress-tags-summary-lowest5">
-                            <%include file="/courseware/extended_progress_tags_block.html" args="tags=lowest5tags,icon='lowest5',display_sort_block='n',short_title='n',nested_block='n',course_id=course.id" />
+                            <%include file="/courseware/extended_progress_tags_block.html" args="tags=lowest5tags,icon='lowest5',display_sort_block='n',short_title='n',nested_block='n',course_id=course_id" />
                         </div>
                         % endif
                         <div class="clear"></div>
                     </div>
+                    % if assessments_display:
                     <div class="progress-assessments">
-                        <%include file="/courseware/extended_progress_chart.html" args="assessments=assessments,course_id=course.id" />
+                        <%include file="/courseware/extended_progress_chart.html" args="assessments=assessments,course_id=course_id" />
                     </div>
+                    % endif
                 </div>
             </section>
         </div>

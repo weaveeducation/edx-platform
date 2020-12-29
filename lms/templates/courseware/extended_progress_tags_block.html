@@ -30,7 +30,13 @@ from django.urls import reverse
             <img src="${static.url('images/credo/top5skills.png')}" title="Top 5 Skills" width="85" height="85" />
         </td>
         <td class="tags-block-top5-title">
-            <div class="tags-block-title">Top 5 Skills</div>
+            <div class="tags-block-title">
+                % if course_id:
+                Top 5 Skills
+                % else:
+                Top Strengths
+                % endif
+            </div>
             <div class="tags-block-see-all"><a href="${current_url}?page=skills&${current_url_additional_params}">See All</a></div>
             <div class="clear"></div>
         </td>
@@ -39,7 +45,13 @@ from django.urls import reverse
             <img src="${static.url('images/credo/lowest5skills.png')}" title="Lowest 5 Skills" width="85" height="85" />
         </td>
         <td class="tags-block-lowest5-title">
-            <div class="tags-block-title">Lowest 5 Skills</div>
+            <div class="tags-block-title">
+                % if course_id:
+                Lowest 5 Skills
+                % else:
+                Top Opportunities
+                % endif
+            </div>
             <div class="tags-block-see-all"><a href="${current_url}?page=skills&${current_url_additional_params}">See All</a></div>
             <div class="clear"></div>
         </td>
@@ -56,7 +68,9 @@ from django.urls import reverse
                  data-percent-correct="${tag['percent_correct']}"
                  data-answers="${tag['answers']}"
                  data-label="${tag['tag_title']}"
-                 data-description="${tag['tag_description']}">
+                 data-description="${tag['tag_description']}"
+                 data-courses-num="${tag['courses_num']}"
+                 >
                 <div class="tags-block-info-title">
                     <div class="tags-block-info-name">${tag['tag_title_short'] if short_title == 'y' else tag['tag_title']}</div>
                     <div class="tags-block-info-chevron"><i class="fa fa-chevron-right" aria-hidden="true"></i></div>
