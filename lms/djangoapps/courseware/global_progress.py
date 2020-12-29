@@ -60,9 +60,10 @@ def get_tags_global_data(student, orgs, course_ids, course_keys, group_tags=Fals
         course_key__in=course_keys, user=student).values('usage_key', 'properties')
     seq_block_to_course = {}
     for context in contexts:
-        context_data = json.loads(context['properties'])
-        if 'context_label' in context_data:
-            seq_block_to_course[str(context['usage_key'])] = context_data['context_label']
+        if context['properties']:
+            context_data = json.loads(context['properties'])
+            if 'context_label' in context_data:
+                seq_block_to_course[str(context['usage_key'])] = context_data['context_label']
 
     ora_empty_rubrics = []
     ora_ungraded = []
