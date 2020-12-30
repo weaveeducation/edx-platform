@@ -1026,7 +1026,7 @@ class OraBlockScore(models.Model):
 
 class UserSettings(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_settings')
-    my_skills_access = models.BooleanField(default=False)
+    my_skills_access = models.BooleanField(default=None, null=True)
 
 
 def usage_dt_now():
