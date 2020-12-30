@@ -1024,6 +1024,11 @@ class OraBlockScore(models.Model):
     grader_id = models.IntegerField(null=True)
 
 
+class UserSettings(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_settings')
+    my_skills_access = models.BooleanField(default=False)
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values

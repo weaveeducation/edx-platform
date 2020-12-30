@@ -287,8 +287,7 @@ def _get_global_skills_context(request, user_id, org):
             orgs.append(enroll.course_id.org)
 
     orgs_access_extended_progress_page = [o.org for o in Organization.objects.filter(
-        org__in=orgs, org_type__enable_extended_progress_page=True)
-                                          ]
+        org__in=orgs, org_type__enable_extended_progress_page=True)]
     if org:
         if org in orgs_access_extended_progress_page:
             additional_params.append('org=' + org)
