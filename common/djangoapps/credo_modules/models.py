@@ -1254,6 +1254,15 @@ def enrollment_trigger_after_save_course_enrollment(sender, instance, created, *
         )
         tr.save()
 
+        my_skills_access = Organization.objects.filter(org=instance.course_id.org, org_type__enable_extended_progress_page=True).count()
+        if my_skills_access:
+            user_settings = UserSettings.objects.filter(user=instance.user).first()
+            if not user_settings:
+                user_settings = UserSettings(user=instance.user)
+            if not user_settings.my_skills_access:
+                user_settings.my_skills_access = True
+                user_settings.save()
+
 
 @receiver(post_save, sender=CourseAccessRole)
 def enrollment_trigger_after_save_course_access_role(sender, instance, created, **kwargs):
