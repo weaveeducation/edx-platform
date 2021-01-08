@@ -371,8 +371,10 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
         return
 
     with modulestore().bulk_operations(course_key):
+
         course = modulestore().get_course(course_key, depth=0)
-        seq_block, _ = get_module_by_usage_id(request, course_id, section_id)
+        seq_block, _ = get_module_by_usage_id(request, course_id, section_id,
+                                              disable_staff_debug_info=True, course=course)
 
         course_grade = CourseGradeFactory().read(student, course)
         courseware_summary = course_grade.chapter_grades.values()
