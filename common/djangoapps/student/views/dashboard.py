@@ -559,6 +559,7 @@ def get_dashboard_course_limit():
     course_limit = getattr(settings, 'DASHBOARD_COURSE_LIMIT', None)
     return course_limit
 
+
 def check_my_skills_access(user):
     """
     check access to my skills tab for user
@@ -576,6 +577,7 @@ def check_my_skills_access(user):
         user_settings.my_skills_access = bool(my_skills_access)
         user_settings.save()
     return user_settings.my_skills_access
+
 
 @login_required
 @ensure_csrf_cookie
@@ -871,7 +873,7 @@ def student_dashboard(request):
         'unfulfilled_entitlement_pseudo_sessions': unfulfilled_entitlement_pseudo_sessions,
         'course_optouts': course_optouts,
         'staff_access': staff_access,
-        'my_skills_access': check_my_skills_access(user),
+#        'my_skills_access': check_my_skills_access(user),
         'errored_courses': errored_courses,
         'show_courseware_links_for': show_courseware_links_for,
         'all_course_modes': course_mode_info,
