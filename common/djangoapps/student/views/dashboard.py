@@ -58,7 +58,7 @@ from student.models import (
 )
 from util.milestones_helpers import get_pre_requisite_courses_not_completed
 from xmodule.modulestore.django import modulestore
-from credo_modules.models import get_inactive_orgs
+from credo_modules.models import Organization, UserSettings, get_inactive_orgs
 
 log = logging.getLogger("edx.student")
 
@@ -559,6 +559,23 @@ def get_dashboard_course_limit():
     course_limit = getattr(settings, 'DASHBOARD_COURSE_LIMIT', None)
     return course_limit
 
+def check_my_skills_access(user):
+    """
+    check access to my skills tab for user
+    """
+    user_settings = UserSettings.objects.filter(user=user).first()
+    if not user_settings or user_settings.my_skills_access is None:
+        orgs = []
+        enrollments = CourseEnrollment.objects.filter(user=user, is_active=True)
+        for enroll in enrollments:
+            if enroll.course_id.org not in orgs:
+                orgs.append(enroll.course_id.org)
+        my_skills_access = Organization.objects.filter(org__in=orgs, org_type__enable_extended_progress_page=True).count()
+        if not user_settings:
+            user_settings = UserSettings(user=user)
+        user_settings.my_skills_access = bool(my_skills_access)
+        user_settings.save()
+    return user_settings.my_skills_access
 
 @login_required
 @ensure_csrf_cookie
@@ -854,6 +871,7 @@ def student_dashboard(request):
         'unfulfilled_entitlement_pseudo_sessions': unfulfilled_entitlement_pseudo_sessions,
         'course_optouts': course_optouts,
         'staff_access': staff_access,
+        'my_skills_access': check_my_skills_access(user),
         'errored_courses': errored_courses,
         'show_courseware_links_for': show_courseware_links_for,
         'all_course_modes': course_mode_info,

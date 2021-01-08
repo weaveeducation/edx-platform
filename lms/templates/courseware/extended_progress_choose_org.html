@@ -1,0 +1,93 @@
+<%page expression_filter="h"/>
+<%inherit file="/main.html" />
+<%namespace name='static' file='/static_content.html'/>
+<%def name="online_help_token()"><% return "progress" %></%def>
+<%!
+from course_modes.models import CourseMode
+from lms.djangoapps.certificates.models import CertificateStatuses
+from django.utils.translation import ugettext as _
+from openedx.core.djangolib.markup import HTML, Text
+from django.urls import reverse
+from django.conf import settings
+from django.utils.http import urlquote_plus
+from six import text_type
+
+from openedx.features.enterprise_support.utils import get_enterprise_learner_generic_name
+%>
+
+<%
+username = get_enterprise_learner_generic_name(request) or student.username
+%>
+
+<%block name="bodyclass">view-in-course view-progress</%block>
+
+<%block name="headextra">
+<%static:css group='style-course-vendor'/>
+<%static:css group='style-course'/>
+<style type="text/css" media="print">
+  @page {
+      size: landscape;
+  }
+</style>
+</%block>
+
+<%block name="pagetitle">
+${_("All Skills")}
+</%block>
+
+<%block name="js_extra">
+<script type="text/javascript">
+function changeURL(url, newParam) {
+    var newUrl = '';
+    if (url.indexOf("?") > -1) {
+        if (url.indexOf("&" + newParam) > -1) {
+            newUrl = url.replace("&" + newParam, "") + "&" + newParam;
+        } else {
+            newUrl = url + "&" + newParam;
+        }
+    } else {
+        if (url.indexOf("?" + newParam) > -1) {
+            newUrl = url.replace("?" + newParam, "") + "?" + newParam;
+        } else {
+            newUrl = url + "?" + newParam;
+        }
+    }
+    console.log(newUrl);
+    window.location = newUrl;
+}
+
+$(document).ready(function() {
+    $('#progress-org').change(function() {
+        var org = $(this).val();
+        var currentUrl = $(this).data('url');
+        if (org !== '-') {
+            $(this).prop("disabled", true);
+            changeURL(currentUrl, 'org=' + org)
+        }
+    })
+});
+</script>
+</%block>
+
+<main id="main" aria-label="Content" tabindex="-1">
+    <div class="container">
+        <div class="profile-wrapper">
+            <section class="course-progress-extended" id="course-info-progress">
+                <div class="progress-header">
+                    <div class="progress-header-text">My Skills <div class="student-name">${student_name}</div></div>
+                </div>
+                <div class="progress-block">
+                    <div>Please specify organization:</div><br />
+                    <div>
+                    <select id="progress-org" data-url="${current_url}">
+                        <option value="-">Not Selected</option>
+                        % for org in orgs:
+                        <option value="${org}">${org}</option>
+                        % endfor
+                    </select>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</main>

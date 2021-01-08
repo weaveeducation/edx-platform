@@ -12,7 +12,7 @@ from xmodule.modulestore.django import modulestore
 from credo_modules.models import OrganizationTag, TagDescription
 
 
-def _tag_title(tag):
+def get_tag_title(tag):
     tag_parts = tag.split(' - ')
     if len(tag_parts) > 1:
         return ' > '.join(tag_parts[1:]).replace('"', '')
@@ -20,7 +20,7 @@ def _tag_title(tag):
         return tag.replace('"', '')
 
 
-def _tag_title_short(tag):
+def get_tag_title_short(tag):
     tag_parts = tag.split(' - ')
     if len(tag_parts) > 1:
         return tag_parts[-1].replace('"', '')
@@ -179,10 +179,11 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                                 if tag_key not in tags:
                                     tags[tag_key] = {
                                         'tag': tag_key.strip(),
-                                        'tag_title': _tag_title(tag_key),
-                                        'tag_title_short': _tag_title_short(tag_key),
+                                        'tag_title': get_tag_title(tag_key),
+                                        'tag_title_short': get_tag_title_short(tag_key),
                                         'tag_description': tag['description'],
                                         'problems': [],
+                                        'courses_num': 0,
                                         'problems_answered': [],
                                         'sections': {},
                                         'answers': 0,
@@ -195,7 +196,8 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                                 if section_id not in tags[tag_key]['sections']:
                                     tags[tag_key]['sections'][section_id] = {
                                         'display_name': items[item_block_location]['section_display_name'],
-                                        'problems': []
+                                        'problems': [],
+                                        'section_id': section_id
                                     }
                                 problem = {
                                     'problem_id': item_block_location,
@@ -208,7 +210,8 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                                     'section_id': section_id,
                                     'display_name': problem_block.display_name,
                                     'question_text': problem_detailed_info['question_text'],
-                                    'question_text_safe': problem_detailed_info['question_text_safe']
+                                    'question_text_safe': problem_detailed_info['question_text_safe'],
+                                    'hidden': problem_detailed_info['hidden']
                                 }
                                 tags[tag_key]['problems'].append(problem)
                                 tags[tag_key]['sections'][section_id]['problems'].append(problem)
@@ -252,10 +255,11 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                                         if tag_k not in tags:
                                             tags[tag_k] = {
                                                 'tag': tag_k,
-                                                'tag_title': _tag_title(tag_k),
-                                                'tag_title_short': _tag_title_short(tag_k),
+                                                'tag_title': get_tag_title(tag_k),
+                                                'tag_title_short': get_tag_title_short(tag_k),
                                                 'tag_description': tag['description'],
                                                 'problems': [],
+                                                'courses_num': 0,
                                                 'problems_answered': [],
                                                 'sections': {},
                                                 'answers': 0,
@@ -268,7 +272,8 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                                         if section_id not in tags[tag_k]['sections']:
                                             tags[tag_k]['sections'][section_id] = {
                                                 'display_name': items[item_block_location]['section_display_name'],
-                                                'problems': []
+                                                'problems': [],
+                                                'section_id': section_id
                                             }
 
                                         if criterions[criterion]['earned'] == 0:
@@ -301,6 +306,10 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                                             tags[tag_k]['answers'] = tags[tag_k]['answers'] \
                                                                    + items[item_block_location]['answered']
 
+    return get_tags_summary_data(tags)
+
+
+def get_tags_summary_data(tags, group_by_course=False):
     for tag_k, tag_v in tags.items():
         num_questions = len(tag_v['problems'])
         if num_questions > 0:
@@ -310,28 +319,43 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
         tags[tag_k]['num_questions'] = num_questions
         tags[tag_k]['percent_correct'] = percent_correct
 
-        sections = []
-        for section_id, section_val in tags[tag_k]['sections'].items():
-            section_num_questions = len(section_val['problems'])
-            if section_num_questions > 0:
-                section_percent_correct = int((sum([(x['earned'] * 1.0) / (x['possible'] * 1.0) for x in section_val['problems'] if x['possible'] > 0]) / section_num_questions) * 100)
-            else:
-                section_percent_correct = 0
-
-            unique_lst_of_questions = []
-            section_answers_sum = 0
-            for pr in section_val['problems']:
-                if pr['problem_id'] not in unique_lst_of_questions and pr['answered']:
-                    unique_lst_of_questions.append(pr['problem_id'])
-                    section_answers_sum = section_answers_sum + pr['answered']
-
-            section_val['answers'] = section_answers_sum
-            section_val['num_questions'] = section_num_questions
-            section_val['percent_correct'] = section_percent_correct
-            sections.append(section_val)
-        tags[tag_k]['sections'] = sorted(sections, key=lambda k: "%03d_%s" % (100 - k['percent_correct'],
-                                                                              k['display_name']))
+        if group_by_course:
+            for course_label, course_data in tags[tag_k]['courses'].items():
+                sections = []
+                for section_id, section_val in course_data['sections'].items():
+                    _process_tag_section_info(section_val, sections)
+                tags[tag_k]['courses'][course_label]['sections'] = sorted(
+                    sections, key=lambda k: "%03d_%s" % (100 - k['percent_correct'], k['display_name']))
+            tags[tag_k]['courses'] = OrderedDict(sorted(tags[tag_k]['courses'].items()))
+        else:
+            sections = []
+            for section_id, section_val in tags[tag_k]['sections'].items():
+                _process_tag_section_info(section_val, sections)
+            tags[tag_k]['sections'] = sorted(sections, key=lambda k: "%03d_%s" % (100 - k['percent_correct'],
+                                                                                  k['display_name']))
     return tags.values()
+
+
+def _process_tag_section_info(section_val, sections):
+    section_num_questions = len(section_val['problems'])
+    if section_num_questions > 0:
+        section_percent_correct = int((sum(
+            [(x['earned'] * 1.0) / (x['possible'] * 1.0) for x in section_val['problems'] if
+             x['possible'] > 0]) / section_num_questions) * 100)
+    else:
+        section_percent_correct = 0
+
+    unique_lst_of_questions = []
+    section_answers_sum = 0
+    for pr in section_val['problems']:
+        if pr['problem_id'] not in unique_lst_of_questions and pr['answered']:
+            unique_lst_of_questions.append(pr['problem_id'])
+            section_answers_sum = section_answers_sum + pr['answered']
+
+    section_val['answers'] = section_answers_sum
+    section_val['num_questions'] = section_num_questions
+    section_val['percent_correct'] = section_percent_correct
+    sections.append(section_val)
 
 
 def assessments_progress(courseware_summary, problems_dict=None):
@@ -503,7 +527,11 @@ def progress_skills_page(request, course, student):
 
     context = {
         'tags': tags,
-        'tags_assessments': tags_assessments
+        'tags_assessments': tags_assessments,
+        'url_api_get_tag_data': '',
+        'url_api_get_tag_section_data': '',
+        'api_student_id': 0,
+        'api_org': ''
     }
     return context
 

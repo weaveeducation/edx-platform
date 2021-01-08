@@ -76,14 +76,14 @@ def _get_enrollments_params(context):
     res = {}
     if not context:
         context = {}
-    timestamp_from = context.get('dt_from')
-    timestamp_to = context.get('dt_to')
+    timestamp_from = context.get('timestamp_from')
+    timestamp_to = context.get('timestamp_to')
     browser_tz_offset = context.get('browser_tz_offset')
     if timestamp_from and browser_tz_offset:
-        timestamp_from = timestamp_from + (browser_tz_offset * 60)
+        timestamp_from = int(timestamp_from) + (int(browser_tz_offset) * 60)
         res['courseenrollment__created__gte'] = datetime.fromtimestamp(timestamp_from).replace(tzinfo=UTC)
     if timestamp_to and browser_tz_offset:
-        timestamp_to = timestamp_to + (browser_tz_offset * 60)
+        timestamp_to = int(timestamp_to) + (int(browser_tz_offset) * 60)
         res['courseenrollment__created__lt'] = datetime.fromtimestamp(timestamp_to).replace(tzinfo=UTC)
     return res
 
@@ -194,9 +194,14 @@ class GradeReportBase(object):
         the given batched_rows and context.
         """
         # partition and chain successes and errors
-        success_rows, error_rows = zip(*batched_rows)
-        success_rows = list(chain(*success_rows))
-        error_rows = list(chain(*error_rows))
+        batched_rows_res = [v for v in batched_rows]
+        if batched_rows_res:
+            success_rows, error_rows = zip(*batched_rows_res)
+            success_rows = list(chain(*success_rows))
+            error_rows = list(chain(*error_rows))
+        else:
+            success_rows = []
+            error_rows = []
 
         # update metrics on task status
         context.task_progress.succeeded = len(success_rows)
@@ -509,9 +514,14 @@ class CourseGradeReport(object):
         the given batched_rows and context.
         """
         # partition and chain successes and errors
-        success_rows, error_rows = zip(*batched_rows)
-        success_rows = list(chain(*success_rows))
-        error_rows = list(chain(*error_rows))
+        batched_rows_res = [v for v in batched_rows]
+        if batched_rows_res:
+            success_rows, error_rows = zip(*batched_rows_res)
+            success_rows = list(chain(*success_rows))
+            error_rows = list(chain(*error_rows))
+        else:
+            success_rows = []
+            error_rows = []
 
         # update metrics on task status
         context.task_progress.succeeded = len(success_rows)

@@ -51,7 +51,7 @@ from track.event_transaction_utils import (
 )
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
-from credo_modules.models import SequentialBlockAnswered
+from credo_modules.models import SequentialBlockAnswered, OraBlockScore
 
 log = logging.getLogger(__name__)
 
@@ -300,6 +300,10 @@ def reset_student_attempts(course_id, student, module_state_key, requesting_user
             SequentialBlockAnswered.objects.filter(
                 course_id=str(course_id), sequential_id=str(module_state_key), user_id=student.id).delete()
         module_to_reset.delete()
+        if module_to_reset.module_type == 'openassessment':
+            OraBlockScore.objects.filter(
+                course_id=str(course_id), user_id=student.id, block_id=str(module_state_key)).delete()
+
         create_new_event_transaction_id()
         set_event_transaction_type(grades_events.STATE_DELETED_EVENT_TYPE)
         tracker.emit(

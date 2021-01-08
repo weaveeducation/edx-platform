@@ -1275,6 +1275,8 @@ def _extended_progress_page(request, course, student, student_id=None, is_frame=
 
     context = {
         'course': course,
+        'course_id': course.id,
+        'assessments_display': True,
         'student_id': student.id,
         'student': student,
         'student_name': student_name,

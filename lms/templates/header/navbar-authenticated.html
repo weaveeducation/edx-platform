@@ -45,6 +45,14 @@ from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonym
           </a>
         </div>
       % endif
+      % if my_skills_access:
+        <div class="mobile-nav-item hidden-mobile nav-item nav-tab">
+          <a class="${'active ' if reverse('global_skills') == request.path else ''}tab-nav-link" href="${reverse('global_skills')}"
+              aria-current="${'page' if reverse('global_skills') == request.path else 'false'}">
+              ${_("My Skills")}
+          </a>
+        </div>
+      % endif
     % endif
     % if show_explore_courses:
       <div class="mobile-nav-item hidden-mobile nav-item nav-tab">

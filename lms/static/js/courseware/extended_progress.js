@@ -1,4 +1,4 @@
-function getTooltipHtml(label, description, percentCorrect, value, total) {
+function getTooltipHtml(label, description, percentCorrect, value, total, coursesNum) {
     var displayTotal = ((total !== null) && (total !== undefined));
     var html = '<div class="tags-tooltip-block">' +
             ((description !== '') ? ('<div class="tags-description">' + description + '</div>') : '') +
@@ -7,10 +7,12 @@ function getTooltipHtml(label, description, percentCorrect, value, total) {
             '<tr>' +
             '<td class="tags-percentage">' + percentCorrect + '%</td>' +
             '<td class="tags-percentage">' + (displayTotal ? (value + '/' + total) : value) + '</td>' +
+            ((coursesNum > 0) ? ('<td class="tags-percentage">' + coursesNum + '</td>') : '') +
             '</tr>' +
             '<tr>' +
             '<td class="tags-help">Percent Correct</td>' +
             '<td class="tags-help">' + (displayTotal ? 'Correct/Total Questions' : 'Answers Submitted') + '</td>' +
+            ((coursesNum > 0) ? ('<td class="tags-help">Courses</td>') : '') +
             '</tr>' +
             '</table>' +
             '</div>';
@@ -171,7 +173,8 @@ function displayAssessmentsChart(chartEl, passValue, data) {
                         var idx = tooltipModel.dataPoints[0].index;
                         var val = data[idx];
                         var tableRoot = tooltipEl.querySelector('.progress-tooltip');
-                        var html = getTooltipHtml(val.title, '', val.percent_correct, val.correct, val.total);
+                        var html = getTooltipHtml(val.title, '', val.percent_correct, val.correct,
+                          val.total, 0);
                         tableRoot.innerHTML = '<div style="background-color: #ffffff; ' +
                             'border: 1px solid #c8c8c8; ' +
                             'max-width: 500px; ' +
@@ -202,7 +205,7 @@ function displayAssessmentsChart(chartEl, passValue, data) {
                     borderColor: 'rgb(99, 99, 99)',
                     borderWidth: 0,
                     label: {
-                        enabled: false,
+                        enabled: false
                     }
                 }]
             }
@@ -214,10 +217,15 @@ function displayAssessmentsTree() {
     var currentOrderBy = $('.progress-assessments-body').data('current-order-by');
     var currentSort = -1;
 
-    $('.progress-assessments-expand-link').click(function() {
+    $('.progress-assessments-expand-link').live("click", function() {
         var blockType = $(this).data('block-type');
+        var loaded = parseInt($(this).attr('data-loaded'));
         var opened = $(this).hasClass('opened');
         var parent = null;
+        var contentEl = null;
+        var postParams = null;
+        var dataApiUrl = '';
+        var self = this;
 
         if (opened) {
             $(this).removeClass('opened');
@@ -236,10 +244,42 @@ function displayAssessmentsTree() {
 
             if (blockType === 'assessments') {
                 parent = $(this).closest(".progress-tags-assessments-item");
-                $(parent).find('.progress-tags-assessments-item-assessments').removeClass('closed');
+                contentEl = $(parent).find('.progress-tags-assessments-item-assessments');
+                contentEl.removeClass('closed');
             } else if (blockType === 'questions') {
                 parent = $(this).closest(".progress-tags-assessments-item-assessment");
-                $(parent).find('.progress-tags-assessments-item-assessment-questions').removeClass('closed');
+                contentEl = $(parent).find('.progress-tags-assessments-item-assessment-questions');
+                contentEl.removeClass('closed');
+            }
+
+            if ((loaded === 0) && contentEl) {
+                postParams = {
+                    "student_id": window.extendedProgressAPI.api_student_id,
+                    "org": window.extendedProgressAPI.api_org
+                };
+                if (blockType === 'assessments') {
+                    dataApiUrl = window.extendedProgressAPI.urlApiGetTagData;
+                    postParams['tag'] = $(this).data('tag-title');
+                } else if (blockType === 'questions') {
+                    dataApiUrl = window.extendedProgressAPI.urlApiGetTagSectionData;
+                    postParams['tag'] = $(this).data('tag-title');
+                    postParams['section_id'] = $(this).data('section-id');
+                }
+
+                if (dataApiUrl) {
+                    contentEl.html('<div style="padding: 20px 0px 20px 0px;">Loading...</div>');
+
+                    $.ajax({
+                        url: dataApiUrl,
+                        type: 'POST',
+                        data: postParams,
+                        dataType: "html",
+                        success: function(res) {
+                            contentEl.html(res);
+                            $(self).attr("data-loaded", "1");
+                        }
+                    });
+                }
             }
         }
     });
@@ -295,12 +335,13 @@ $(document).ready(function() {
         var label = $(this).data('label'),
             percentCorrect = $(this).data('percent-correct'),
             answers = $(this).data('answers'),
-            description = $(this).data('description');
+            description = $(this).data('description'),
+            coursesNum = parseInt($(this).data('courses-num'));
         $(this).tooltipsy({
             alignTo: 'cursor',
             offset: [0, 1],
             delay: 200,
-            content: getTooltipHtml(label, description, percentCorrect, answers, null),
+            content: getTooltipHtml(label, description, percentCorrect, answers, null, coursesNum),
             css: {
                 'padding': '20px',
                 'max-width': '500px',

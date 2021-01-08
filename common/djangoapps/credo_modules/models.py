@@ -550,6 +550,10 @@ class OrganizationTag(models.Model):
 
         return cls.objects.filter(org=org_obj)
 
+    @classmethod
+    def get_orgs_tags(cls, org_lst):
+        return cls.objects.filter(org__org__in=org_lst)
+
 
 class OrganizationTagOrder(models.Model):
     org = models.ForeignKey(Organization, on_delete=models.CASCADE)
@@ -993,6 +997,38 @@ class FeatureBetaTester(models.Model):
         return cls.objects.filter(feature=feature, user=user).exists()
 
 
+class OraScoreType:
+    PEER = 'peer'
+    SELF = 'self'
+    STAFF = 'staff'
+
+
+class OraBlockScore(models.Model):
+    SCORE_TYPE_CHOICES = (
+        (OraScoreType.PEER, OraScoreType.PEER),
+        (OraScoreType.SELF, OraScoreType.SELF),
+        (OraScoreType.STAFF, OraScoreType.STAFF),
+    )
+
+    course_id = models.CharField(max_length=255, null=False, db_index=True)
+    org_id = models.CharField(max_length=80, null=False, db_index=True)
+    block_id = models.CharField(max_length=255, null=False, db_index=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    answer = models.TextField(null=True)
+    score_type = models.CharField(max_length=10, choices=SCORE_TYPE_CHOICES)
+    criterion = models.CharField(max_length=255)
+    option_label = models.CharField(max_length=255, null=True)
+    points_possible = models.IntegerField(default=0)
+    points_earned = models.IntegerField(default=0)
+    created = models.DateTimeField(null=True)
+    grader_id = models.IntegerField(null=True)
+
+
+class UserSettings(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_settings')
+    my_skills_access = models.BooleanField(default=None, null=True)
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values
@@ -1217,6 +1253,15 @@ def enrollment_trigger_after_save_course_enrollment(sender, instance, created, *
             user_id=user_id
         )
         tr.save()
+
+        my_skills_access = Organization.objects.filter(org=instance.course_id.org, org_type__enable_extended_progress_page=True).count()
+        if my_skills_access:
+            user_settings = UserSettings.objects.filter(user=instance.user).first()
+            if not user_settings:
+                user_settings = UserSettings(user=instance.user)
+            if not user_settings.my_skills_access:
+                user_settings.my_skills_access = True
+                user_settings.save()
 
 
 @receiver(post_save, sender=CourseAccessRole)

@@ -3,7 +3,7 @@ import hashlib
 from django.db import transaction
 from django.db.utils import IntegrityError
 
-from lms.djangoapps.instructor_task.tasks_helper.module_state import update_reset_progress
+from lms.djangoapps.instructor_task.tasks_helper.module_state import reset_user_progress
 from lti_provider.models import GradedAssignment, LtiContextId, LTI1p1
 from xmodule.modulestore.django import modulestore
 
@@ -27,7 +27,7 @@ def check_and_reset_lti_user_progress(context_id, context_data, user, course_key
                 context.save()
                 with modulestore().bulk_operations(course_key):
                     block = modulestore().get_item(usage_key)
-                    update_reset_progress(user, course_key, block, initiator='lti_new_context_id')
+                    reset_user_progress(user, course_key, block, initiator='lti_new_context_id')
                     if lti_version == LTI1p1 and lis_result_sourcedid:
                         lis_result_sourcedid_hash = hashlib.md5(str(lis_result_sourcedid).encode('utf-8')).hexdigest()
                         GradedAssignment.objects.filter(
