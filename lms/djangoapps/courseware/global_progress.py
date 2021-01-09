@@ -15,7 +15,6 @@ from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
 from lti_provider.models import LtiContextId
 from student.models import CourseEnrollment, anonymous_id_for_user
 from credo_modules.models import OrganizationTag, TagDescription, OraBlockScore, OraScoreType, Organization
-from credo_modules.profiler import Profiling
 from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure, ApiCourseStructureTags, \
     BlockToSequential, OraBlockStructure
 from edxmako.shortcuts import render_to_response
@@ -365,41 +364,20 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
     course_id = str(course_key)
     block_ids = {}
 
-    profiling = Profiling()
-    tag_sort_value = tag_value
-    if len(tag_sort_value) > 30:
-        tag_sort_value = tag_sort_value[0:30]
-    request_name = 'seq_bl_q_' + str(section_id) + '_' + tag_sort_value + '_' + str(student.id)
-    profiling.set_request_name(request_name)
-    profiling.start_event('get_sequential_block_questions')
-
     anonymous_user_id = anonymous_id_for_user(student, course_key, save=False)
-    profiling.start_event('api_course_structure_get')
     seq_block_cache = ApiCourseStructure.objects.filter(
         block_id=section_id, course_id=course_id, graded=1, deleted=False).first()
-    profiling.finish_event('api_course_structure_get')
     if not seq_block_cache:
         return
 
     with modulestore().bulk_operations(course_key):
-        profiling.start_event('get_course')
         course = modulestore().get_course(course_key, depth=0)
-        profiling.finish_event('get_course')
-        profiling.start_event('get_module_by_usage_id')
         seq_block, _ = get_module_by_usage_id(request, course_id, section_id,
                                               disable_staff_debug_info=True, course=course)
-        profiling.finish_event('get_module_by_usage_id')
-
-        profiling.start_event('course_grade_factory_read')
         course_grade = CourseGradeFactory().read(student, course)
         seq_earned, seq_possible, seq_summary = course_grade.score_for_module_details(usage_key)
-        profiling.finish_event('course_grade_factory_read')
-
-        profiling.start_event('get_block_children')
         children_dict = get_block_children(seq_block, seq_block_cache.display_name)
-        profiling.finish_event('get_block_children')
 
-    profiling.start_event('api_course_structure_tags_get')
     tags_raw_data = ApiCourseStructureTags.objects.filter(course_id=course_id, tag_value=tag_value)\
         .order_by('tag_value', 'rubric').values('block_id', 'rubric')
     for tag in tags_raw_data:
@@ -410,30 +388,24 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
                 'rubrics': []
             }
         block_ids[tag['block_id']]['rubrics'].append(tag['rubric'])
-    profiling.finish_event('api_course_structure_tags_get')
 
-    profiling.start_event('user_state_client.get_all_blocks')
     user_state_client = DjangoXBlockUserStateClient(student)
     user_state_dict = {}
     if block_ids:
         user_state_dict = user_state_client.get_all_blocks(student, course_key, list(block_ids.keys()))
-    profiling.finish_event('user_state_client.get_all_blocks')
 
     items = []
     ora_blocks = {}
     ora_grades_data = {}
     ora_empty_rubrics = []
 
-    profiling.start_event('ora_block_structure_get')
     ora_block_structure = OraBlockStructure.objects.filter(
         block_id__in=list(block_ids.keys()), ungraded=False, display_rubric_step_to_students=True)
     for ora_block in ora_block_structure:
         ora_blocks[ora_block.block_id] = ora_block
         if ora_block.is_ora_empty_rubrics:
             ora_empty_rubrics.append(ora_block.block_id)
-    profiling.finish_event('ora_block_structure_get')
 
-    profiling.start_event('ora_block_score_get')
     ora_grades = OraBlockScore.objects.filter(
         block_id__in=list(block_ids.keys()), user=student, score_type=OraScoreType.STAFF)
     for ora_grade in ora_grades:
@@ -443,7 +415,6 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
             'points_earned': ora_grade.points_earned,
             'answer': ora_grade.answer
         }
-    profiling.finish_event('ora_block_score_get')
 
     for key, score in seq_summary.items():
         item_block_location = str(key)
@@ -512,7 +483,6 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
                             'question_text': problem_detailed_info['question_text'],
                             'question_text_safe': problem_detailed_info['question_text_safe'],
                         })
-    profiling.finish_event('get_sequential_block_questions')
     return items
 
 
