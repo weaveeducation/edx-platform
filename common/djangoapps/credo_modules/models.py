@@ -1029,6 +1029,13 @@ class UserSettings(models.Model):
     my_skills_access = models.BooleanField(default=None, null=True)
 
 
+class Profiler(models.Model):
+    request_name = models.CharField(max_length=255, null=False, db_index=True)
+    event = models.CharField(max_length=255)
+    time = models.CharField(max_length=255)
+    created = models.DateTimeField(null=True, auto_now_add=True, db_index=True)
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values
