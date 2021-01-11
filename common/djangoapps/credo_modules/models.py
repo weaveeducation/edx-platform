@@ -1029,6 +1029,13 @@ class UserSettings(models.Model):
     my_skills_access = models.BooleanField(default=None, null=True)
 
 
+class Profiler(models.Model):
+    request_name = models.CharField(max_length=255, null=False, db_index=True)
+    event = models.CharField(max_length=255)
+    time = models.CharField(max_length=255)
+    created = models.DateTimeField(null=True, auto_now_add=True, db_index=True)
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values
@@ -1254,14 +1261,16 @@ def enrollment_trigger_after_save_course_enrollment(sender, instance, created, *
         )
         tr.save()
 
-        my_skills_access = Organization.objects.filter(org=instance.course_id.org, org_type__enable_extended_progress_page=True).count()
-        if my_skills_access:
-            user_settings = UserSettings.objects.filter(user=instance.user).first()
-            if not user_settings:
-                user_settings = UserSettings(user=instance.user)
-            if not user_settings.my_skills_access:
-                user_settings.my_skills_access = True
-                user_settings.save()
+#        my_skills_access = Organization.objects.filter(
+#            org=instance.course_id.org,
+#            org_type__enable_extended_progress_page=True).count()
+#        if my_skills_access:
+#            user_settings = UserSettings.objects.filter(user=instance.user).first()
+#            if not user_settings:
+#                user_settings = UserSettings(user=instance.user)
+#            if not user_settings.my_skills_access:
+#                user_settings.my_skills_access = True
+#                user_settings.save()
 
 
 @receiver(post_save, sender=CourseAccessRole)

@@ -148,6 +148,29 @@ class CourseGradeBase(object):
             possible += child_possible
         return earned, possible
 
+    def score_for_module_details(self, location, res=None):
+        """
+        Calculate the aggregate weighted score for any location in the course.
+        This method returns a tuple containing (earned_score, possible_score).
+        If the location is of 'problem' type, this method will return the
+        possible and earned scores for that problem. If the location refers to a
+        composite module (a vertical or section ) the scores will be the sums of
+        all scored problems that are children of the chosen location.
+        """
+        if res is None:
+            res = {}
+        if location in self.problem_scores:
+            score = self.problem_scores[location]
+            res[str(location)] = score
+            return score.earned, score.possible, res
+        children = self.course_data.structure.get_children(location)
+        earned, possible = 0.0, 0.0
+        for child in children:
+            child_earned, child_possible, res = self.score_for_module_details(child, res)
+            earned += child_earned
+            possible += child_possible
+        return earned, possible, res
+
     @lazy
     def grader_result(self):
         """
