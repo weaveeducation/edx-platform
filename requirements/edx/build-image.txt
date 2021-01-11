@@ -15,5 +15,5 @@
 git+https://github.com/CredoEducation/completion.git@integration-juniper#egg=edx-completion==3.2.2
 git+https://github.com/CredoEducation/edx-drf-extensions.git@integration-juniper#egg=edx-drf-extensions==6.0.1
 git+https://github.com/CredoEducation/edx-proctoring.git@integration-juniper#egg=edx-proctoring==2.4.1
-git+https://github.com/CredoEducation/edx-ora2.git@e94a566c3e674a2a8862d8c9d2f75321fd401312#egg=ora2==2.7.14
+git+https://github.com/CredoEducation/edx-ora2.git@5ca25b367f98f4a0d6f79adf271885d96a33836b#egg=ora2==2.7.15
 git+https://github.com/CredoEducation/xblock-drag-and-drop-v2@5111a76aeaef61dd22dc5ca683a6a1f99dd54bf4#egg=xblock-drag-and-drop-v2==2.2.12
