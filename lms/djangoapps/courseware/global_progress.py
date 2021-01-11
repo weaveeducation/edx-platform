@@ -134,7 +134,7 @@ def get_tags_global_data(student, orgs, course_ids, tag_value=None, group_tags=F
             state_data = json.loads(item['state'])
             if 'submission_uuid' in state_data:
                 if block_id in ora_empty_rubrics:
-                    grades_data[block_id].points_possible = 1
+                    grades_data[block_id].points_earned = 1
                     grades_data[block_id].answered = True
                 elif block_id in grades_data:
                     for crit_label, _ in grades_data[block_id].items():
@@ -210,7 +210,8 @@ def get_tags_global_data(student, orgs, course_ids, tag_value=None, group_tags=F
 
             course_label = seq_block_to_course.get(section_id)
             if not course_label:
-                course_label = UsageKey.from_string(section_id).course
+                uk = UsageKey.from_string(section_id)
+                course_label = uk.course + ' / ' + uk.run
             if course_label not in tags[tag_key]['courses']:
                 tags[tag_key]['courses_num'] += 1
                 tags[tag_key]['courses'][course_label] = {'sections': {}}
@@ -301,63 +302,6 @@ def _get_global_skills_context(request, user_id, org):
     return user_id, student, course_ids, orgs, org, additional_params
 
 
-@login_required
-def global_skills_page(request):
-    user_id = request.GET.get('user_id')
-    org = request.GET.get('org')
-    page = request.GET.get('page')
-    group_tags = False
-
-    if page == 'skills':
-        group_tags = True
-
-    user_id, student, course_ids, orgs, org, additional_params = _get_global_skills_context(request, user_id, org)
-
-    if len(course_ids) > MAX_COURSES_PER_USER and len(orgs) > 1 and not org:
-        return render_to_response('courseware/extended_progress_choose_org.html', {
-            'orgs': sorted(orgs),
-            'current_url': reverse('global_skills') + (('?' + '&'.join(additional_params)) if additional_params else ''),
-            'student_id': student.id,
-            'student': student,
-            'student_name': get_student_name(student)
-        })
-
-    context = {
-        'course': None,
-        'course_id': None,
-        'assessments_display': False,
-        'student_id': student.id,
-        'student': student,
-        'student_name': get_student_name(student),
-        'current_url': reverse('global_skills'),
-        'url_api_get_tag_data': reverse('global_skills_api_get_tag_data'),
-        'url_api_get_tag_section_data': reverse('global_skills_api_get_tag_section_data'),
-        'api_student_id': student.id,
-        'api_org': org,
-        'current_url_additional_params': '&'.join(additional_params) if additional_params else ''
-    }
-
-    tags = get_tags_global_data(student, orgs, course_ids, group_tags=group_tags)
-    if page == 'skills':
-        tags_assessments = [v.copy() for v in tags if v['tag_is_last']]
-        tags = convert_into_tree(tags)
-        tags_assessments = sorted(tags_assessments, key=lambda k: "%03d_%s" % (100 - k['percent_correct'], k['tag']))
-        context.update({
-            'tags': tags,
-            'tags_assessments': tags_assessments
-        })
-        return render_to_response('courseware/extended_progress_skills.html', context)
-    else:
-        tags_to_100 = sorted(tags, key=lambda k: "%03d_%s" % (k['percent_correct'], k['tag']))
-        tags_from_100 = sorted(tags, key=lambda k: "%03d_%s" % (100 - k['percent_correct'], k['tag']))
-        context.update({
-            'top5tags': tags_from_100[:5],
-            'lowest5tags': tags_to_100[:5],
-            'assessments': []
-        })
-        return render_to_response('courseware/extended_progress.html', context)
-
-
 def get_sequential_block_questions(request, section_id, tag_value, student):
     usage_key = UsageKey.from_string(section_id)
     course_key = usage_key.course_key
@@ -424,7 +368,7 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
             problem_block = problem_detailed_info['data']
 
             submission_uuid = None
-            if item_block_location in ora_empty_rubrics:
+            if block_info['is_ora'] or item_block_location in ora_empty_rubrics:
                 submission = get_ora_submission_id(course.id, anonymous_user_id, item_block_location)
                 if submission:
                     submission_uuid = submission['uuid']
@@ -484,6 +428,63 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
                             'question_text_safe': problem_detailed_info['question_text_safe'],
                         })
     return items
+
+
+@login_required
+def global_skills_page(request):
+    user_id = request.GET.get('user_id')
+    org = request.GET.get('org')
+    page = request.GET.get('page')
+    group_tags = False
+
+    if page == 'skills':
+        group_tags = True
+
+    user_id, student, course_ids, orgs, org, additional_params = _get_global_skills_context(request, user_id, org)
+
+    if len(course_ids) > MAX_COURSES_PER_USER and len(orgs) > 1 and not org:
+        return render_to_response('courseware/extended_progress_choose_org.html', {
+            'orgs': sorted(orgs),
+            'current_url': reverse('global_skills') + (('?' + '&'.join(additional_params)) if additional_params else ''),
+            'student_id': student.id,
+            'student': student,
+            'student_name': get_student_name(student)
+        })
+
+    context = {
+        'course': None,
+        'course_id': None,
+        'assessments_display': False,
+        'student_id': student.id,
+        'student': student,
+        'student_name': get_student_name(student),
+        'current_url': reverse('global_skills'),
+        'url_api_get_tag_data': reverse('global_skills_api_get_tag_data'),
+        'url_api_get_tag_section_data': reverse('global_skills_api_get_tag_section_data'),
+        'api_student_id': student.id,
+        'api_org': org,
+        'current_url_additional_params': '&'.join(additional_params) if additional_params else ''
+    }
+
+    tags = get_tags_global_data(student, orgs, course_ids, group_tags=group_tags)
+    if page == 'skills':
+        tags_assessments = [v.copy() for v in tags if v['tag_is_last']]
+        tags = convert_into_tree(tags)
+        tags_assessments = sorted(tags_assessments, key=lambda k: "%03d_%s" % (100 - k['percent_correct'], k['tag']))
+        context.update({
+            'tags': tags,
+            'tags_assessments': tags_assessments
+        })
+        return render_to_response('courseware/extended_progress_skills.html', context)
+    else:
+        tags_to_100 = sorted(tags, key=lambda k: "%03d_%s" % (k['percent_correct'], k['tag']))
+        tags_from_100 = sorted(tags, key=lambda k: "%03d_%s" % (100 - k['percent_correct'], k['tag']))
+        context.update({
+            'top5tags': tags_from_100[:5],
+            'lowest5tags': tags_to_100[:5],
+            'assessments': []
+        })
+        return render_to_response('courseware/extended_progress.html', context)
 
 
 @login_required

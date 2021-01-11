@@ -158,7 +158,7 @@ class CourseGradeBase(object):
         all scored problems that are children of the chosen location.
         """
         if res is None:
-            res = {}
+            res = OrderedDict()
         if location in self.problem_scores:
             score = self.problem_scores[location]
             res[str(location)] = score
