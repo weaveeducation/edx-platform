@@ -7,6 +7,7 @@ from django.views.decorators.http import require_GET
 from edxmako.shortcuts import render_to_response
 from lms.djangoapps.learner_dashboard.programs import ProgramDetailsFragmentView, ProgramsFragmentView
 from openedx.core.djangoapps.programs.models import ProgramsApiConfig
+from credo_modules.models import check_my_skills_access
 
 
 @login_required
@@ -22,6 +23,7 @@ def program_listing(request):
         'nav_hidden': True,
         'show_dashboard_tabs': True,
         'show_program_listing': programs_config.enabled,
+        'show_my_skills': check_my_skills_access(request.user),
         'uses_bootstrap': True,
     }
 
@@ -39,8 +41,9 @@ def program_details(request, program_uuid):
 
     context = {
         'program_fragment': program_fragment,
-        'show_program_listing': programs_config.enabled,
         'show_dashboard_tabs': True,
+        'show_program_listing': programs_config.enabled,
+        'show_my_skills': check_my_skills_access(request.user),
         'nav_hidden': True,
         'disable_courseware_js': True,
         'uses_bootstrap': True,
