@@ -14,7 +14,9 @@ from lms.djangoapps.courseware.utils import CREDO_GRADED_ITEM_CATEGORIES, get_bl
 from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
 from lti_provider.models import LtiContextId
 from student.models import CourseEnrollment, anonymous_id_for_user
-from credo_modules.models import OrganizationTag, TagDescription, OraBlockScore, OraScoreType, Organization
+from credo_modules.models import OrganizationTag, TagDescription, OraBlockScore, OraScoreType, Organization, \
+    check_my_skills_access
+from openedx.core.djangoapps.programs.models import ProgramsApiConfig
 from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure, ApiCourseStructureTags, \
     BlockToSequential, OraBlockStructure
 from edxmako.shortcuts import render_to_response
@@ -334,7 +336,10 @@ def global_skills_page(request):
         'url_api_get_tag_section_data': reverse('global_skills_api_get_tag_section_data'),
         'api_student_id': student.id,
         'api_org': org,
-        'current_url_additional_params': '&'.join(additional_params) if additional_params else ''
+        'current_url_additional_params': '&'.join(additional_params) if additional_params else '',
+        'show_dashboard_tabs': True,
+        'show_program_listing': ProgramsApiConfig.is_enabled(),
+        'show_my_skills': check_my_skills_access(request.user)
     }
 
     tags = get_tags_global_data(student, orgs, course_ids, group_tags=group_tags)

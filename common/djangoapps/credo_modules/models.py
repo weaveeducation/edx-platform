@@ -1220,6 +1220,25 @@ def get_inactive_orgs():
     return [org.name for org in deactivated_orgs_objs]
 
 
+def check_my_skills_access(user):
+    """
+    check access to my skills tab for user
+    """
+    user_settings = UserSettings.objects.filter(user=user).first()
+    if not user_settings or user_settings.my_skills_access is None:
+        orgs = []
+        enrollments = CourseEnrollment.objects.filter(user=user, is_active=True)
+        for enroll in enrollments:
+            if enroll.course_id.org not in orgs:
+                orgs.append(enroll.course_id.org)
+        my_skills_access = Organization.objects.filter(org__in=orgs, org_type__enable_extended_progress_page=True).count()
+        if not user_settings:
+            user_settings = UserSettings(user=user)
+        user_settings.my_skills_access = bool(my_skills_access)
+        user_settings.save()
+    return user_settings.my_skills_access
+
+
 @receiver(post_save, sender=ProctoredExamStudentAttempt)
 def start_new_attempt_after_exam_started(sender, instance, created, **kwargs):
     if created:
@@ -1261,16 +1280,16 @@ def enrollment_trigger_after_save_course_enrollment(sender, instance, created, *
         )
         tr.save()
 
-#        my_skills_access = Organization.objects.filter(
-#            org=instance.course_id.org,
-#            org_type__enable_extended_progress_page=True).count()
-#        if my_skills_access:
-#            user_settings = UserSettings.objects.filter(user=instance.user).first()
-#            if not user_settings:
-#                user_settings = UserSettings(user=instance.user)
-#            if not user_settings.my_skills_access:
-#                user_settings.my_skills_access = True
-#                user_settings.save()
+        my_skills_access = Organization.objects.filter(
+            org=instance.course_id.org,
+            org_type__enable_extended_progress_page=True).count()
+        if my_skills_access:
+            user_settings = UserSettings.objects.filter(user=instance.user).first()
+            if not user_settings:
+                user_settings = UserSettings(user=instance.user)
+            if not user_settings.my_skills_access:
+                user_settings.my_skills_access = True
+                user_settings.save()
 
 
 @receiver(post_save, sender=CourseAccessRole)
