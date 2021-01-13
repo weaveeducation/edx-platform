@@ -1,6 +1,7 @@
 import json
 from collections import OrderedDict
 
+from django.db import transaction
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.views.decorators.http import require_POST
@@ -136,7 +137,7 @@ def get_tags_global_data(student, orgs, course_ids, tag_value=None, group_tags=F
             state_data = json.loads(item['state'])
             if 'submission_uuid' in state_data:
                 if block_id in ora_empty_rubrics:
-                    grades_data[block_id].points_possible = 1
+                    grades_data[block_id].points_earned = 1
                     grades_data[block_id].answered = True
                 elif block_id in grades_data:
                     for crit_label, _ in grades_data[block_id].items():
@@ -212,7 +213,8 @@ def get_tags_global_data(student, orgs, course_ids, tag_value=None, group_tags=F
 
             course_label = seq_block_to_course.get(section_id)
             if not course_label:
-                course_label = UsageKey.from_string(section_id).course
+                uk = UsageKey.from_string(section_id)
+                course_label = uk.course + ' / ' + uk.run
             if course_label not in tags[tag_key]['courses']:
                 tags[tag_key]['courses_num'] += 1
                 tags[tag_key]['courses'][course_label] = {'sections': {}}
@@ -303,6 +305,136 @@ def _get_global_skills_context(request, user_id, org):
     return user_id, student, course_ids, orgs, org, additional_params
 
 
+def get_sequential_block_questions(request, section_id, tag_value, student):
+    usage_key = UsageKey.from_string(section_id)
+    course_key = usage_key.course_key
+    course_id = str(course_key)
+    block_ids = {}
+
+    anonymous_user_id = anonymous_id_for_user(student, course_key, save=False)
+    seq_block_cache = ApiCourseStructure.objects.filter(
+        block_id=section_id, course_id=course_id, graded=1, deleted=False).first()
+    if not seq_block_cache:
+        return
+
+    with modulestore().bulk_operations(course_key):
+        course = modulestore().get_course(course_key, depth=0)
+        seq_block, _ = get_module_by_usage_id(request, course_id, section_id,
+                                              disable_staff_debug_info=True, course=course)
+        course_grade = CourseGradeFactory().read(student, course)
+        seq_earned, seq_possible, seq_summary = course_grade.score_for_module_details(usage_key)
+        children_dict = get_block_children(seq_block, seq_block_cache.display_name)
+
+    tags_raw_data = ApiCourseStructureTags.objects.filter(course_id=course_id, tag_value=tag_value)\
+        .order_by('tag_value', 'rubric').values('block_id', 'rubric')
+    for tag in tags_raw_data:
+        is_ora = bool(tag['rubric'])
+        if tag['block_id'] not in block_ids:
+            block_ids[tag['block_id']] = {
+                'is_ora': is_ora,
+                'rubrics': []
+            }
+        if is_ora:
+            block_ids[tag['block_id']]['rubrics'].append(tag['rubric'])
+
+    user_state_client = DjangoXBlockUserStateClient(student)
+    user_state_dict = {}
+    if block_ids:
+        user_state_dict = user_state_client.get_all_blocks(student, course_key, list(block_ids.keys()))
+
+    items = []
+    ora_blocks = {}
+    ora_grades_data = {}
+    ora_empty_rubrics = []
+
+    ora_block_structure = OraBlockStructure.objects.filter(
+        block_id__in=list(block_ids.keys()), ungraded=False, display_rubric_step_to_students=True)
+    for ora_block in ora_block_structure:
+        ora_blocks[ora_block.block_id] = ora_block
+        if ora_block.is_ora_empty_rubrics:
+            ora_empty_rubrics.append(ora_block.block_id)
+
+    ora_grades = OraBlockScore.objects.filter(
+        block_id__in=list(block_ids.keys()), user=student, score_type=OraScoreType.STAFF)
+    for ora_grade in ora_grades:
+        if ora_grade.block_id not in ora_grades_data:
+            ora_grades_data[ora_grade.block_id] = {}
+        ora_grades_data[ora_grade.block_id][ora_grade.criterion.strip()] = {
+            'points_earned': ora_grade.points_earned,
+            'answer': ora_grade.answer
+        }
+
+    for key, score in seq_summary.items():
+        item_block_location = str(key)
+        if item_block_location in block_ids:
+            block_info = block_ids[item_block_location]
+            problem_detailed_info = children_dict.get(item_block_location)
+            problem_block = problem_detailed_info['data']
+
+            submission_uuid = None
+            if block_info['is_ora'] or item_block_location in ora_empty_rubrics:
+                submission = get_ora_submission_id(course.id, anonymous_user_id, item_block_location)
+                if submission:
+                    submission_uuid = submission['uuid']
+
+            answer, tmp_correctness = get_answer_and_correctness(
+                user_state_dict, score, problem_block.category, problem_block,
+                problem_block.location, submission_uuid=submission_uuid)
+
+            if not block_info['is_ora'] or item_block_location in ora_empty_rubrics:
+                od = OrderedDict(sorted(answer.items())) if answer else {}
+                items.append({
+                    'problem_id': item_block_location,
+                    'possible': get_score_points(score.possible),
+                    'earned': get_score_points(score.earned),
+                    'answered': 1 if score.first_attempted else 0,
+                    'answer': '; '.join(od.values()) if answer else None,
+                    'correctness': tmp_correctness.title() if tmp_correctness else 'Not Answered',
+                    'display_name': problem_block.display_name,
+                    'question_text': problem_detailed_info['question_text'],
+                    'question_text_safe': problem_detailed_info['question_text_safe'],
+                })
+            elif item_block_location in ora_blocks:
+                ora_block = ora_blocks.get(item_block_location)
+                rubric_criteria = ora_block.get_rubric_criteria()
+                crit_to_points_possible = {}
+                for crit in rubric_criteria:
+                    crit_label = crit['label'].strip()
+                    points_possible = max([p['points'] for p in crit['options']])
+                    crit_to_points_possible[crit_label] = points_possible
+                if ora_block:
+                    for rubric in block_info['rubrics']:
+                        if rubric not in crit_to_points_possible:
+                            continue
+                        ora_grades_dict = ora_grades_data.get(item_block_location, {}).get(rubric, {})
+                        points_earned = ora_grades_dict.get('points_earned', 0)
+                        points_possible = crit_to_points_possible.get(rubric, 0)
+                        if points_possible == 0:
+                            continue
+                        ora_answer = ora_grades_dict.get('answer')
+                        if points_earned == 0:
+                            criterion_correctness = 'incorrect'
+                        elif points_possible == points_earned:
+                            criterion_correctness = 'correct'
+                        else:
+                            criterion_correctness = 'partially correct'
+
+                        items.append({
+                            'problem_id': item_block_location,
+                            'criterion': rubric,
+                            'possible': get_score_points(points_possible),
+                            'earned': get_score_points(points_earned),
+                            'answered': 1 if ora_answer else 0,
+                            'answer': ora_answer,
+                            'correctness': criterion_correctness.title() if tmp_correctness else 'Not Answered',
+                            'display_name': problem_block.display_name + ': ' + rubric.title(),
+                            'question_text': problem_detailed_info['question_text'],
+                            'question_text_safe': problem_detailed_info['question_text_safe'],
+                        })
+    return items
+
+
+@transaction.non_atomic_requests
 @login_required
 def global_skills_page(request):
     user_id = request.GET.get('user_id')
@@ -363,134 +495,7 @@ def global_skills_page(request):
         return render_to_response('courseware/extended_progress.html', context)
 
 
-def get_sequential_block_questions(request, section_id, tag_value, student):
-    usage_key = UsageKey.from_string(section_id)
-    course_key = usage_key.course_key
-    course_id = str(course_key)
-    block_ids = {}
-
-    anonymous_user_id = anonymous_id_for_user(student, course_key, save=False)
-    seq_block_cache = ApiCourseStructure.objects.filter(
-        block_id=section_id, course_id=course_id, graded=1, deleted=False).first()
-    if not seq_block_cache:
-        return
-
-    with modulestore().bulk_operations(course_key):
-        course = modulestore().get_course(course_key, depth=0)
-        seq_block, _ = get_module_by_usage_id(request, course_id, section_id,
-                                              disable_staff_debug_info=True, course=course)
-        course_grade = CourseGradeFactory().read(student, course)
-        seq_earned, seq_possible, seq_summary = course_grade.score_for_module_details(usage_key)
-        children_dict = get_block_children(seq_block, seq_block_cache.display_name)
-
-    tags_raw_data = ApiCourseStructureTags.objects.filter(course_id=course_id, tag_value=tag_value)\
-        .order_by('tag_value', 'rubric').values('block_id', 'rubric')
-    for tag in tags_raw_data:
-        is_ora = bool(tag['rubric'])
-        if tag['block_id'] not in block_ids:
-            block_ids[tag['block_id']] = {
-                'is_ora': is_ora,
-                'rubrics': []
-            }
-        block_ids[tag['block_id']]['rubrics'].append(tag['rubric'])
-
-    user_state_client = DjangoXBlockUserStateClient(student)
-    user_state_dict = {}
-    if block_ids:
-        user_state_dict = user_state_client.get_all_blocks(student, course_key, list(block_ids.keys()))
-
-    items = []
-    ora_blocks = {}
-    ora_grades_data = {}
-    ora_empty_rubrics = []
-
-    ora_block_structure = OraBlockStructure.objects.filter(
-        block_id__in=list(block_ids.keys()), ungraded=False, display_rubric_step_to_students=True)
-    for ora_block in ora_block_structure:
-        ora_blocks[ora_block.block_id] = ora_block
-        if ora_block.is_ora_empty_rubrics:
-            ora_empty_rubrics.append(ora_block.block_id)
-
-    ora_grades = OraBlockScore.objects.filter(
-        block_id__in=list(block_ids.keys()), user=student, score_type=OraScoreType.STAFF)
-    for ora_grade in ora_grades:
-        if ora_grade.block_id not in ora_grades_data:
-            ora_grades_data[ora_grade.block_id] = {}
-        ora_grades_data[ora_grade.block_id][ora_grade.criterion.strip()] = {
-            'points_earned': ora_grade.points_earned,
-            'answer': ora_grade.answer
-        }
-
-    for key, score in seq_summary.items():
-        item_block_location = str(key)
-        if item_block_location in block_ids:
-            block_info = block_ids[item_block_location]
-            problem_detailed_info = children_dict.get(item_block_location)
-            problem_block = problem_detailed_info['data']
-
-            submission_uuid = None
-            if item_block_location in ora_empty_rubrics:
-                submission = get_ora_submission_id(course.id, anonymous_user_id, item_block_location)
-                if submission:
-                    submission_uuid = submission['uuid']
-
-            answer, tmp_correctness = get_answer_and_correctness(
-                user_state_dict, score, problem_block.category, problem_block,
-                problem_block.location, submission_uuid=submission_uuid)
-
-            if not block_info['is_ora'] or item_block_location in ora_empty_rubrics:
-                od = OrderedDict(sorted(answer.items())) if answer else {}
-                items.append({
-                    'problem_id': item_block_location,
-                    'possible': get_score_points(score.possible),
-                    'earned': get_score_points(score.earned),
-                    'answered': 1 if score.first_attempted else 0,
-                    'answer': '; '.join(od.values()) if answer else None,
-                    'correctness': tmp_correctness.title() if tmp_correctness else 'Not Answered',
-                    'display_name': problem_block.display_name,
-                    'question_text': problem_detailed_info['question_text'],
-                    'question_text_safe': problem_detailed_info['question_text_safe'],
-                })
-            else:
-                ora_block = ora_blocks.get(item_block_location)
-                rubric_criteria = ora_block.get_rubric_criteria()
-                crit_to_points_possible = {}
-                for crit in rubric_criteria:
-                    crit_label = crit['label'].strip()
-                    points_possible = max([p['points'] for p in crit['options']])
-                    crit_to_points_possible[crit_label] = points_possible
-                if ora_block:
-                    for rubric in block_info['rubrics']:
-                        if rubric not in crit_to_points_possible:
-                            continue
-                        ora_grades_dict = ora_grades_data.get(item_block_location, {}).get(rubric, {})
-                        points_earned = ora_grades_dict.get('points_earned', 0)
-                        points_possible = crit_to_points_possible.get(rubric, 0)
-                        if points_possible == 0:
-                            continue
-                        ora_answer = ora_grades_dict.get('answer')
-                        if points_earned == 0:
-                            criterion_correctness = 'incorrect'
-                        elif points_possible == points_earned:
-                            criterion_correctness = 'correct'
-                        else:
-                            criterion_correctness = 'partially correct'
-
-                        items.append({
-                            'problem_id': item_block_location,
-                            'criterion': rubric,
-                            'possible': get_score_points(points_possible),
-                            'earned': get_score_points(points_earned),
-                            'answered': 1 if ora_answer else 0,
-                            'answer': ora_answer,
-                            'correctness': criterion_correctness.title() if tmp_correctness else 'Not Answered',
-                            'display_name': problem_block.display_name + ': ' + rubric.title(),
-                            'question_text': problem_detailed_info['question_text'],
-                            'question_text_safe': problem_detailed_info['question_text_safe'],
-                        })
-    return items
-
-
+@transaction.non_atomic_requests
 @login_required
 @require_POST
 def api_get_global_tag_data(request):
@@ -508,6 +513,7 @@ def api_get_global_tag_data(request):
     })
 
 
+@transaction.non_atomic_requests
 @login_required
 @require_POST
 def api_get_global_tag_section_data(request):
