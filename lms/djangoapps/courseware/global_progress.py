@@ -1,6 +1,7 @@
 import json
 from collections import OrderedDict
 
+from django.db import transaction
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.views.decorators.http import require_POST
@@ -331,7 +332,8 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
                 'is_ora': is_ora,
                 'rubrics': []
             }
-        block_ids[tag['block_id']]['rubrics'].append(tag['rubric'])
+        if is_ora:
+            block_ids[tag['block_id']]['rubrics'].append(tag['rubric'])
 
     user_state_client = DjangoXBlockUserStateClient(student)
     user_state_dict = {}
@@ -390,7 +392,7 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
                     'question_text': problem_detailed_info['question_text'],
                     'question_text_safe': problem_detailed_info['question_text_safe'],
                 })
-            else:
+            elif item_block_location in ora_blocks:
                 ora_block = ora_blocks.get(item_block_location)
                 rubric_criteria = ora_block.get_rubric_criteria()
                 crit_to_points_possible = {}
@@ -430,6 +432,7 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
     return items
 
 
+@transaction.non_atomic_requests
 @login_required
 def global_skills_page(request):
     user_id = request.GET.get('user_id')
@@ -487,6 +490,7 @@ def global_skills_page(request):
         return render_to_response('courseware/extended_progress.html', context)
 
 
+@transaction.non_atomic_requests
 @login_required
 @require_POST
 def api_get_global_tag_data(request):
@@ -504,6 +508,7 @@ def api_get_global_tag_data(request):
     })
 
 
+@transaction.non_atomic_requests
 @login_required
 @require_POST
 def api_get_global_tag_section_data(request):
