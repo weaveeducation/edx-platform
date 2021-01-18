@@ -31,7 +31,7 @@ def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list
     elif course_ids_lst:
         model_data = model_class.objects.filter(course_id__in=course_ids_lst).values_list()
     else:
-        raise Exception('Please specify "update_process_num" or "course_ids_lst" param')
+        raise Exception('Please specify "update_process_num", "ids_list" or "course_ids_lst" param')
 
     if len(model_data) == 0:
         print('Nothing to copy!')
@@ -109,7 +109,11 @@ def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list
 
         if not skip_delete_step:
             print('Vertica DELETE operation')
-            sql2 = "DELETE FROM %s WHERE id in (SELECT id FROM %s)" % (table_name, table_name_copy_from)
+            if course_ids_lst:
+                sql2 = "DELETE FROM %s WHERE course_id in (SELECT DISTINCT course_id FROM %s)"\
+                       % (table_name, table_name_copy_from)
+            else:
+                sql2 = "DELETE FROM %s WHERE id in (SELECT id FROM %s)" % (table_name, table_name_copy_from)
             print(sql2)
             t1 = time.time()
             cursor.execute(sql2)
