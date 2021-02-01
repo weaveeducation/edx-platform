@@ -37,6 +37,12 @@ library_block_is_hidden = str(xblock.location).startswith('lib-block-v1') and ge
 <script type="text/template" id="move-xblock-modal-tpl">
     <%static:include path="js/move-xblock-modal.underscore" />
 </script>
+<script type="text/template" id="push-changes-to-siblings-tpl">
+    <%static:include path="js/push-changes-to-siblings.underscore" />
+</script>
+<script type="text/template" id="publish-editor-tpl">
+    <%static:include path="js/publish-editor.underscore" />
+</script>
 </%block>
 
 <script type="text/javascript">

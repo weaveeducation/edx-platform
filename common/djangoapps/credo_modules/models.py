@@ -7,8 +7,7 @@ import uuid
 from urllib.parse import urlparse
 from django.dispatch import receiver
 from django.contrib.auth.models import User
-from django.db import models, IntegrityError, OperationalError, transaction
-from django.db.models import F
+from django.db import models, OperationalError, transaction
 from django.db.models.signals import post_save, post_delete
 from opaque_keys.edx.django.models import CourseKeyField
 from opaque_keys.edx.keys import CourseKey, UsageKey
@@ -576,25 +575,16 @@ class SendScoresMailing(models.Model):
         db_table = "credo_send_scores_mailing"
 
 
-class CopyBlockTask(TimeStampedModel, models.Model):
+class TaskStatusMixin:
     NOT_STARTED = 'not_started'
     STARTED = 'started'
     FINISHED = 'finished'
     ERROR = 'error'
-    STATUSES = (
+    DATA = (
         (NOT_STARTED, 'Not Started'),
         (STARTED, 'Started'),
         (FINISHED, 'Finished'),
         (ERROR, 'Error'),
-    )
-
-    task_id = models.CharField(max_length=255, db_index=True)
-    block_ids = models.TextField()
-    dst_location = models.CharField(max_length=255, db_index=True)
-    status = models.CharField(
-        max_length=255,
-        choices=STATUSES,
-        default=NOT_STARTED,
     )
 
     def set_started(self):
@@ -608,6 +598,44 @@ class CopyBlockTask(TimeStampedModel, models.Model):
 
     def is_finished(self):
         return self.status == self.FINISHED
+
+
+class CopyBlockTask(TimeStampedModel, TaskStatusMixin, models.Model):
+    task_id = models.CharField(max_length=255, db_index=True)
+    block_ids = models.TextField()
+    dst_location = models.CharField(max_length=255, db_index=True)
+    status = models.CharField(
+        max_length=255,
+        choices=TaskStatusMixin.DATA,
+        default=TaskStatusMixin.NOT_STARTED,
+    )
+
+
+class SiblingBlockUpdateTask(TimeStampedModel, TaskStatusMixin, models.Model):
+    task_id = models.CharField(max_length=255, db_index=True)
+    initiator = models.ForeignKey(User, on_delete=models.CASCADE)
+    status = models.CharField(
+        max_length=255,
+        choices=TaskStatusMixin.DATA,
+        default=TaskStatusMixin.NOT_STARTED,
+    )
+    source_course_id = models.CharField(max_length=255, db_index=True)
+    source_block_id = models.CharField(max_length=255)
+    sibling_course_id = models.CharField(max_length=255, db_index=True)
+    sibling_block_id = models.CharField(max_length=255, null=True)
+    published = models.BooleanField(default=False)
+    sibling_block_prev_version = models.CharField(max_length=255, null=True)  # set only for published
+
+
+class SiblingBlockNotUpdated(models.Model):
+    source_course_id = models.CharField(max_length=255, db_index=True)
+    source_block_id = models.CharField(max_length=255)
+    sibling_course_id = models.CharField(max_length=255, db_index=True)
+    sibling_block_id = models.CharField(max_length=255, db_index=True, null=True)
+    source_version_published_date = models.DateTimeField(null=True)
+    source_version_publisher_user_id = models.IntegerField(null=True)
+    sibling_version_published_date = models.DateTimeField(null=True)
+    sibling_version_publisher_user_id = models.IntegerField(null=True)
 
 
 class SequentialViewedTask(TimeStampedModel, models.Model):

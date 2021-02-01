@@ -375,6 +375,34 @@ class ApiCourseStructureLock(models.Model):
         ApiCourseStructureLock.objects.filter(course_id=course_id).delete()
 
 
+class ApiBlockInfo(models.Model):
+    course_id = models.CharField(max_length=255, null=False, db_index=True)
+    block_id = models.CharField(max_length=255, null=False, db_index=True)
+    hash_id = models.CharField(max_length=255, null=False, db_index=True)
+    deleted = models.BooleanField(default=False)
+    has_children = models.BooleanField(default=False)
+    created_by = models.IntegerField(null=True, default=None)
+    created_time = models.DateTimeField(null=True, default=None)
+    updated_by = models.IntegerField(null=True, default=None)
+    updated_time = models.DateTimeField(null=True, default=None)
+
+    CATEGORY_HAS_CHILDREN = ('chapter', 'sequential', 'vertical')
+
+    def set_has_children(self):
+        if self.block_id:
+            category = self.block_id.split('@')[1].split('+')[0]
+            if category in self.CATEGORY_HAS_CHILDREN:
+                self.has_children = True
+            else:
+                self.has_children = False
+        else:
+            self.has_children = False
+
+    class Meta:
+        db_table = 'api_block_info'
+        unique_together = (('course_id', 'block_id'),)
+
+
 class BlockToSequential(models.Model):
     block_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
     sequential_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)

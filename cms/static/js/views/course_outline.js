@@ -9,10 +9,10 @@
  *  - adding units will automatically redirect to the unit page rather than showing them inline
  */
 define(['jquery', 'underscore', 'js/views/xblock_outline', 'common/js/components/utils/view_utils', 'js/views/utils/xblock_utils',
-    'js/models/xblock_outline_info', 'js/views/modals/course_outline_modals', 'js/utils/drag_and_drop'],
+    'js/models/xblock_outline_info', 'js/views/modals/course_outline_modals', 'js/views/utils/push_changes_utils', 'js/utils/drag_and_drop'],
     function(
         $, _, XBlockOutlineView, ViewUtils, XBlockViewUtils,
-        XBlockOutlineInfo, CourseOutlineModalsFactory, ContentDragger
+        XBlockOutlineInfo, CourseOutlineModalsFactory, PushChangesUtils, ContentDragger
     ) {
         var CourseOutlineView = XBlockOutlineView.extend({
             // takes XBlockOutlineInfo as a model
@@ -198,16 +198,12 @@ define(['jquery', 'underscore', 'js/views/xblock_outline', 'common/js/components
             },
 
             publishXBlock: function() {
-                var modal = CourseOutlineModalsFactory.getModal('publish', this.model, {
-                    onSave: this.refresh.bind(this),
-                    xblockType: XBlockViewUtils.getXBlockType(
-                        this.model.get('category'), this.parentView.model, true
-                    )
-                });
-
-                if (modal) {
-                    modal.show();
-                }
+                PushChangesUtils.publishChanges({
+                    target: this.model,
+                    xblockType: XBlockViewUtils.getXBlockType(this.model.get('category'), this.parentView.model, true),
+                    alwaysShow: true,
+                    onSave: this.refresh.bind(this)
+                })
             },
 
             copyXBlockToOtherCourse: function() {

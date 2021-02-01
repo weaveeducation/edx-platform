@@ -2,8 +2,9 @@
  * Subviews (usually small side panels) for XBlockContainerPage.
  */
 define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/components/utils/view_utils',
-    'js/views/utils/xblock_utils', 'js/views/utils/move_xblock_utils', 'js/views/modals/copy_to_libraries', 'edx-ui-toolkit/js/utils/html-utils'],
-    function($, _, gettext, BaseView, ViewUtils, XBlockViewUtils, MoveXBlockUtils, CopyToLibraryModal, HtmlUtils) {
+    'js/views/utils/xblock_utils', 'js/views/utils/move_xblock_utils', 'js/views/modals/copy_to_libraries',
+    'js/views/utils/push_changes_utils', 'edx-ui-toolkit/js/utils/html-utils'],
+    function($, _, gettext, BaseView, ViewUtils, XBlockViewUtils, MoveXBlockUtils, CopyToLibraryModal, PushChangesUtils, HtmlUtils) {
         'use strict';
 
         var disabledCss = 'is-disabled';
@@ -202,16 +203,18 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
                 if (e && e.preventDefault) {
                     e.preventDefault();
                 }
-                ViewUtils.runOperationShowingMessage(gettext('Publishing'),
-                    function() {
-                        return xblockInfo.save({publish: 'make_public'}, {patch: true});
-                    }).always(function() {
+
+                PushChangesUtils.publishChanges({
+                    target: xblockInfo,
+                    xblockType: gettext('unit'),
+                    alwaysShow: false,
+                    onSave: function() {
                         xblockInfo.set('publish', null);
+                        xblockInfo.fetch();
                         // Hide any move notification if present.
                         MoveXBlockUtils.hideMovedNotification();
-                    }).done(function() {
-                        xblockInfo.fetch();
-                    });
+                    }
+                })
             },
 
             discardChanges: function(e) {
