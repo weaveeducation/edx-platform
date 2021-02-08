@@ -35,6 +35,7 @@ from openedx.features.enterprise_support.utils import update_account_settings_co
 from student.models import UserProfile
 from third_party_auth import pipeline
 from util.date_utils import strftime_localized
+from credo_modules.models import check_my_skills_access
 
 log = logging.getLogger(__name__)
 
@@ -135,8 +136,9 @@ def account_settings_context(request):
         'user_accounts_api_url': reverse("accounts_api", kwargs={'username': user.username}),
         'user_preferences_api_url': reverse('preferences_api', kwargs={'username': user.username}),
         'disable_courseware_js': True,
-        'show_program_listing': ProgramsApiConfig.is_enabled(),
         'show_dashboard_tabs': True,
+        'show_program_listing': ProgramsApiConfig.is_enabled(),
+        'show_my_skills': check_my_skills_access(request.user),
         'order_history': user_orders,
         'disable_order_history_tab': should_redirect_to_order_history_microfrontend(),
         'enable_account_deletion': configuration_helpers.get_value(

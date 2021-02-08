@@ -75,6 +75,7 @@ from student.text_me_the_app import TextMeTheAppFragmentView
 from util.db import outer_atomic
 from util.json_request import JsonResponse
 from xmodule.modulestore.django import modulestore
+from credo_modules.models import check_my_skills_access
 
 log = logging.getLogger("edx.student")
 
@@ -865,6 +866,7 @@ def text_me_the_app(request):
         'nav_hidden': True,
         'show_dashboard_tabs': True,
         'show_program_listing': ProgramsApiConfig.is_enabled(),
+        'show_my_skills': check_my_skills_access(request.user),
         'fragment': text_me_fragment
     }
 

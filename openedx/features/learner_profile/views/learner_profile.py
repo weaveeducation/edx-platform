@@ -24,6 +24,7 @@ from openedx.core.djangolib.markup import HTML, Text
 from openedx.features.learner_profile.toggles import should_redirect_to_profile_microfrontend
 from openedx.features.learner_profile.views.learner_achievements import LearnerAchievementsFragmentView
 from student.models import User
+from credo_modules.models import check_my_skills_access
 
 
 @login_required
@@ -110,8 +111,9 @@ def learner_profile_context(request, profile_username, user_is_staff):
             'platform_name': configuration_helpers.get_value('platform_name', settings.PLATFORM_NAME),
             'social_platforms': settings.SOCIAL_PLATFORMS,
         },
-        'show_program_listing': ProgramsApiConfig.is_enabled(),
         'show_dashboard_tabs': True,
+        'show_program_listing': ProgramsApiConfig.is_enabled(),
+        'show_my_skills': check_my_skills_access(request.user),
         'disable_courseware_js': True,
         'nav_hidden': True,
         'records_url': get_credentials_records_url(),
