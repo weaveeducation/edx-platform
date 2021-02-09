@@ -125,8 +125,20 @@ class Command(BaseProcessLogsCommand):
         if course_ids_lst:
             print('Checking tags for course_ids_lst: %s' % str(course_ids_lst))
 
-            merge_data_into_vertica_table(ApiCourseStructureTags, course_ids_lst=course_ids_lst,
-                                          vertica_dsn=vertica_dsn, filter_fn=filter_api_tag_helper)
+            # merge into vertica using 5 courses only
+            ci = 0
+            courses_num = 5
+
+            while True:
+                course_ids_from = ci * courses_num
+                course_ids_to = ci * courses_num + courses_num
+                course_ids_tmp_lst = course_ids_lst[course_ids_from: course_ids_to]
+                if course_ids_tmp_lst:
+                    merge_data_into_vertica_table(ApiCourseStructureTags, course_ids_lst=course_ids_tmp_lst,
+                                                  vertica_dsn=vertica_dsn, filter_fn=filter_api_tag_helper)
+                    ci = ci + 1
+                else:
+                    break
         else:
             print('course_ids_lst list is empty')
 

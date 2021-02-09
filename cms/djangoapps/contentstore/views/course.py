@@ -99,12 +99,13 @@ from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import DuplicateCourseError, ItemNotFoundError
 from xmodule.partitions.partitions import UserPartition
 from xmodule.tabs import CourseTab, CourseTabList, InvalidTabsException
-from credo_modules.models import CopyBlockTask, get_inactive_orgs
+from credo_modules.models import CopyBlockTask, SiblingBlockUpdateTask, get_inactive_orgs
 from credo_modules.mongo import get_block_versions
 
 from .component import ADVANCED_COMPONENT_TYPES
 from .item import create_xblock_info, copy_to_other_course, copy_unit_to_library, copy_components_to_library
 from .library import LIBRARIES_ENABLED, get_library_creator_status
+from .api_block_info import get_courses_with_duplicates, SyncApiBlockInfo
 
 log = logging.getLogger(__name__)
 
@@ -122,7 +123,8 @@ __all__ = ['course_info_handler', 'course_handler', 'course_listing',
            'course_notifications_handler',
            'textbooks_list_handler', 'textbooks_detail_handler',
            'group_configurations_list_handler', 'group_configurations_detail_handler',
-           'get_versions_list', 'restore_block_version']
+           'get_versions_list', 'restore_block_version', 'api_get_courses_with_duplicates',
+           'update_block_in_related_courses_result']
 
 WAFFLE_NAMESPACE = 'studio_home'
 
@@ -691,6 +693,31 @@ def copy_section_to_other_courses_result(request):
     return JsonResponse({'result': result, 'courses': result_list})
 
 
+@require_http_methods(["POST"])
+def update_block_in_related_courses_result(request):
+    json_data = json.loads(request.body.decode('utf8'))
+    task_id = json_data.get('task_id')
+    if not task_id:
+        return HttpResponseBadRequest()
+
+    result = True
+    result_list = []
+
+    tasks = SiblingBlockUpdateTask.objects.filter(task_id=task_id)
+
+    for t in tasks:
+        if not t.is_finished():
+            result = False
+        result_list.append({
+            'title': t.sibling_course_id,
+            'status': t.status,
+            'result': t.is_finished()
+        })
+
+    return JsonResponse({'result': result, 'courses': result_list})
+
+
+
 @login_required
 @ensure_csrf_cookie
 @require_http_methods(["POST"])
@@ -724,7 +751,7 @@ def copy_units_to_libraries(request):
                 with transaction.atomic():
                     section_task = CopyBlockTask(
                         task_id=task_id,
-                        block_ids=usage_keys,
+                        block_ids=json.dumps(usage_keys),
                         dst_location=library_key_string
                     )
                     section_task.save()
@@ -799,7 +826,7 @@ def copy_components_to_libraries(request):
                 with transaction.atomic():
                     section_task = CopyBlockTask(
                         task_id=task_id,
-                        block_ids=usage_keys,
+                        block_ids=json.dumps(usage_keys),
                         dst_location=library_key_string
                     )
                     section_task.save()
@@ -2049,7 +2076,9 @@ def get_versions_list(request, usage_key_string):
 def restore_block_version(request, usage_key_string):
     version_guid = request.POST.get('versionId')
     usage_key = UsageKey.from_string(usage_key_string)
-    modulestore().revert_to_published(usage_key, request.user.id, version_guid)
+    item = modulestore().get_item(usage_key)
+    with SyncApiBlockInfo(item, request.user):
+        modulestore().revert_to_published(usage_key, request.user.id, version_guid)
     return JsonResponse({'success': True})
 
 
@@ -2087,3 +2116,9 @@ def _get_course_creator_status(user):
         course_creator_status = 'granted'
 
     return course_creator_status
+
+
+@login_required
+def api_get_courses_with_duplicates(request, usage_key_string):
+    result = get_courses_with_duplicates(usage_key_string, request.user)
+    return JsonResponse({'data': result})

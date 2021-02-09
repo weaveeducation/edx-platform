@@ -105,10 +105,17 @@ urlpatterns = [
         contentstore.views.restore_block_version,
         name='course_listing_short'),
 
+    url(r'^get_courses_with_duplicates/{}?$'.format(settings.USAGE_KEY_PATTERN),
+        contentstore.views.api_get_courses_with_duplicates,
+        name='courses_with_duplicates'),
+
     url(r'^copy_section_to_other_course/?$', contentstore.views.copy_section_to_other_courses,
         name='copy_section_to_other_courses'),
     url(r'^copy_section_to_other_courses_result/?$', contentstore.views.copy_section_to_other_courses_result,
         name='copy_section_to_other_courses_result'),
+    url(r'^update_block_in_related_courses_result/?$', contentstore.views.update_block_in_related_courses_result,
+        name='update_block_in_related_courses_result'),
+
     url(r'^copy_units_to_libraries/?$', contentstore.views.copy_units_to_libraries,
         name='copy_units_to_libraries'),
     url(r'^copy_units_to_libraries_result/?$', contentstore.views.copy_units_to_libraries_result,

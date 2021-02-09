@@ -1,7 +1,5 @@
 """Views for items (modules)."""
 
-
-import hashlib
 import logging
 import io
 from collections import OrderedDict
@@ -78,6 +76,9 @@ from xmodule.exceptions import NotFoundError
 from xmodule.tabs import CourseTabList
 from xmodule.x_module import AUTHOR_VIEW, PREVIEW_VIEWS, STUDENT_VIEW, STUDIO_VIEW
 from credo_modules.models import CopyBlockTask
+from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo
+from .api_block_info import update_sibling_block_after_publish, create_api_block_info, sync_api_blocks_before_remove,\
+    copy_api_block_info, check_xblock_is_published, SyncApiBlockInfo
 
 __all__ = [
     'orphan_handler', 'xblock_handler', 'xblock_view_handler', 'xblock_outline_handler', 'xblock_container_handler'
@@ -209,6 +210,7 @@ def xblock_handler(request, usage_key_string):
                     prereq_min_completion=request.json.get('prereqMinCompletion'),
                     publish=request.json.get('publish'),
                     fields=request.json.get('fields'),
+                    related_courses=request.json.get('related_courses'),
                 )
     elif request.method in ('PUT', 'POST'):
         if 'duplicate_source_locator' in request.json:
@@ -513,7 +515,7 @@ def xblock_container_handler(request, usage_key_string):
         return Http404
 
 
-def _update_with_callback(xblock, user, old_metadata=None, old_content=None):
+def _update_with_callback(xblock, user, old_metadata=None, old_content=None, asides=None):
     """
     Updates the xblock in the modulestore.
     But before doing so, it calls the xblock's editor_saved callback function.
@@ -527,100 +529,8 @@ def _update_with_callback(xblock, user, old_metadata=None, old_content=None):
         xblock.editor_saved(user, old_metadata, old_content)
 
     # Update after the callback so any changes made in the callback will get persisted.
-    return modulestore().update_item(xblock, user.id)
+    return modulestore().update_item(xblock, user.id, asides=asides)
 
-
-@task()
-def copy_to_other_course(task_id, user_id, usage_key_string, destination_course_key_string):
-    try:
-        copy_task = CopyBlockTask.objects.get(id=task_id)
-    except CopyBlockTask.DoesNotExist:
-        return
-
-    try:
-        user = User.objects.get(id=user_id)
-    except User.DoesNotExist:
-        copy_task.set_error()
-        copy_task.save()
-        return
-
-    try:
-        copy_task.set_started()
-        copy_task.save()
-
-        usage_key = UsageKey.from_string(usage_key_string)
-        _copy_to_other_course(user, _get_xblock(usage_key, user), destination_course_key_string)
-
-        copy_task.set_finished()
-        copy_task.save()
-    except:
-        copy_task.set_error()
-        copy_task.save()
-        raise
-
-@task()
-def copy_unit_to_library(task_id, user_id, usage_keys_strings, destination_course_key_string):
-    try:
-        copy_task = CopyBlockTask.objects.get(id=task_id)
-    except CopyBlockTask.DoesNotExist:
-        return
-
-    try:
-        user = User.objects.get(id=user_id)
-    except User.DoesNotExist:
-        copy_task.set_error()
-        copy_task.save()
-        return
-
-    try:
-        copy_task.set_started()
-        copy_task.save()
-
-        xblocks = []
-
-        for usage_key_string in usage_keys_strings:
-            xblocks.append(_get_xblock(UsageKey.from_string(usage_key_string), user))
-
-        _copy_unit_to_library(user, xblocks, destination_course_key_string)
-
-        copy_task.set_finished()
-        copy_task.save()
-    except:
-        copy_task.set_error()
-        copy_task.save()
-        raise
-
-@task()
-def copy_components_to_library(task_id, user_id, usage_keys_strings, destination_course_key_string):
-    try:
-        copy_task = CopyBlockTask.objects.get(id=task_id)
-    except CopyBlockTask.DoesNotExist:
-        return
-
-    try:
-        user = User.objects.get(id=user_id)
-    except User.DoesNotExist:
-        copy_task.set_error()
-        copy_task.save()
-        return
-
-    try:
-        copy_task.set_started()
-        copy_task.save()
-
-        xblocks = []
-
-        for usage_key_string in usage_keys_strings:
-            xblocks.append(_get_xblock(UsageKey.from_string(usage_key_string), user))
-
-        _copy_components_to_library(user, xblocks, destination_course_key_string)
-
-        copy_task.set_finished()
-        copy_task.save()
-    except:
-        copy_task.set_error()
-        copy_task.save()
-        raise
 
 def _copy_to_other_course(user, xblock, course_dst_id):
     broken_blocks = {}
@@ -630,6 +540,7 @@ def _copy_to_other_course(user, xblock, course_dst_id):
     _duplicate_item(duplicate_source_usage_key, xblock.location, user, xblock.display_name, course_key=course_key,
                     broken_blocks=broken_blocks)
     return {'id': str(xblock.location), 'broken_blocks': broken_blocks}
+
 
 def _copy_unit_to_library(user, xblocks, library_dst_id):
     broken_blocks = {}
@@ -644,6 +555,7 @@ def _copy_unit_to_library(user, xblocks, library_dst_id):
                                 broken_blocks=broken_blocks)
     return {'ids': processed_ids, 'broken_blocks': broken_blocks}
 
+
 def _copy_components_to_library(user, xblocks, library_dst_id):
     broken_blocks = {}
     library_key = usage_key_with_run(library_dst_id)
@@ -656,9 +568,10 @@ def _copy_components_to_library(user, xblocks, library_dst_id):
                             broken_blocks=broken_blocks)
     return {'ids': processed_ids, 'broken_blocks': broken_blocks}
 
+
 def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, nullout=None,
                  grader_type=None, is_prereq=None, prereq_usage_key=None, prereq_min_score=None,
-                 prereq_min_completion=None, publish=None, fields=None):
+                 prereq_min_completion=None, publish=None, fields=None, asides=None, related_courses=None):
     """
     Saves xblock w/ its fields. Has special processing for grader_type, publish, and nullout and Nones in metadata.
     nullout means to truly set the field to None whereas nones in metadata mean to unset them (so they revert
@@ -671,7 +584,8 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
 
         # Don't allow updating an xblock and discarding changes in a single operation (unsupported by UI).
         if publish == "discard_changes":
-            store.revert_to_published(xblock.location, user.id)
+            with SyncApiBlockInfo(xblock, user):
+                store.revert_to_published(xblock.location, user.id)
             # Returning the same sort of result that we do for other save operations. In the future,
             # we may want to return the full XBlockInfo.
             return JsonResponse({'id': text_type(xblock.location)})
@@ -765,7 +679,7 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
 
         validate_and_update_xblock_due_date(xblock)
         # update the xblock and call any xblock callbacks
-        xblock = _update_with_callback(xblock, user, old_metadata, old_content)
+        xblock = _update_with_callback(xblock, user, old_metadata, old_content, asides=asides)
 
         # for static tabs, their containing course also records their display name
         course = store.get_course(xblock.location.course_key)
@@ -821,7 +735,14 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
         # Make public after updating the xblock, in case the caller asked for both an update and a publish.
         # Used by Bok Choy tests and by republishing of staff locks.
         if publish == 'make_public':
+            if related_courses:
+                xblock_is_published = check_xblock_is_published(xblock, user)
             modulestore().publish(xblock.location, user.id)
+            if related_courses:
+                task_uuid = update_sibling_block_after_publish(
+                    related_courses, xblock, xblock_is_published, user, _save_xblock, _delete_item, _duplicate_item)
+                if task_uuid:
+                    result['update_related_courses_task_id'] = task_uuid
 
         # Note that children aren't being returned until we have a use case.
         return JsonResponse(result, encoder=EdxJSONEncoder)
@@ -860,6 +781,7 @@ def _create_item(request):
         display_name=request.json.get('display_name'),
         boilerplate=request.json.get('boilerplate'),
     )
+    create_api_block_info(created_block.location, request.user)
 
     return JsonResponse(
         {'locator': text_type(created_block.location), 'courseKey': text_type(created_block.location.course_key)}
@@ -1015,12 +937,16 @@ def _get_breadcrumbs(item):
 
 
 def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_name=None, is_child=False,
-                    course_key=None, broken_blocks=None, metadata_filter_fn=None):
+                    course_key=None, broken_blocks=None, metadata_filter_fn=None, level=0, blocks_to_inserts=None,
+                    force_create_api_block_info=False):
     """
     Duplicate an existing xblock as a child of the supplied parent_usage_key.
     """
     if broken_blocks is None:
         broken_blocks = {}
+
+    if level == 0:
+        blocks_to_inserts = []
 
     store = modulestore()
     with store.bulk_operations(course_key if course_key else duplicate_source_usage_key.course_key):
@@ -1110,11 +1036,18 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
         if source_item.has_children and not children_handled and source_item.category != 'library_content':
             dest_module.children = dest_module.children or []
             for child in source_item.children:
+                new_level = level + 1
                 dupe = _duplicate_item(dest_module.location, child, user=user, is_child=True, course_key=course_key,
-                                       broken_blocks=broken_blocks)
+                                       broken_blocks=broken_blocks, level=new_level,
+                                       blocks_to_inserts=blocks_to_inserts)
                 if dupe not in dest_module.children:  # _duplicate_item may add the child for us.
                     dest_module.children.append(dupe)
             store.update_item(dest_module, user.id)
+
+        block_to_insert = copy_api_block_info(source_item, dest_module, user, level=level, auto_save=False,
+                                              force=force_create_api_block_info)
+        if block_to_insert:
+            blocks_to_inserts.append(block_to_insert)
 
         # pylint: disable=protected-access
         if 'detached' not in source_item.runtime.load_block_type(category)._class_tags:
@@ -1127,6 +1060,9 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
             else:
                 parent.children.append(dest_module.location)
             store.update_item(parent, user.id)
+
+        if level == 0 and blocks_to_inserts:
+            ApiBlockInfo.objects.bulk_create(blocks_to_inserts)
 
         return dest_module.location
 
@@ -1157,6 +1093,7 @@ def _delete_item(usage_key, user):
             course.tabs = [tab for tab in existing_tabs if tab.get('url_slug') != usage_key.block_id]
             store.update_item(course, user.id)
 
+        sync_api_blocks_before_remove(usage_key, user)
         store.delete_item(usage_key, user.id)
 
 
@@ -1840,3 +1777,101 @@ def _validate_xml(xmlstring):
     except ET.ParseError:
         pass
     return True, None
+
+
+@task()
+def copy_to_other_course(task_id, user_id, usage_key_string, destination_course_key_string):
+    try:
+        copy_task = CopyBlockTask.objects.get(id=task_id)
+    except CopyBlockTask.DoesNotExist:
+        return
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        copy_task.set_error()
+        copy_task.save()
+        return
+
+    try:
+        copy_task.set_started()
+        copy_task.save()
+
+        usage_key = UsageKey.from_string(usage_key_string)
+        _copy_to_other_course(user, _get_xblock(usage_key, user), destination_course_key_string)
+
+        copy_task.set_finished()
+        copy_task.save()
+    except Exception as e:
+        log.exception(e)
+        copy_task.set_error()
+        copy_task.save()
+        raise
+
+
+@task()
+def copy_unit_to_library(task_id, user_id, usage_keys_strings, destination_course_key_string):
+    try:
+        copy_task = CopyBlockTask.objects.get(id=task_id)
+    except CopyBlockTask.DoesNotExist:
+        return
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        copy_task.set_error()
+        copy_task.save()
+        return
+
+    try:
+        copy_task.set_started()
+        copy_task.save()
+
+        xblocks = []
+
+        for usage_key_string in usage_keys_strings:
+            xblocks.append(_get_xblock(UsageKey.from_string(usage_key_string), user))
+
+        _copy_unit_to_library(user, xblocks, destination_course_key_string)
+
+        copy_task.set_finished()
+        copy_task.save()
+    except Exception as e:
+        log.exception(e)
+        copy_task.set_error()
+        copy_task.save()
+        raise
+
+
+@task()
+def copy_components_to_library(task_id, user_id, usage_keys_strings, destination_course_key_string):
+    try:
+        copy_task = CopyBlockTask.objects.get(id=task_id)
+    except CopyBlockTask.DoesNotExist:
+        return
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        copy_task.set_error()
+        copy_task.save()
+        return
+
+    try:
+        copy_task.set_started()
+        copy_task.save()
+
+        xblocks = []
+
+        for usage_key_string in usage_keys_strings:
+            xblocks.append(_get_xblock(UsageKey.from_string(usage_key_string), user))
+
+        _copy_components_to_library(user, xblocks, destination_course_key_string)
+
+        copy_task.set_finished()
+        copy_task.save()
+    except Exception as e:
+        log.exception(e)
+        copy_task.set_error()
+        copy_task.save()
+        raise
