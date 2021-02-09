@@ -740,7 +740,7 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
             modulestore().publish(xblock.location, user.id)
             if related_courses:
                 task_uuid = update_sibling_block_after_publish(
-                    related_courses, xblock, xblock_is_published, user, _save_xblock, _delete_item, _duplicate_item)
+                    related_courses, xblock, xblock_is_published, user)
                 if task_uuid:
                     result['update_related_courses_task_id'] = task_uuid
 
