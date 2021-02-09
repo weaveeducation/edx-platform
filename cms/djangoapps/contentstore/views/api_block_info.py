@@ -68,8 +68,7 @@ def copy_api_block_info(source_item, dest_module, user, level=0, auto_save=True,
                                  auto_save=auto_save)
 
 
-def update_sibling_block_after_publish(related_courses, xblock, xblock_is_published, user,
-                                       save_xblock_fn, delete_xblock_fn, duplicate_xblock_fn):
+def update_sibling_block_after_publish(related_courses, xblock, xblock_is_published, user):
     task_uuid = str(uuid4())
     if related_courses and xblock.category in ApiBlockInfo.CATEGORY_HAS_CHILDREN:
         update_res = []
@@ -92,8 +91,7 @@ def update_sibling_block_after_publish(related_courses, xblock, xblock_is_publis
 
         if update_res:
             transaction.on_commit(lambda: [update_sibling_block_in_related_course.delay(
-                task_id, str(xblock.location), rel_course_id, rel_course_action == 'publish', user.id,
-                save_xblock_fn, delete_xblock_fn, duplicate_xblock_fn)
+                task_id, str(xblock.location), rel_course_id, rel_course_action == 'publish', user.id)
                 for task_id, rel_course_id, rel_course_action in update_res])
             return task_uuid
     return None
@@ -163,8 +161,10 @@ def set_sibling_block_not_updated(source_usage_id, dst_course_id, user_id):
 
 
 @task()
-def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_id, need_publish, user_id,
-                                           save_xblock_fn, delete_xblock_fn, duplicate_xblock_fn):
+def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_id, need_publish, user_id):
+    from .item import _save_xblock as save_xblock_fn, _delete_item as delete_xblock_fn,\
+        _duplicate_item as duplicate_xblock_fn
+
     try:
         sibling_update_task = SiblingBlockUpdateTask.objects.get(id=task_id)
     except SiblingBlockUpdateTask.DoesNotExist:
