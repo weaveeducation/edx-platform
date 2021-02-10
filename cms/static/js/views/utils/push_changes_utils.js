@@ -4,28 +4,38 @@
 define([
   'jquery',
   'underscore',
-  'backbone',
-  'js/views/modals/push_changes_to_siblings',
+  'gettext',  
+  'common/js/components/utils/view_utils',
+  'js/views/modals/push_changes_to_siblings'
 ],
-function($, _, Backbone, PushChangesToSiblingsModal) {
-  var publishChanges = function(data) {
+function($, _, gettext, ViewUtils, PushChangesToSiblingsModal) {
+    var publishChanges = function(data) {
 
-    var modal = new PushChangesToSiblingsModal({
-        model: data.target,
-        xblockType: data.xblockType,
-        onSave: data.onSave
-    });
+        var modal = new PushChangesToSiblingsModal({
+            model: data.target,
+            xblockType: data.xblockType,
+            onSave: data.onSave
+        });
 
-    modal.requestCoursesWithDuplicates().then(function (sublings) {
-      if (data.alwaysShow || sublings.length) {
-        modal.show()
-      } else {
-        data.target.save({ publish: 'make_public' }, { patch: true }, data.onSave)
-      }
-    })
-  }
+        ViewUtils.runOperationShowingMessage(gettext('Publishing'), function() {
+            return modal.requestCoursesWithDuplicates().then(function(sublings) {
+                if (data.alwaysShow || sublings.length) {
+                    modal.show()
+                } else {
+                    return data.target.save(
+                        { publish: 'make_public' },
+                        { patch: true }
+                    ).always(function() {
+                        if (data.onSave) {
+                            data.onSave()
+                        }
+                    })
+                }
+            })
+        })
+    }
 
-  return {
-    publishChanges: publishChanges
-  };
+    return {
+        publishChanges: publishChanges
+    };
 });
