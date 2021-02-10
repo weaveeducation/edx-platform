@@ -21,7 +21,7 @@ from xblock.fields import Scope
 log = logging.getLogger(__name__)
 
 
-def create_api_block_info(usage_key, user, block_hash_id=None, auto_save=True):
+def create_api_block_info(usage_key, user, block_hash_id=None, created_as_copy=False, auto_save=True):
     if not block_hash_id:
         block_hash_id = str(uuid4())
 
@@ -32,7 +32,8 @@ def create_api_block_info(usage_key, user, block_hash_id=None, auto_save=True):
         created_by=user.id,
         created_time=timezone.now(),
         updated_by=user.id,
-        updated_time=timezone.now()
+        updated_time=timezone.now(),
+        created_as_copy=created_as_copy
     )
     api_block_info.set_has_children()
     if auto_save:
@@ -65,7 +66,23 @@ def copy_api_block_info(source_item, dest_module, user, level=0, auto_save=True,
                 source_block_hash = source_block_info.hash_id
 
     return create_api_block_info(dest_module.location, user, block_hash_id=source_block_hash,
-                                 auto_save=auto_save)
+                                 created_as_copy=True, auto_save=auto_save)
+
+
+def update_api_blocks_after_publish(xblock, user):
+    block_id = str(xblock.location)
+    course_id = str(xblock.location.course_key)
+    api_block_info = ApiBlockInfo.objects.filter(
+        course_id=course_id, block_id=block_id,
+        created_as_copy=True, published_after_copy=False, deleted=False).first()
+
+    if api_block_info and api_block_info.has_children:
+        block_ids = [str(module.location) for module in yield_dynamic_descriptor_descendants(xblock, user.id)]
+        ApiBlockInfo.objects.filter(course_id=course_id, block_id__in=block_ids, deleted=False)\
+            .update(published_after_copy=True)
+    elif api_block_info:
+        api_block_info.published_after_copy = True
+        api_block_info.save()
 
 
 def update_sibling_block_after_publish(related_courses, xblock, xblock_is_published, user):
@@ -364,22 +381,19 @@ def sync_api_block_info(xblock, prev_descendants_block_ids, user):
 
 def get_courses_with_duplicates(usage_key_string, user):
     usage_key = UsageKey.from_string(usage_key_string)
-    course_key = usage_key.course_key
     result_course_keys = []
     result = []
 
-    with modulestore().bulk_operations(course_key):
-        src_item = modulestore().get_item(usage_key, depth=1)
-        block_ids = [str(item.location) for item in yield_dynamic_descriptor_descendants(src_item, user.id)]
-        blocks = ApiBlockInfo.objects.filter(block_id__in=block_ids, has_children=True, deleted=False)
-        block_hashes = [bl.hash_id for bl in blocks]
-        if block_hashes:
-            courses = ApiBlockInfo.objects.filter(hash_id__in=block_hashes, deleted=False) \
-                .exclude(course_id=str(usage_key.course_key)).values('course_id').distinct()
-            for course in courses:
-                tmp_course_key = CourseKey.from_string(course['course_id'])
-                if has_studio_write_access(user, tmp_course_key):
-                    result_course_keys.append(tmp_course_key)
+    src_block_info = ApiBlockInfo.objects.filter(block_id=usage_key_string, has_children=True, deleted=False).first()
+    if src_block_info and (not src_block_info.created_as_copy
+                           or (src_block_info.created_as_copy and src_block_info.published_after_copy)):
+        courses = ApiBlockInfo.objects.filter(hash_id=src_block_info.hash_id, deleted=False) \
+            .exclude(course_id=str(usage_key.course_key)).values('course_id').distinct()
+        for course in courses:
+            tmp_course_key = CourseKey.from_string(course['course_id'])
+            if has_studio_write_access(user, tmp_course_key):
+                result_course_keys.append(tmp_course_key)
+
     if result_course_keys:
         co_data = CourseOverview.objects.filter(id__in=result_course_keys).order_by('display_name')
         for co_item in co_data:
