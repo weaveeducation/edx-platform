@@ -78,7 +78,7 @@ from xmodule.x_module import AUTHOR_VIEW, PREVIEW_VIEWS, STUDENT_VIEW, STUDIO_VI
 from credo_modules.models import CopyBlockTask
 from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo
 from .api_block_info import update_sibling_block_after_publish, create_api_block_info, sync_api_blocks_before_remove,\
-    copy_api_block_info, check_xblock_is_published, SyncApiBlockInfo
+    copy_api_block_info, check_xblock_is_published, update_api_blocks_after_publish, SyncApiBlockInfo
 
 __all__ = [
     'orphan_handler', 'xblock_handler', 'xblock_view_handler', 'xblock_outline_handler', 'xblock_container_handler'
@@ -738,6 +738,7 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
             if related_courses:
                 xblock_is_published = check_xblock_is_published(xblock, user)
             modulestore().publish(xblock.location, user.id)
+            update_api_blocks_after_publish(xblock, user)
             if related_courses:
                 task_uuid = update_sibling_block_after_publish(
                     related_courses, xblock, xblock_is_published, user)
