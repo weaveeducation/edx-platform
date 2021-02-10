@@ -76,13 +76,16 @@ def update_api_blocks_after_publish(xblock, user):
         course_id=course_id, block_id=block_id,
         created_as_copy=True, published_after_copy=False, deleted=False).first()
 
-    if api_block_info and api_block_info.has_children:
-        block_ids = [str(module.location) for module in yield_dynamic_descriptor_descendants(xblock, user.id)]
-        ApiBlockInfo.objects.filter(course_id=course_id, block_id__in=block_ids, deleted=False)\
-            .update(published_after_copy=True)
-    elif api_block_info:
-        api_block_info.published_after_copy = True
-        api_block_info.save()
+    if api_block_info:
+        if api_block_info.has_children:
+            block_ids = [str(module.location) for module in yield_dynamic_descriptor_descendants(xblock, user.id)]
+            ApiBlockInfo.objects.filter(course_id=course_id, block_id__in=block_ids, deleted=False)\
+                .update(published_after_copy=True)
+        else:
+            api_block_info.published_after_copy = True
+            api_block_info.save()
+        return False
+    return True
 
 
 def update_sibling_block_after_publish(related_courses, xblock, xblock_is_published, user):
@@ -418,16 +421,6 @@ def sync_api_blocks_before_remove(usage_key, user):
     if block_info_update_lst:
         ApiBlockInfo.objects.filter(block_id__in=block_info_update_lst).update(
             deleted=True, updated_time=timezone.now(), updated_by=user.id)
-
-
-def check_xblock_is_published(xblock, user):
-    store = modulestore()
-    has_published_version = False
-    for src_item in yield_dynamic_descriptor_descendants(xblock, user.id):
-        if src_item.category == 'vertical' and store.has_published_version(src_item):
-            has_published_version = True
-            break
-    return has_published_version
 
 
 class SyncApiBlockInfo(object):
