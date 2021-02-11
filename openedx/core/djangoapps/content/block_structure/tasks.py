@@ -389,13 +389,14 @@ def _update_course_structure(course_id, published_on):
                                                 ts=int(time.time())
                                             ))
                 elif item.category == 'openassessment' and len(item.rubric_criteria) > 0:
+                    available_rubrics = [r['label'].strip() for r in item.rubric_criteria]
                     aside = item.runtime.get_aside_of_type(item, 'tagging_ora_aside')
                     for rubric, saved_tags in aside.saved_tags.items():
-                        if isinstance(saved_tags, dict):
+                        r_name = rubric.strip()
+                        if isinstance(saved_tags, dict) and r_name in available_rubrics:
                             for tag_name, tag_values in saved_tags.items():
                                 if isinstance(tag_values, list):
                                     for tag_value in tag_values:
-                                        r_name = rubric.strip()
                                         t_name = tag_name.strip()
                                         t_value = tag_value.strip()
                                         if not t_value:
