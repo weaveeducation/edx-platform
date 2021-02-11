@@ -12,6 +12,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.utils.translation import ugettext as _
 from django.views.decorators.http import require_http_methods
@@ -77,7 +78,7 @@ from xmodule.tabs import CourseTabList
 from xmodule.x_module import AUTHOR_VIEW, PREVIEW_VIEWS, STUDENT_VIEW, STUDIO_VIEW
 from credo_modules.models import CopyBlockTask
 from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo
-from .api_block_info import update_api_blocks_after_publish, update_sibling_block_after_publish,\
+from .api_block_info import update_api_blocks_before_publish, update_sibling_block_after_publish,\
     create_api_block_info, sync_api_blocks_before_remove, copy_api_block_info, SyncApiBlockInfo
 
 
@@ -736,13 +737,14 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
         # Make public after updating the xblock, in case the caller asked for both an update and a publish.
         # Used by Bok Choy tests and by republishing of staff locks.
         if publish == 'make_public':
-            modulestore().publish(xblock.location, user.id)
-            xblock_is_published = update_api_blocks_after_publish(xblock, user)
-            if related_courses:
-                task_uuid = update_sibling_block_after_publish(
-                    related_courses, xblock, xblock_is_published, user)
-                if task_uuid:
-                    result['update_related_courses_task_id'] = task_uuid
+            with transaction.atomic():
+                xblock_is_published = update_api_blocks_before_publish(xblock, user)
+                modulestore().publish(xblock.location, user.id)
+                if related_courses:
+                    task_uuid = update_sibling_block_after_publish(
+                        related_courses, xblock, xblock_is_published, user)
+                    if task_uuid:
+                        result['update_related_courses_task_id'] = task_uuid
 
         # Note that children aren't being returned until we have a use case.
         return JsonResponse(result, encoder=EdxJSONEncoder)

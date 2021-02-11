@@ -69,7 +69,7 @@ def copy_api_block_info(source_item, dest_module, user, level=0, auto_save=True,
                                  created_as_copy=True, auto_save=auto_save)
 
 
-def update_api_blocks_after_publish(xblock, user):
+def update_api_blocks_before_publish(xblock, user):
     block_id = str(xblock.location)
     course_id = str(xblock.location.course_key)
     api_block_info = ApiBlockInfo.objects.filter(
@@ -84,6 +84,16 @@ def update_api_blocks_after_publish(xblock, user):
         else:
             api_block_info.published_after_copy = True
             api_block_info.save()
+
+        if xblock.category != 'chapter':
+            xblock_parent = xblock.get_parent()
+            children_block_ids = [str(child) for child in xblock_parent.children]
+            api_block_info_same_level_cnt = ApiBlockInfo.objects.filter(
+                course_id=course_id, block_id__in=children_block_ids,
+                created_as_copy=True, published_after_copy=False, deleted=False).count()
+            if api_block_info_same_level_cnt == 0:
+                update_api_blocks_before_publish(xblock_parent, user)
+
         return False
     return True
 
