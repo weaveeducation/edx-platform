@@ -167,7 +167,7 @@ def get_tags_global_data(student, orgs, course_ids, tag_value=None, group_tags=F
         tag_block_id = str(tag['block_id'])
         if tag_block_id not in blocks:
             continue
-        if is_ora and tag_block_id not in grades_data:
+        if is_ora and (tag_block_id not in grades_data or tag['rubric'] not in grades_data[tag_block_id]):
             continue
         section_id = blocks[tag_block_id]['sequential_id']
         sequential_name = blocks[tag_block_id]['sequential_name']
