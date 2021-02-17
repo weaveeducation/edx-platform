@@ -7,8 +7,7 @@ import uuid
 from urllib.parse import urlparse
 from django.dispatch import receiver
 from django.contrib.auth.models import User
-from django.db import models, IntegrityError, OperationalError, transaction
-from django.db.models import F
+from django.db import models, OperationalError, transaction
 from django.db.models.signals import post_save, post_delete
 from opaque_keys.edx.django.models import CourseKeyField
 from opaque_keys.edx.keys import CourseKey, UsageKey

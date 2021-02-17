@@ -2188,8 +2188,11 @@ def reset_student_attempts_for_entrance_exam(request, course_id):
 )
 def reset_progress_student(request, course_id):
     course_id = CourseKey.from_string(course_id)
-    user = get_student_from_identifier(request.POST.get('student_id'))
-    task_api.submit_reset_progress_for_student(request, course_id, user.id)
+    try:
+        user = get_student_from_identifier(request.POST.get('student_id'))
+        task_api.submit_reset_progress_for_student(request, course_id, user.id)
+    except User.DoesNotExist:
+        return HttpResponseBadRequest(_("User not found."))
     response_payload = {
         'student_id': user.id,
         'task': 'created'
