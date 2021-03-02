@@ -17,9 +17,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         course_overviews = CourseOverview.objects.all().order_by('id')
-        dsn = get_vertica_dsn()
-        conn = vertica_python.connect(dsn=dsn)
-        cursor = conn.cursor()
         for course_overview in course_overviews:
             course_id = str(course_overview.id)
             course_migration = AttemptCourseMigration.objects.filter(course_id=course_id).first()
@@ -28,11 +25,11 @@ class Command(BaseCommand):
                 continue
             else:
                 print('Process course: ', course_id)
-                self._process_course(course_id, cursor)
+                self._process_course(course_id)
                 AttemptCourseMigration(course_id=course_id, done=True).save()
         print('DONE!')
 
-    def _process_course(self, course_id, cursor=None):
+    def _process_course(self, course_id):
         course_key = CourseKey.from_string(course_id)
         ids_to_remove = []
         db_log_to_remove_lst = []
@@ -91,25 +88,54 @@ class Command(BaseCommand):
                                     if db_log_entity['block_id'] not in db_log_to_remove_block_ids:
                                         db_log_to_remove_block_ids.append(db_log_entity['block_id'])
                                         db_log_to_remove_lst.append(db_log_entity['id'])
-                            print('blocks_absent len: ', str(len(blocks_absent)),
-                                  ', ids_to_remove len: ', str(len(ids_to_remove)),
-                                  ', db_log_to_remove: ', str(len(db_log_to_remove_lst)))
 
         if ids_to_remove or db_log_to_remove_lst:
+            dsn = get_vertica_dsn()
+            conn = vertica_python.connect(dsn=dsn)
+            cursor = conn.cursor()
+            limit = 1000
+
             print('Start remove records')
             with transaction.atomic():
                 if ids_to_remove:
-                    TrackingLog.objects.filter(
-                        org_id=org_id, id__in=ids_to_remove, is_view=True, is_last_attempt=1).delete()
+                    n_from = 0
+                    n_to = limit
+                    while True:
+                        ids_to_remove_part = ids_to_remove[n_from:n_to]
+                        if not ids_to_remove_part:
+                            break
+                        print('Try to remove TrackingLog items from %d to %d' % (n_from, len(ids_to_remove_part)))
+                        TrackingLog.objects.filter(org_id=org_id, id__in=ids_to_remove_part, is_view=True, is_last_attempt=1).delete()
+                        n_from = n_from + limit
+                        n_to = n_to + limit
+
                 if db_log_to_remove_lst:
-                    DBLogEntry.objects.filter(
-                        id__in=db_log_to_remove_lst, event_name='sequential_block.viewed', course_id=course_id).delete()
+                    n_from = 0
+                    n_to = limit
+                    while True:
+                        db_log_to_remove_part = db_log_to_remove_lst[n_from:n_to]
+                        if not db_log_to_remove_part:
+                            break
+                        print('Try to remove DBLogEntry items from %d to %d' % (n_from, len(db_log_to_remove_part)))
+                        DBLogEntry.objects.filter(
+                            id__in=db_log_to_remove_part, event_name='sequential_block.viewed', course_id=course_id).delete()
+                        n_from = n_from + limit
+                        n_to = n_to + limit
+
                 if ids_to_remove:
-                    ids_to_remove_str = ','.join([str(id2r) for id2r in ids_to_remove])
-                    sql = "DELETE FROM credo_modules_trackinglog " \
-                          "WHERE org_id='%s' AND id in (%s) AND is_view=1 AND is_last_attempt=1"\
-                          % (org_id, ids_to_remove_str)
-                    if cursor is not None:
+                    n_from = 0
+                    n_to = limit
+                    while True:
+                        ids_to_remove_part = ids_to_remove[n_from:n_to]
+                        if not ids_to_remove_part:
+                            break
+                        print('Try to remove Vertica items from %d to %d' % (n_from, len(ids_to_remove_part)))
+                        ids_to_remove_str = ','.join([str(id2r) for id2r in ids_to_remove_part])
+                        sql = "DELETE FROM credo_modules_trackinglog " \
+                              "WHERE org_id='%s' AND id in (%s) AND is_view=1 AND is_last_attempt=1"\
+                              % (org_id, ids_to_remove_str)
                         cursor.execute(sql)
                         cursor.execute("COMMIT")
+                        n_from = n_from + limit
+                        n_to = n_to + limit
             print('Finish remove records')
