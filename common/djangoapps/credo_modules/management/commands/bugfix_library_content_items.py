@@ -27,9 +27,9 @@ class Command(BaseCommand):
                 print('Skip course: ', course_id)
                 continue
             else:
+                print('Process course: ', course_id)
                 self._process_course(course_id, cursor)
                 AttemptCourseMigration(course_id=course_id, done=True).save()
-                print('Process course: ', course_id)
         print('DONE!')
 
     def _process_course(self, course_id, cursor=None):
@@ -60,8 +60,12 @@ class Command(BaseCommand):
                             created__gt=dt_from,
                             course_id=course_key,
                             is_active=True)
+                    num_enrolls = len(enrolls)
                     if len(enrolls):
+                        en_num = 1
                         for enroll in enrolls:
+                            print('Process student_id=%d: %d / %d ' % (enroll.user_id, en_num, num_enrolls))
+                            en_num = en_num + 1
                             user_modules = []
                             student_modules = StudentModule.objects.filter(
                                 course_id=course_key,
@@ -87,6 +91,9 @@ class Command(BaseCommand):
                                     if db_log_entity['block_id'] not in db_log_to_remove_block_ids:
                                         db_log_to_remove_block_ids.append(db_log_entity['block_id'])
                                         db_log_to_remove_lst.append(db_log_entity['id'])
+                            print('blocks_absent len: ', str(len(blocks_absent)),
+                                  ', ids_to_remove len: ', str(len(ids_to_remove)),
+                                  ', db_log_to_remove: ', str(len(db_log_to_remove_lst)))
 
         if ids_to_remove or db_log_to_remove_lst:
             print('Start remove records')
