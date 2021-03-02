@@ -45,6 +45,8 @@ class Command(BaseCommand):
         if course_structure:
             for block in course_structure['blocks']:
                 if block['block_type'] == 'library_content':
+                    library_content_block_id = 'block-v1:' + org_id + '+' + course + '+' + run + '+type@library_content+block@' + block['block_id']
+                    print('------------ library_content_block_id: ', library_content_block_id)
                     block_ids = []
                     block_keys = []
                     for c in block['fields']['children']:
@@ -96,46 +98,45 @@ class Command(BaseCommand):
             limit = 1000
 
             print('Start remove records')
-            with transaction.atomic():
-                if ids_to_remove:
-                    n_from = 0
-                    n_to = limit
-                    while True:
-                        ids_to_remove_part = ids_to_remove[n_from:n_to]
-                        if not ids_to_remove_part:
-                            break
-                        print('Try to remove TrackingLog items from %d to %d' % (n_from, len(ids_to_remove_part)))
-                        TrackingLog.objects.filter(org_id=org_id, id__in=ids_to_remove_part, is_view=True, is_last_attempt=1).delete()
-                        n_from = n_from + limit
-                        n_to = n_to + limit
+            if ids_to_remove:
+                n_from = 0
+                n_to = limit
+                while True:
+                    ids_to_remove_part = ids_to_remove[n_from:n_to]
+                    if not ids_to_remove_part:
+                        break
+                    print('Try to remove TrackingLog items from %d to %d' % (n_from, len(ids_to_remove_part)))
+                    TrackingLog.objects.filter(org_id=org_id, id__in=ids_to_remove_part, is_view=True, is_last_attempt=1).delete()
+                    n_from = n_from + limit
+                    n_to = n_to + limit
 
-                if db_log_to_remove_lst:
-                    n_from = 0
-                    n_to = limit
-                    while True:
-                        db_log_to_remove_part = db_log_to_remove_lst[n_from:n_to]
-                        if not db_log_to_remove_part:
-                            break
-                        print('Try to remove DBLogEntry items from %d to %d' % (n_from, len(db_log_to_remove_part)))
-                        DBLogEntry.objects.filter(
+            if db_log_to_remove_lst:
+                n_from = 0
+                n_to = limit
+                while True:
+                    db_log_to_remove_part = db_log_to_remove_lst[n_from:n_to]
+                    if not db_log_to_remove_part:
+                        break
+                    print('Try to remove DBLogEntry items from %d to %d' % (n_from, len(db_log_to_remove_part)))
+                    DBLogEntry.objects.filter(
                             id__in=db_log_to_remove_part, event_name='sequential_block.viewed', course_id=course_id).delete()
-                        n_from = n_from + limit
-                        n_to = n_to + limit
+                    n_from = n_from + limit
+                    n_to = n_to + limit
 
-                if ids_to_remove:
-                    n_from = 0
-                    n_to = limit
-                    while True:
-                        ids_to_remove_part = ids_to_remove[n_from:n_to]
-                        if not ids_to_remove_part:
-                            break
-                        print('Try to remove Vertica items from %d to %d' % (n_from, len(ids_to_remove_part)))
-                        ids_to_remove_str = ','.join([str(id2r) for id2r in ids_to_remove_part])
-                        sql = "DELETE FROM credo_modules_trackinglog " \
-                              "WHERE org_id='%s' AND id in (%s) AND is_view=1 AND is_last_attempt=1"\
-                              % (org_id, ids_to_remove_str)
-                        cursor.execute(sql)
-                        cursor.execute("COMMIT")
-                        n_from = n_from + limit
-                        n_to = n_to + limit
+            if ids_to_remove:
+                n_from = 0
+                n_to = limit
+                while True:
+                    ids_to_remove_part = ids_to_remove[n_from:n_to]
+                    if not ids_to_remove_part:
+                        break
+                    print('Try to remove Vertica items from %d to %d' % (n_from, len(ids_to_remove_part)))
+                    ids_to_remove_str = ','.join([str(id2r) for id2r in ids_to_remove_part])
+                    sql = "DELETE FROM credo_modules_trackinglog " \
+                          "WHERE org_id='%s' AND id in (%s) AND is_view=1 AND is_last_attempt=1"\
+                          % (org_id, ids_to_remove_str)
+                    cursor.execute(sql)
+                    cursor.execute("COMMIT")
+                    n_from = n_from + limit
+                    n_to = n_to + limit
             print('Finish remove records')
