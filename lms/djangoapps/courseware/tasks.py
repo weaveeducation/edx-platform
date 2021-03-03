@@ -17,19 +17,25 @@ log = logging.getLogger("edx.courseware")
 
 @CELERY_APP.task
 def track_sequential_viewed_task(course_key_str, usage_key_str, user_id):
+    from django.test.client import RequestFactory
+
     user_id = int(user_id)
     log.info("Task to send sequential_viewed event was started: course_key=%s, usage_key=%s, user_id=%d"
              % (course_key_str, usage_key_str, user_id))
 
     course_key = CourseKey.from_string(course_key_str)
-    usage_key = UsageKey.from_string(usage_key_str)
 
     user = User.objects.get(id=user_id)
+    rf = RequestFactory()
+    req = rf.get('/fake-request/')
+    req.user = user
 
     student_properties_data = get_student_properties_event_data(user, course_key, parent_id=usage_key_str)
 
     with modulestore().bulk_operations(course_key):
-        block = modulestore().get_item(usage_key)
+        course = modulestore().get_course(course_key)
+        block, tracking_context = get_module_by_usage_id(
+            req, str(course_key), usage_key_str, course=course)
         block_children = get_block_children(block, '', add_correctness=False)
 
     for problem_loc, problem_details in block_children.items():

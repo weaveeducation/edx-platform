@@ -111,7 +111,11 @@ def _get_item_correctness(item):
 
 def get_block_children(block, parent_name, add_correctness=True):
     data = OrderedDict()
-    for item in block.get_children():
+    if block.category == 'library_content' and block.xmodule_runtime is not None:
+        children = block.get_child_descriptors()
+    else:
+        children = block.get_children()
+    for item in children:
         loc_id = str(item.location)
         data[loc_id] = get_problem_detailed_info(item, parent_name, add_correctness)
         if item.has_children:

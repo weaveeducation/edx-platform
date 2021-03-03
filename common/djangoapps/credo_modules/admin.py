@@ -5,7 +5,8 @@ from django.conf import settings
 from django.utils.safestring import mark_safe
 from .models import RegistrationPropertiesPerOrg, EnrollmentPropertiesPerCourse,\
     Organization, OrganizationType, CourseExcludeInsights, CustomUserRole, TagDescription, EdxApiToken,\
-    RutgersCampusMapping, Feature, FeatureBetaTester
+    RutgersCampusMapping, Feature, FeatureBetaTester, CredoModulesUserProfile, CredoStudentProperties, SendScores,\
+    TrackingLogConfig, PropertiesInfo
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 
@@ -104,6 +105,38 @@ class FeatureBetaTesterForm(admin.ModelAdmin):
     raw_id_fields = ('user',)
 
 
+class ReadOnlyMixin(object):
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+class CredoModulesUserProfileForm(ReadOnlyMixin, admin.ModelAdmin):
+    list_display = ('id', 'user', 'course_id', 'meta')
+    search_fields = ['user__username', 'user__email', 'course_id']
+
+
+class CredoStudentPropertiesForm(ReadOnlyMixin, admin.ModelAdmin):
+    list_display = ('id', 'user', 'course_id', 'name', 'value')
+    search_fields = ['user__username', 'user__email', 'course_id']
+
+
+class SendScoresForm(ReadOnlyMixin, admin.ModelAdmin):
+    list_display = ('id', 'user', 'course_id', 'block_id', 'last_send_time')
+    search_fields = ['user__username', 'user__email', 'course_id']
+
+
+class TrackingLogConfigForm(admin.ModelAdmin):
+    list_display = ('key', 'value', 'updated')
+
+
+class PropertiesInfoForm(ReadOnlyMixin, admin.ModelAdmin):
+    list_display = ('id', 'org', 'course_id', 'data', 'update_ts')
+    search_fields = ['org', 'course_id']
+
+
 admin.site.register(RegistrationPropertiesPerOrg, RegistrationPropertiesPerOrgForm)
 admin.site.register(EnrollmentPropertiesPerCourse, EnrollmentPropertiesPerCourseForm)
 admin.site.register(Organization, OrganizationForm)
@@ -115,3 +148,8 @@ admin.site.register(EdxApiToken, EdxApiTokenForm)
 admin.site.register(RutgersCampusMapping, RutgersCampusMappingForm)
 admin.site.register(Feature, FeatureForm)
 admin.site.register(FeatureBetaTester, FeatureBetaTesterForm)
+admin.site.register(CredoModulesUserProfile, CredoModulesUserProfileForm)
+admin.site.register(CredoStudentProperties, CredoStudentPropertiesForm)
+admin.site.register(SendScores, SendScoresForm)
+admin.site.register(TrackingLogConfig, TrackingLogConfigForm)
+admin.site.register(PropertiesInfo, PropertiesInfoForm)

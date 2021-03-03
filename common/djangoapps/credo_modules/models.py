@@ -7,7 +7,7 @@ import uuid
 from urllib.parse import urlparse
 from django.dispatch import receiver
 from django.contrib.auth.models import User
-from django.db import models, OperationalError, transaction
+from django.db import models, OperationalError, IntegrityError, transaction
 from django.db.models.signals import post_save, post_delete
 from opaque_keys.edx.django.models import CourseKeyField
 from opaque_keys.edx.keys import CourseKey, UsageKey
@@ -1213,19 +1213,23 @@ def check_my_skills_access(user):
     """
     check access to my skills tab for user
     """
-    user_settings = UserSettings.objects.filter(user=user).first()
-    if not user_settings or user_settings.my_skills_access is None:
-        orgs = []
-        enrollments = CourseEnrollment.objects.filter(user=user, is_active=True)
-        for enroll in enrollments:
-            if enroll.course_id.org not in orgs:
-                orgs.append(enroll.course_id.org)
-        my_skills_access = Organization.objects.filter(org__in=orgs, org_type__enable_extended_progress_page=True).count()
-        if not user_settings:
-            user_settings = UserSettings(user=user)
-        user_settings.my_skills_access = bool(my_skills_access)
-        user_settings.save()
-    return user_settings.my_skills_access
+    try:
+        with transaction.atomic():
+            user_settings = UserSettings.objects.filter(user=user).first()
+            if not user_settings or user_settings.my_skills_access is None:
+                orgs = []
+                enrollments = CourseEnrollment.objects.filter(user=user, is_active=True)
+                for enroll in enrollments:
+                    if enroll.course_id.org not in orgs:
+                        orgs.append(enroll.course_id.org)
+                my_skills_access = Organization.objects.filter(org__in=orgs, org_type__enable_extended_progress_page=True).count()
+                if not user_settings:
+                    user_settings = UserSettings(user=user)
+                user_settings.my_skills_access = bool(my_skills_access)
+                user_settings.save()
+    except IntegrityError:
+        user_settings = UserSettings.objects.filter(user=user).first()
+    return user_settings.my_skills_access if user_settings else None
 
 
 @receiver(post_save, sender=ProctoredExamStudentAttempt)
