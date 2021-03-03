@@ -3,7 +3,7 @@ import pytz
 import vertica_python
 
 from django.core.management import BaseCommand
-from django.db import transaction
+
 from student.models import CourseEnrollment
 from lms.djangoapps.courseware.models import StudentModule
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
@@ -105,7 +105,7 @@ class Command(BaseCommand):
                     ids_to_remove_part = ids_to_remove[n_from:n_to]
                     if not ids_to_remove_part:
                         break
-                    print('Try to remove TrackingLog items from %d to %d' % (n_from, len(ids_to_remove_part)))
+                    print('Try to remove TrackingLog items from %d to %d' % (n_from, n_to))
                     TrackingLog.objects.filter(org_id=org_id, id__in=ids_to_remove_part, is_view=True, is_last_attempt=1).delete()
                     n_from = n_from + limit
                     n_to = n_to + limit
@@ -117,7 +117,7 @@ class Command(BaseCommand):
                     db_log_to_remove_part = db_log_to_remove_lst[n_from:n_to]
                     if not db_log_to_remove_part:
                         break
-                    print('Try to remove DBLogEntry items from %d to %d' % (n_from, len(db_log_to_remove_part)))
+                    print('Try to remove DBLogEntry items from %d to %d' % (n_from, n_to))
                     DBLogEntry.objects.filter(
                             id__in=db_log_to_remove_part, event_name='sequential_block.viewed', course_id=course_id).delete()
                     n_from = n_from + limit
@@ -130,7 +130,7 @@ class Command(BaseCommand):
                     ids_to_remove_part = ids_to_remove[n_from:n_to]
                     if not ids_to_remove_part:
                         break
-                    print('Try to remove Vertica items from %d to %d' % (n_from, len(ids_to_remove_part)))
+                    print('Try to remove Vertica items from %d to %d' % (n_from, n_to))
                     ids_to_remove_str = ','.join([str(id2r) for id2r in ids_to_remove_part])
                     sql = "DELETE FROM credo_modules_trackinglog " \
                           "WHERE org_id='%s' AND id in (%s) AND is_view=1 AND is_last_attempt=1"\
