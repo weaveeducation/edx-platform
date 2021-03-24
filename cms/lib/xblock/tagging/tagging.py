@@ -16,6 +16,7 @@ from webob import Response
 _ = lambda text: text
 
 
+@XBlock.needs('user')
 class StructuredTagsAside(XBlockAside):
     """
     Aside that allows tagging blocks
@@ -23,6 +24,10 @@ class StructuredTagsAside(XBlockAside):
     saved_tags = Dict(help=_("Dictionary with the available tags"),
                       scope=Scope.content,
                       default={},)
+
+    tags_history = Dict(help=_("Dictionary with the tags history"),
+                        scope=Scope.content,
+                        default={},)
 
     def _get_available_tags(self):
         """
@@ -56,7 +61,8 @@ class StructuredTagsAside(XBlockAside):
 
             tags, has_access_any_tag = get_tags(
                 self.scope_ids.usage_id.course_key, self.scope_ids.usage_id.course_key.org, self.runtime.user_id,
-                self.saved_tags, self.runtime.user_is_superuser
+                saved_tags=self.saved_tags, tags_history=self.tags_history,
+                user_is_superuser=self.runtime.user_is_superuser
             )
 
             fragment = Fragment(render_to_string('structured_tags_block.html', {'tags': tags,
@@ -160,15 +166,43 @@ class StructuredTagsAside(XBlockAside):
         """
         Handler to save chosen tags with connected XBlock
         """
+        from credo_modules.tagging import get_tag_key
+
         posted_data = request.params.dict_of_lists()
+
+        user_service = self.xmodule_runtime.service(self, 'user')
+        user_id = user_service.get_user_id()
+        user_is_superuser = user_service.is_superadmin_user()
+
         saved_tags = {}
+        tags_history = {}
+        new_tags = []
 
         for av_tag in self._get_available_tags():
-            tag_key = '%s[]' % av_tag.name
+            tag_category = av_tag.name.strip()
+            saved_tag_values = self.saved_tags.get(tag_category, [])
+            tag_key = '%s[]' % tag_category
             if tag_key in posted_data and len(posted_data[tag_key]) > 0:
-                saved_tags[av_tag.name] = posted_data[tag_key]
+                tag_values = posted_data[tag_key]
+                saved_tags[tag_category] = tag_values
+
+                for tag_value in tag_values:
+                    tag_value_final = tag_value.strip()
+                    tag_key = get_tag_key(av_tag.name, tag_value_final)
+                    new_tags.append(tag_key)
+                    if tag_key not in self.tags_history:
+                        added_by_superuser = False
+                        added_by_user = 0
+                        if tag_value_final in saved_tag_values or user_is_superuser:
+                            added_by_superuser = True
+                        if tag_value_final not in saved_tag_values:
+                            added_by_user = user_id
+                        tags_history[tag_key] = [added_by_superuser, added_by_user]
+                    else:
+                        tags_history[tag_key] = self.tags_history[tag_key].copy()
 
         self.saved_tags = saved_tags
+        self.tags_history = tags_history
         return Response()
 
     def get_event_context(self, event_type, event):  # pylint: disable=unused-argument

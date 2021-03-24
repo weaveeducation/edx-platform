@@ -87,6 +87,9 @@ class DjangoXBlockUserService(UserService):
     def is_superadmin_user(self):
         return self._django_user.is_superuser
 
+    def get_user_id(self):
+        return self._django_user.id
+
     def staff_feature_is_available(self, course_id, feature):
         role = get_custom_user_role(course_id, self._django_user, check_enrollment=False)
         if role:

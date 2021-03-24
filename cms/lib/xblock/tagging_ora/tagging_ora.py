@@ -16,6 +16,7 @@ from webob import Response
 _ = lambda text: text
 
 
+@XBlock.needs('user')
 class OraStructuredTagsAside(StructuredTagsAside):
     """
     Aside that allows tagging blocks
@@ -28,6 +29,7 @@ class OraStructuredTagsAside(StructuredTagsAside):
         depending on the context.
         """
         from student.models import User
+        from credo_modules.tagging import prepare_tag_values
 
         if block.category == 'openassessment':
             if len(block.rubric_criteria) == 0:
@@ -37,6 +39,7 @@ class OraStructuredTagsAside(StructuredTagsAside):
             has_access_any_tag = False
 
             rubrics = [rubric['label'].strip() for rubric in block.rubric_criteria]
+            user_is_superuser = self.runtime.user_is_superuser
 
             for tag in self._get_available_tags():
                 course_id = None
@@ -59,7 +62,12 @@ class OraStructuredTagsAside(StructuredTagsAside):
                         current_values = [current_values]
 
                     values_not_exists = [cur_val for cur_val in current_values if cur_val not in values]
+                    prepared_values = prepare_tag_values(
+                        tag.name, values, current_values, tags_history=self.tags_history,
+                        disable_superusers_tags=tag.disable_superusers_tags, user_is_superuser=user_is_superuser,
+                        rubric=rubric)
                     rubrics_current_values[rubric] = {
+                        'values_json': json.dumps(prepared_values),
                         'current_values': values_not_exists + current_values,
                         'current_values_json': json.dumps(values_not_exists + current_values)
                     }
@@ -105,31 +113,55 @@ class OraStructuredTagsAside(StructuredTagsAside):
         """
         Handler to save chosen tags with connected XBlock
         """
+        from credo_modules.tagging import get_tag_key
         try:
             posted_data = request.json
         except ValueError:
             return Response("Invalid request body", status=400)
 
+        user_service = self.xmodule_runtime.service(self, 'user')
+
+        user_id = user_service.get_user_id()
+        user_is_superuser = user_service.is_superadmin_user()
+
         saved_tags = {}
+        tags_history = {}
 
         for av_tag in self._get_available_tags():
             for rubric, rubric_tags in posted_data.items():
-                if av_tag.name in rubric_tags and rubric_tags[av_tag.name]:
+                tag_category = av_tag.name.strip()
+                saved_tag_values = self.saved_tags.get(rubric, {}).get(tag_category, [])
+
+                if tag_category in rubric_tags and rubric_tags[tag_category]:
                     tag_available_values = av_tag.get_values()
-                    tag_current_values = self.saved_tags.get(rubric, {}).get(av_tag.name, [])
 
-                    if isinstance(tag_current_values, str):
-                        tag_current_values = [tag_current_values]
+                    if isinstance(saved_tag_values, str):
+                        saved_tag_values = [saved_tag_values]
 
-                    for posted_tag_value in rubric_tags[av_tag.name]:
-                        if posted_tag_value not in tag_available_values and posted_tag_value not in tag_current_values:
-                            return Response("Invalid tag value was passed: %s" % posted_tag_value, status=400)
+                    for posted_tag_value in rubric_tags[tag_category]:
+                        tag_value_final = posted_tag_value.strip()
+                        tag_key = get_tag_key(av_tag.name, tag_value_final, rubric)
+
+                        if tag_value_final not in tag_available_values and tag_value_final not in saved_tag_values:
+                            return Response("Invalid tag value was passed: %s" % tag_value_final, status=400)
+
+                        if tag_key not in self.tags_history:
+                            added_by_superuser = False
+                            added_by_user = 0
+                            if tag_value_final in saved_tag_values or user_is_superuser:
+                                added_by_superuser = True
+                            if tag_value_final not in saved_tag_values:
+                                added_by_user = user_id
+                            tags_history[tag_key] = [added_by_superuser, added_by_user]
+                        else:
+                            tags_history[tag_key] = self.tags_history[tag_key].copy()
 
                     if rubric not in saved_tags:
                         saved_tags[rubric] = {}
-                    saved_tags[rubric][av_tag.name] = rubric_tags[av_tag.name]
+                    saved_tags[rubric][tag_category] = rubric_tags[tag_category]
 
         self.saved_tags = saved_tags
+        self.tags_history = tags_history
         return Response()
 
     def get_event_context(self, event_type, event):  # pylint: disable=unused-argument

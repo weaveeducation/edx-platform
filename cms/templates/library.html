@@ -78,7 +78,7 @@ from openedx.core.djangolib.markup import HTML, Text
                     % if tag['has_access']:
                         <div style="width: 700px;">
                         <input id="tags_${tag['key']}_filter" name="${tag['key']}" type="text"
-                               data-values="${tag['values_json'] | h}" class="tag-filter" />
+                               data-values="${tag['values_json_lst'] | h}" class="tag-filter" />
                         </div>
                     % endif
                 </div>

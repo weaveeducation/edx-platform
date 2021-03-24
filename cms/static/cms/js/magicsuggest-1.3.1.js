@@ -86,6 +86,11 @@
             displayField: 'name',
 
             /**
+             * Name of JSON object property that defines the disabled behaviour
+             */
+            disabledField: null,
+
+            /**
              * @cfg {Boolean} editable
              * <p>Set to false if you only want mouse interaction. In that case the combo will
              * automatically expand on focus.</p>
@@ -740,7 +745,7 @@
                 }
 
                 if(data.length === 1 && cfg.preselectSingleSuggestion === true) {
-                    ms.combobox.children().filter(':last').addClass('ms-res-item-active');
+                    ms.combobox.children().filter(':not(.ms-res-item-disabled):last').addClass('ms-res-item-active');
                 }
 
                 if(data.length === 0 && ms.getRawValue() !== "") {
@@ -793,17 +798,17 @@
                     ms.expand();
                 }
                 var list, start, active, scrollPos;
-                list = ms.combobox.find(".ms-res-item");
+                list = ms.combobox.find(".ms-res-item:not(.ms-res-item-disabled)");
                 if(dir === 'down') {
                     start = list.eq(0);
                 }
                 else {
                     start = list.filter(':last');
                 }
-                active = ms.combobox.find('.ms-res-item-active:first');
+                active = ms.combobox.find('.ms-res-item-active:not(.ms-res-item-disabled):first');
                 if(active.length > 0) {
                     if(dir === 'down') {
-                        start = active.nextAll('.ms-res-item').first();
+                        start = active.nextAll('.ms-res-item:not(.ms-res-item-disabled)').first();
                         if(start.length === 0) {
                             start = list.eq(0);
                         }
@@ -814,7 +819,7 @@
                         }
                     }
                     else {
-                        start = active.prevAll('.ms-res-item').first();
+                        start = active.prevAll('.ms-res-item:not(.ms-res-item-disabled)').first();
                         if(start.length === 0) {
                             start = list.filter(':last');
                             ms.combobox.scrollTop(_comboItemHeight * list.length);
@@ -1000,8 +1005,10 @@
                 var ref = this, html = '';
                 $.each(items, function(index, value) {
                     var displayed = cfg.renderer !== null ? cfg.renderer.call(ref, value) : value[cfg.displayField];
+                    var disabled = cfg.disabledField && value[cfg.disabledField] === true;
                     var resultItemEl = $('<div/>', {
                         'class': 'ms-res-item ' + (isGrouped ? 'ms-res-item-grouped ':'') +
+                            (disabled ? 'ms-res-item-disabled ' : '') +
                             (index % 2 === 1 && cfg.useZebraStyle === true ? 'ms-res-odd' : ''),
                         html: cfg.highlight === true ? self._highlightSuggestion(displayed) : displayed,
                         'data-json': JSON.stringify(value)
@@ -1039,12 +1046,13 @@
                         }).data('json', value);
                     }
                     else {
+                        var valueDisabled = cfg.disabledField && value[cfg.disabledField] === true;
                         selectedItemEl = $('<div/>', {
-                            'class': 'ms-sel-item ' + cfg.selectionCls,
+                            'class': 'ms-sel-item ' + cfg.selectionCls + (valueDisabled ? ' ms-sel-disabled' : ''),
                             html: selectedItemHtml
                         }).data('json', value);
 
-                        if(cfg.disabled === false){
+                        if((cfg.disabled === false) && (!valueDisabled)){
                             // small cross img
                             delItemEl = $('<span/>', {
                                 'class': 'ms-close-btn'
@@ -1224,8 +1232,11 @@
              * @private
              */
             _onComboItemMouseOver: function(e) {
-                ms.combobox.children().removeClass('ms-res-item-active');
-                $(e.currentTarget).addClass('ms-res-item-active');
+                var target = $(e.currentTarget);
+                if (!target.hasClass('ms-res-item-disabled')) {
+                  ms.combobox.children().removeClass('ms-res-item-active');
+                  $(e.currentTarget).addClass('ms-res-item-active');
+                }
             },
 
             /**
@@ -1234,7 +1245,10 @@
              * @private
              */
             _onComboItemSelected: function(e) {
-                self._selectItem($(e.currentTarget));
+                var target = $(e.currentTarget);
+                if (!target.hasClass('ms-res-item-disabled')) {
+                  self._selectItem($(e.currentTarget));
+                }
             },
 
             /**
@@ -1300,8 +1314,10 @@
              */
             _onKeyDown: function(e) {
                 // check how tab should be handled
-                var active = ms.combobox.find('.ms-res-item-active:first'),
+                var active = ms.combobox.find('.ms-res-item-active:not(.ms-res-item-disabled):first'),
                     freeInput = ms.input.val() !== cfg.emptyText ? ms.input.val() : '';
+                var lastValue = null;
+                var valueDisabled = false;
                 $(ms).trigger('keydown', [ms, e]);
 
                 if(e.keyCode === 9 && (cfg.useTabKey === false ||
@@ -1312,6 +1328,12 @@
                 switch(e.keyCode) {
                     case 8: //backspace
                         if(freeInput.length === 0 && ms.getSelectedItems().length > 0 && cfg.selectionPosition === 'inner') {
+                            lastValue = _selection[_selection.length - 1];
+                            valueDisabled = cfg.disabledField && lastValue[cfg.disabledField] === true;
+                            if (valueDisabled) {
+                              e.preventDefault();
+                              return;
+                            }
                             _selection.pop();
                             self._renderSelection();
                             $(ms).trigger('selectionchange', [ms, ms.getSelectedItems()]);
@@ -1378,7 +1400,7 @@
                     if(e.keyCode !== 188 || cfg.useCommaKey === true) {
                         e.preventDefault();
                         if(cfg.expanded === true){ // if a selection is performed, select it and reset field
-                            selected = ms.combobox.find('.ms-res-item-active:first');
+                            selected = ms.combobox.find('.ms-res-item-active:not(.ms-res-item-disabled):first');
                             if(selected.length > 0) {
                                 self._selectItem(selected);
                                 return;
