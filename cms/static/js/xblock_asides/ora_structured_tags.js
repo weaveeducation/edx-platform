@@ -114,7 +114,10 @@
                 allowFreeEntries: false,
                 disabled: $(this).is('[readonly]') ? true : false,
                 maxSelection: 1000,
-                inputCfg: {"aria-label": $(this).attr('name')}
+                inputCfg: {"aria-label": $(this).attr('name')},
+                valueField: 'name',
+                displayField: 'name',
+                disabledField: 'disabled'
             });
         });
 

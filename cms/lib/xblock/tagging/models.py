@@ -16,6 +16,8 @@ class TagCategories(models.Model):
     editable_in_studio = models.BooleanField(default=False, verbose_name=_("Editable in studio"))
     scoped_by = models.CharField(max_length=255, null=True, blank=True, verbose_name=_("Scoped by"))
     role = models.CharField(max_length=64, null=True, blank=True, verbose_name=_("Access role"))
+    disable_superusers_tags = models.BooleanField(
+        default=False, verbose_name=_("Prohibit users from removing outcomes added by super users"))
 
     _org_types = []
 

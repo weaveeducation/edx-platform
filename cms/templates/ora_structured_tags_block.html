@@ -13,7 +13,8 @@
                         % if len(tag['values']) > 0:
                         <div class="left" style="width: 700px;">
                         <input id="tags_${tag['key']}_${block_location}_${idx}" name="${tag['key']}" type="text"
-                               data-values="${tag['values_json'] | h}" data-current-values="${tag['rubrics_current_values'][rubric]['current_values_json'] | h}"
+                               data-values="${tag['rubrics_current_values'][rubric]['values_json'] | h}"
+                               data-current-values="${tag['rubrics_current_values'][rubric]['current_values_json'] | h}"
                                data-rubric="${rubric | h}" />
                         </div>
                         % else:
