@@ -52,9 +52,9 @@ def get_tag_values(data, group_tags=False, tags_to_hide=None, tag_descriptions=N
 
     if group_tags:
         for v in data:
-            tag_split_lst = v.split(' - ')
-            if tag_split_lst[0] in tags_to_hide:
+            if v.startswith(tuple(tags_to_hide)):
                 continue
+            tag_split_lst = v.split(' - ')
             if len(tag_split_lst) > 1:
                 for idx, tag_part in enumerate(tag_split_lst):
                     if idx > 0:
@@ -81,8 +81,7 @@ def get_tag_values(data, group_tags=False, tags_to_hide=None, tag_descriptions=N
         return res
     else:
         for v in data:
-            tag_split_lst = v.split(' - ')
-            if tag_split_lst[0] in tags_to_hide:
+            if v.startswith(tuple(tags_to_hide)):
                 continue
             res.append({
                 'value': v,
