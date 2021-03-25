@@ -540,13 +540,15 @@ def progress_grades_page(request, course, student):
     problems_dict = {}
     problem_blocks = modulestore().get_items(course.id, qualifiers={'category': {'$in': CREDO_GRADED_ITEM_CATEGORIES}})
     for pr in problem_blocks:
+        parent = pr.get_parent()
+        if parent is None:
+            continue
         problems_dict[str(pr.location)] = {
             'display_name': pr.display_name,
             'vertical_id': None,
             'vertical_name': '',
             'hidden': False
         }
-        parent = pr.get_parent()
         if pr.category == 'openassessment':
             problems_dict[str(pr.location)]['hidden'] = pr.is_hidden()
         if parent.category == 'vertical':

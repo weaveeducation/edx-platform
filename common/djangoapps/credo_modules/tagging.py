@@ -42,7 +42,7 @@ def check_user_access(role, course_id, user=None, user_is_superuser=False):
     return False
 
 
-def get_tags(course_key, org_val, user_id, saved_tags=None, user_is_superuser=False):
+def get_tags(course_key, org_val, user_id, saved_tags=None, tags_history=None, user_is_superuser=False):
     tags = []
     user = None
     has_access_any_tag = False
@@ -78,11 +78,17 @@ def get_tags(course_key, org_val, user_id, saved_tags=None, user_is_superuser=Fa
         else:
             has_access_any_tag = True
 
+        prepared_values = prepare_tag_values(
+            tag.name, values, current_values, tags_history=tags_history,
+            disable_superusers_tags=tag.disable_superusers_tags, user_is_superuser=user_is_superuser
+        )
+
         tags.append({
             'key': tag.name,
             'title': tag.title,
             'values': values,
-            'values_json': json.dumps(values),
+            'values_json': json.dumps(prepared_values),
+            'values_json_lst': json.dumps(values),
             'current_values': values_not_exists + current_values,
             'current_values_json': json.dumps(values_not_exists + current_values),
             'editable': tag.editable_in_studio,
@@ -90,3 +96,32 @@ def get_tags(course_key, org_val, user_id, saved_tags=None, user_is_superuser=Fa
         })
 
     return tags, has_access_any_tag
+
+
+def prepare_tag_values(tag_category, values, current_values, tags_history=False,
+                       disable_superusers_tags=False, user_is_superuser=False, rubric=None):
+    if not tags_history:
+        tags_history = {}
+    ret = []
+    disabled_tags = []
+    for v in values:
+        disabled = False
+        if disable_superusers_tags and not user_is_superuser and v in current_values:
+            tag_key = get_tag_key(tag_category, v, rubric=rubric)
+            tag_history = tags_history.get(tag_key)
+            if not tag_history or tag_history[0] is True:
+                disabled = True
+                disabled_tags.append(v)
+
+        ret.append({
+            'name': v,
+            'disabled': disabled
+        })
+    return sorted(ret, key=lambda k: ('0-' if k['disabled'] else '1-') + k['name'])
+
+
+def get_tag_key(tag_category, tag_value, rubric=None):
+    if rubric is None:
+        return tag_category + '|' + tag_value
+    else:
+        return rubric + '|' + tag_category + '|' + tag_value

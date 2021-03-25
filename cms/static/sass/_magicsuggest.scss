@@ -152,6 +152,10 @@
 .ms-res-ctn .ms-res-odd{
     background: #F3F3F3;
 }
+.ms-res-ctn .ms-res-item-disabled{
+    color: #CCC;
+    cursor: default;
+}
 .ms-res-ctn .ms-res-item-active{
     background-color: #3875D7;
     filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#3875D7', endColorstr='#2A62BC', GradientType=0 );
@@ -176,6 +180,10 @@
     border-radius: 3px;
     margin-left: 5px;
     margin-top: 4px;
+}
+.ms-sel-ctn .ms-sel-disabled{
+    background: #aea8a8 !important;
+    color: #EEE;
 }
 .ms-sel-ctn .ms-sel-text{
     background: #FFF;
