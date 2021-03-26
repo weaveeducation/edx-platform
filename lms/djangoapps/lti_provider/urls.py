@@ -9,6 +9,9 @@ from lti_provider import views
 
 urlpatterns = [
     url(
+        r'^myskills$',
+        views.lti_myskills, name="lti_myskills"),
+    url(
         r'^courses/{course_id}/progress$'.format(
             course_id=settings.COURSE_ID_PATTERN,
         ),
