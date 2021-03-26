@@ -32,9 +32,10 @@ from opaque_keys.edx.keys import CourseKey
 
 
 log = logging.getLogger(__name__)
-GROUPPED_ORGANIZATION_TAGS = [
+GROUPED_ORGANIZATION_TAGS = [
     'AAC&U VALUE Rubric'
 ]
+
 
 class StudentProfileField(object):
 
@@ -469,6 +470,7 @@ def _get_org(request, org_id):
 
     return tag_available_values, org, None
 
+
 def _generate_tag_item(value, title, tag):
     return {
         'name': value,
@@ -478,6 +480,11 @@ def _generate_tag_item(value, title, tag):
         'obj': tag.get('obj'),
         'id': hashlib.md5(value.encode('utf-8')).hexdigest()
     }
+
+
+def _sort_tag_items_by_title(tags):
+    return sorted(tags, key=lambda v: v['title'])
+
 
 @login_required
 @require_http_methods(["GET", "POST"])
@@ -503,27 +510,33 @@ def manage_org_tags(request, org_id):
         tag_value = tag.value.strip()
         tag_value_keys = tag_value.split(' - ')
         tag_key = tag_value_keys[0].strip()
-        tag_child = ' - '.join(tag_value_keys[1:])
+        tag_child = tag_value_keys[1] if len(tag_value_keys) > 1 else None
 
-        if tag_child and tag_key in GROUPPED_ORGANIZATION_TAGS:
+        if tag_child and tag_key in GROUPED_ORGANIZATION_TAGS:
             parent = tags_result_dict.get(tag_key, {
                 'title': tag_key,
-                'children': [],
+                'children': {},
                 'insights_view': True,
                 'progress_view': True
             })
+            if tag_child in parent['children']:
+                continue
             child = _generate_tag_item(tag_value, tag_child, tags_dict.get(tag_value, {}))
             if parent['insights_view']:
                 parent['insights_view'] = child['insights_view']
             if parent['progress_view']:
                 parent['progress_view'] = child['progress_view']
-            parent['children'].append(child)
+            parent['children'][tag_child] = child
             tags_result_dict[tag_key] = parent
         elif tag_key not in tags_result_dict:
             item = _generate_tag_item(tag_key, tag_key, tags_dict.get(tag_key, {}))
             tags_result_dict[tag_key] = item
 
-    tags_result = sorted(tags_result_dict.values(), key=lambda v: v['title'])
+    tags_result = _sort_tag_items_by_title(tags_result_dict.values())
+
+    for item in tags_result:
+        if 'children' in item:
+            item['children'] = _sort_tag_items_by_title(item['children'].values())
 
     if request.method == 'GET':
         return _manage_org_tags_render_template(request, 'admin/configure_tags_for_org.html',
