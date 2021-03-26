@@ -509,28 +509,29 @@ def manage_org_tags(request, org_id):
 
         tag_value = tag.value.strip()
         tag_value_keys = tag_value.split(' - ')
-        tag_key = tag_value_keys[0].strip()
-        tag_child = tag_value_keys[1] if len(tag_value_keys) > 1 else None
+        tag_root_key = tag_value_keys[0].strip()
+        tag_child_key = tag_value_keys[1] if len(tag_value_keys) > 1 else None
 
-        if tag_child and tag_key in GROUPED_ORGANIZATION_TAGS:
-            parent = tags_result_dict.get(tag_key, {
-                'title': tag_key,
+        if tag_child_key and tag_root_key in GROUPED_ORGANIZATION_TAGS:
+            parent = tags_result_dict.get(tag_root_key, {
+                'title': tag_root_key,
                 'children': {},
                 'insights_view': True,
                 'progress_view': True
             })
-            if tag_child in parent['children']:
+            if tag_child_key in parent['children']:
                 continue
-            child = _generate_tag_item(tag_value, tag_child, tags_dict.get(tag_value, {}))
+            tag_child_value = tag_root_key + ' - ' + tag_child_key
+            child = _generate_tag_item(tag_child_value, tag_child_key, tags_dict.get(tag_child_value, {}))
             if parent['insights_view']:
                 parent['insights_view'] = child['insights_view']
             if parent['progress_view']:
                 parent['progress_view'] = child['progress_view']
-            parent['children'][tag_child] = child
-            tags_result_dict[tag_key] = parent
-        elif tag_key not in tags_result_dict:
-            item = _generate_tag_item(tag_key, tag_key, tags_dict.get(tag_key, {}))
-            tags_result_dict[tag_key] = item
+            parent['children'][tag_child_key] = child
+            tags_result_dict[tag_root_key] = parent
+        elif tag_root_key not in tags_result_dict:
+            item = _generate_tag_item(tag_root_key, tag_root_key, tags_dict.get(tag_root_key, {}))
+            tags_result_dict[tag_root_key] = item
 
     tags_result = _sort_tag_items_by_title(tags_result_dict.values())
 
