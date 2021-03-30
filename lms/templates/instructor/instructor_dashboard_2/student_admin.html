@@ -41,7 +41,13 @@
 </div>
 
 <div class="student-progress-container action-type-container">
-    <h4 class="hd hd-4">${_("View a specific learner's grades and progress")}</h4>
+    <h4 class="hd hd-4">
+        %if section_data.get('enable_extended_progress_page'):
+        ${_("View a specific learner's My Skills Report")}
+        %else:
+        ${_("View a specific learner's grades and progress")}
+        %endif
+    </h4>
     <div class="request-response-error" role="status"></div>
     <label for="student-select-progress">
         ${_("Learner's {platform_name} email address or username").format(platform_name=section_data['current_platform_name'])}
@@ -52,7 +58,11 @@
     <div class="progress-link-wrapper">
         <span name="progress-link">
             <a href="" class="progress-link" data-endpoint="${ section_data['get_student_progress_url_url'] }">
+                %if section_data.get('enable_extended_progress_page'):
+                ${_("View My Skills Report")}
+                %else:
                 ${_("View Progress Page")}
+                %endif
             </a>
         </span>
     </div>
