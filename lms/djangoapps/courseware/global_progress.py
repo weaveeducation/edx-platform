@@ -437,26 +437,35 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
 @transaction.non_atomic_requests
 @login_required
 def global_skills_page(request):
+    return render_global_skills_page(request)
+
+
+def render_global_skills_page(request, display_in_frame=False):
     user_id = request.GET.get('user_id')
     org = request.GET.get('org')
     page = request.GET.get('page')
     group_tags = False
+
+    is_frame = request.GET.get('frame')
+    if is_frame:
+        try:
+            is_frame = int(is_frame)
+            is_frame = is_frame == 1
+        except ValueError:
+            is_frame = None
+    if not is_frame:
+        is_frame = display_in_frame
 
     if page == 'skills':
         group_tags = True
 
     user_id, student, course_ids, orgs, org, additional_params = _get_global_skills_context(request, user_id, org)
 
-    if len(course_ids) > MAX_COURSES_PER_USER and len(orgs) > 1 and not org:
-        return render_to_response('courseware/extended_progress_choose_org.html', {
-            'orgs': sorted(orgs),
-            'current_url': reverse('global_skills') + (('?' + '&'.join(additional_params)) if additional_params else ''),
-            'student_id': student.id,
-            'student': student,
-            'student_name': get_student_name(student)
-        })
+    if is_frame:
+        additional_params.append('frame=1')
 
     context = {
+        'orgs': sorted(orgs),
         'course': None,
         'course_id': None,
         'assessments_display': False,
@@ -471,8 +480,26 @@ def global_skills_page(request):
         'current_url_additional_params': '&'.join(additional_params) if additional_params else '',
         'show_dashboard_tabs': True,
         'show_program_listing': ProgramsApiConfig.is_enabled(),
-        'show_my_skills': check_my_skills_access(request.user)
+        'show_my_skills': check_my_skills_access(request.user),
+        'is_frame': is_frame,
     }
+
+    if is_frame:
+        context.update({
+            'allow_iframing': True,
+            'disable_accordion': True,
+            'disable_header': True,
+            'disable_footer': True,
+            'disable_window_wrap': True,
+            'disable_tabs': True
+        })
+
+    if len(course_ids) > MAX_COURSES_PER_USER and len(orgs) > 1 and not org:
+        context.update({
+            'current_url': reverse('global_skills') + (
+                ('?' + '&'.join(additional_params)) if additional_params else '')
+        })
+        return render_to_response('courseware/extended_progress_choose_org.html', context)
 
     tags = get_tags_global_data(student, orgs, course_ids, group_tags=group_tags)
     if page == 'skills':
@@ -483,7 +510,7 @@ def global_skills_page(request):
             'tags': tags,
             'tags_assessments': tags_assessments
         })
-        return render_to_response('courseware/extended_progress_skills.html', context)
+        response = render_to_response('courseware/extended_progress_skills.html', context)
     else:
         tags_to_100 = sorted(tags, key=lambda k: "%03d_%s" % (k['percent_correct'], k['tag']))
         tags_from_100 = sorted(tags, key=lambda k: "%03d_%s" % (100 - k['percent_correct'], k['tag']))
@@ -492,7 +519,8 @@ def global_skills_page(request):
             'lowest5tags': tags_to_100[:5],
             'assessments': []
         })
-        return render_to_response('courseware/extended_progress.html', context)
+        response = render_to_response('courseware/extended_progress.html', context)
+    return response
 
 
 @transaction.non_atomic_requests

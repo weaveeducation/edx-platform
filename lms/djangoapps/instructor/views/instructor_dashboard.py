@@ -658,7 +658,16 @@ def _section_student_admin(course, access):
     course_key = course.id
     is_small_course = _is_small_course(course_key)
 
+    enable_extended_progress_page = False
+    try:
+        org = Organization.objects.get(org=course_key.org)
+        if org.org_type is not None:
+            enable_extended_progress_page = org.org_type.enable_extended_progress_page
+    except Organization.DoesNotExist:
+        pass
+
     section_data = {
+        'enable_extended_progress_page': enable_extended_progress_page,
         'section_key': 'student_admin',
         'section_display_name': _('Student Admin'),
         'access': access,

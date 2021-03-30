@@ -30,13 +30,7 @@ from django.urls import reverse
             <img src="${static.url('images/credo/top5skills.png')}" title="Top 5 Skills" width="85" height="85" />
         </td>
         <td class="tags-block-top5-title">
-            <div class="tags-block-title">
-                % if course_id:
-                Top 5 Skills
-                % else:
-                Top Strengths
-                % endif
-            </div>
+            <div class="tags-block-title">Top Strengths</div>
             <div class="tags-block-see-all"><a href="${current_url}?page=skills&${current_url_additional_params}">See All</a></div>
             <div class="clear"></div>
         </td>
@@ -45,13 +39,7 @@ from django.urls import reverse
             <img src="${static.url('images/credo/lowest5skills.png')}" title="Lowest 5 Skills" width="85" height="85" />
         </td>
         <td class="tags-block-lowest5-title">
-            <div class="tags-block-title">
-                % if course_id:
-                Lowest 5 Skills
-                % else:
-                Top Opportunities
-                % endif
-            </div>
+            <div class="tags-block-title">Top Opportunities</div>
             <div class="tags-block-see-all"><a href="${current_url}?page=skills&${current_url_additional_params}">See All</a></div>
             <div class="clear"></div>
         </td>
