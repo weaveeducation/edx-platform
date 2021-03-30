@@ -13,6 +13,7 @@
 -e git+https://github.com/jazkarta/edx-jsme.git@690dbf75441fa91c7c4899df0b83d77f7deb5458#egg=edx-jsme  # via -r requirements/edx/github.in
 -e .  # via -r requirements/edx/local.in
 -e git+https://github.com/dementrock/pystache_custom.git@776973740bdaad83a3b029f96e415a7d1e8bec2f#egg=pystache_custom-dev  # via -r requirements/edx/github.in
+-e git+https://github.com/nigelsmall/py2neo.git@py2neo-3.1.2#egg=py2neo
 -e git+https://github.com/edx/RateXBlock.git@2.0#egg=rate-xblock  # via -r requirements/edx/github.in
 -e common/lib/safe_lxml  # via -r requirements/edx/local.in
 -e common/lib/sandbox-packages  # via -r requirements/edx/local.in
@@ -181,7 +182,6 @@ pillow==7.1.2             # via -r requirements/edx/base.in, edx-enterprise, edx
 pkgconfig==1.5.1          # via xmlsec
 polib==1.1.0              # via edx-i18n-tools
 psutil==1.2.1             # via -r requirements/edx/paver.txt, edx-django-utils
--e git+https://github.com/nigelsmall/py2neo.git@py2neo-3.1.2#egg=py2neo
 pycontracts==1.8.12       # via -r requirements/edx/base.in, edx-user-state-client
 pycountry==19.8.18        # via -r requirements/edx/base.in
 pycparser==2.20           # via -r requirements/edx/../edx-sandbox/shared.txt, cffi
