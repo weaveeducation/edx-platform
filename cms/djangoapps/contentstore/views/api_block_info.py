@@ -160,6 +160,21 @@ def set_sibling_block_not_updated(source_usage_id, dst_course_id, user_id):
     source_course_key = source_usage_key.course_key
     course_id = str(source_course_key)
 
+    store = modulestore()
+    source_block_parents_path_lst = []
+    source_block_parents_path = None
+
+    with store.bulk_operations(source_course_key):
+        item = store.get_item(source_usage_key)
+        source_block_name = item.display_name
+        parent_block = item.get_parent()
+        while parent_block and parent_block.category != 'course':
+            source_block_parents_path_lst.append(parent_block.display_name)
+            parent_block = parent_block.get_parent()
+    if source_block_parents_path_lst:
+        source_block_parents_path_lst.reverse()
+        source_block_parents_path = ' > '.join(source_block_parents_path_lst)
+
     source_main_block_info = ApiBlockInfo.objects.filter(
         block_id=str(source_usage_id), course_id=course_id, has_children=True, deleted=False).first()
     if not source_main_block_info:
@@ -177,16 +192,26 @@ def set_sibling_block_not_updated(source_usage_id, dst_course_id, user_id):
         sibling_version_published = timezone.make_aware(published_block_info['datetime'])
         sibling_version_publisher_user_id = published_block_info['user_id']
 
-    sibling_block_not_updated = SiblingBlockNotUpdated(
-        source_course_id=course_id,
-        source_block_id=source_usage_id,
-        sibling_course_id=dst_course_id,
-        sibling_block_id=dst_main_block_info.block_id,
-        source_version_published_date=timezone.now(),
-        source_version_publisher_user_id=user.id,
-        sibling_version_published_date=sibling_version_published,
-        sibling_version_publisher_user_id=sibling_version_publisher_user_id
-    )
+    try:
+        sibling_block_not_updated = SiblingBlockNotUpdated.objects.get(
+            source_course_id=course_id,
+            source_block_id=source_usage_id,
+            sibling_course_id=dst_course_id,
+            sibling_block_id=dst_main_block_info.block_id
+        )
+    except SiblingBlockNotUpdated.DoesNotExist:
+        sibling_block_not_updated = SiblingBlockNotUpdated(
+            source_course_id=course_id,
+            source_block_id=source_usage_id,
+            sibling_course_id=dst_course_id,
+            sibling_block_id=dst_main_block_info.block_id,
+        )
+    sibling_block_not_updated.source_block_name = source_block_name
+    sibling_block_not_updated.source_block_parents_path = source_block_parents_path
+    sibling_block_not_updated.source_version_published_date = timezone.now()
+    sibling_block_not_updated.source_version_publisher_user_id = user.id
+    sibling_block_not_updated.sibling_version_published_date = sibling_version_published
+    sibling_block_not_updated.sibling_version_publisher_user_id = sibling_version_publisher_user_id
     sibling_block_not_updated.save()
 
 

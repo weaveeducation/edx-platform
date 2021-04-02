@@ -626,9 +626,15 @@ class SiblingBlockUpdateTask(TimeStampedModel, TaskStatusMixin, models.Model):
     published = models.BooleanField(default=False)
     sibling_block_prev_version = models.CharField(max_length=255, null=True)  # set only for published
 
+    class Meta(object):
+        verbose_name = "CMS Push Task"
+        verbose_name_plural = "CMS Push Tasks"
+
 
 class SiblingBlockNotUpdated(models.Model):
     source_course_id = models.CharField(max_length=255, db_index=True)
+    source_block_name = models.CharField(max_length=255, null=True)
+    source_block_parents_path = models.CharField(max_length=1024, null=True)
     source_block_id = models.CharField(max_length=255)
     sibling_course_id = models.CharField(max_length=255, db_index=True)
     sibling_block_id = models.CharField(max_length=255, db_index=True, null=True)
@@ -636,6 +642,11 @@ class SiblingBlockNotUpdated(models.Model):
     source_version_publisher_user_id = models.IntegerField(null=True)
     sibling_version_published_date = models.DateTimeField(null=True)
     sibling_version_publisher_user_id = models.IntegerField(null=True)
+    ignore = models.BooleanField(default=False)
+
+    class Meta(object):
+        verbose_name = "Cousin Content Block"
+        verbose_name_plural = "Cousin Content Blocks"
 
 
 class SequentialViewedTask(TimeStampedModel, models.Model):
