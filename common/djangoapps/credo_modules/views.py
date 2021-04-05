@@ -402,6 +402,8 @@ def _parse_tag(t, org, insights, skills):
 
 
 def _manage_org_tags_update_data(request, org, tags_result):
+    OrganizationTag.objects.filter(org=org, tag_name__in=GROUPED_ORGANIZATION_TAGS).delete()
+
     request_insights = request.POST.getlist('insights')
     request_skills = request.POST.getlist('skills')
     tag_ids = []

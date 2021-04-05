@@ -1,6 +1,7 @@
 {% extends "admin/base_site.html" %}
 
-{% block content %}
+{% block extrahead %}
+{{ block.super }}
 <style>
 .table {
     width: 800px;
@@ -110,6 +111,9 @@
     });
 }(window.jQuery));
 </script>
+{% endblock %}
+
+{% block content %}
 <div class="module" id="changelist" style="width: 800px;">
 <form id="changelist-form" method="post" novalidate="">
 {% csrf_token %}
