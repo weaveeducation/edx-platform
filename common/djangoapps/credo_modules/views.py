@@ -32,6 +32,9 @@ from opaque_keys.edx.keys import CourseKey
 
 
 log = logging.getLogger(__name__)
+GROUPED_ORGANIZATION_TAGS = [
+    'AAC&U VALUE Rubric'
+]
 
 
 class StudentProfileField(object):
@@ -377,30 +380,42 @@ def _manage_org_tags_render_template(request, tpl, page_title, org, **kwargs):
     return render(request, tpl, context)
 
 
+def _parse_tag(t, org, insights, skills):
+    tag_org = t.get('obj')
+    tag_id = t.get('id')
+    tag_name = t.get('name')
+    insights_view = tag_id in insights
+    progress_view = tag_id in skills
+    if not tag_org:
+        tag_org = OrganizationTag(
+            org=org,
+            tag_name=tag_name,
+            insights_view=insights_view,
+            progress_view=progress_view
+        )
+        tag_org.save()
+    elif insights_view != tag_org.insights_view or progress_view != tag_org.progress_view:
+        tag_org.insights_view = insights_view
+        tag_org.progress_view = progress_view
+        tag_org.save()
+    return tag_org
+
+
 def _manage_org_tags_update_data(request, org, tags_result):
+    OrganizationTag.objects.filter(org=org, tag_name__in=GROUPED_ORGANIZATION_TAGS).delete()
+
     request_insights = request.POST.getlist('insights')
     request_skills = request.POST.getlist('skills')
     tag_ids = []
 
-    for t in tags_result:
-        tag_org = t.get('obj')
-        tag_id = t.get('id')
-        tag_name = t.get('title')
-        insights_view = tag_id in request_insights
-        progress_view = tag_id in request_skills
-        if not tag_org:
-            tag_org = OrganizationTag(
-                org=org,
-                tag_name=tag_name,
-                insights_view=insights_view,
-                progress_view=progress_view
-            )
-            tag_org.save()
-        elif insights_view != tag_org.insights_view or progress_view != tag_org.progress_view:
-            tag_org.insights_view = insights_view
-            tag_org.progress_view = progress_view
-            tag_org.save()
-        tag_ids.append(tag_org.id)
+    for tag in tags_result:
+        if 'children' in tag:
+            for child_tag in tag['children']:
+                parsed_tag = _parse_tag(child_tag, org, request_insights, request_skills)
+                tag_ids.append(parsed_tag.id)
+        else:
+            parsed_tag = _parse_tag(tag, org, request_insights, request_skills)
+            tag_ids.append(parsed_tag.id)
 
     query_to_remove = OrganizationTag.objects.filter(org=org)
     if tag_ids:
@@ -458,6 +473,21 @@ def _get_org(request, org_id):
     return tag_available_values, org, None
 
 
+def _generate_tag_item(value, title, tag):
+    return {
+        'name': value,
+        'title': title,
+        'insights_view': tag.get('insights_view', True),
+        'progress_view': tag.get('progress_view', True),
+        'obj': tag.get('obj'),
+        'id': hashlib.md5(value.encode('utf-8')).hexdigest()
+    }
+
+
+def _sort_tag_items_by_title(tags):
+    return sorted(tags, key=lambda v: v['title'])
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def manage_org_tags(request, org_id):
@@ -467,31 +497,53 @@ def manage_org_tags(request, org_id):
 
     tags_dict = {}
     tags = OrganizationTag.objects.filter(org=org)
-    for t in tags:
-        tags_dict[t.tag_name] = {
-            'insights_view': t.insights_view,
-            'progress_view': t.progress_view,
-            'obj': t
+    for tag in tags:
+        tags_dict[tag.tag_name] = {
+            'insights_view': tag.insights_view,
+            'progress_view': tag.progress_view,
+            'obj': tag
         }
 
-    tags_result = []
-    tags_auxiliary_list = []
-    for t in tag_available_values:
-        tag_value = t.value.strip().split(' - ')[0].strip()
-        if (tag_value not in tags_auxiliary_list) and (not t.org or t.org == org.org):
-            tags_auxiliary_list.append(tag_value)
-            tags_result.append({
-                'title': tag_value,
-                'insights_view': tags_dict.get(tag_value, {}).get('insights_view', True),
-                'progress_view': tags_dict.get(tag_value, {}).get('progress_view', True),
-                'obj': tags_dict.get(tag_value, {}).get('obj'),
-                'id': hashlib.md5(tag_value.encode('utf-8')).hexdigest()
+    tags_result_dict = {}
+    for tag in tag_available_values:
+        if tag.org and tag.org != org.org:
+            continue
+
+        tag_value = tag.value.strip()
+        tag_value_keys = tag_value.split(' - ')
+        tag_root_key = tag_value_keys[0].strip()
+        tag_child_key = tag_value_keys[1] if len(tag_value_keys) > 1 else None
+
+        if tag_child_key and tag_root_key in GROUPED_ORGANIZATION_TAGS:
+            parent = tags_result_dict.get(tag_root_key, {
+                'title': tag_root_key,
+                'children': {},
+                'insights_view': True,
+                'progress_view': True
             })
-    tags_result = sorted(tags_result, key=lambda v: v['title'])
+            if tag_child_key in parent['children']:
+                continue
+            tag_child_value = tag_root_key + ' - ' + tag_child_key
+            child = _generate_tag_item(tag_child_value, tag_child_key, tags_dict.get(tag_child_value, {}))
+            if parent['insights_view']:
+                parent['insights_view'] = child['insights_view']
+            if parent['progress_view']:
+                parent['progress_view'] = child['progress_view']
+            parent['children'][tag_child_key] = child
+            tags_result_dict[tag_root_key] = parent
+        elif tag_root_key not in tags_result_dict:
+            item = _generate_tag_item(tag_root_key, tag_root_key, tags_dict.get(tag_root_key, {}))
+            tags_result_dict[tag_root_key] = item
+
+    tags_result = _sort_tag_items_by_title(tags_result_dict.values())
+
+    for item in tags_result:
+        if 'children' in item:
+            item['children'] = _sort_tag_items_by_title(item['children'].values())
 
     if request.method == 'GET':
-        return _manage_org_tags_render_template(request, "admin/configure_tags_for_org.html",
-                                                "Configure Tags", org, tags_result=tags_result)
+        return _manage_org_tags_render_template(request, 'admin/configure_tags_for_org.html',
+                                                'Configure Tags', org, tags_result=tags_result)
     elif request.method == 'POST':
         return _manage_org_tags_update_data(request, org, tags_result)
     else:
