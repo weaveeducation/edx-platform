@@ -8,6 +8,7 @@ from django.urls import reverse
 from django import forms
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.utils.safestring import mark_safe
 from .models import RegistrationPropertiesPerOrg, EnrollmentPropertiesPerCourse,\
     Organization, OrganizationType, CourseExcludeInsights, CustomUserRole, TagDescription, EdxApiToken,\
@@ -48,8 +49,26 @@ class OrganizationForm(admin.ModelAdmin):
     custom_actions.short_description = 'Actions'
 
 
-class OrganizationTypeForm(admin.ModelAdmin):
+class OrganizationTypeForm(forms.ModelForm):
+    class Meta(object):
+        model = OrganizationType
+        fields = '__all__'
+
+    def clean_default_lti_staff_role(self):
+        default_lti_staff_role = self.cleaned_data['default_lti_staff_role']
+        if default_lti_staff_role:
+            av_roles_ids = []
+            available_roles = self.cleaned_data['available_roles']
+            for av_role in available_roles.all():
+                av_roles_ids.append(av_role.id)
+            if default_lti_staff_role.id not in av_roles_ids:
+                raise ValidationError("Default LTI Staff role must be enabled in Available roles")
+        return default_lti_staff_role
+
+
+class OrganizationTypeAdmin(admin.ModelAdmin):
     list_display = ('id', 'title')
+    form = OrganizationTypeForm
 
 
 class CourseExcludeInsightsForm(forms.ModelForm):
@@ -297,7 +316,7 @@ class SiblingBlockNotUpdatedForm(ReadOnlyMixin, ExportCsvMixin, admin.ModelAdmin
 admin.site.register(RegistrationPropertiesPerOrg, RegistrationPropertiesPerOrgForm)
 admin.site.register(EnrollmentPropertiesPerCourse, EnrollmentPropertiesPerCourseForm)
 admin.site.register(Organization, OrganizationForm)
-admin.site.register(OrganizationType, OrganizationTypeForm)
+admin.site.register(OrganizationType, OrganizationTypeAdmin)
 admin.site.register(CourseExcludeInsights, CourseExcludeInsightsAdmin)
 admin.site.register(CustomUserRole, CustomUserRoleForm)
 admin.site.register(TagDescription, TagDescriptionForm)
