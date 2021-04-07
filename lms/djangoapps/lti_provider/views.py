@@ -462,11 +462,14 @@ def set_user_roles(edx_user, course_key, roles):
         CourseStaffRole(course_key).add_users(edx_user)
         org = Organization.objects.filter(org=course_key.org).first()
         if org.org_type and org.org_type.default_lti_staff_role:
-            CourseStaffExtended(
-                user=edx_user,
-                course_id=course_key,
-                role=org.org_type.default_lti_staff_role
-            ).save()
+            available_roles = org.org_type.available_roles.all()
+            av_roles_ids = [av.id for av in available_roles]
+            if org.org_type.default_lti_staff_role.id in av_roles_ids:
+                CourseStaffExtended(
+                    user=edx_user,
+                    course_id=course_key,
+                    role=org.org_type.default_lti_staff_role
+                ).save()
 
 
 def extend_enrollment_properties(properties, course_key, request_params):
