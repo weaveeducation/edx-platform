@@ -99,7 +99,7 @@ from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import DuplicateCourseError, ItemNotFoundError
 from xmodule.partitions.partitions import UserPartition
 from xmodule.tabs import CourseTab, CourseTabList, InvalidTabsException
-from credo_modules.models import CopyBlockTask, SiblingBlockUpdateTask, get_inactive_orgs
+from credo_modules.models import CopyBlockTask, CourseStaffExtended, SiblingBlockUpdateTask, get_inactive_orgs
 from credo_modules.mongo import get_block_versions
 
 from .component import ADVANCED_COMPONENT_TYPES
@@ -143,6 +143,8 @@ def get_course_and_check_access(course_key, user, depth=0):
     for the view functions in this file.
     """
     if not has_studio_read_access(user, course_key):
+        raise PermissionDenied()
+    if CourseStaffExtended.objects.filter(role__course_studio_access=False, user=user, course_id=course_key).exists():
         raise PermissionDenied()
     course_module = modulestore().get_course(course_key, depth=depth)
     return course_module
@@ -473,11 +475,16 @@ def _accessible_courses_list_from_groups(request):
 
     instructor_courses = UserBasedRole(request.user, CourseInstructorRole.ROLE).courses_with_role()
     staff_courses = UserBasedRole(request.user, CourseStaffRole.ROLE).courses_with_role()
+    staff_access_denied = [str(c['course_id']) for c in CourseStaffExtended.objects.filter(
+        user=request.user, role__course_studio_access=False).values('course_id')]
+
     all_courses = list(filter(filter_ccx, instructor_courses | staff_courses))
     courses_list = []
     course_keys = {}
 
     for course_access in all_courses:
+        if str(course_access.course_id) in staff_access_denied:
+            continue
         if course_access.course_id is None:
             raise AccessListFallback
         course_keys[course_access.course_id] = course_access.course_id

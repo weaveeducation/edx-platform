@@ -348,6 +348,55 @@ class CourseUsageLogEntry(models.Model):
         new_item.save()
 
 
+class CustomUserRole(models.Model):
+    title = models.CharField(max_length=255, verbose_name='Title', unique=True)
+    alias = models.SlugField(max_length=255, verbose_name='Slug', unique=True)
+    course_studio_access = models.BooleanField(default=True, verbose_name='Course Studio Access')
+    course_outline_create_new_section = models.BooleanField(default=True,
+                                                            verbose_name='Course Outline: Can create new Section')
+    course_outline_create_new_subsection = models.BooleanField(default=True,
+                                                               verbose_name='Course Outline: Can create new Subsection')
+    course_outline_duplicate_section = models.BooleanField(default=True,
+                                                           verbose_name='Course Outline: Can duplicate Section')
+    course_outline_duplicate_subsection = models.BooleanField(default=True,
+                                                              verbose_name='Course Outline: Can duplicate Subsection')
+    course_outline_copy_to_other_course = models.BooleanField(default=True,
+                                                              verbose_name='Course Outline: '
+                                                                           'Can copy Section to other course')
+    top_menu_tools = models.BooleanField(default=True, verbose_name='Top Menu: Tools Dropdown menu')
+    unit_add_advanced_component = models.BooleanField(default=True,
+                                                      verbose_name='Unit: Can add advanced components to a unit')
+    unit_add_discussion_component = models.BooleanField(default=True,
+                                                        verbose_name='Unit: Can add discussion components to a unit')
+    view_tags = models.BooleanField(default=True, verbose_name='Unit: Can view tags')
+    edit_library_content = models.BooleanField(default=True, verbose_name='Unit: Can Edit Library Content in Course')
+    update_library_content = models.BooleanField(default=False, verbose_name='Unit: Access to "Update Now" '
+                                                                             'button for Library Content')
+
+    class Meta:
+        ordering = ['title']
+        verbose_name = "custom user role"
+        verbose_name_plural = "custom user roles"
+
+    def __str__(self):
+        return self.title
+
+    def to_dict(self):
+        return {
+            'course_outline_create_new_section': self.course_outline_create_new_section,
+            'course_outline_create_new_subsection': self.course_outline_create_new_subsection,
+            'course_outline_duplicate_section': self.course_outline_duplicate_section,
+            'course_outline_duplicate_subsection': self.course_outline_duplicate_subsection,
+            'course_outline_copy_to_other_course': self.course_outline_copy_to_other_course,
+            'top_menu_tools': self.top_menu_tools,
+            'unit_add_advanced_component': self.unit_add_advanced_component,
+            'unit_add_discussion_component': self.unit_add_discussion_component,
+            'view_tags': self.view_tags,
+            'edit_library_content': self.edit_library_content,
+            'update_library_content': self.update_library_content
+        }
+
+
 class OrganizationType(models.Model):
     title = models.CharField(max_length=255, verbose_name='Title', unique=True)
     constructor_lti_link = models.BooleanField(default=True, verbose_name='Display LTI link in Constructor')
@@ -368,6 +417,8 @@ class OrganizationType(models.Model):
     enable_item_analysis_reports = models.BooleanField(default=False, verbose_name='Enable Item Analysis Reports')
 
     available_roles = models.ManyToManyField('CustomUserRole', blank=True)
+    default_lti_staff_role = models.ForeignKey(CustomUserRole, on_delete=models.SET_NULL, null=True, blank=True,
+                                               related_name='role_lti_org_types', verbose_name='Default LTI Staff Role')
 
     exclude_properties = models.TextField(blank=True, verbose_name="Excluded property names in Insights",
                                           help_text="Values should be separated by commas")
@@ -657,54 +708,6 @@ class SequentialViewedTask(TimeStampedModel, models.Model):
 
     class Meta(object):
         db_table = "sequential_viewed_task"
-
-
-class CustomUserRole(models.Model):
-    title = models.CharField(max_length=255, verbose_name='Title', unique=True)
-    alias = models.SlugField(max_length=255, verbose_name='Slug', unique=True)
-    course_outline_create_new_section = models.BooleanField(default=True,
-                                                            verbose_name='Course Outline: Can create new Section')
-    course_outline_create_new_subsection = models.BooleanField(default=True,
-                                                               verbose_name='Course Outline: Can create new Subsection')
-    course_outline_duplicate_section = models.BooleanField(default=True,
-                                                           verbose_name='Course Outline: Can duplicate Section')
-    course_outline_duplicate_subsection = models.BooleanField(default=True,
-                                                              verbose_name='Course Outline: Can duplicate Subsection')
-    course_outline_copy_to_other_course = models.BooleanField(default=True,
-                                                              verbose_name='Course Outline: '
-                                                                           'Can copy Section to other course')
-    top_menu_tools = models.BooleanField(default=True, verbose_name='Top Menu: Tools Dropdown menu')
-    unit_add_advanced_component = models.BooleanField(default=True,
-                                                      verbose_name='Unit: Can add advanced components to a unit')
-    unit_add_discussion_component = models.BooleanField(default=True,
-                                                        verbose_name='Unit: Can add discussion components to a unit')
-    view_tags = models.BooleanField(default=True, verbose_name='Unit: Can view tags')
-    edit_library_content = models.BooleanField(default=True, verbose_name='Unit: Can Edit Library Content in Course')
-    update_library_content = models.BooleanField(default=False, verbose_name='Unit: Access to "Update Now" '
-                                                                             'button for Library Content')
-
-    class Meta:
-        ordering = ['title']
-        verbose_name = "custom user role"
-        verbose_name_plural = "custom user roles"
-
-    def __str__(self):
-        return self.title
-
-    def to_dict(self):
-        return {
-            'course_outline_create_new_section': self.course_outline_create_new_section,
-            'course_outline_create_new_subsection': self.course_outline_create_new_subsection,
-            'course_outline_duplicate_section': self.course_outline_duplicate_section,
-            'course_outline_duplicate_subsection': self.course_outline_duplicate_subsection,
-            'course_outline_copy_to_other_course': self.course_outline_copy_to_other_course,
-            'top_menu_tools': self.top_menu_tools,
-            'unit_add_advanced_component': self.unit_add_advanced_component,
-            'unit_add_discussion_component': self.unit_add_discussion_component,
-            'view_tags': self.view_tags,
-            'edit_library_content': self.edit_library_content,
-            'update_library_content': self.update_library_content
-        }
 
 
 class CourseStaffExtended(models.Model):

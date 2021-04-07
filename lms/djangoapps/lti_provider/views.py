@@ -27,7 +27,8 @@ from openedx.core.lib.url_utils import unquote_slashes
 from student.models import CourseEnrollment
 from student.roles import CourseStaffRole
 from util.views import add_p3p_header
-from credo_modules.models import check_and_save_enrollment_attributes, get_enrollment_attributes, RutgersCampusMapping
+from credo_modules.models import check_and_save_enrollment_attributes, get_enrollment_attributes, RutgersCampusMapping,\
+    CourseStaffExtended, Organization
 from edxmako.shortcuts import render_to_string
 from mako.template import Template
 from lms.djangoapps.courseware.courses import update_lms_course_usage
@@ -487,6 +488,13 @@ def set_user_roles(edx_user, course_key, roles):
     external_roles = ['SysAdmin', 'Administrator', 'Instructor', 'Staff']
     if any(role in roles for role in external_roles):
         CourseStaffRole(course_key).add_users(edx_user)
+        org = Organization.objects.filter(org=course_key.org).first()
+        if org.org_type and org.org_type.default_lti_staff_role:
+            CourseStaffExtended(
+                user=edx_user,
+                course_id=course_key,
+                role=org.org_type.default_lti_staff_role
+            ).save()
 
 
 def extend_enrollment_properties(properties, course_key, request_params):

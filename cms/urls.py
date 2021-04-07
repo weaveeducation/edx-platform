@@ -100,10 +100,10 @@ urlpatterns = [
 
     url(r'^get_versions_list/{}?$'.format(settings.USAGE_KEY_PATTERN),
         contentstore.views.get_versions_list,
-        name='course_listing_short'),
+        name='get_versions_list'),
     url(r'^restore_block_version/{}?$'.format(settings.USAGE_KEY_PATTERN),
         contentstore.views.restore_block_version,
-        name='course_listing_short'),
+        name='restore_block_version'),
 
     url(r'^get_courses_with_duplicates/{}?$'.format(settings.USAGE_KEY_PATTERN),
         contentstore.views.api_get_courses_with_duplicates,
