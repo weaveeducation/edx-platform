@@ -100,10 +100,10 @@ urlpatterns = [
 
     url(r'^get_versions_list/{}?$'.format(settings.USAGE_KEY_PATTERN),
         contentstore.views.get_versions_list,
-        name='course_listing_short'),
+        name='get_versions_list'),
     url(r'^restore_block_version/{}?$'.format(settings.USAGE_KEY_PATTERN),
         contentstore.views.restore_block_version,
-        name='course_listing_short'),
+        name='restore_block_version'),
 
     url(r'^copy_section_to_other_course/?$', contentstore.views.copy_section_to_other_courses,
         name='copy_section_to_other_courses'),
