@@ -78,6 +78,7 @@ class TagCategoriesAdmin(admin.ModelAdmin):
 class TagAvailableValuesAdmin(admin.ModelAdmin):
     """Admin for TagAvailableValues"""
     list_display = ('id', 'category', 'course_id', 'org', 'value')
+    search_fields = ('id', 'category__name', 'category__title', 'course_id', 'org', 'value')
 
 
 admin.site.register(TagCategories, TagCategoriesAdmin)
