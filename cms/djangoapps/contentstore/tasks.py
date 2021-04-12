@@ -41,12 +41,15 @@ from contentstore.storage import course_import_export_storage
 from contentstore.utils import initialize_permissions, reverse_usage_url, translation_language
 from contentstore.video_utils import scrape_youtube_thumbnail
 from contentstore.qti_converter import convert_to_olx
+from contentstore.views.api_block_info import create_api_block_info
 from course_action_state.models import CourseRerunState
 from models.settings.course_metadata import CourseMetadata
+from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo
 from openedx.core.djangoapps.embargo.models import CountryAccessRule, RestrictedCourse
 from openedx.core.lib.extract_tar import safetar_extractall
 from student.auth import has_course_author_access
 from util.organizations_helpers import add_organization_course, get_organization_by_short_name
+from util.module_utils import yield_dynamic_descriptor_descendants
 from xmodule.contentstore.django import contentstore
 from xmodule.course_module import CourseFields
 from xmodule.exceptions import SerializationError
@@ -91,6 +94,35 @@ def clone_instance(instance, field_values):
     return instance
 
 
+def copy_api_block_info_after_rerun(store, source_course_key, destination_course_key, user_id):
+    user = User.objects.get(id=user_id)
+
+    api_blocks_to_insert = []
+    with store.bulk_operations(source_course_key):
+        course_src = store.get_course(source_course_key)
+        chapters = course_src.get_children()
+        for chapter in chapters:
+            for module in yield_dynamic_descriptor_descendants(chapter, user_id):
+                published_after_copy = True
+                if store.has_changes(module):
+                    published_after_copy = False
+
+                source_block_info = ApiBlockInfo.objects.filter(block_id=str(module.location)).first()
+                if source_block_info:
+                    source_block_hash = source_block_info.hash_id
+                else:
+                    source_block_info = create_api_block_info(module.location, user, auto_save=False)
+                    source_block_hash = source_block_info.hash_id
+                    api_blocks_to_insert.append(source_block_info)
+
+                dst_location = module.location.map_into_course(destination_course_key)
+                dst_block_info = create_api_block_info(
+                    dst_location, user, block_hash_id=source_block_hash, created_as_copy=True,
+                    published_after_copy=published_after_copy, auto_save=False)
+                api_blocks_to_insert.append(dst_block_info)
+    ApiBlockInfo.objects.bulk_create(api_blocks_to_insert, 1000)
+
+
 @task()
 def rerun_course(source_course_key_string, destination_course_key_string, user_id, fields=None):
     """
@@ -110,6 +142,8 @@ def rerun_course(source_course_key_string, destination_course_key_string, user_i
         store = modulestore()
         with store.default_store('split'):
             store.clone_course(source_course_key, destination_course_key, user_id, fields=fields)
+
+        copy_api_block_info_after_rerun(store, source_course_key, destination_course_key, user_id)
 
         # set initial permissions for the user to access the course.
         initialize_permissions(destination_course_key, User.objects.get(id=user_id))

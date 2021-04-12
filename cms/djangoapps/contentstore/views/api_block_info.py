@@ -21,7 +21,8 @@ from xblock.fields import Scope
 log = logging.getLogger(__name__)
 
 
-def create_api_block_info(usage_key, user, block_hash_id=None, created_as_copy=False, auto_save=True):
+def create_api_block_info(usage_key, user, block_hash_id=None, created_as_copy=False,
+                          published_after_copy=False, auto_save=True):
     if not block_hash_id:
         block_hash_id = str(uuid4())
 
@@ -33,7 +34,8 @@ def create_api_block_info(usage_key, user, block_hash_id=None, created_as_copy=F
         created_time=timezone.now(),
         updated_by=user.id,
         updated_time=timezone.now(),
-        created_as_copy=created_as_copy
+        created_as_copy=created_as_copy,
+        published_after_copy=published_after_copy
     )
     api_block_info.set_has_children()
     if auto_save:
@@ -57,8 +59,6 @@ def copy_api_block_info(source_item, dest_module, user, level=0, auto_save=True,
                     source_block_hash = source_block_info.hash_id
                 else:
                     source_block_info = create_api_block_info(source_item.location, user)
-                    if not source_block_info:
-                        source_block_hash = str(uuid4())
                     source_block_hash = source_block_info.hash_id
         except IntegrityError:
             source_block_info = ApiBlockInfo.objects.filter(block_id=str(source_item.location)).first()
