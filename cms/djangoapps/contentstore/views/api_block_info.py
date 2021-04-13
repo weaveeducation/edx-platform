@@ -43,7 +43,8 @@ def create_api_block_info(usage_key, user, block_hash_id=None, created_as_copy=F
     return api_block_info
 
 
-def copy_api_block_info(source_item, dest_module, user, level=0, auto_save=True, force=False):
+def copy_api_block_info(source_item, dest_module, user, level=0, auto_save=True, force=False,
+                        published_after_copy=False):
     src_course_id = str(source_item.location.course_key)
     dst_course_id = str(dest_module.location.course_key)
 
@@ -66,7 +67,7 @@ def copy_api_block_info(source_item, dest_module, user, level=0, auto_save=True,
                 source_block_hash = source_block_info.hash_id
 
     return create_api_block_info(dest_module.location, user, block_hash_id=source_block_hash,
-                                 created_as_copy=True, auto_save=auto_save)
+                                 created_as_copy=True, published_after_copy=published_after_copy, auto_save=auto_save)
 
 
 def update_api_blocks_before_publish(xblock, user):
@@ -215,6 +216,22 @@ def set_sibling_block_not_updated(source_usage_id, dst_course_id, user_id):
     sibling_block_not_updated.save()
 
 
+def _update_sibling_block_add_new_items(items_to_add, allowed_categories, src_block_to_dst_block, dst_course_key,
+                                        user, published_after_copy, duplicate_xblock_fn):
+    for category in allowed_categories:
+        for src_block in items_to_add:
+            if (src_block.category == 'sequential' and category == 'sequential') \
+              or (src_block.category == 'vertical' and category == 'vertical') \
+              or (src_block.category not in ('sequential', 'vertical') and category == 'other'):
+                src_block_parent = str(src_block.parent)
+                dst_block_parent = src_block_to_dst_block.get(src_block_parent)
+                if dst_block_parent:
+                    duplicate_xblock_fn(
+                        UsageKey.from_string(dst_block_parent), src_block.location, user,
+                        src_block.display_name, course_key=dst_course_key, force_create_api_block_info=True,
+                        published_after_copy=published_after_copy)
+
+
 @task()
 def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_id, need_publish, user_id):
     from .item import _save_xblock as save_xblock_fn, _delete_item as delete_xblock_fn,\
@@ -333,20 +350,17 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
                             pass
 
             if items_to_add:
-                for category in ('sequential', 'vertical', 'other'):
-                    for src_block in items_to_add:
-                        if (src_block.category == 'sequential' and category == 'sequential')\
-                          or (src_block.category == 'vertical' and category == 'vertical')\
-                          or (src_block.category not in ('sequential', 'vertical') and category == 'other'):
-                            src_block_parent = str(src_block.parent)
-                            dst_block_parent = src_block_to_dst_block.get(src_block_parent)
-                            if dst_block_parent:
-                                duplicate_xblock_fn(
-                                    UsageKey.from_string(dst_block_parent), src_block.location, user,
-                                    src_block.display_name, course_key=dst_course_key, force_create_api_block_info=True)
+                _update_sibling_block_add_new_items(
+                    items_to_add, ['vertical', 'other'], src_block_to_dst_block, dst_course_key, user,
+                    published_after_copy=need_publish, duplicate_xblock_fn=duplicate_xblock_fn)
 
             if need_publish:
                 store.publish(UsageKey.from_string(dst_main_block_id), user_id)
+
+            if items_to_add:
+                _update_sibling_block_add_new_items(
+                    items_to_add, ['sequential'], src_block_to_dst_block, dst_course_key, user,
+                    published_after_copy=False, duplicate_xblock_fn=duplicate_xblock_fn)
 
         if dst_block_ids_has_children:
             SiblingBlockNotUpdated.objects.filter(
