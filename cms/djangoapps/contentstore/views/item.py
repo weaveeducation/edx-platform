@@ -940,7 +940,7 @@ def _get_breadcrumbs(item):
 
 def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_name=None, is_child=False,
                     course_key=None, broken_blocks=None, metadata_filter_fn=None, level=0, blocks_to_inserts=None,
-                    force_create_api_block_info=False):
+                    force_create_api_block_info=False, published_after_copy=False):
     """
     Duplicate an existing xblock as a child of the supplied parent_usage_key.
     """
@@ -1041,13 +1041,15 @@ def _duplicate_item(parent_usage_key, duplicate_source_usage_key, user, display_
                 new_level = level + 1
                 dupe = _duplicate_item(dest_module.location, child, user=user, is_child=True, course_key=course_key,
                                        broken_blocks=broken_blocks, level=new_level,
-                                       blocks_to_inserts=blocks_to_inserts)
+                                       blocks_to_inserts=blocks_to_inserts,
+                                       published_after_copy=published_after_copy)
                 if dupe not in dest_module.children:  # _duplicate_item may add the child for us.
                     dest_module.children.append(dupe)
             store.update_item(dest_module, user.id)
 
         block_to_insert = copy_api_block_info(source_item, dest_module, user, level=level, auto_save=False,
-                                              force=force_create_api_block_info)
+                                              force=force_create_api_block_info,
+                                              published_after_copy=published_after_copy)
         if block_to_insert:
             blocks_to_inserts.append(block_to_insert)
 
