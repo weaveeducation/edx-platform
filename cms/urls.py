@@ -116,6 +116,11 @@ urlpatterns = [
     url(r'^update_block_in_related_courses_result/?$', contentstore.views.update_block_in_related_courses_result,
         name='update_block_in_related_courses_result'),
 
+    url(r'^copy_course_to_other_course/?$', contentstore.views.copy_course_to_other_course,
+        name='copy_course_to_other_course'),
+    url(r'^copy_course_to_other_course_result/?$', contentstore.views.copy_course_to_other_course_result,
+        name='copy_course_to_other_course_result'),
+
     url(r'^copy_units_to_libraries/?$', contentstore.views.copy_units_to_libraries,
         name='copy_units_to_libraries'),
     url(r'^copy_units_to_libraries_result/?$', contentstore.views.copy_units_to_libraries_result,

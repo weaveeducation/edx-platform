@@ -1784,7 +1784,7 @@ def _validate_xml(xmlstring):
 
 
 @task()
-def copy_to_other_course(task_id, user_id, usage_key_string, destination_course_key_string):
+def copy_block_to_other_course_task(task_id, user_id, usage_key_string, destination_course_key_string):
     try:
         copy_task = CopyBlockTask.objects.get(id=task_id)
     except CopyBlockTask.DoesNotExist:
@@ -1814,7 +1814,7 @@ def copy_to_other_course(task_id, user_id, usage_key_string, destination_course_
 
 
 @task()
-def copy_unit_to_library(task_id, user_id, usage_keys_strings, destination_course_key_string):
+def copy_unit_to_library_task(task_id, user_id, usage_keys_strings, destination_course_key_string):
     try:
         copy_task = CopyBlockTask.objects.get(id=task_id)
     except CopyBlockTask.DoesNotExist:
@@ -1848,7 +1848,7 @@ def copy_unit_to_library(task_id, user_id, usage_keys_strings, destination_cours
 
 
 @task()
-def copy_components_to_library(task_id, user_id, usage_keys_strings, destination_course_key_string):
+def copy_components_to_library_task(task_id, user_id, usage_keys_strings, destination_course_key_string):
     try:
         copy_task = CopyBlockTask.objects.get(id=task_id)
     except CopyBlockTask.DoesNotExist:

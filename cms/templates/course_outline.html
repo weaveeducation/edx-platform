@@ -138,6 +138,13 @@ window.courseOutlineInitialState = ${initial_state | n, dump_js_escaped_json};
                     </a>
                 </li>
                 %endif
+                %if initial_state['user_permissions']['course_outline_copy_to_other_course']:
+                    <li class="nav-item">
+                        <a href="#" class="button copy-course-to-other" title="${_('Click to choose where to copy current course')}">
+                            <span class="icon fa fa-share-square-o" aria-hidden="true"></span>${_("Copy Course")}
+                        </a>
+                    </li>
+                %endif
                 %if reindex_link:
                     <li class="nav-item">
                         <a href="${reindex_link}" class="button button-reindex" data-category="reindex" title="${_('Reindex current course')}">

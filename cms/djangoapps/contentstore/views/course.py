@@ -41,7 +41,7 @@ from contentstore.course_group_config import (
 )
 from contentstore.course_info_model import delete_course_update, get_course_updates, update_course_updates
 from contentstore.courseware_index import CoursewareSearchIndexer, SearchIndexingError
-from contentstore.tasks import rerun_course as rerun_course_task
+from contentstore.tasks import rerun_course as rerun_course_task, copy_course_to_other_course_task
 from contentstore.utils import (
     add_instructor,
     get_lms_link_for_item,
@@ -103,7 +103,8 @@ from credo_modules.models import CopyBlockTask, SiblingBlockUpdateTask, get_inac
 from credo_modules.mongo import get_block_versions
 
 from .component import ADVANCED_COMPONENT_TYPES
-from .item import create_xblock_info, copy_to_other_course, copy_unit_to_library, copy_components_to_library
+from .item import create_xblock_info, copy_block_to_other_course_task, copy_unit_to_library_task,\
+    copy_components_to_library_task
 from .library import LIBRARIES_ENABLED, get_library_creator_status
 from .api_block_info import get_courses_with_duplicates, SyncApiBlockInfo
 
@@ -113,6 +114,7 @@ log = logging.getLogger(__name__)
 __all__ = ['course_info_handler', 'course_handler', 'course_listing',
            'course_listing_short', 'libraries_listing_short',
            'copy_section_to_other_courses', 'copy_section_to_other_courses_result',
+           'copy_course_to_other_course', 'copy_course_to_other_course_result',
            'copy_units_to_libraries', 'copy_units_to_libraries_result',
            'copy_components_to_libraries', 'copy_components_to_libraries_result',
            'course_info_update_handler', 'course_search_index_handler',
@@ -657,8 +659,8 @@ def copy_section_to_other_courses(request):
                         dst_location=course_id
                     )
                     section_task.save()
-                copy_to_other_course.delay(int(section_task.id), request.user.id,
-                                           usage_key_string, course_id)
+                copy_block_to_other_course_task.delay(int(section_task.id), request.user.id,
+                                                      usage_key_string, course_id)
                 tasks_num = tasks_num + 1
         except InvalidKeyError:
             pass
@@ -669,8 +671,7 @@ def copy_section_to_other_courses(request):
         return JsonResponse({'task_id': None})
 
 
-@require_http_methods(["POST"])
-def copy_section_to_other_courses_result(request):
+def _copy_item_to_course_result(request):
     json_data = json.loads(request.body.decode('utf8'))
     task_id = json_data.get('task_id')
     if not task_id:
@@ -691,6 +692,59 @@ def copy_section_to_other_courses_result(request):
         })
 
     return JsonResponse({'result': result, 'courses': result_list})
+
+
+@require_http_methods(["POST"])
+def copy_section_to_other_courses_result(request):
+    return _copy_item_to_course_result(request)
+
+
+@login_required
+@ensure_csrf_cookie
+@require_http_methods(["POST"])
+@transaction.non_atomic_requests
+def copy_course_to_other_course(request):
+    json_data = json.loads(request.body.decode('utf8'))
+    src_course_id = json_data.get('src_course_id')
+    copy_to_courses = json_data.get('copy_to_courses', [])
+
+    task_id = str(uuid4())
+
+    src_course_key = None
+    try:
+        src_course_key = CourseKey.from_string(src_course_id)
+    except InvalidKeyError:
+        pass
+
+    if not src_course_key or not has_studio_read_access(request.user, src_course_key):
+        return JsonResponse({'task_id': None})
+
+    tasks_num = 0
+    for course_id in copy_to_courses:
+        try:
+            course_key = CourseKey.from_string(course_id)
+            if has_studio_write_access(request.user, course_key):
+                with transaction.atomic():
+                    section_task = CopyBlockTask(
+                        task_id=task_id,
+                        block_ids=src_course_id,
+                        dst_location=course_id
+                    )
+                    section_task.save()
+                copy_course_to_other_course_task.delay(int(section_task.id), request.user.id, src_course_id, course_id)
+                tasks_num = tasks_num + 1
+        except InvalidKeyError:
+            pass
+
+    if tasks_num > 0:
+        return JsonResponse({'task_id': task_id})
+    else:
+        return JsonResponse({'task_id': None})
+
+
+@require_http_methods(["POST"])
+def copy_course_to_other_course_result(request):
+    return _copy_item_to_course_result(request)
 
 
 @require_http_methods(["POST"])
@@ -715,7 +769,6 @@ def update_block_in_related_courses_result(request):
         })
 
     return JsonResponse({'result': result, 'courses': result_list})
-
 
 
 @login_required
@@ -755,8 +808,7 @@ def copy_units_to_libraries(request):
                         dst_location=library_key_string
                     )
                     section_task.save()
-                copy_unit_to_library.delay(int(section_task.id), request.user.id,
-                                            usage_keys, library_key_string)
+                copy_unit_to_library_task.delay(int(section_task.id), request.user.id, usage_keys, library_key_string)
                 tasks_num = tasks_num + 1
         except InvalidKeyError:
             pass
@@ -830,8 +882,8 @@ def copy_components_to_libraries(request):
                         dst_location=library_key_string
                     )
                     section_task.save()
-                copy_components_to_library.delay(int(section_task.id), request.user.id,
-                                            usage_keys, library_key_string)
+                copy_components_to_library_task.delay(int(section_task.id), request.user.id,
+                                                      usage_keys, library_key_string)
                 tasks_num = tasks_num + 1
         except InvalidKeyError:
             pass

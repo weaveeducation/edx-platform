@@ -18,7 +18,7 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
         ReleaseDateEditor, DueDateEditor, GradingEditor, PublishEditor, AbstractVisibilityEditor,
         StaffLockEditor, UnitAccessEditor, ContentVisibilityEditor, TimedExaminationPreferenceEditor,
         AccessEditor, ShowCorrectnessEditor, HighlightsEditor, HighlightsEnableXBlockModal, HighlightsEnableEditor,
-        CopyToOtherCourseXBlockModal, CopyToLibraryModal, CourseOutlinePreferenceEditor;
+        CopyToOtherCourseXBlockModal, CopyToLibraryModal, CourseOutlinePreferenceEditor, CopyCourseToOtherCourseXBlockModal;
 
     CourseOutlineXBlockModal = BaseModal.extend({
         events: _.extend({}, BaseModal.prototype.events, {
@@ -200,6 +200,9 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             this.taskId = null;
             this.intervalId = null;
             this.done = false;
+            this.maxSelect = false;
+            this.urlToCopy = '/copy_section_to_other_course';
+            this.urlToCheckCopyResult = '/copy_section_to_other_courses_result';
         },
 
         getTitle: function () {
@@ -252,8 +255,7 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                         }
                     });
 
-                    self.$('.modal-section').html(windowTemplate({courses: result}));
-                    self.$('.modal-section').find("select[name='copy-to-courses']").multiselect({
+                    var multiselectOptions = {
                         columns: 1,
                         search: true,
                         selectAll: true,
@@ -261,7 +263,48 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                             placeholder: 'Select Courses',
                             search: 'Search...'
                         }
-                    });
+                    };
+
+                    if (self.maxSelect !== false) {
+                        multiselectOptions.selectAll = false;
+                        multiselectOptions.onOptionClick = function(element, option) {
+                            var maxSelect = self.maxSelect;
+
+                            // too many selected, deselect this option
+                            if ($(element).val() && $(element).val().length > maxSelect) {
+                                if( $(option).is(':checked') ) {
+                                    var thisVals = $(element).val();
+
+                                    thisVals.splice(
+                                        thisVals.indexOf( $(option).val() ), 1
+                                    );
+
+                                    $(element).val( thisVals );
+
+                                    $(option).prop( 'checked', false ).closest('li')
+                                        .toggleClass('selected');
+                                }
+                            }
+                            // max select reached, disable non-checked checkboxes
+                            else if($(element).val() && ($(element).val().length == maxSelect)) {
+                                $(element).next('.ms-options-wrap')
+                                    .find('li:not(.selected)').addClass('disabled')
+                                    .find('input[type="checkbox"]')
+                                        .attr( 'disabled', 'disabled' );
+                            }
+                            // max select not reached, make sure any disabled
+                            // checkboxes are available
+                            else {
+                                $(element).next('.ms-options-wrap')
+                                    .find('li.disabled').removeClass('disabled')
+                                    .find('input[type="checkbox"]')
+                                        .removeAttr( 'disabled' );
+                            }
+                        };
+                    }
+
+                    self.$('.modal-section').html(windowTemplate({courses: result}));
+                    self.$('.modal-section').find("select[name='copy-to-courses']").multiselect(multiselectOptions);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     self.$('.modal-section').html(gettext("Course list can't be loaded from server"));
@@ -299,7 +342,7 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             this.progress = true;
             this.$('.modal-section').find('.copy-to-course-result').html('');
             $.ajax({
-                url: '/copy_section_to_other_course',
+                url: this.urlToCopy,
                 type: 'POST',
                 data: JSON.stringify(data),
                 contentType: 'application/json',
@@ -325,7 +368,7 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
         checkCopy: function() {
             var self = this;
             $.ajax({
-                url: '/copy_section_to_other_courses_result',
+                url: this.urlToCheckCopyResult,
                 type: 'POST',
                 data: JSON.stringify({'task_id': self.taskId}),
                 contentType: 'application/json',
@@ -354,6 +397,32 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                     self.$('.modal-section').find('.copy-to-course-result').html(html);
                 }
             });
+        }
+    });
+
+    CopyCourseToOtherCourseXBlockModal = CopyToOtherCourseXBlockModal.extend({
+        initialize: function() {
+            CopyToOtherCourseXBlockModal.prototype.initialize.call(this);
+            this.maxSelect = 1;
+            this.urlToCopy = '/copy_course_to_other_course';
+            this.urlToCheckCopyResult = '/copy_course_to_other_course_result';
+        },
+
+        getTitle: function () {
+            return gettext('Copy course content to other course');
+        },
+
+        getRequestData: function () {
+            var requestData = {
+                'src_course_id': this.getCurrentCourseKey(),
+                'copy_to_courses': this.$('.modal-section').find("select[name='copy-to-courses']").val()
+            };
+            return $.extend.apply(this, [true, {}].concat(requestData));
+        },
+
+        getIntroductionMessage: function () {
+            return gettext('Please choose course where to copy content from the current course. ' +
+              'IMPORTANT: All existing course content will be replaced after copy. This change can\'t be undone.');
         }
     });
 
@@ -520,7 +589,7 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             });
         }
     })
-    
+
     PublishXBlockModal = CourseOutlineXBlockModal.extend({
         events: _.extend({}, CourseOutlineXBlockModal.prototype.events, {
             'click .action-publish': 'save'
@@ -1504,6 +1573,12 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
 
         getCopyToOtherCourseModal: function (xblockInfo, options) {
             return new CopyToOtherCourseXBlockModal($.extend({
+                model: xblockInfo
+            }, options));
+        },
+
+        getCopyCourseToOtherCourseModal: function (xblockInfo, options) {
+            return new CopyCourseToOtherCourseXBlockModal($.extend({
                 model: xblockInfo
             }, options));
         },
