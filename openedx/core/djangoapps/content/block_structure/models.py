@@ -387,6 +387,7 @@ class ApiBlockInfo(models.Model):
     updated_time = models.DateTimeField(null=True, default=None)
     created_as_copy = models.BooleanField(default=False)
     published_after_copy = models.BooleanField(default=False)
+    reverted_to_previous_version = models.BooleanField(default=False)
 
     CATEGORY_HAS_CHILDREN = ('chapter', 'sequential', 'vertical')
 

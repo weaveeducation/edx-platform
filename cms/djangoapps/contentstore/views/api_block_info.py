@@ -101,7 +101,10 @@ def update_api_blocks_before_publish(xblock, user):
 
 def update_sibling_block_after_publish(related_courses, xblock, xblock_is_published, user):
     task_uuid = str(uuid4())
+    course_ids_without_changes = []
+
     if related_courses and xblock.category in ApiBlockInfo.CATEGORY_HAS_CHILDREN:
+
         update_res = []
         for related_course_id, course_action in related_courses.items():
             if course_action in ('publish', 'draft'):
@@ -118,7 +121,32 @@ def update_sibling_block_after_publish(related_courses, xblock, xblock_is_publis
                         sibling_block_update_task.save()
                         update_res.append((sibling_block_update_task.id, related_course_id, course_action))
             elif xblock_is_published:
-                set_sibling_block_not_updated.delay(str(xblock.location), related_course_id, user.id)
+                course_ids_without_changes.append(related_course_id)
+
+        if course_ids_without_changes:
+            block_ids = [str(module.location) for module in yield_dynamic_descriptor_descendants(xblock, user.id)]
+            src_api_blocks_info = ApiBlockInfo.objects.filter(
+                block_id__in=block_ids, reverted_to_previous_version=True, deleted=False)
+            for src_api_block_info in src_api_blocks_info:
+                src_api_block_info.reverted_to_previous_version = False
+                src_api_block_info.save(update_fields=['reverted_to_previous_version'])
+                if course_ids_without_changes:
+                    new_hash_id = str(uuid4())
+                    block_ids_to_update_hash = []
+                    dst_blocks = ApiBlockInfo.objects.filter(hash_id=src_api_block_info.hash_id, deleted=False)\
+                        .exclude(course_id=str(src_api_block_info.course_id))
+                    for dst_block in dst_blocks:
+                        if dst_block.course_id in course_ids_without_changes:
+                            block_ids_to_update_hash.append(dst_block.block_id)
+                    if block_ids_to_update_hash:
+                        ApiBlockInfo.objects.filter(
+                            hash_id=src_api_block_info.hash_id,
+                            block_id__in=block_ids_to_update_hash,
+                            deleted=False
+                        ).update(hash_id=new_hash_id)
+
+        for course_id_without_change in course_ids_without_changes:
+            set_sibling_block_not_updated.delay(str(xblock.location), course_id_without_change, user.id)
 
         if update_res:
             transaction.on_commit(lambda: [update_sibling_block_in_related_course.delay(
@@ -297,6 +325,9 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
                         hash_id=src_block_info.hash_id, course_id=dst_course_id, deleted=False)
                     if len(dst_block_info_data):
                         for dst_block_info in dst_block_info_data:
+                            if dst_block_info.reverted_to_previous_version:
+                                dst_block_info.reverted_to_previous_version = False
+                                dst_block_info.save(update_fields=['reverted_to_previous_version'])
                             items_to_update[dst_block_info.block_id] = module
                             src_block_to_dst_block[src_block_info.block_id] = dst_block_info.block_id
                             dst_block_ids.append(dst_block_info.block_id)
@@ -470,6 +501,13 @@ def sync_api_blocks_before_remove(usage_key, user):
     if block_info_update_lst:
         ApiBlockInfo.objects.filter(block_id__in=block_info_update_lst).update(
             deleted=True, updated_time=timezone.now(), updated_by=user.id)
+
+
+def update_api_block_info(usage_id, reverted_to_previous_version=False):
+    api_block_info = ApiBlockInfo.objects.filter(block_id=usage_id, deleted=False).first()
+    if api_block_info:
+        api_block_info.reverted_to_previous_version = reverted_to_previous_version
+        api_block_info.save(update_fields=['reverted_to_previous_version'])
 
 
 class SyncApiBlockInfo(object):

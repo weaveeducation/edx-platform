@@ -106,7 +106,7 @@ from .component import ADVANCED_COMPONENT_TYPES
 from .item import create_xblock_info, copy_block_to_other_course_task, copy_unit_to_library_task,\
     copy_components_to_library_task
 from .library import LIBRARIES_ENABLED, get_library_creator_status
-from .api_block_info import get_courses_with_duplicates, SyncApiBlockInfo
+from .api_block_info import get_courses_with_duplicates, update_api_block_info, SyncApiBlockInfo
 
 log = logging.getLogger(__name__)
 
@@ -2131,6 +2131,7 @@ def restore_block_version(request, usage_key_string):
     item = modulestore().get_item(usage_key)
     with SyncApiBlockInfo(item, request.user):
         modulestore().revert_to_published(usage_key, request.user.id, version_guid)
+        update_api_block_info(usage_key_string, reverted_to_previous_version=True)
     return JsonResponse({'success': True})
 
 
