@@ -79,7 +79,7 @@ from xmodule.x_module import AUTHOR_VIEW, PREVIEW_VIEWS, STUDENT_VIEW, STUDIO_VI
 from credo_modules.models import CopyBlockTask
 from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo
 from .api_block_info import update_api_blocks_before_publish, update_sibling_block_after_publish,\
-    create_api_block_info, sync_api_blocks_before_remove, copy_api_block_info, SyncApiBlockInfo
+    create_api_block_info, sync_api_blocks_before_remove, copy_api_block_info, update_api_block_info, SyncApiBlockInfo
 
 
 __all__ = [
@@ -588,6 +588,7 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
         if publish == "discard_changes":
             with SyncApiBlockInfo(xblock, user):
                 store.revert_to_published(xblock.location, user.id)
+                update_api_block_info(str(xblock.location), reverted_to_previous_version=False)
             # Returning the same sort of result that we do for other save operations. In the future,
             # we may want to return the full XBlockInfo.
             return JsonResponse({'id': text_type(xblock.location)})
