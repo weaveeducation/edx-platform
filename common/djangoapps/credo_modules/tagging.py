@@ -1,3 +1,4 @@
+import hashlib
 import json
 from django.db.models import Q
 from django.core.exceptions import ObjectDoesNotExist
@@ -122,6 +123,7 @@ def prepare_tag_values(tag_category, values, current_values, tags_history=False,
 
 def get_tag_key(tag_category, tag_value, rubric=None):
     if rubric is None:
-        return tag_category + '|' + tag_value
+        tag_token = tag_category + '|' + tag_value
     else:
-        return rubric + '|' + tag_category + '|' + tag_value
+        tag_token = rubric + '|' + tag_category + '|' + tag_value
+    return hashlib.md5(tag_token.encode('utf-8')).hexdigest()
