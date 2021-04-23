@@ -2117,23 +2117,12 @@ def render_xblock_course(request, course_id, usage_key_string):
     is_time_exam = getattr(block, 'is_proctored_exam', False) or getattr(block, 'is_time_limited', False)
 
     if not request.GET.get('process_request'):
-        additional_url_params = ''
+        url_query = ''
         jwt_token = request.GET.get('jwt_token', None)
         if jwt_token:
-            additional_url_params = '&jwt_token=' + jwt_token
+            url_query = 'jwt_token=' + jwt_token
 
-        template = Template(render_to_string('static_templates/embedded_new_tab.html', {
-            'disable_accordion': True,
-            'allow_iframing': True,
-            'disable_header': True,
-            'disable_footer': True,
-            'disable_window_wrap': True,
-            'hash': '',
-            'additional_url_params': additional_url_params,
-            'time_exam': 1 if is_time_exam else 0,
-            'same_site': getattr(settings, 'DCS_SESSION_COOKIE_SAMESITE'),
-            'show_bookmark_button': False
-        }))
+        template = get_embedded_new_tab_page(is_time_exam=is_time_exam, url_query=url_query)
         return HttpResponse(template.render())
 
     if not request.user.is_authenticated:
@@ -2490,3 +2479,20 @@ def send_email_with_scores(course_id, usage_id, mailing_id, emails):
     except SendScoresMailing.DoesNotExist:
         log.info("Task to send scores finished with error. Mailing id: %s", str(mailing_id))
 
+
+def get_embedded_new_tab_page(is_time_exam=False, url_query=None, request_hash=None):
+    if url_query and not url_query.startswith('&'):
+        url_query = '&' + url_query
+
+    return Template(render_to_string('static_templates/embedded_new_tab.html', {
+        'disable_accordion': True,
+        'allow_iframing': True,
+        'disable_header': True,
+        'disable_footer': True,
+        'disable_window_wrap': True,
+        'hash': request_hash if request_hash else '',
+        'additional_url_params': url_query if url_query else '',
+        'time_exam': 1 if is_time_exam else 0,
+        'same_site': getattr(settings, 'DCS_SESSION_COOKIE_SAMESITE'),
+        'show_bookmark_button': False
+    }))

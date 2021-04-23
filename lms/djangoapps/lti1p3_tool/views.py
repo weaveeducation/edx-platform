@@ -23,7 +23,7 @@ from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
 from lti_provider.models import LTI1p3
 from lti_provider.users import update_lti_user_data
 from lti_provider.reset_progress import check_and_reset_lti_user_progress
-from lti_provider.views import enroll_user_to_course, render_courseware
+from lti_provider.views import enroll_user_to_course, render_courseware, get_embedded_new_tab_page
 from util.views import add_p3p_header
 from credo_modules.models import check_and_save_enrollment_attributes, get_enrollment_attributes
 from edxmako.shortcuts import render_to_string
@@ -174,18 +174,8 @@ def login(request):
         params_hash = hashlib.md5(json_params.encode('utf-8')).hexdigest()
         cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
         cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
-        template = Template(render_to_string('static_templates/embedded_new_tab.html', {
-            'disable_accordion': True,
-            'allow_iframing': True,
-            'disable_header': True,
-            'disable_footer': True,
-            'disable_window_wrap': True,
-            'hash': params_hash,
-            'additional_url_params': request.META['QUERY_STRING'],
-            'time_exam': 1 if is_time_exam else 0,
-            'same_site': getattr(settings, 'DCS_SESSION_COOKIE_SAMESITE'),
-            'show_bookmark_button': False
-        }))
+        template = get_embedded_new_tab_page(
+            is_time_exam=is_time_exam, url_query=request.META['QUERY_STRING'], request_hash=params_hash)
         return HttpResponse(template.render())
 
     tool_conf = ToolConfDb()

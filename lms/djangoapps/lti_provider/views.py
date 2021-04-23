@@ -31,7 +31,7 @@ from credo_modules.models import check_and_save_enrollment_attributes, get_enrol
 from edxmako.shortcuts import render_to_string
 from mako.template import Template
 from lms.djangoapps.courseware.courses import update_lms_course_usage
-from lms.djangoapps.courseware.views.views import render_progress_page_frame
+from lms.djangoapps.courseware.views.views import render_progress_page_frame, get_embedded_new_tab_page
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 
@@ -177,18 +177,7 @@ def _lti_launch(request, course_id, usage_id=None):
         params_hash = hashlib.md5(json_params.encode('utf-8')).hexdigest()
         cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
         cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
-        template = Template(render_to_string('static_templates/embedded_new_tab.html', {
-            'disable_accordion': True,
-            'allow_iframing': True,
-            'disable_header': True,
-            'disable_footer': True,
-            'disable_window_wrap': True,
-            'hash': params_hash,
-            'additional_url_params': '',
-            'time_exam': 1 if is_time_exam else 0,
-            'same_site': getattr(settings, 'DCS_SESSION_COOKIE_SAMESITE'),
-            'show_bookmark_button': False
-        }))
+        template = get_embedded_new_tab_page(is_time_exam=is_time_exam, request_hash=params_hash)
         log_lti_launch(course_id, usage_id, 200, new_tab_check=True, params=request_params)
         return HttpResponse(template.render())
 
