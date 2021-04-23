@@ -58,7 +58,7 @@ def get_block_by_id(block_id):
         block_id = None
 
     if not block_id:
-        return False, render_lti_error('Invalid URL', 400)
+        return False, render_lti_error('Invalid URL: block ID is not set', 400)
     else:
         try:
             block = modulestore().get_item(block_id)
@@ -148,12 +148,13 @@ def login(request):
                 course_id = passed_launch_url_path_items[3]
     else:
         for url_param in passed_launch_url_obj.query.split('&'):
-            url_param_key, url_param_val = url_param.split('=')
-            if url_param_key == 'block' or url_param_key == 'block_id':
-                block_id = url_param_val
-                break
-            elif url_param_key == 'course_id':
-                course_id = unquote(url_param_val)
+            if '=' in url_param:
+                url_param_key, url_param_val = url_param.split('=')
+                if url_param_key == 'block' or url_param_key == 'block_id':
+                    block_id = url_param_val
+                    break
+                elif url_param_key == 'course_id':
+                    course_id = unquote(url_param_val)
 
     if course_id:
         course, err_tpl = get_course_by_id(course_id)
