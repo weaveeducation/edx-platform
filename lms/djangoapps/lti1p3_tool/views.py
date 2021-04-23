@@ -185,8 +185,8 @@ def login(request):
     oidc_login = DjangoOIDCLogin(django_request, tool_conf, session_service=django_session)
     oidc_login.pass_params_to_launch({'is_iframe': request_params.get('iframe')})
 
-    iss = request_params.get('iss')
-    client_id = request_params.get('client_id')
+    iss = request_params.get('iss', request.GET.get('iss'))
+    client_id = request_params.get('client_id', request.GET.get('client_id'))
     lti_tool = tool_conf.get_lti_tool(iss, client_id)
     log_lti_launch(request, "login", None, iss, client_id, block_id=block_id, course_id=course_id, tool_id=lti_tool.id)
 
