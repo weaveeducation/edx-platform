@@ -64,7 +64,7 @@ from student.roles import (
     CourseSalesAdminRole, CourseStaffRole
 )
 from course_api.views import get_customer_info
-from credo_modules.models import Organization, Feature
+from credo_modules.models import Organization, Feature, get_org_roles_types
 from util.json_request import JsonResponse
 from xmodule.html_module import HtmlBlock
 from xmodule.modulestore.django import modulestore
@@ -575,6 +575,7 @@ def _section_membership(course, access):
         'section_key': 'membership',
         'section_display_name': _('Membership'),
         'access': access,
+        'custom_roles': get_org_roles_types(course_key.org, include_default_roles=False),
         'ccx_is_enabled': ccx_enabled,
         'enroll_button_url': reverse('students_update_enrollment', kwargs={'course_id': six.text_type(course_key)}),
         'unenroll_button_url': reverse('students_update_enrollment', kwargs={'course_id': six.text_type(course_key)}),

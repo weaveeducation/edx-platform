@@ -175,6 +175,19 @@ from openedx.core.djangolib.markup import HTML, Text
       data-add-button-label="${_("Add Staff")}"
     ></div>
 
+    % if section_data['custom_roles']:
+      % for custom_role in section_data['custom_roles']:
+         <div class="auth-list-container"
+           data-rolename="staff-extended:${custom_role['id']}"
+           data-display-name="${custom_role['title']}"
+           data-info-text=""
+           data-list-endpoint="${ section_data['list_course_role_members_url'] }"
+           data-modify-endpoint="${ section_data['modify_access_url'] }"
+           data-add-button-label="${_("Add")} ${custom_role['title']}"
+    ></div>
+      % endfor
+    % endif
+
     ## Note that "Admin" is identified as "Instructor" in the Django admin panel.
     <div class="auth-list-container"
       data-rolename="instructor"
