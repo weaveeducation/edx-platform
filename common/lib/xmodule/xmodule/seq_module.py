@@ -115,6 +115,20 @@ class SequenceFields(object):
         help=_("Do not display in course outline")
     )
 
+    use_as_survey_for_supervisor = Boolean(
+        display_name=_("Use as survey for supervisor"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Use as survey for supervisor")
+    )
+
+    supervisor_evaluation_hash = String(
+        display_name=_("Supervisor evaluation hash"),
+        default="",
+        scope=Scope.settings,
+        help=_("Supervisor evaluation hash"),
+    )
+
 
 class ProctoringFields(object):
     """

@@ -6,3 +6,4 @@ parsel==1.2.0
 openpyxl==2.6.4
 vertica-python==0.11.0
 git+https://github.com/CredoEducation/xblock-image-explorer.git@d0d6e46e1c64145adf83ba8ae38231c647f856ef#egg=xblock-image-explorer==1.2.1
+git+https://github.com/CredoEducation/xblock-supervisor-evaluation.git@ff7fd60a6eff7ea7dd78cff6b07d0cd9c3c98c13#egg=xblock-supervisor-evaluation==1.0.2

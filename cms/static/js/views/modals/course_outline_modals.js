@@ -588,7 +588,7 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                 }
             });
         }
-    })
+    });
 
     PublishXBlockModal = CourseOutlineXBlockModal.extend({
         events: _.extend({}, CourseOutlineXBlockModal.prototype.events, {
@@ -981,6 +981,8 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             this.$('[name="attach_at_the_top"][value="' + val + '"]').prop('checked', true);
             var returnToCourseOutline = this.model.get('after_finish_return_to_course_outline');
             this.$('[name="after_finish_return_to_course_outline"]').prop('checked', returnToCourseOutline ? true : false);
+            var useAsSurveyForSupervisor = this.model.get('use_as_survey_for_supervisor');
+            this.$('[name="use_as_survey_for_supervisor"]').prop('checked', useAsSurveyForSupervisor ? true : false);
             var notDisplayInCourseOutline = this.model.get('do_not_display_in_course_outline');
             this.$('[name="do_not_display_in_course_outline"]').prop('checked', notDisplayInCourseOutline ? true : false);
             this.switchAttachAtTheTopSetting(this.model.get('top_of_course_outline'));
@@ -989,6 +991,7 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             var attachAtTheTop = this.$('[name="attach_at_the_top"]:checked').val();
             var notDisplayInCourseOutline = this.$('[name="do_not_display_in_course_outline"]').is(':checked');
             var returnToCourseOutline = this.$('[name="after_finish_return_to_course_outline"]').is(':checked');
+            var useAsSurveyForSupervisor = this.$('[name="use_as_survey_for_supervisor"]').is(':checked');
             if (attachAtTheTop === 'yes') {
                 return {
                     metadata: {
@@ -996,7 +999,8 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                         course_outline_description: this.$('[name="course_outline_description"]').val(),
                         course_outline_button_title: this.$('[name="course_outline_button_title"]').val(),
                         do_not_display_in_course_outline: notDisplayInCourseOutline,
-                        after_finish_return_to_course_outline: returnToCourseOutline
+                        after_finish_return_to_course_outline: returnToCourseOutline,
+                        use_as_survey_for_supervisor: useAsSurveyForSupervisor
                     }
                 };
             } else {
@@ -1006,7 +1010,8 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                         do_not_display_in_course_outline: notDisplayInCourseOutline,
                         course_outline_description: '',
                         course_outline_button_title: '',
-                        after_finish_return_to_course_outline: returnToCourseOutline
+                        after_finish_return_to_course_outline: returnToCourseOutline,
+                        use_as_survey_for_supervisor: useAsSurveyForSupervisor
                     }
                 };
             }
