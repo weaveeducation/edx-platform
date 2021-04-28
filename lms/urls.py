@@ -26,7 +26,7 @@ from lms.djangoapps.courseware.views import views as courseware_views
 from lms.djangoapps.courseware.views.index import CoursewareIndex
 from lms.djangoapps.courseware.views.views import CourseTabView, EnrollStaffView, StaticCourseTabView,\
     cookie_check, launch_new_tab, email_student_progress, block_student_progress, check_credo_access,\
-    render_xblock_course
+    render_xblock_course, render_supervisor_evaluation_block
 from lms.djangoapps.courseware.global_progress import global_skills_page, api_get_global_tag_data,\
     api_get_global_tag_section_data
 from lms.djangoapps.discussion import views as discussion_views
@@ -326,6 +326,12 @@ urlpatterns += [
         r'^cookie/check$',
         cookie_check,
         name='cookie_check',
+    ),
+
+    url(
+        r'^supervisor/evaluation/(?P<hash_id>[\w-]+)',
+        render_supervisor_evaluation_block,
+        name='supervisor_evaluation_block'
     ),
 
     url(

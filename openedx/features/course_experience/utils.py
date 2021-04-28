@@ -224,7 +224,8 @@ def get_course_outline_block_tree(request, course_id, user=None, allow_start_dat
         'word_cloud',
         'lti',
         'lti_consumer',
-        'openassessment'
+        'openassessment',
+        'supervisor-evaluation'
     ]
     all_blocks = get_blocks(
         request,

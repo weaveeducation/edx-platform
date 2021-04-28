@@ -15,6 +15,7 @@ import six
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import AnonymousUser, User
+from django.contrib.auth import login
 from django.db import transaction
 from django.db.models import Q, prefetch_related_objects
 from django.shortcuts import redirect
@@ -143,7 +144,7 @@ from util.views import add_p3p_header
 from openedx.core.djangoapps.user_authn.views.custom import register_login_and_enroll_anonymous_user,\
     validate_credo_access
 from credo_modules.models import user_must_fill_additional_profile_fields,\
-    Organization, CredoModulesUserProfile, SendScores, SendScoresMailing
+    Organization, CredoModulesUserProfile, SendScores, SendScoresMailing, SupervisorEvaluationInvitation
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotAllowed,\
     JsonResponse
 from django.core.serializers.json import DjangoJSONEncoder
@@ -2495,3 +2496,40 @@ def get_embedded_new_tab_page(is_time_exam=False, url_query=None, request_hash=N
         'same_site': getattr(settings, 'DCS_SESSION_COOKIE_SAMESITE'),
         'show_bookmark_button': False
     }))
+
+
+def render_supervisor_evaluation_block(request, hash_id):
+    invitation = SupervisorEvaluationInvitation.objects.filter(url_hash=hash_id).first()
+    if not invitation:
+        raise Http404("Invalid page link")
+
+    dt_now = timezone.now()
+    if invitation.expiration_date and dt_now > invitation.expiration_date:
+        return HttpResponseForbidden("Link lifetime has expired")
+
+    course_key = CourseKey.from_string(invitation.course_id)
+    usage_key = UsageKey.from_string(invitation.evaluation_block_id)
+    survey_sequential_block = None
+
+    with modulestore().bulk_operations(course_key):
+        supervisor_evaluation_xblock = modulestore().get_item(usage_key)
+
+        sequential_blocks = modulestore().get_items(
+            course_key, qualifiers={'category': 'sequential'}
+        )
+        for seq in sequential_blocks:
+            if seq.use_as_survey_for_supervisor and seq.supervisor_evaluation_hash \
+              and seq.supervisor_evaluation_hash == supervisor_evaluation_xblock.evaluation_block_unique_id:
+                survey_sequential_block = seq
+                break
+
+    if not survey_sequential_block:
+        return HttpResponseForbidden("Block with questions not found")
+
+    if not request.user.is_authenticated or request.user.id != invitation.student.id:
+        login(request, invitation.student, backend=settings.AUTHENTICATION_BACKENDS[0])
+        request.session['link_access_only'] = hash_id
+        request.session.modified = True
+
+    return render_xblock(request, str(survey_sequential_block.location), check_if_enrolled=False,
+                         show_bookmark_button=False)
