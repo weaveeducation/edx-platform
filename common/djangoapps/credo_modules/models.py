@@ -1048,7 +1048,7 @@ def usage_dt_now():
     return datetime.datetime.now().replace(tzinfo=utc)
 
 
-def get_org_roles_types(org):
+def get_org_roles_types(org, include_default_roles=True):
     roles = []
     try:
         org = Organization.objects.get(org=org)
@@ -1059,8 +1059,9 @@ def get_org_roles_types(org):
             } for r in org.org_type.available_roles.order_by('title').all()]
     except Organization.DoesNotExist:
         pass
-    roles.append({'id': 'staff', 'title': 'Staff'})
-    roles.append({'id': 'instructor', 'title': 'Admin'})
+    if include_default_roles:
+        roles.append({'id': 'staff', 'title': 'Staff'})
+        roles.append({'id': 'instructor', 'title': 'Admin'})
     return sorted(roles, key=lambda k: k['title'])
 
 
