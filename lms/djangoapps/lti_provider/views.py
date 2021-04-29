@@ -32,6 +32,7 @@ from edxmako.shortcuts import render_to_string
 from mako.template import Template
 from lms.djangoapps.courseware.courses import update_lms_course_usage
 from lms.djangoapps.courseware.views.views import render_progress_page_frame, get_embedded_new_tab_page
+from lms.djangoapps.courseware.global_progress import render_global_skills_page
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 
@@ -59,6 +60,10 @@ OPTIONAL_PARAMETERS = [
     'tool_consumer_instance_guid'
 ]
 
+MY_SKILLS_PAGE = 'myskills'
+COURSE_PROGRESS_PAGE = 'course_progress'
+
+
 @csrf_exempt
 @add_p3p_header
 @xframe_options_exempt
@@ -70,10 +75,17 @@ def lti_launch(request, course_id, usage_id):
 @add_p3p_header
 @xframe_options_exempt
 def lti_progress(request, course_id):
-    return _lti_launch(request, course_id)
+    return _lti_launch(request, course_id, page_name=COURSE_PROGRESS_PAGE)
 
 
-def _lti_launch(request, course_id, usage_id=None):
+@csrf_exempt
+@add_p3p_header
+@xframe_options_exempt
+def lti_myskills(request):
+    return _lti_launch(request, page_name=MY_SKILLS_PAGE)
+
+
+def _lti_launch(request, course_id=None, usage_id=None, page_name=None):
     """
     Endpoint for all requests to embed edX content via the LTI protocol. This
     endpoint will be called by a POST message that contains the parameters for
@@ -92,13 +104,14 @@ def _lti_launch(request, course_id, usage_id=None):
     # missing
     request_params, is_cached = get_params(request)
     params = get_required_parameters(request_params)
+
     return_url = request_params.get('launch_presentation_return_url', None)
     context_id = request_params.get('context_id', None)
     context_label = request_params.get('context_label', None)
     lis_course_offier_sourcedid = request_params.get('lis_course_offier_sourcedid', None)
 
     if not params:
-        log_lti_launch(course_id, usage_id, 400, params=request_params)
+        log_lti_launch(course_id, usage_id, 400, params=request_params, page_name=page_name)
         return render_bad_request(return_url)
     params.update(get_optional_parameters(request_params))
 
@@ -110,7 +123,7 @@ def _lti_launch(request, course_id, usage_id=None):
             params['oauth_consumer_key']
         )
     except LtiConsumer.DoesNotExist:
-        log_lti_launch(course_id, usage_id, 403, params=request_params)
+        log_lti_launch(course_id, usage_id, 403, params=request_params, page_name=page_name)
         return render_response_forbidden(return_url)
 
     params_strict = {}
@@ -118,13 +131,13 @@ def _lti_launch(request, course_id, usage_id=None):
         params_strict = get_required_strict_parameters(request_params)
         if not params_strict or params_strict['lti_version'] != 'LTI-1p0' \
                 or params_strict['lti_message_type'] != 'basic-lti-launch-request':
-            log_lti_launch(course_id, usage_id, 400, params=request_params)
+            log_lti_launch(course_id, usage_id, 400, params=request_params, page_name=page_name)
             return render_bad_request(return_url)
         params.update(params_strict)
 
     # Check the OAuth signature on the message
     if not is_cached and not SignatureValidator(lti_consumer).verify(request):
-        log_lti_launch(course_id, usage_id, 403, params=request_params)
+        log_lti_launch(course_id, usage_id, 403, params=request_params, page_name=page_name)
         return render_response_forbidden(return_url)
 
     tc_profile_url = request_params.get('tc_profile_url', request_params.get('custom_tc_profile_url', None))
@@ -148,17 +161,20 @@ def _lti_launch(request, course_id, usage_id=None):
         else:
             return HttpResponse("Tool Consumer invalid HTTP response: " + str(tc_profile_resp.status_code))
 
+    course_key, usage_key = None, None
+
     # Add the course and usage keys to the parameters array
-    try:
-        course_key, usage_key = parse_course_and_usage_keys(course_id, usage_id)
-    except InvalidKeyError:
-        log.error(
-            'Invalid course key %s or usage key %s from request %s',
-            course_id,
-            usage_id,
-            request
-        )
-        raise Http404()
+    if page_name != MY_SKILLS_PAGE:
+        try:
+            course_key, usage_key = parse_course_and_usage_keys(course_id, usage_id)
+        except InvalidKeyError:
+            log.error(
+                'Invalid course key %s or usage key %s from request %s',
+                course_id,
+                usage_id,
+                request
+            )
+            raise Http404()
     params['course_key'] = course_key
     params['usage_key'] = usage_key
 
@@ -167,7 +183,7 @@ def _lti_launch(request, course_id, usage_id=None):
         try:
             block = modulestore().get_item(usage_key)
         except ItemNotFoundError:
-            log_lti_launch(course_id, usage_id, 404, params=request_params)
+            log_lti_launch(course_id, usage_id, 404, params=request_params, page_name=page_name)
             raise Http404()
         is_time_exam = getattr(block, 'is_proctored_exam', False) or getattr(block, 'is_time_limited', False)
 
@@ -178,7 +194,7 @@ def _lti_launch(request, course_id, usage_id=None):
         cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
         cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
         template = get_embedded_new_tab_page(is_time_exam=is_time_exam, request_hash=params_hash)
-        log_lti_launch(course_id, usage_id, 200, new_tab_check=True, params=request_params)
+        log_lti_launch(course_id, usage_id, 200, new_tab_check=True, params=request_params, page_name=page_name)
         return HttpResponse(template.render())
 
     # Create an edX account if the user identifed by the LTI launch doesn't have
@@ -197,18 +213,19 @@ def _lti_launch(request, course_id, usage_id=None):
     if lis_course_offier_sourcedid:
         enroll_kwargs['lis_course_offier_sourcedid'] = lis_course_offier_sourcedid
 
-    enrollment_attributes = get_enrollment_attributes(request_params, course_key, **enroll_kwargs)
-    enrollment_attributes = extend_enrollment_properties(enrollment_attributes, course_key, request_params)
+    if course_key:
+        enrollment_attributes = get_enrollment_attributes(request_params, course_key, **enroll_kwargs)
+        enrollment_attributes = extend_enrollment_properties(enrollment_attributes, course_key, request_params)
 
-    if request.user.is_authenticated:
-        roles = params.get('roles', None) if lti_consumer.allow_to_add_instructors_via_lti else None
-        enroll_result = enroll_user_to_course(request.user, course_key, roles)
-        if enroll_result:
-            check_and_save_enrollment_attributes(enrollment_attributes, request.user, course_key)
-        if lti_params and 'email' in lti_params:
-            update_lti_user_data(request.user, lti_params['email'])
+        if request.user.is_authenticated:
+            roles = params.get('roles', None) if lti_consumer.allow_to_add_instructors_via_lti else None
+            enroll_result = enroll_user_to_course(request.user, course_key, roles)
+            if enroll_result:
+                check_and_save_enrollment_attributes(enrollment_attributes, request.user, course_key)
+            if lti_params and 'email' in lti_params:
+                update_lti_user_data(request.user, lti_params['email'])
 
-    if usage_key:
+    if course_key and usage_key:
         # Reset attempts based on new context_ID:
         # https://credoeducation.atlassian.net/browse/DEV-209
         lis_result_sourcedid = request_params.get('lis_result_sourcedid', None)
@@ -221,7 +238,8 @@ def _lti_launch(request, course_id, usage_id=None):
         assignment, outcomes = store_outcome_parameters(params, request.user, lti_consumer)
 
         if not request_params.get('iframe'):
-            log_lti_launch(course_id, usage_id, 301, request.user.id, assignment=assignment, params=request_params)
+            log_lti_launch(course_id, usage_id, 301, request.user.id, assignment=assignment, params=request_params,
+                           page_name=page_name)
             return HttpResponseRedirect(reverse('launch_new_tab', kwargs={
                 'course_id': course_id,
                 'usage_id': usage_id
@@ -229,15 +247,26 @@ def _lti_launch(request, course_id, usage_id=None):
 
         update_lms_course_usage(request, usage_key, course_key)
         result = render_courseware(request, params['usage_key'])
-        log_lti_launch(course_id, usage_id, 200, request.user.id, assignment=assignment, params=request_params)
+        log_lti_launch(course_id, usage_id, 200, request.user.id, assignment=assignment, params=request_params,
+                       page_name=page_name)
         return result
     else:
         if not request_params.get('iframe'):
-            log_lti_launch(course_id, usage_id, 301, request.user.id, params=request_params)
-            return HttpResponseRedirect(reverse('progress', kwargs={'course_id': course_key}) + '?frame=1')
+            log_lti_launch(course_id, usage_id, 301, request.user.id, params=request_params, page_name=page_name)
+            if page_name == MY_SKILLS_PAGE:
+                return HttpResponseRedirect(reverse('global_skills') + '?frame=1')
+            elif page_name == COURSE_PROGRESS_PAGE:
+                return HttpResponseRedirect(reverse('progress', kwargs={'course_id': course_key}) + '?frame=1')
+            else:
+                raise Http404()
 
-        log_lti_launch(course_id, usage_id, 200, request.user.id, params=request_params)
-        return render_progress_page_frame(request, course_key)
+        log_lti_launch(course_id, usage_id, 200, request.user.id, params=request_params, page_name=page_name)
+        if page_name == MY_SKILLS_PAGE:
+            return render_global_skills_page(request, display_in_frame=True)
+        elif page_name == COURSE_PROGRESS_PAGE:
+            return render_progress_page_frame(request, course_key)
+        else:
+            raise Http404()
 
 
 def test_launch(request):

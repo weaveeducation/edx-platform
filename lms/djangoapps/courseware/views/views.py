@@ -1246,7 +1246,6 @@ def _progress(request, course_key, student_id, display_in_frame=False):
         with outer_atomic():
             response = render_to_response('courseware/progress.html', context)
 
-
     return response
 
 

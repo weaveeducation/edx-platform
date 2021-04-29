@@ -288,7 +288,8 @@ def log_lti(action, user_id, message, course_id, is_error,
     log_json.info(json.dumps(data))
 
 
-def log_lti_launch(course_id, usage_id, http_response, user_id=None, assignment=None, new_tab_check=False, params=None):
+def log_lti_launch(course_id, usage_id, http_response, user_id=None, assignment=None, new_tab_check=False,
+                   params=None, page_name=None):
     hostname = platform.node().split(".")[0]
     data = {
         'type': 'lti_launch',
@@ -306,6 +307,8 @@ def log_lti_launch(course_id, usage_id, http_response, user_id=None, assignment=
         'page': 'block_page' if usage_id else 'progress_page',
         'lti_version': '1.1'
     }
+    if page_name:
+        data['page_name'] = page_name
     if params:
         for k, v in params.items():
             pk = 'lti_user_id' if k == 'user_id' else k

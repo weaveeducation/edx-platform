@@ -8,7 +8,7 @@ import datetime
 from urllib.parse import urlparse, unquote
 
 from django.conf import settings
-from django.http import HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound,\
+from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound,\
     HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -29,6 +29,7 @@ from credo_modules.models import check_and_save_enrollment_attributes, get_enrol
 from edxmako.shortcuts import render_to_string
 from mako.template import Template
 from lms.djangoapps.courseware.courses import update_lms_course_usage
+from lms.djangoapps.courseware.global_progress import render_global_skills_page
 from lms.djangoapps.courseware.views.views import render_progress_page_frame
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
@@ -48,6 +49,10 @@ except ImportError:
 
 log = logging.getLogger("edx.lti1p3_tool")
 log_json = logging.getLogger("credo_json")
+
+MY_SKILLS_PAGE = 'myskills'
+COURSE_PROGRESS_PAGE = 'progress'
+ALLOWED_PAGES = [MY_SKILLS_PAGE]
 
 
 def get_block_by_id(block_id):
@@ -139,6 +144,7 @@ def login(request):
     block_id = None
     course_id = None
     passed_launch_url_path_items = [x for x in passed_launch_url_obj.path.split('/') if x]
+    page = None
 
     if len(passed_launch_url_path_items) > 2:
         block_id = passed_launch_url_path_items[2]
@@ -146,6 +152,9 @@ def login(request):
             block_id = None
             if len(passed_launch_url_path_items) > 3:
                 course_id = passed_launch_url_path_items[3]
+        elif block_id in ALLOWED_PAGES:
+            page = block_id
+            block_id = None
     else:
         for url_param in passed_launch_url_obj.query.split('&'):
             if '=' in url_param:
@@ -155,15 +164,19 @@ def login(request):
                     break
                 elif url_param_key == 'course_id':
                     course_id = unquote(url_param_val)
+                elif url_param_key == 'page':
+                    page = url_param_val
 
     if course_id:
         course, err_tpl = get_course_by_id(course_id)
         if not course:
             return err_tpl
-    else:
+    elif block_id:
         block, err_tpl = get_block_by_id(block_id)
         if not block:
             return err_tpl
+    elif not page or page not in ALLOWED_PAGES:
+        raise Http404()
 
     is_time_exam = False
     if block:
@@ -188,7 +201,8 @@ def login(request):
     iss = request_params.get('iss', request.GET.get('iss'))
     client_id = request_params.get('client_id', request.GET.get('client_id'))
     lti_tool = tool_conf.get_lti_tool(iss, client_id)
-    log_lti_launch(request, "login", None, iss, client_id, block_id=block_id, course_id=course_id, tool_id=lti_tool.id)
+    log_lti_launch(request, "login", None, iss, client_id, block_id=block_id, course_id=course_id, tool_id=lti_tool.id,
+                   page_name=page)
 
     try:
         return oidc_login.redirect(target_link_uri)
@@ -209,10 +223,12 @@ def launch(request, usage_id=None):
         page = request.GET.get('page')
 
         if not usage_id and course_id:
-            if page == 'progress':
+            if page == COURSE_PROGRESS_PAGE:
                 return _launch(request, course_id=course_id, page=page)
             else:
                 return _deep_link_launch(request, course_id)
+        elif not usage_id and not course_id and page:
+            return _launch(request, page=page)
 
     block, err_tpl = get_block_by_id(usage_id)
     if not block:
@@ -226,7 +242,15 @@ def launch(request, usage_id=None):
 @xframe_options_exempt
 @require_POST
 def progress(request, course_id):
-    return _launch(request, course_id=course_id, page='progress')
+    return _launch(request, course_id=course_id, page=COURSE_PROGRESS_PAGE)
+
+
+@csrf_exempt
+@add_p3p_header
+@xframe_options_exempt
+@require_POST
+def myskills(request):
+    return _launch(request, page=MY_SKILLS_PAGE)
 
 
 def _launch(request, block=None, course_id=None, page=None):
@@ -244,8 +268,12 @@ def _launch(request, block=None, course_id=None, page=None):
     except LtiException as e:
         return render_lti_error(str(e), 403)
 
+    course_key = None
     current_item = str(block.location) if block else str(page + '_page')
-    course_key = block.location.course_key if block else CourseKey.from_string(course_id)
+    if block:
+        course_key = block.location.course_key
+    elif course_id:
+        course_key = CourseKey.from_string(course_id)
     usage_key = block.location if block else None
 
     is_iframe = state_params.get('is_iframe') if state_params else True
@@ -270,7 +298,7 @@ def _launch(request, block=None, course_id=None, page=None):
         msg = "LTI 1.3 names and role provisioning service response: %s for block: %s" % (json.dumps(members),
                                                                                           current_item)
         log_lti_launch(request, 'names_and_roles', msg, iss, client_id, block_id=str(usage_key), user_id=None,
-                       course_id=str(course_key), tool_id=lti_tool.id)
+                       course_id=str(course_key), tool_id=lti_tool.id, page_name=page)
 
         for member in members:
             if str(member.get('user_id')) == str(external_user_id):
@@ -289,7 +317,10 @@ def _launch(request, block=None, course_id=None, page=None):
 
     request_params = message_launch_data.copy()
     request_params.update(message_launch_custom_data)
-    enrollment_attributes = get_enrollment_attributes(request_params, course_key, context_label=context_label)
+
+    enrollment_attributes = None
+    if course_key:
+        enrollment_attributes = get_enrollment_attributes(request_params, course_key, context_label=context_label)
 
     if request.user.is_authenticated:
         roles = None
@@ -301,16 +332,18 @@ def _launch(request, block=None, course_id=None, page=None):
                 roles_lst = role.split('#')
                 if len(roles_lst) > 1:
                     roles.append(roles_lst[1])
-        enroll_result = enroll_user_to_course(request.user, course_key, roles)
-        if enroll_result:
-            check_and_save_enrollment_attributes(enrollment_attributes, request.user, course_key)
+
+        if course_key:
+            enroll_result = enroll_user_to_course(request.user, course_key, roles)
+            if enroll_result:
+                check_and_save_enrollment_attributes(enrollment_attributes, request.user, course_key)
         if lti_params and 'email' in lti_params:
             update_lti_user_data(request.user, lti_params['email'])
 
     msg = "LTI 1.3 JWT body: %s for block: %s" % (json.dumps(message_launch_data), current_item)
     log_user_id = request.user.id if request.user.is_authenticated else None
     log_lti_launch(request, 'launch', msg, iss, client_id, block_id=str(usage_key), user_id=log_user_id,
-                   course_id=str(course_key), tool_id=lti_tool.id)
+                   course_id=str(course_key), tool_id=lti_tool.id, page_name=page)
 
     if block:
         if message_launch.has_ags():
@@ -334,9 +367,16 @@ def _launch(request, block=None, course_id=None, page=None):
         result = render_courseware(request, usage_key)
         return result
     else:
-        if not is_iframe:
-            return HttpResponseRedirect(reverse('progress', kwargs={'course_id': course_key}) + '?frame=1')
-        return render_progress_page_frame(request, course_key)
+        if page == MY_SKILLS_PAGE:
+            if not is_iframe:
+                return HttpResponseRedirect(reverse('global_skills') + '?frame=1')
+            return render_global_skills_page(request, display_in_frame=True)
+        elif page == COURSE_PROGRESS_PAGE:
+            if not is_iframe:
+                return HttpResponseRedirect(reverse('progress', kwargs={'course_id': course_key}) + '?frame=1')
+            return render_progress_page_frame(request, course_key)
+        else:
+            raise Http404()
 
 
 @csrf_exempt
@@ -610,7 +650,7 @@ def get_jwks(request, key_id):
 
 
 def log_lti_launch(request, action, message, iss, client_id, block_id=None, user_id=None, course_id=None,
-                   tool_id=None, data=None):
+                   tool_id=None, data=None, page_name=None):
     hostname = platform.node().split(".")[0]
     res = {
         'action': action,
@@ -628,6 +668,8 @@ def log_lti_launch(request, action, message, iss, client_id, block_id=None, user
         'tool_id': tool_id if tool_id else None,
         'lti_version': '1.3'
     }
+    if page_name:
+        res['page_name'] = page_name
     if data:
         res.update(data)
     log_json.info(json.dumps(res))
