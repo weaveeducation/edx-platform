@@ -1,11 +1,10 @@
 import json
 import logging
 import hashlib
-import urllib
 import time
 import platform
 import datetime
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, quote
 
 from django.conf import settings
 from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound,\
@@ -500,7 +499,7 @@ def launch_deep_link_submit(request, course_id):
             if launch_url[-1] != '/':
                 launch_url += '/'
 
-            launch_url = request.build_absolute_uri(launch_url + '?block_id=' + urllib.quote(block_id))
+            launch_url = request.build_absolute_uri(launch_url + '?block_id=' + quote(block_id))
             resource = DeepLinkResource()
             resource.set_url(launch_url) \
                 .set_title(course_items[block_id]['display_name'])
