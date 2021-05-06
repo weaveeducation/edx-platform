@@ -1039,6 +1039,16 @@ class Profiler(models.Model):
     created = models.DateTimeField(null=True, auto_now_add=True, db_index=True)
 
 
+class SupervisorEvaluationInvitation(models.Model):
+    url_hash = models.CharField(max_length=255)
+    course_id = models.CharField(max_length=255, null=False, db_index=True)
+    evaluation_block_id = models.CharField(max_length=255, null=False, db_index=True)
+    student = models.ForeignKey(User, on_delete=models.CASCADE)
+    email = models.CharField(max_length=255)
+    expiration_date = models.DateTimeField(null=True)
+    created = models.DateTimeField(auto_now_add=True, db_index=True)
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values
