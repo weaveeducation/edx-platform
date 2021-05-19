@@ -246,3 +246,7 @@ def get_correctness(score):
         return 'correct'
     else:
         return 'partially correct'
+
+
+def get_lti_context_session_key(usage_id):
+    return 'lti_context_id_' + str(usage_id)

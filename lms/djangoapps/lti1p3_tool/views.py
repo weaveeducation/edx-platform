@@ -30,6 +30,7 @@ from mako.template import Template
 from lms.djangoapps.courseware.courses import update_lms_course_usage
 from lms.djangoapps.courseware.global_progress import render_global_skills_page
 from lms.djangoapps.courseware.views.views import render_progress_page_frame
+from lms.djangoapps.courseware.utils import get_lti_context_session_key
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from .tool_conf import ToolConfDb
@@ -278,6 +279,8 @@ def _launch(request, block=None, course_id=None, page=None):
     is_iframe = state_params.get('is_iframe') if state_params else True
     context_id = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/context', {}).get('id')
     context_label = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/context', {}).get('label')
+    if context_label:
+        context_label = context_label.strip()
     external_user_id = message_launch_data.get('sub')
     message_launch_custom_data = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/custom', {})
 
@@ -357,13 +360,17 @@ def _launch(request, block=None, course_id=None, page=None):
                                           lti_version=LTI1p3)
 
         if not is_iframe:
+            if context_id:
+                lti_context_id_key = get_lti_context_session_key(usage_key)
+                request.session[lti_context_id_key] = context_id
+
             return HttpResponseRedirect(reverse('launch_new_tab', kwargs={
                 'course_id': str(course_key),
                 'usage_id': str(usage_key),
             }))
 
         update_lms_course_usage(request, usage_key, course_key)
-        result = render_courseware(request, usage_key)
+        result = render_courseware(request, usage_key, lti_context_id=context_id)
         return result
     else:
         if page == MY_SKILLS_PAGE:
