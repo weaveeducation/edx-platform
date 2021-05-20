@@ -1,11 +1,10 @@
 import json
 import logging
 import hashlib
-import urllib
 import time
 import platform
 import datetime
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, quote
 
 from django.conf import settings
 from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound,\
@@ -23,7 +22,7 @@ from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
 from lti_provider.models import LTI1p3
 from lti_provider.users import update_lti_user_data
 from lti_provider.reset_progress import check_and_reset_lti_user_progress
-from lti_provider.views import enroll_user_to_course, render_courseware
+from lti_provider.views import enroll_user_to_course, render_courseware, get_embedded_new_tab_page
 from util.views import add_p3p_header
 from credo_modules.models import check_and_save_enrollment_attributes, get_enrollment_attributes
 from edxmako.shortcuts import render_to_string
@@ -31,6 +30,7 @@ from mako.template import Template
 from lms.djangoapps.courseware.courses import update_lms_course_usage
 from lms.djangoapps.courseware.global_progress import render_global_skills_page
 from lms.djangoapps.courseware.views.views import render_progress_page_frame
+from lms.djangoapps.courseware.utils import get_lti_context_session_key
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from .tool_conf import ToolConfDb
@@ -63,7 +63,7 @@ def get_block_by_id(block_id):
         block_id = None
 
     if not block_id:
-        return False, render_lti_error('Invalid URL', 400)
+        return False, render_lti_error('Invalid URL: block ID is not set', 400)
     else:
         try:
             block = modulestore().get_item(block_id)
@@ -157,14 +157,15 @@ def login(request):
             block_id = None
     else:
         for url_param in passed_launch_url_obj.query.split('&'):
-            url_param_key, url_param_val = url_param.split('=')
-            if url_param_key == 'block' or url_param_key == 'block_id':
-                block_id = url_param_val
-                break
-            elif url_param_key == 'course_id':
-                course_id = unquote(url_param_val)
-            elif url_param_key == 'page':
-                page = url_param_val
+            if '=' in url_param:
+                url_param_key, url_param_val = url_param.split('=')
+                if url_param_key == 'block' or url_param_key == 'block_id':
+                    block_id = url_param_val
+                    break
+                elif url_param_key == 'course_id':
+                    course_id = unquote(url_param_val)
+                elif url_param_key == 'page':
+                    page = url_param_val
 
     if course_id:
         course, err_tpl = get_course_by_id(course_id)
@@ -187,18 +188,8 @@ def login(request):
         params_hash = hashlib.md5(json_params.encode('utf-8')).hexdigest()
         cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
         cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
-        template = Template(render_to_string('static_templates/embedded_new_tab.html', {
-            'disable_accordion': True,
-            'allow_iframing': True,
-            'disable_header': True,
-            'disable_footer': True,
-            'disable_window_wrap': True,
-            'hash': params_hash,
-            'additional_url_params': request.META['QUERY_STRING'],
-            'time_exam': 1 if is_time_exam else 0,
-            'same_site': getattr(settings, 'DCS_SESSION_COOKIE_SAMESITE'),
-            'show_bookmark_button': False
-        }))
+        template = get_embedded_new_tab_page(
+            is_time_exam=is_time_exam, url_query=request.META['QUERY_STRING'], request_hash=params_hash)
         return HttpResponse(template.render())
 
     tool_conf = ToolConfDb()
@@ -207,8 +198,8 @@ def login(request):
     oidc_login = DjangoOIDCLogin(django_request, tool_conf, session_service=django_session)
     oidc_login.pass_params_to_launch({'is_iframe': request_params.get('iframe')})
 
-    iss = request_params.get('iss')
-    client_id = request_params.get('client_id')
+    iss = request_params.get('iss', request.GET.get('iss'))
+    client_id = request_params.get('client_id', request.GET.get('client_id'))
     lti_tool = tool_conf.get_lti_tool(iss, client_id)
     log_lti_launch(request, "login", None, iss, client_id, block_id=block_id, course_id=course_id, tool_id=lti_tool.id,
                    page_name=page)
@@ -288,6 +279,8 @@ def _launch(request, block=None, course_id=None, page=None):
     is_iframe = state_params.get('is_iframe') if state_params else True
     context_id = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/context', {}).get('id')
     context_label = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/context', {}).get('label')
+    if context_label:
+        context_label = context_label.strip()
     external_user_id = message_launch_data.get('sub')
     message_launch_custom_data = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/custom', {})
 
@@ -367,13 +360,17 @@ def _launch(request, block=None, course_id=None, page=None):
                                           lti_version=LTI1p3)
 
         if not is_iframe:
+            if context_id:
+                lti_context_id_key = get_lti_context_session_key(usage_key)
+                request.session[lti_context_id_key] = context_id
+
             return HttpResponseRedirect(reverse('launch_new_tab', kwargs={
                 'course_id': str(course_key),
                 'usage_id': str(usage_key),
             }))
 
         update_lms_course_usage(request, usage_key, course_key)
-        result = render_courseware(request, usage_key)
+        result = render_courseware(request, usage_key, lti_context_id=context_id)
         return result
     else:
         if page == MY_SKILLS_PAGE:
@@ -509,7 +506,7 @@ def launch_deep_link_submit(request, course_id):
             if launch_url[-1] != '/':
                 launch_url += '/'
 
-            launch_url = request.build_absolute_uri(launch_url + '?block_id=' + urllib.quote(block_id))
+            launch_url = request.build_absolute_uri(launch_url + '?block_id=' + quote(block_id))
             resource = DeepLinkResource()
             resource.set_url(launch_url) \
                 .set_title(course_items[block_id]['display_name'])

@@ -176,20 +176,18 @@ class StructuredTagsAside(XBlockAside):
 
         saved_tags = {}
         tags_history = {}
-        new_tags = []
 
         for av_tag in self._get_available_tags():
             tag_category = av_tag.name.strip()
             saved_tag_values = self.saved_tags.get(tag_category, [])
-            tag_key = '%s[]' % tag_category
-            if tag_key in posted_data and len(posted_data[tag_key]) > 0:
-                tag_values = posted_data[tag_key]
+            tag_category_key = '%s[]' % tag_category
+            if tag_category_key in posted_data and len(posted_data[tag_category_key]) > 0:
+                tag_values = posted_data[tag_category_key]
                 saved_tags[tag_category] = tag_values
 
                 for tag_value in tag_values:
                     tag_value_final = tag_value.strip()
                     tag_key = get_tag_key(av_tag.name, tag_value_final)
-                    new_tags.append(tag_key)
                     if tag_key not in self.tags_history:
                         added_by_superuser = False
                         added_by_user = 0

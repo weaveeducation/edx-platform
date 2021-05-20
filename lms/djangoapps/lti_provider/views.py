@@ -32,8 +32,9 @@ from credo_modules.models import check_and_save_enrollment_attributes, get_enrol
 from edxmako.shortcuts import render_to_string
 from mako.template import Template
 from lms.djangoapps.courseware.courses import update_lms_course_usage
-from lms.djangoapps.courseware.views.views import render_progress_page_frame
+from lms.djangoapps.courseware.views.views import render_progress_page_frame, get_embedded_new_tab_page
 from lms.djangoapps.courseware.global_progress import render_global_skills_page
+from lms.djangoapps.courseware.utils import get_lti_context_session_key
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 
@@ -109,7 +110,11 @@ def _lti_launch(request, course_id=None, usage_id=None, page_name=None):
     return_url = request_params.get('launch_presentation_return_url', None)
     context_id = request_params.get('context_id', None)
     context_label = request_params.get('context_label', None)
+    if context_label:
+        context_label = context_label.strip()
     lis_course_offier_sourcedid = request_params.get('lis_course_offier_sourcedid', None)
+    if lis_course_offier_sourcedid:
+        lis_course_offier_sourcedid = lis_course_offier_sourcedid.strip()
 
     if not params:
         log_lti_launch(course_id, usage_id, 400, params=request_params, page_name=page_name)
@@ -194,18 +199,7 @@ def _lti_launch(request, course_id=None, usage_id=None, page_name=None):
         params_hash = hashlib.md5(json_params.encode('utf-8')).hexdigest()
         cache_key = ':'.join([settings.EMBEDDED_CODE_CACHE_PREFIX, params_hash])
         cache.set(cache_key, json_params, settings.EMBEDDED_CODE_CACHE_TIMEOUT)
-        template = Template(render_to_string('static_templates/embedded_new_tab.html', {
-            'disable_accordion': True,
-            'allow_iframing': True,
-            'disable_header': True,
-            'disable_footer': True,
-            'disable_window_wrap': True,
-            'hash': params_hash,
-            'additional_url_params': '',
-            'time_exam': 1 if is_time_exam else 0,
-            'same_site': getattr(settings, 'DCS_SESSION_COOKIE_SAMESITE'),
-            'show_bookmark_button': False
-        }))
+        template = get_embedded_new_tab_page(is_time_exam=is_time_exam, request_hash=params_hash)
         log_lti_launch(course_id, usage_id, 200, new_tab_check=True, params=request_params, page_name=page_name)
         return HttpResponse(template.render())
 
@@ -252,13 +246,17 @@ def _lti_launch(request, course_id=None, usage_id=None, page_name=None):
         if not request_params.get('iframe'):
             log_lti_launch(course_id, usage_id, 301, request.user.id, assignment=assignment, params=request_params,
                            page_name=page_name)
+            if context_id:
+                lti_context_id_key = get_lti_context_session_key(usage_id)
+                request.session[lti_context_id_key] = context_id
+
             return HttpResponseRedirect(reverse('launch_new_tab', kwargs={
                 'course_id': course_id,
                 'usage_id': usage_id
             }))
 
         update_lms_course_usage(request, usage_key, course_key)
-        result = render_courseware(request, params['usage_key'])
+        result = render_courseware(request, params['usage_key'], lti_context_id=context_id)
         log_lti_launch(course_id, usage_id, 200, request.user.id, assignment=assignment, params=request_params,
                        page_name=page_name)
         return result
@@ -402,7 +400,7 @@ def get_optional_parameters(dictionary):
     return {key: dictionary[key] for key in OPTIONAL_PARAMETERS if key in dictionary}
 
 
-def render_courseware(request, usage_key):
+def render_courseware(request, usage_key, lti_context_id=None):
     """
     Render the content requested for the LTI launch.
     TODO: This method depends on the current refactoring work on the
@@ -414,7 +412,8 @@ def render_courseware(request, usage_key):
     """
     # return an HttpResponse object that contains the template and necessary context to render the courseware.
     from lms.djangoapps.courseware.views.views import render_xblock
-    return render_xblock(request, str(usage_key), check_if_enrolled=False, show_bookmark_button=False)
+    return render_xblock(request, str(usage_key), check_if_enrolled=False, show_bookmark_button=False,
+                         lti_context_id=lti_context_id)
 
 
 def parse_course_and_usage_keys(course_id, usage_id=None):

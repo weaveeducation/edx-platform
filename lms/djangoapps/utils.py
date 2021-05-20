@@ -10,6 +10,7 @@ from django.db.utils import IntegrityError
 USERNAME_DB_FIELD_SIZE = 30
 EMAIL_DB_FIELD_SIZE = 254
 
+
 def _get_key(key_or_id, key_cls):
     """
     Helper method to get a course/usage key either from a string or a key_cls,
