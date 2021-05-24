@@ -31,6 +31,7 @@ from xblock_django.api import authorable_xblocks, disabled_xblocks
 from xblock_django.models import XBlockStudioConfigurationFlag
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
+from credo_modules.models import CourseStaffExtended
 
 __all__ = [
     'container_handler',
@@ -448,6 +449,11 @@ def _get_item_in_course(request, usage_key):
     course_key = usage_key.course_key
 
     if not has_course_author_access(request.user, course_key):
+        raise PermissionDenied()
+    if CourseStaffExtended.objects.filter(
+      role__course_studio_access=False,
+      user=request.user,
+      course_id=course_key).exists():
         raise PermissionDenied()
 
     course = modulestore().get_course(course_key)
