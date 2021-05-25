@@ -105,6 +105,7 @@ class TurnitinApi(object):
         return status_code, None
 
     def upload_file(self, submission_id, file_name, file_content):
+        file_name = file_name.encode('utf-8').decode('ascii', errors='ignore')
         url = self._host + '/api/v1/submissions/%s/original' % submission_id
         headers = {
             'Authorization': 'Bearer ' + self._token,
