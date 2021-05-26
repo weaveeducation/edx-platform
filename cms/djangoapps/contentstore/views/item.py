@@ -678,7 +678,7 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
 
         old_metadata = own_metadata(xblock)
 
-        if xblock.location.block_type == 'sequential':
+        if xblock.location.block_type == 'sequential' and metadata:
             metadata['supervisor_evaluation_hash'] = old_metadata.get('supervisor_evaluation_hash', str(uuid4()))
 
         old_content = xblock.get_explicitly_set_fields_by_scope(Scope.content)
