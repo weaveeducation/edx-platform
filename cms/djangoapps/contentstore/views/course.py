@@ -41,7 +41,7 @@ from contentstore.course_group_config import (
 )
 from contentstore.course_info_model import delete_course_update, get_course_updates, update_course_updates
 from contentstore.courseware_index import CoursewareSearchIndexer, SearchIndexingError
-from contentstore.tasks import rerun_course as rerun_course_task, copy_course_to_other_course_task
+from contentstore.tasks import rerun_course as rerun_course_task
 from contentstore.utils import (
     add_instructor,
     get_lms_link_for_item,
@@ -104,7 +104,7 @@ from credo_modules.mongo import get_block_versions
 
 from .component import ADVANCED_COMPONENT_TYPES
 from .item import create_xblock_info, copy_block_to_other_course_task, copy_unit_to_library_task,\
-    copy_components_to_library_task
+    copy_components_to_library_task, copy_course_to_other_course_task
 from .library import LIBRARIES_ENABLED, get_library_creator_status
 from .api_block_info import get_courses_with_duplicates, update_api_block_info, SyncApiBlockInfo
 

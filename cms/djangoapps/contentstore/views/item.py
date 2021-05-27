@@ -571,6 +571,19 @@ def _copy_components_to_library(user, xblocks, library_dst_id):
     return {'ids': processed_ids, 'broken_blocks': broken_blocks}
 
 
+def _copy_course_to_other_course(source_course_key_string, destination_course_key_string, user_id):
+    source_course_key = CourseKey.from_string(source_course_key_string)
+    dst_course_key = CourseKey.from_string(destination_course_key_string)
+    store = modulestore()
+    user = User.objects.get(id=user_id)
+    dst_course = store.get_course(dst_course_key)
+    with store.bulk_operations(source_course_key):
+        course = store.get_course(source_course_key)
+        for chapter_xblock in course.get_children():
+            _duplicate_item(dst_course.location, chapter_xblock.location, user, chapter_xblock.display_name,
+                            course_key=dst_course_key)
+
+
 def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, nullout=None,
                  grader_type=None, is_prereq=None, prereq_usage_key=None, prereq_min_score=None,
                  prereq_min_completion=None, publish=None, fields=None, asides=None, related_courses=None):
@@ -1872,6 +1885,35 @@ def copy_components_to_library_task(task_id, user_id, usage_keys_strings, destin
             xblocks.append(_get_xblock(UsageKey.from_string(usage_key_string), user))
 
         _copy_components_to_library(user, xblocks, destination_course_key_string)
+
+        copy_task.set_finished()
+        copy_task.save()
+    except Exception as e:
+        log.exception(e)
+        copy_task.set_error()
+        copy_task.save()
+        raise
+
+
+@task()
+def copy_course_to_other_course_task(task_id, user_id, src_course_id, dst_course_id):
+    try:
+        copy_task = CopyBlockTask.objects.get(id=task_id)
+    except CopyBlockTask.DoesNotExist:
+        return
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        copy_task.set_error()
+        copy_task.save()
+        return
+
+    try:
+        copy_task.set_started()
+        copy_task.save()
+
+        _copy_course_to_other_course(src_course_id, dst_course_id, user.id)
 
         copy_task.set_finished()
         copy_task.save()
