@@ -677,6 +677,10 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
             return JsonResponse({'id': text_type(xblock.location)})
 
         old_metadata = own_metadata(xblock)
+
+        if xblock.location.block_type == 'sequential' and metadata:
+            metadata['supervisor_evaluation_hash'] = old_metadata.get('supervisor_evaluation_hash', str(uuid4()))
+
         old_content = xblock.get_explicitly_set_fields_by_scope(Scope.content)
 
         if data:
@@ -1419,6 +1423,8 @@ def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=F
             xblock_info.update({
                 'hide_after_due': xblock.hide_after_due,
                 'after_finish_return_to_course_outline': xblock.after_finish_return_to_course_outline,
+                'use_as_survey_for_supervisor': xblock.use_as_survey_for_supervisor,
+                'supervisor_evaluation_hash': xblock.supervisor_evaluation_hash,
                 'top_of_course_outline': xblock.top_of_course_outline,
                 'course_outline_description': xblock.course_outline_description,
                 'course_outline_button_title': xblock.course_outline_button_title,

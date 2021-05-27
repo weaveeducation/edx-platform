@@ -2,6 +2,7 @@ from credo.auth_helper import get_request_referer_from_other_domain, get_saved_r
 from credo_modules.models import CourseUsageHelper, CourseUsageLogEntry, get_student_properties,\
     update_unique_user_id_cookie, get_unique_user_id, get_inactive_orgs, UNIQUE_USER_ID_COOKIE
 from django.conf import settings
+from django.contrib.auth import logout
 from django.http import HttpResponse
 from openedx.core.djangoapps.site_configuration.helpers import get_value
 from opaque_keys import InvalidKeyError
@@ -127,4 +128,22 @@ class CourseUsageMiddleware(MiddlewareMixin):
             # Update usage of vertical blocks
             self._process_goto_position_urls(request, course_id, path_data)
 
+        return response
+
+
+class LinkAccessOnlyMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, 'user', None)
+        if user and user.is_authenticated:
+            hash_id = request.session.get('link_access_only')
+            if hash_id:
+                referer_url = request.META.get('HTTP_REFERER', '')
+                url_allowed = '/supervisor/evaluation/' + hash_id
+                if not request.is_ajax() or url_allowed not in referer_url:
+                    logout(request)
+
+        response = self.get_response(request)
         return response

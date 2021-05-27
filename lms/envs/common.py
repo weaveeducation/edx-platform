@@ -1518,6 +1518,8 @@ MIDDLEWARE = [
     #'django.contrib.auth.middleware.AuthenticationMiddleware',
     'openedx.core.djangoapps.cache_toolbox.middleware.CacheBackedAuthenticationMiddleware',
 
+    'credo_modules.middleware.LinkAccessOnlyMiddleware',
+
     'student.middleware.UserStandingMiddleware',
     'openedx.core.djangoapps.contentserver.middleware.StaticContentServer',
 
@@ -1587,7 +1589,6 @@ MIDDLEWARE = [
     'simple_history.middleware.HistoryRequestMiddleware',
 
     'credo_modules.middleware.RefererSaveMiddleware',
-
     'credo_modules.middleware.CourseUsageMiddleware',
 
     'third_party_auth.middleware.SSOAuthMiddleware',
