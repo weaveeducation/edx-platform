@@ -38,6 +38,15 @@ COURSE_PROPERTIES = [
     'othercourse', 'course name/number'
 ]
 
+INSIGHTS_COURSE_STAFF_ROLES = [
+    'instructor', 'staff', 'beta_testers', 'data_researcher',
+    'finance_admin', 'sales_admin', 'course_creator_group', 'support'
+]
+
+INSIGHTS_ORG_STAFF_ROLES = [
+    'instructor', 'staff'
+]
+
 
 def filter_properties(props_dict):
     for pr_to_remove in EXCLUDE_PROPERTIES:

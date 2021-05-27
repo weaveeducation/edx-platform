@@ -7,7 +7,8 @@ from django.core.management import BaseCommand
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q
-from credo_modules.event_parser import get_timestamp_from_datetime, update_course_and_student_properties
+from credo_modules.event_parser import get_timestamp_from_datetime, update_course_and_student_properties,\
+    INSIGHTS_COURSE_STAFF_ROLES, INSIGHTS_ORG_STAFF_ROLES
 from credo_modules.models import EnrollmentLog, TrackingLogConfig, get_student_properties_event_data
 from student.models import CourseAccessRole, CourseEnrollment
 from opaque_keys.edx.keys import CourseKey
@@ -21,9 +22,17 @@ class Command(BaseCommand):
     def _update_staff_cache(self, course_id):
         self._staff_cache[course_id] = []
         course_key = CourseKey.from_string(course_id)
-        course_access_roles = CourseAccessRole.objects.filter(role__in=('instructor', 'staff'), course_id=course_key)
+
+        course_access_roles = CourseAccessRole.objects.filter(
+            role__in=INSIGHTS_COURSE_STAFF_ROLES, course_id=course_key)
         for role in course_access_roles:
             self._staff_cache[course_id].append(role.user_id)
+
+        org_access_roles = CourseAccessRole.objects.filter(
+            role__in=INSIGHTS_ORG_STAFF_ROLES, org=course_key.org)
+        for role in org_access_roles:
+            if not role.course_id:
+                self._staff_cache[course_id].append(role.user_id)
 
     def _get_student_properties(self, student_properties):
         result = {}

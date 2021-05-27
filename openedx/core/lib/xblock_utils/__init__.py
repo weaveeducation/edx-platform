@@ -326,8 +326,15 @@ def add_staff_markup(user, disable_staff_debug_info, block, view, frag, context)
     if isinstance(block, VerticalBlock) and (not context or not context.get('child_of_vertical', False)):
         # check that the course is a mongo backed Studio course before doing work
         is_studio_course = block.course_edit_method == "Studio"
+
         show_studio_link = user.instructor_dashboard_tabs.show_studio_link if \
             hasattr(user, 'instructor_dashboard_tabs') else True
+
+        if not user.is_superuser and show_studio_link and user.coursestaffextended_set.filter(
+              role__course_studio_access=False,
+              course_id=block.location.course_key).exists():
+            show_studio_link = False
+
         site_support_nw_help = configuration_helpers.get_value('SHOW_NW_HELP', False)
         show_nw_help = user.instructor_dashboard_tabs.nw_help if \
             hasattr(user, 'nw_help') else True

@@ -100,7 +100,7 @@ from xmodule.modulestore.exceptions import DuplicateCourseError, ItemNotFoundErr
 from xmodule.partitions.partitions import UserPartition
 from xmodule.tabs import CourseTab, CourseTabList, InvalidTabsException
 from credo_modules.models import CopyBlockTask, CourseStaffExtended, SiblingBlockUpdateTask, get_inactive_orgs
-from credo_modules.mongo import get_block_versions
+from credo_modules.mongo import get_unit_block_versions
 
 from .component import ADVANCED_COMPONENT_TYPES
 from .item import create_xblock_info, copy_block_to_other_course_task, copy_unit_to_library_task,\
@@ -2125,7 +2125,7 @@ def group_configurations_detail_handler(request, course_key_string, group_config
 @login_required
 @ensure_csrf_cookie
 def get_versions_list(request, usage_key_string):
-    block_versions = get_block_versions(usage_key_string)
+    block_versions = get_unit_block_versions(usage_key_string)
     return JsonResponse({'versions': block_versions})
 
 

@@ -4,7 +4,8 @@ import time
 from django.core.management import BaseCommand
 from credo_modules.models import CourseUsage, CourseUsageLogEntry, OrgUsageMigration, UsageLog,\
     get_student_properties_event_data
-from credo_modules.event_parser import get_timestamp_from_datetime, update_course_and_student_properties
+from credo_modules.event_parser import get_timestamp_from_datetime, update_course_and_student_properties,\
+    INSIGHTS_COURSE_STAFF_ROLES, INSIGHTS_ORG_STAFF_ROLES
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure
 from student.models import CourseAccessRole
@@ -33,9 +34,17 @@ class Command(BaseCommand):
     def _update_staff_cache(self, course_id):
         self._staff_cache[course_id] = []
         course_key = CourseKey.from_string(course_id)
-        course_access_roles = CourseAccessRole.objects.filter(role__in=('instructor', 'staff'), course_id=course_key)
+
+        course_access_roles = CourseAccessRole.objects.filter(
+            role__in=INSIGHTS_COURSE_STAFF_ROLES, course_id=course_key)
         for role in course_access_roles:
             self._staff_cache[course_id].append(role.user_id)
+
+        org_access_roles = CourseAccessRole.objects.filter(
+            role__in=INSIGHTS_ORG_STAFF_ROLES, org=course_key.org)
+        for role in org_access_roles:
+            if not role.course_id:
+                self._staff_cache[course_id].append(role.user_id)
 
     def handle(self, *args, **options):
         self._cache_student_properties = {}
