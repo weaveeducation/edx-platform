@@ -44,7 +44,6 @@ from contentstore.qti_converter import convert_to_olx
 from contentstore.views.api_block_info import create_api_block_info
 from course_action_state.models import CourseRerunState
 from models.settings.course_metadata import CourseMetadata
-from credo_modules.models import CopyBlockTask
 from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo
 from openedx.core.djangoapps.embargo.models import CountryAccessRule, RestrictedCourse
 from openedx.core.lib.extract_tar import safetar_extractall
@@ -587,73 +586,3 @@ def import_olx(self, user_id, course_key_string, archive_path, archive_name, lan
                 from contentstore.views.entrance_exam import add_entrance_exam_milestone
                 add_entrance_exam_milestone(course.id, entrance_exam_chapter)
                 LOGGER.info(u'Course %s Entrance exam imported', course.id)
-
-
-def _copy_course_to_other_course(source_course_key_string, destination_course_key_string, user_id):
-    # import here, at top level this import prevents the celery workers from starting up correctly
-    from edxval.api import copy_course_videos
-
-    source_course_key = CourseKey.from_string(source_course_key_string)
-    destination_course_key = CourseKey.from_string(destination_course_key_string)
-
-    # use the split modulestore as the store for the rerun course,
-    # as the Mongo modulestore doesn't support multiple runs of the same course.
-    store = modulestore()
-    with store.default_store('split'):
-        store.delete_course(destination_course_key, user_id)
-        store.clone_course(source_course_key, destination_course_key, user_id)
-
-    copy_api_block_info_after_course_copy(store, source_course_key, destination_course_key, user_id)
-
-    # set initial permissions for the user to access the course.
-    initialize_permissions(destination_course_key, User.objects.get(id=user_id))
-
-    # call edxval to attach videos to the rerun
-    copy_course_videos(source_course_key, destination_course_key)
-
-    # Copy OrganizationCourse
-    organization_course = OrganizationCourse.objects.filter(course_id=source_course_key_string).first()
-
-    if organization_course:
-        clone_instance(organization_course, {'course_id': destination_course_key_string})
-
-    # Copy RestrictedCourse
-    restricted_course = RestrictedCourse.objects.filter(course_key=source_course_key).first()
-
-    if restricted_course:
-        country_access_rules = CountryAccessRule.objects.filter(restricted_course=restricted_course)
-        new_restricted_course = clone_instance(restricted_course, {'course_key': destination_course_key})
-        for country_access_rule in country_access_rules:
-            clone_instance(country_access_rule, {'restricted_course': new_restricted_course})
-
-    org_data = get_organization_by_short_name(source_course_key.org)
-    add_organization_course(org_data, destination_course_key)
-
-
-@task()
-def copy_course_to_other_course_task(task_id, user_id, src_course_id, dst_course_id):
-    try:
-        copy_task = CopyBlockTask.objects.get(id=task_id)
-    except CopyBlockTask.DoesNotExist:
-        return
-
-    try:
-        user = User.objects.get(id=user_id)
-    except User.DoesNotExist:
-        copy_task.set_error()
-        copy_task.save()
-        return
-
-    try:
-        copy_task.set_started()
-        copy_task.save()
-
-        _copy_course_to_other_course(src_course_id, dst_course_id, user.id)
-
-        copy_task.set_finished()
-        copy_task.save()
-    except Exception as e:
-        LOGGER.exception(e)
-        copy_task.set_error()
-        copy_task.save()
-        raise

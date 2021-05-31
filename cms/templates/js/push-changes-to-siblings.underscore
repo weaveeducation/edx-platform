@@ -5,7 +5,7 @@
         <div class="siblings">
             <% _.each(siblings, function(item) { %>
             <div class="item" data-id="<%- item.id %>">
-                <span class="title"><%- item.display_name %> <span class="status"></span></span>
+                <span class="title"><%- item.display_name %> (<%- item.course %> / <%- item.run %>) <span class="status"></span></span>
                 <select name="change-type" data-id="<%- item.id %>" class="change-type">
                     <option value="none"><%- gettext("Don't update that copy") %></option>
                     <option value="draft"><%- gettext("Replace it as a draft") %></option>

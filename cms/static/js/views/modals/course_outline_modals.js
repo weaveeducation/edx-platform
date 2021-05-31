@@ -421,8 +421,7 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
         },
 
         getIntroductionMessage: function () {
-            return gettext('Please choose course where to copy content from the current course. ' +
-              'IMPORTANT: All existing course content will be replaced after copy. This change can\'t be undone.');
+            return gettext('Please choose course where to copy content from the current course.');
         }
     });
 
