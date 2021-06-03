@@ -16,10 +16,15 @@
         </table>
     </div>
     <div class="bottom-bar">
-        <label>
-            <span class="label-text sr"><%- add_placeholder %></span>
-            <input type="text" name="add-field" class="add-field" placeholder="<%- add_placeholder %>">
-        </label>
+        <div class="users-input">
+            <div class="user-input original" style="padding-bottom: 10px;">
+               <label>
+                    <span class="label-text sr"><%- add_placeholder %></span>
+                    <input type="text" name="add-field" class="add-field" placeholder="<%- add_placeholder %>" style="width: 300px;">
+                </label>
+            </div>
+        </div>
+        <input type="button" class="add-role-new-field" value="Add New Field">
         <input type="button" name="add" class="add" value="<%- add_btn_label %>">
     </div>
 </div>

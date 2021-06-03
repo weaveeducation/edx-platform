@@ -61,11 +61,34 @@ such that the value can be defined later than this assignment (file load order).
             edx.HtmlUtils.setHtml(this.$container, templateHtml);
             this.$('input[type="button"].add').click(function() {
                 condition = typeof memberListParams.add_handler === 'function';
-                return condition ? memberListParams.add_handler(memberlistwidget.$('.add-field').val()) : undefined;
+                var membersRes = [];
+                memberlistwidget.$('.add-field').each(function(idx, item) {
+                  var tmpVal = $(item).val();
+                  if ((tmpVal != null) && tmpVal !== '') {
+                    membersRes.push(tmpVal);
+                  }
+                });
+                return condition ? memberListParams.add_handler(
+                  (membersRes.length > 0) ? membersRes.join(';') : ''
+                ) : undefined;
+            });
+            this.$('input[type="button"].add-role-new-field').click(function() {
+              var newElem = $('<div class="user-input" style="padding-bottom: 10px;">' +
+                  '<label>' +
+                  '<span class="label-text sr">Enter username or email</span>' +
+                  '<input type="text" name="add-field" class="add-field" placeholder="Enter username or email" style="width: 300px;">&nbsp;' +
+                  '<button class="remove-field">Remove</button>' +
+                  '</label>' +
+                  '</div>');
+              newElem.on("click", '.remove-field', function() {
+                $(this).closest('.user-input').remove();
+              });
+              memberlistwidget.$('.users-input').append(newElem);
             });
         }
 
         memberListWidget.prototype.clear_input = function() {
+            this.$('.user-input').not('.original').remove();
             return this.$('.add-field').val('');
         };
 
@@ -224,6 +247,12 @@ such that the value can be defined later than this assignment (file load order).
             return result;
         };
 
+        AuthListWidget.prototype.show_errors_html = function(msg) {
+            var result;
+            result = this.$errorSection !== undefined ? this.$errorSection.html(msg) : undefined;
+            return result;
+        };
+
         AuthListWidget.prototype.get_member_list = function(cb) {
             var authlistwidgetgetmemberlist = this;
             $.ajax({
@@ -255,12 +284,44 @@ such that the value can be defined later than this assignment (file load order).
                     action: action
                 },
                 success: function(data) {
-                    return authlistwidgetmemberaccess.member_response(data);
+                    if ($.isArray(data)) {
+                        return authlistwidgetmemberaccess.members_response(data);
+                    } else {
+                        return authlistwidgetmemberaccess.member_response(data);
+                    }
                 },
                 error: statusAjaxError(function() {
                     return typeof cb === 'function' ? cb(gettext("Error changing user's permissions.")) : undefined;
                 })
             });
+        };
+
+        AuthListWidget.prototype.members_response = function(data) {
+             var errMsgArr = [];
+             var msg = '';
+             this.clear_errors();
+             this.clear_input();
+             $(data).each(function(idx, item) {
+                if (item.userDoesNotExist) {
+                    msg = gettext("Could not find a user with username or email address '<%- identifier %>'.");
+                    errMsgArr.push(
+                      _.template(msg)({
+                        identifier: item.unique_student_identifier
+                      })
+                    );
+                } else if (item.inactiveUser) {
+                    msg = gettext("Error: User '<%- username %>' has not yet activated their account. Users must create and activate their accounts before they can be assigned a role.");  // eslint-disable-line max-len
+                    errMsgArr.push(
+                      _.template(msg)({
+                        username: item.unique_student_identifier
+                      })
+                    );
+                }
+             });
+             if (errMsgArr.length > 0) {
+               this.show_errors_html(errMsgArr.join('<br />'));
+             }
+             return this.reload_list();
         };
 
         AuthListWidget.prototype.member_response = function(data) {
