@@ -1,0 +1,207 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.table {
+    width: 800px;
+}
+.table .head {
+    padding: 5px 10px;
+    line-height: normal;
+    text-transform: uppercase;
+    background: #f6f6f6;
+    color: #666;
+    font-size: 11px;
+    border: none;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+    font-weight: 600;
+    text-align: left;
+    vertical-align: top;
+    display: flex;
+}
+.table .body .row {
+    display: flex;
+    font-size: 13px;
+}
+.table .body .row.group {
+    flex-direction: column;
+}
+.table .body .row.item,
+.table .body .row.group .accordion-head,
+.table .body .row.group .accordion-body .row {
+    display: flex;
+    line-height: 16px;
+    border-bottom: 1px solid #eee;
+    vertical-align: top;
+    padding: 8px;
+}
+.table .body .row.group .accordion-body {
+    display: none;
+    flex-direction: column;
+}
+.table .body .row.group .accordion-body .row .title {
+    padding-left: 30px;
+}
+.table .cell.title {
+    flex-grow: 1;
+}
+.table .cell.checkbox {
+    width: 85px;
+}
+.table .body .row.group .accordion-head .toggle {
+    width: 11px;
+    height: 11px;
+    display: inline-block;
+    position: relative;
+    background-color: #999999;
+    color: #FFFFFF;
+    border-radius: 2px;
+    margin-right: 10px;
+    margin-bottom: -2px;
+}
+.table .body .row.group .accordion-head .toggle .ver,
+.table .body .row.group .accordion-head .toggle .hor {
+    position: absolute;
+    background-color: #FFFFFF;
+    pointer-events: none;
+}
+.table .body .row.group .accordion-head .toggle .ver {
+    top: 3px;
+    left: 5px;
+    bottom: 3px;
+    width: 1px;
+}
+.table .body .row.group .accordion-head .toggle .hor {
+    top: 5px;
+    left: 3px;
+    right: 3px;
+    height: 1px;
+}
+.table .body .row.group.open .accordion-body {
+    display: flex;
+}
+.table .body .row.group.open .accordion-head .toggle .ver {
+    display: none;
+}
+</style>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js" integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44=" crossorigin="anonymous"></script>
+<script type="text/javascript">
+(function($) {
+    $(document).ready(function() {
+        $('.table .row.group').each(function() {
+            var scope = $(this);
+            scope.find('.toggle').on('click', function (event) {
+                event.preventDefault();
+                scope.toggleClass('open')
+                return false;
+            })
+            scope.find('.accordion-head .checkbox input').change(function (event) {
+                var inputSelector = '.accordion-body input[name="' + this.name + '"]' ;
+                scope.find(inputSelector).prop('checked', this.checked);
+            })
+            scope.find('.accordion-body .checkbox input').change(function (event) {
+                var inputSelector = '.accordion-head input[name="' + this.name + '"]';
+                var childSelector = '.accordion-body input[name="' + this.name + '"]';
+                var checked = scope.find(childSelector).not(':checked').length === 0;
+                scope.find(inputSelector).prop('checked', checked);
+            })
+        })
+    });
+}(window.jQuery));
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="module" id="changelist" style="width: 800px;">
+<form id="changelist-form" method="post" novalidate="">
+{% csrf_token %}
+<div class="table" id="result_list">
+    <div class="head">
+        <span class="cell title">Tag Name</span>
+        <span class="cell checkbox">Insights</span>
+        <span class="cell checkbox">My Skills</span>
+    </div>
+    <div class="body">
+    {% for tag in tags_result %}
+        {% if tag.children %}
+        <div class="row group {% cycle "row1" "row2" %}">
+            <div class="accordion-head">
+                <span class="cell title">
+                    <a class="toggle" href="#">
+                        <span class="ver"></span>
+                        <span class="hor"></span>
+                    </a>
+                    {{ tag.title }}
+                </span>
+                <span class="cell checkbox">
+                    <input
+                        type="checkbox"
+                        name="insights"
+                        {% if tag.insights_view %}checked="checked"{% endif %}
+                    />
+                </span>
+                <span class="cell checkbox">
+                    <input
+                        type="checkbox"
+                        name="skills"
+                        {% if tag.progress_view %}checked="checked"{% endif %}
+                    />
+                </span>
+            </div>
+            <div class="accordion-body">
+                {% for child_tag in tag.children %}
+                <div class="row {% cycle "row1" "row2" %}">
+                    <span class="cell title">{{ child_tag.title }}</span>
+                    <span class="cell checkbox">
+                        <input
+                            type="checkbox"
+                            name="insights"
+                            value="{{ child_tag.id }}"
+                            {% if child_tag.insights_view %}checked="checked"{% endif %}
+                        />
+                    </span>
+                    <span class="cell checkbox">
+                        <input
+                            type="checkbox"
+                            name="skills"
+                            value="{{ child_tag.id }}"
+                            {% if child_tag.progress_view %}checked="checked"{% endif %}
+                        />
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="row item {% cycle "row2" "row1" %}">
+            <span class="cell title">{{ tag.title }}</span>
+            <span class="cell checkbox">
+                <input
+                    type="checkbox"
+                    name="insights"
+                    value="{{ tag.id }}"
+                    {% if tag.insights_view %}checked="checked"{% endif %}
+                />
+            </span>
+            <span class="cell checkbox">
+                <input
+                    type="checkbox"
+                    name="skills"
+                    value="{{ tag.id }}"
+                    {% if tag.progress_view %}checked="checked"{% endif %}
+                />
+            </span>
+        </div>
+        {% endif %}
+    {% endfor %}
+    </div>
+</div>
+<br />
+<div class="submit-row">
+<input type="submit" value="Save" class="default" name="_save">
+</div>
+</form>
+</div>
+{% endblock %}

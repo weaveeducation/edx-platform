@@ -195,6 +195,8 @@ FEATURES = {
     # .. toggle_creation_date: 2013-04-13
     'ENABLE_MASQUERADE': True,
 
+    'ENROLL_ACTIVE_USERS_ONLY': False,
+
     # .. toggle_name: FEATURES['DISABLE_LOGIN_BUTTON']
     # .. toggle_implementation: DjangoSetting
     # .. toggle_default: False
@@ -203,6 +205,8 @@ FEATURES = {
     # .. toggle_use_cases: open_edx
     # .. toggle_creation_date: 2013-12-03
     'DISABLE_LOGIN_BUTTON': False,
+
+    'DISABLE_REGISTER_BUTTON': False,  # used for cases if you want to register users only after push "enroll" button
 
     # .. toggle_name: FEATURES['ENABLE_OAUTH2_PROVIDER']
     # .. toggle_implementation: DjangoSetting
@@ -213,7 +217,7 @@ FEATURES = {
     # .. toggle_creation_date: 2014-09-09
     # .. toggle_target_removal_date: None
     # .. toggle_warnings: This temporary feature toggle does not have a target removal date.
-    'ENABLE_OAUTH2_PROVIDER': False,
+    'ENABLE_OAUTH2_PROVIDER': True,
 
     # .. toggle_name: FEATURES['ENABLE_XBLOCK_VIEW_ENDPOINT']
     # .. toggle_implementation: DjangoSetting
@@ -224,7 +228,7 @@ FEATURES = {
     # .. toggle_use_cases: open_edx
     # .. toggle_creation_date: 2014-03-14
     # .. toggle_tickets: https://github.com/edx/edx-platform/pull/2968
-    'ENABLE_XBLOCK_VIEW_ENDPOINT': False,
+    'ENABLE_XBLOCK_VIEW_ENDPOINT': True,
 
     # Allows to configure the LMS to provide CORS headers to serve requests from other
     # domains
@@ -657,7 +661,7 @@ FEATURES = {
     # .. toggle_use_cases: open_edx
     # .. toggle_creation_date: 2015-09-04
     # .. toggle_tickets: https://github.com/edx/edx-platform/pull/9744
-    'ENABLE_SPECIAL_EXAMS': False,
+    'ENABLE_SPECIAL_EXAMS': True,
 
     # .. toggle_name: FEATURES['ENABLE_OPENBADGES']
     # .. toggle_implementation: DjangoSetting
@@ -683,7 +687,7 @@ FEATURES = {
     # .. toggle_use_cases: open_edx
     # .. toggle_creation_date: 2015-04-24
     # .. toggle_tickets: https://github.com/edx/edx-platform/pull/7689
-    'ENABLE_LTI_PROVIDER': False,
+    'ENABLE_LTI_PROVIDER': True,
 
     # .. toggle_name: FEATURES['SHOW_HEADER_LANGUAGE_SELECTOR']
     # .. toggle_implementation: DjangoSetting
@@ -1073,8 +1077,8 @@ OAUTH2_DEFAULT_SCOPES = {
 
 OAUTH2_PROVIDER = {
     'OAUTH2_VALIDATOR_CLASS': 'openedx.core.djangoapps.oauth_dispatch.dot_overrides.validators.EdxOAuth2Validator',
-    # 3 months and then we expire refresh tokens using edx_clear_expired_tokens (length is mobile app driven)
-    'REFRESH_TOKEN_EXPIRE_SECONDS': 7776000,
+    'REFRESH_TOKEN_EXPIRE_SECONDS': None,  # endless
+    'ACCESS_TOKEN_EXPIRE_SECONDS': 2592000,  # 30 days
     'SCOPES_BACKEND_CLASS': 'openedx.core.djangoapps.oauth_dispatch.scopes.ApplicationModelScopes',
     'SCOPES': dict(OAUTH2_DEFAULT_SCOPES, **{
         'certificates:read': _('Retrieve your course certificates'),
@@ -2026,9 +2030,9 @@ MIDDLEWARE = [
 
     # CORS and CSRF
     'corsheaders.middleware.CorsMiddleware',
-    'openedx.core.djangoapps.cors_csrf.middleware.CorsCSRFMiddleware',
+#    'openedx.core.djangoapps.cors_csrf.middleware.CorsCSRFMiddleware',
     'openedx.core.djangoapps.cors_csrf.middleware.CsrfCrossDomainCookieMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+#    'django.middleware.csrf.CsrfViewMiddleware',
 
     'splash.middleware.SplashMiddleware',
 
@@ -2084,12 +2088,16 @@ MIDDLEWARE = [
     # Handles automatically storing user ids in django-simple-history tables when possible.
     'simple_history.middleware.HistoryRequestMiddleware',
 
+    'common.djangoapps.credo_modules.middleware.RefererSaveMiddleware',
+    'common.djangoapps.credo_modules.middleware.CourseUsageMiddleware',
+    'common.djangoapps.third_party_auth.middleware.SSOAuthMiddleware',
+
     # This must be last
     'openedx.core.djangoapps.site_configuration.middleware.SessionCookieDomainOverrideMiddleware',
 ]
 
 # Clickjacking protection can be disbaled by setting this to 'ALLOW'
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS = 'ALLOW'
 
 # Platform for Privacy Preferences header
 P3P_HEADER = 'CP="Open EdX does not have a P3P policy."'
@@ -2631,6 +2639,9 @@ CELERY_BROKER_HOSTNAME = 'localhost'
 CELERY_BROKER_USER = 'celery'
 CELERY_BROKER_PASSWORD = 'celery'
 
+CELERY_ACKS_LATE = True
+CELERYD_PREFETCH_MULTIPLIER = 1
+
 ############################## HEARTBEAT ######################################
 
 # Checks run in normal mode by the heartbeat djangoapp
@@ -3070,6 +3081,9 @@ INSTALLED_APPS = [
     'openedx.core.djangoapps.schedules',
     'rest_framework_jwt',
 
+    'common.djangoapps.credo_modules.apps.CredoAppConfig',
+    'common.djangoapps.turnitin_integration.apps.TurnitinIntegrationAppConfig',
+
     # Learning Sequence Navigation
     'openedx.core.djangoapps.content.learning_sequences.apps.LearningSequencesConfig',
 
@@ -3347,6 +3361,7 @@ REGISTRATION_EXTRA_FIELDS = {
     'terms_of_service': 'hidden',
     'city': 'hidden',
     'country': 'hidden',
+    'password_copy': 'required',
 }
 
 REGISTRATION_FIELD_ORDER = [
@@ -4663,6 +4678,15 @@ GITHUB_REPO_ROOT = '/edx/var/edxapp/data'
 
 ##################### SUPPORT URL ############################
 SUPPORT_HOW_TO_UNENROLL_LINK = ''
+
+############## LTI additional settings ############################
+
+EMBEDDED_CODE_CACHE_TIMEOUT = 60 * 60
+EMBEDDED_CODE_CACHE_PREFIX = "embedded_code"
+
+############## Additional settings ############################
+
+HIDE_PROFILE = False
 
 ######################## Setting for content libraries ########################
 MAX_BLOCKS_PER_CONTENT_LIBRARY = 1000

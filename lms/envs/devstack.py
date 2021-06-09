@@ -54,11 +54,11 @@ for log_name, log_level in LOG_OVERRIDES:
     logging.getLogger(log_name).setLevel(log_level)
 
 # Docker does not support the syslog socket at /dev/log. Rely on the console.
-LOGGING['handlers']['local'] = LOGGING['handlers']['tracking'] = {
+LOGGING['handlers']['local'] = LOGGING['handlers']['tracking'] = LOGGING['handlers']['credo_json'] = {
     'class': 'logging.NullHandler',
 }
 
-LOGGING['loggers']['tracking']['handlers'] = ['console']
+LOGGING['loggers']['tracking']['handlers'] = ['console', 'log_db']
 
 ################################ EMAIL ########################################
 
@@ -161,7 +161,7 @@ FEATURES['LICENSING'] = True
 
 ########################## Courseware Search #######################
 FEATURES['ENABLE_COURSEWARE_SEARCH'] = False
-FEATURES['ENABLE_COURSEWARE_SEARCH_FOR_COURSE_STAFF'] = True
+FEATURES['ENABLE_COURSEWARE_SEARCH_FOR_COURSE_STAFF'] = False
 SEARCH_ENGINE = 'search.elastic.ElasticSearchEngine'
 
 
@@ -227,7 +227,7 @@ ECOMMERCE_PUBLIC_URL_ROOT = 'http://localhost:18130'
 ECOMMERCE_API_URL = 'http://edx.devstack.ecommerce:18130/api/v2'
 
 ############## Comments CONFIGURATION SETTINGS ###############
-COMMENTS_SERVICE_URL = 'http://edx.devstack.forum:4567'
+#COMMENTS_SERVICE_URL = 'http://edx.devstack.forum:4567'
 
 ############## Credentials CONFIGURATION SETTINGS ###############
 CREDENTIALS_INTERNAL_SERVICE_URL = 'http://edx.devstack.credentials:18150'
@@ -334,8 +334,8 @@ AUTHN_MICROFRONTEND_DOMAIN = 'localhost:1999'
 ############## Docker based devstack settings #######################
 
 FEATURES.update({
-    'AUTOMATIC_AUTH_FOR_TESTING': True,
-    'ENABLE_DISCUSSION_SERVICE': True,
+    'AUTOMATIC_AUTH_FOR_TESTING': False,
+    'ENABLE_DISCUSSION_SERVICE': False,
     'SHOW_HEADER_LANGUAGE_SELECTOR': True,
 
     # Enable enterprise integration by default.
@@ -394,7 +394,7 @@ if FEATURES.get('ENABLE_ENTERPRISE_INTEGRATION'):
 #####################################################################
 
 # django-session-cookie middleware
-DCS_SESSION_COOKIE_SAMESITE = 'Lax'
+DCS_SESSION_COOKIE_SAMESITE = None
 DCS_SESSION_COOKIE_SAMESITE_FORCE_ALL = True
 
 #####################################################################
@@ -432,3 +432,7 @@ FEATURES['ENABLE_PREREQUISITE_COURSES'] = True
 # Used in edx-proctoring for ID generation in lieu of SECRET_KEY - dummy value
 # (ref MST-637)
 PROCTORING_USER_OBFUSCATION_KEY = '85920908f28904ed733fe576320db18cabd7b6cd'
+
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+X_FRAME_OPTIONS = 'ALLOW'

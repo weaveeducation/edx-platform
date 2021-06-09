@@ -19,6 +19,7 @@ from openedx.core.djangolib.oauth2_retirement_utils import retire_dot_oauth2_mod
 from openedx.core.djangoapps.site_configuration.models import SiteConfiguration
 from openedx.core.djangoapps.theming.helpers import get_config_value_from_site_or_settings, get_current_site
 from openedx.core.djangoapps.user_api.config.waffle import ENABLE_MULTIPLE_USER_ENTERPRISES_FEATURE
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 
@@ -236,3 +237,13 @@ def create_retirement_request_and_deactivate_account(user):
     # Delete OAuth tokens associated with the user.
     retire_dot_oauth2_models(user)
     AccountRecovery.retire_recovery_email(user.id)
+
+
+def is_user_credo_anonymous(user):
+    if user.email.endswith('@credomodules.com'):
+        return True
+    return False
+
+
+def get_hide_profile_setting():
+    return configuration_helpers.get_value('HIDE_PROFILE', settings.HIDE_PROFILE)
