@@ -23,6 +23,10 @@ from lms.djangoapps.courseware.models import StudentModule
 from lms.djangoapps.courseware.module_render import get_module_for_descriptor_internal
 from lms.djangoapps.grades.api import events as grades_events
 from xmodule.modulestore.django import modulestore
+from common.djangoapps.credo_modules.models import SequentialBlockAnswered, OraBlockScore
+from completion.waffle import ENABLE_COMPLETION_TRACKING_SWITCH
+from completion.models import BlockCompletion
+from lms.djangoapps.courseware.utils import get_block_children
 
 from ..exceptions import UpdateProblemModuleStateError
 from .runner import TaskProgress
@@ -430,3 +434,34 @@ def _get_modules_to_update(course_id, usage_keys, student_identifier, filter_fcn
             for key in usage_keys
         ]
     return student_modules
+
+
+def reset_user_progress(user, course_key, block=None, initiator=None):
+    if not block:
+        StudentModule.objects.filter(course_id=course_key, student=user).delete()
+        SequentialBlockAnswered.objects.filter(course_id=str(course_key), user_id=user.id).delete()
+        OraBlockScore.objects.filter(course_id=str(course_key), user_id=user.id).delete()
+
+        if ENABLE_COMPLETION_TRACKING_SWITCH.is_enabled():
+            BlockCompletion.objects.clear_completion(user, course_key)
+    else:
+        children_dict = get_block_children(block, block.display_name, add_correctness=False)
+        items = [block.location]
+        ora_items = []
+        for k, v in children_dict.items():
+            items.append(UsageKey.from_string(k))
+            if v['category'] == 'openassessment':
+                ora_items.append(str(k))
+
+        StudentModule.objects.filter(course_id=course_key, module_state_key__in=items, student=user).delete()
+        SequentialBlockAnswered.objects.filter(
+            course_id=str(course_key), sequential_id=str(block.location), user_id=user.id).delete()
+        if ora_items:
+            OraBlockScore.objects.filter(
+                course_id=str(course_key), user_id=user.id, block_id__in=ora_items).delete()
+
+        if ENABLE_COMPLETION_TRACKING_SWITCH.is_enabled():
+            BlockCompletion.objects.filter(user=user, context_key=course_key, block_key__in=items).delete()
+    block_id_reset = str(block.location) if block else None
+    StudentModule.log_reset_progress(user.id, str(course_key), initiator=initiator, block_id=block_id_reset)
+

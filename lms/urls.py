@@ -26,7 +26,9 @@ from lms.djangoapps.courseware.module_render import (
 )
 from lms.djangoapps.courseware.views import views as courseware_views
 from lms.djangoapps.courseware.views.index import CoursewareIndex
-from lms.djangoapps.courseware.views.views import CourseTabView, EnrollStaffView, StaticCourseTabView
+from lms.djangoapps.courseware.views.views import CourseTabView, EnrollStaffView, StaticCourseTabView, \
+    cookie_check, launch_new_tab, email_student_progress, block_student_progress, check_credo_access, \
+    render_xblock_course, render_supervisor_evaluation_block
 from lms.djangoapps.discussion import views as discussion_views
 from lms.djangoapps.discussion.config.settings import is_forum_daily_digest_enabled
 from lms.djangoapps.discussion.notification_prefs import views as notification_prefs_views
@@ -54,6 +56,7 @@ from openedx.core.djangoapps.verified_track_content import views as verified_tra
 from openedx.features.enterprise_support.api import enterprise_enabled
 from common.djangoapps.student import views as student_views
 from common.djangoapps.util import views as util_views
+from common.djangoapps.credo_modules.views import manage_org_tags, manage_org_tags_sorting
 
 RESET_COURSE_DEADLINES_NAME = 'reset_course_deadlines'
 RENDER_XBLOCK_NAME = 'render_xblock'
@@ -302,6 +305,62 @@ urlpatterns += [
         ),
         xblock_view,
         name='xblock_view',
+    ),
+
+    url(
+        r'^courses/{course_key}/block_student_progress/{usage_key}/?$'.format(
+            course_key=settings.COURSE_ID_PATTERN,
+            usage_key=settings.USAGE_ID_PATTERN,
+        ),
+        block_student_progress,
+        name='block_student_progress',
+    ),
+
+    url(
+        r'^courses/{course_key}/email_student_progress/{usage_key}/?$'.format(
+            course_key=settings.COURSE_ID_PATTERN,
+            usage_key=settings.USAGE_ID_PATTERN,
+        ),
+        email_student_progress,
+        name='email_student_progress',
+    ),
+
+    url(
+        r'^cookie/check$',
+        cookie_check,
+        name='cookie_check',
+    ),
+
+    url(
+        r'^supervisor/evaluation/(?P<hash_id>[\w-]+)',
+        render_supervisor_evaluation_block,
+        name='supervisor_evaluation_block'
+    ),
+
+    url(
+        r'^courses/{course_id}/{usage_id}/new_tab/?$'.format(
+            course_id=settings.COURSE_ID_PATTERN,
+            usage_id=settings.USAGE_ID_PATTERN
+        ),
+        launch_new_tab,
+        name='launch_new_tab',
+    ),
+
+    url(
+        r'^courses/{course_key}/check_auth/?$'.format(
+            course_key=settings.COURSE_ID_PATTERN,
+        ),
+        check_credo_access,
+        name='check_credo_access',
+    ),
+
+    url(
+        r'^courses/{course_key}/xblock/{usage_key_string}/?$'.format(
+            course_key=settings.COURSE_ID_PATTERN,
+            usage_key_string=settings.USAGE_KEY_PATTERN
+        ),
+        render_xblock_course,
+        name='render_xblock_course',
     ),
 
     # xblock Rendering View URL
@@ -793,6 +852,9 @@ if settings.DEBUG or settings.FEATURES.get('ENABLE_DJANGO_ADMIN_SITE'):
             url(r'^admin/auth/user/\d+/password/$', handler404),
         ]
     urlpatterns += [
+        url(r'^admin/configure-org-tags/(?P<org_id>\d+)', manage_org_tags, name='admin-manage-org-tags'),
+        url(r'^admin/configure-org-tags-order/(?P<org_id>\d+)', manage_org_tags_sorting,
+            name='admin-manage-org-tags-order'),
         url(r'^admin/password_change/$', handler404),
         # We are enforcing users to login through third party auth in site's
         # login page so we are disabling the admin panel's login page.
@@ -916,6 +978,7 @@ if settings.FEATURES.get('CUSTOM_COURSES_EDX'):
 if settings.FEATURES.get('ENABLE_LTI_PROVIDER'):
     urlpatterns += [
         url(r'^lti_provider/', include('lms.djangoapps.lti_provider.urls')),
+        url(r'^lti1p3_tool/', include('lms.djangoapps.lti1p3_tool.urls')),
     ]
 
 urlpatterns += [

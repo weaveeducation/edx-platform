@@ -24,10 +24,10 @@ from django.utils.translation import ugettext_lazy as _
 from django.shortcuts import render
 from common.djangoapps.credo_modules.models import CredoModulesUserProfile, Organization, OrganizationTag, OrganizationTagOrder
 from common.djangoapps.credo_modules.utils import additional_profile_fields_hash
-from util.json_request import JsonResponse
+from common.djangoapps.util.json_request import JsonResponse
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
-from edxmako.shortcuts import render_to_response
+from common.djangoapps.edxmako.shortcuts import render_to_response
 from opaque_keys.edx.keys import CourseKey
 
 
