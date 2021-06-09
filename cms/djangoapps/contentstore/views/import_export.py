@@ -136,7 +136,7 @@ def _write_chunk(request, courselike_key):
         # Use sessions to keep info about import progress
         _save_request_status(request, courselike_string, 0)
 
-        if not filename.endswith('.tar.gz'):
+        if not filename.endswith('.tar.gz') and not filename.endswith('.zip'):
             error_message = _('We only support uploading a .tar.gz file.')
             _save_request_status(request, courselike_string, -1)
             monitor_import_failure(courselike_key, current_step, message=error_message)

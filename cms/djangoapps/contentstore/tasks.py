@@ -8,6 +8,7 @@ import os
 import pkg_resources
 import shutil
 import tarfile
+import zipfile
 from datetime import datetime
 from tempfile import NamedTemporaryFile, mkdtemp
 
@@ -48,6 +49,7 @@ from cms.djangoapps.contentstore.courseware_index import (
 from cms.djangoapps.contentstore.storage import course_import_export_storage
 from cms.djangoapps.contentstore.utils import initialize_permissions, reverse_usage_url, translation_language
 from cms.djangoapps.models.settings.course_metadata import CourseMetadata
+from cms.djangoapps.contentstore.qti_converter import convert_to_olx
 from common.djangoapps.course_action_state.models import CourseRerunState
 from common.djangoapps.student.auth import has_course_author_access
 from common.djangoapps.util.monitoring import monitor_import_failure
@@ -439,7 +441,9 @@ def import_olx(self, user_id, course_key_string, archive_path, archive_name, lan
 
     def file_is_supported():
         """Check if it is a supported file."""
-        file_is_valid = archive_name.endswith('.tar.gz')
+        file_is_valid = False
+        if archive_name.endswith('.tar.gz') or archive_name.endswith('.zip'):
+            file_is_valid = True
 
         if not file_is_valid:
             message = f'Unsupported file {archive_name}'
@@ -568,17 +572,24 @@ def import_olx(self, user_id, course_key_string, archive_path, archive_name, lan
 
     # try-finally block for proper clean up after receiving file.
     try:
-        tar_file = tarfile.open(temp_filepath)
-        try:
-            safetar_extractall(tar_file, (course_dir + '/'))
-        except SuspiciousOperation as exc:
-            with translation_language(language):
-                self.status.fail(_('Unsafe tar file. Aborting import.'))
-            LOGGER.error(f'{log_prefix}: Unsafe tar file')
-            monitor_import_failure(courselike_key, current_step, exception=exc)
-            return
-        finally:
-            tar_file.close()
+        if temp_filepath.endswith('.tar.gz'):
+            tar_file = tarfile.open(temp_filepath)
+            try:
+                safetar_extractall(tar_file, (course_dir + '/'))
+            except SuspiciousOperation as exc:
+                LOGGER.info('Course import %s: Unsafe tar file - %s', courselike_key, exc.args[0])
+                with translation_language(language):
+                    self.status.fail(_('Unsafe tar file. Aborting import.'))
+                return
+            finally:
+                tar_file.close()
+        else:
+            zip_file = zipfile.ZipFile(temp_filepath)
+            zip_file.extractall(course_dir + '/')
+            zip_file.close()
+
+        if os.path.isfile(course_dir + '/imsmanifest.xml'):
+            convert_to_olx(course_dir + '/')
 
         current_step = 'Verifying'
         self.status.set_state(current_step)
