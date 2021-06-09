@@ -3342,3 +3342,6 @@ class UserPasswordToggleHistory(TimeStampedModel):
 
     def __str__(self):
         return self.comment
+
+
+User._meta.get_field('email')._unique = True
