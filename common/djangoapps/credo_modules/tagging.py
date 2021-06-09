@@ -3,7 +3,10 @@ import json
 from django.db.models import Q
 from django.core.exceptions import ObjectDoesNotExist
 from common.djangoapps.credo_modules.models import Organization
-from common.djangoapps.student.models import User
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 
 def get_available_tags(org):

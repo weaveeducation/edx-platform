@@ -6,7 +6,7 @@ import re
 import uuid
 from urllib.parse import urlparse
 from django.dispatch import receiver
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db import models, OperationalError, IntegrityError, transaction
 from django.db.models.signals import post_save, post_delete
 from opaque_keys.edx.django.models import CourseKeyField
@@ -26,6 +26,7 @@ from openedx.core.lib.hash_utils import short_token
 
 
 log = logging.getLogger("course_usage")
+User = get_user_model()
 
 
 class CredoModulesUserProfile(models.Model):

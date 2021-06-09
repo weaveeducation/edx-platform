@@ -5,7 +5,7 @@ import time
 import pytz
 
 from django.core.management import BaseCommand
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q
 from common.djangoapps.credo_modules.event_parser import get_timestamp_from_datetime, update_course_and_student_properties,\
@@ -14,6 +14,9 @@ from common.djangoapps.credo_modules.models import CourseUsageLogEntry, UsageLog
 from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure
 from common.djangoapps.student.models import CourseAccessRole
 from opaque_keys.edx.keys import CourseKey
+
+
+User = get_user_model()
 
 
 class Command(BaseCommand):

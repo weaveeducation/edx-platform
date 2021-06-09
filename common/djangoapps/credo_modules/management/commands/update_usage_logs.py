@@ -6,9 +6,12 @@ from .process_usage_logs import Command as BaseProcessUsageLogsCommand
 from common.djangoapps.credo_modules.models import CourseUsageLogEntry, UsageLog, TrackingLogProp, TrackingLogConfig
 from common.djangoapps.credo_modules.properties_updater import PropertiesUpdater
 from common.djangoapps.credo_modules.vertica import merge_data_into_vertica_table
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db.models import Q
 from opaque_keys.edx.keys import CourseKey
+
+
+User = get_user_model()
 
 
 class Command(BaseProcessUsageLogsCommand):

@@ -3,7 +3,7 @@ import tempfile
 import os
 
 from django.core.cache import caches
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from lms import CELERY_APP
 from opaque_keys.edx.keys import UsageKey
@@ -16,6 +16,7 @@ from .utils import log_action
 
 
 TURNITIN_TASKS_MAX_RETRIES = 7
+User = get_user_model()
 
 
 def get_countdown(attempt_num):

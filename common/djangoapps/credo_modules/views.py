@@ -12,7 +12,7 @@ from django.shortcuts import redirect, reverse, NoReverseMatch
 from django.urls import resolve
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth import login
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.views.generic.base import View
 from django.views.decorators.http import require_http_methods
@@ -32,6 +32,8 @@ from opaque_keys.edx.keys import CourseKey
 
 
 log = logging.getLogger(__name__)
+User = get_user_model()
+
 GROUPED_ORGANIZATION_TAGS = [
     'AAC&U VALUE Rubric'
 ]

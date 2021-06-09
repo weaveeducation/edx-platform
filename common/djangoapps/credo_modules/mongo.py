@@ -1,10 +1,13 @@
 import hashlib
 import json
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from pymongo import MongoClient
 from pymongo.database import Database
 from opaque_keys.edx.keys import UsageKey
+
+
+User = get_user_model()
 
 
 def get_course_structure(course_key):

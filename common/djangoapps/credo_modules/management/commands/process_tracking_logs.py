@@ -9,7 +9,7 @@ import pytz
 import os
 from django.conf import settings
 from django.core.management import BaseCommand
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db.models import Q
 from common.djangoapps.credo_modules.event_parser import EventProcessor, prepare_text_for_column_db, update_user_info,\
     INSIGHTS_COURSE_STAFF_ROLES, INSIGHTS_ORG_STAFF_ROLES
@@ -18,6 +18,9 @@ from common.djangoapps.credo_modules.models import DBLogEntry, TrackingLog, Trac
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
 from common.djangoapps.student.models import CourseAccessRole
 from opaque_keys.edx.keys import CourseKey
+
+
+User = get_user_model()
 
 
 class Command(BaseCommand):

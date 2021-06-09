@@ -6,11 +6,12 @@ import pytz
 from collections import namedtuple, OrderedDict
 from bs4 import BeautifulSoup
 from django.utils.html import strip_tags
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from common.djangoapps.credo_modules.models import TrackingLogUserInfo
 
 
 CorrectData = namedtuple('CorrectData', ['is_correct', 'earned_grade', 'max_grade', 'correctness'])
+User = get_user_model()
 
 
 class Gender:

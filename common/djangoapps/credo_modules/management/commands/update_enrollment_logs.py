@@ -8,10 +8,13 @@ from common.djangoapps.credo_modules.models import EnrollmentLog, EnrollmentTrig
 from common.djangoapps.credo_modules.event_parser import update_course_and_student_properties
 from common.djangoapps.credo_modules.properties_updater import PropertiesUpdater
 from common.djangoapps.credo_modules.vertica import merge_data_into_vertica_table
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db.models import Q
 from opaque_keys.edx.keys import CourseKey
 from .process_enrollment_logs import Command as BaseProcessEnrollmentsLogsCommand
+
+
+User = get_user_model()
 
 
 class Command(BaseProcessEnrollmentsLogsCommand):

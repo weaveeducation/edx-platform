@@ -1,6 +1,6 @@
 import json
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.signals import post_save, pre_delete
@@ -8,6 +8,9 @@ from django.dispatch import receiver
 from common.djangoapps.credo_modules.models import Organization
 from .api import TurnitinApi
 from .utils import log_action
+
+
+User = get_user_model()
 
 
 class TurnitinSubmissionStatus:

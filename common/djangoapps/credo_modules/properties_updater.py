@@ -2,7 +2,7 @@ import json
 import hashlib
 import time
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from opaque_keys.edx.keys import CourseKey
 from common.djangoapps.credo_modules.event_parser import EXCLUDE_PROPERTIES, COURSE_PROPERTIES, update_user_info,\
     get_prop_user_info, combine_student_properties
@@ -10,6 +10,9 @@ from common.djangoapps.credo_modules.models import RegistrationPropertiesPerMicr
     EnrollmentPropertiesPerCourse, PropertiesInfo, TrackingLogProp, get_student_properties_event_data
 from common.djangoapps.credo_modules.mongo import get_course_structure
 from openedx.core.djangoapps.content.block_structure.models import CourseAuthProfileFieldsCache
+
+
+User = get_user_model()
 
 
 class PropertiesUpdater:
