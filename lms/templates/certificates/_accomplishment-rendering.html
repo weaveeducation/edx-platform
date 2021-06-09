@@ -29,8 +29,10 @@ course_mode_class = course_mode if course_mode else ''
                         <span class="accomplishment-summary copy copy-lead">${accomplishment_copy_description_full}</span>
 
                         <span class="accomplishment-course hd-1 emphasized">
+                            % if accomplishment_copy_course_org or course_number:
                             <span class="accomplishment-course-org">${accomplishment_copy_course_org}  </span>
                             <span class="accomplishment-course-number">${course_number}</span>:
+                            % endif
                             <span class="accomplishment-course-name">${accomplishment_copy_course_name}</span>
                         </span>
                     </p>
