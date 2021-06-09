@@ -296,7 +296,7 @@ class ProblemBlock(
         registered_tags = responsetypes.registry.registered_tags()
         return {node.tag for node in tree.iter() if node.tag in registered_tags}
 
-    def index_dictionary(self):
+    def index_dictionary(self, remove_variants=False):
         """
         Return dictionary prepared with module content and type for indexing.
         """
@@ -306,14 +306,27 @@ class ProblemBlock(
         capa_content = re.sub(r'<optioninput options="\(([^"]+)\)".*?>\s*|\S*<\/optioninput>', r'\1', self.data)
 
         # Removing solutions and hints, as well as script and style
+        reg = r"""
+                                <solution>.*?</solution> |
+                                <script>.*?</script> |
+                                <style>.*?</style> |
+                                <[a-z]*hint.*?>.*?</[a-z]*hint>
+                             """
+        if remove_variants:
+            reg = r"""
+                                    <solution>.*?</solution> |
+                                    <script>.*?</script> |
+                                    <style>.*?</style> |
+                                    <[a-z]*hint.*?>.*?</[a-z]*hint> |
+                                    <description.*?</description> |
+                                    <checkboxgroup.*?</checkboxgroup> |
+                                    <choicegroup.*?</choicegroup> |
+                                    <optioninput.*?</optioninput>
+                                  """
+
         capa_content = re.sub(
             re.compile(
-                r"""
-                    <solution>.*?</solution> |
-                    <script>.*?</script> |
-                    <style>.*?</style> |
-                    <[a-z]*hint.*?>.*?</[a-z]*hint>
-                """,
+                reg,
                 re.DOTALL |
                 re.VERBOSE),
             "",
