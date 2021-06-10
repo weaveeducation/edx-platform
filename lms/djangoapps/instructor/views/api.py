@@ -115,6 +115,7 @@ from openedx.core.djangolib.markup import HTML, Text
 from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiveUser
 from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin
 from xmodule.modulestore.django import modulestore
+from common.djangoapps.credo_modules.models import get_all_course_staff_extended_roles, CourseStaffExtended
 
 from .. import permissions
 from .tools import (
@@ -884,6 +885,18 @@ def modify_access(request, course_id):
     rolename = request.POST.get('rolename')
     action = request.POST.get('action')
 
+    staff_extended_role_id = None
+    staff_extended_prefix = 'staff-extended:'
+
+    if rolename.startswith(staff_extended_prefix):
+        try:
+            staff_extended_role_id = int(rolename[len(staff_extended_prefix):])
+        except ValueError:
+            pass
+
+    if staff_extended_role_id:
+        rolename = 'staff'
+
     if rolename not in ROLES:
         error = strip_tags(f"unknown rolename '{rolename}'")
         log.error(error)
@@ -901,8 +914,19 @@ def modify_access(request, course_id):
 
     if action == 'allow':
         allow_access(course, user, rolename)
+        if staff_extended_role_id:
+            CourseStaffExtended(
+                user=user,
+                course_id=course_id,
+                role_id=staff_extended_role_id
+            ).save()
     elif action == 'revoke':
         revoke_access(course, user, rolename)
+        CourseStaffExtended.objects.filter(
+            user=user,
+            course_id=course_id,
+            role_id=staff_extended_role_id
+        ).delete()
     else:
         return HttpResponseBadRequest(strip_tags(
             f"unrecognized action u'{action}'"
@@ -948,6 +972,19 @@ def list_course_role_members(request, course_id):
 
     rolename = request.POST.get('rolename')
 
+    course_staff_extended = get_all_course_staff_extended_roles(course_id)
+    staff_extended_role_id = None
+    staff_extended_prefix = 'staff-extended:'
+
+    if rolename.startswith(staff_extended_prefix):
+        try:
+            staff_extended_role_id = int(rolename[len(staff_extended_prefix):])
+        except ValueError:
+            pass
+
+    if staff_extended_role_id:
+        rolename = 'staff'
+
     if rolename not in ROLES:
         return HttpResponseBadRequest()
 
@@ -959,13 +996,23 @@ def list_course_role_members(request, course_id):
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
+            'user_id': user.id
         }
+
+    role_users = list(map(extract_user_info, list_with_level(
+        course, rolename
+    )))
+
+    if rolename == 'staff':
+        if staff_extended_role_id:
+            role_users = [r for r in role_users if r['user_id'] in course_staff_extended and course_staff_extended[r['user_id']] == staff_extended_role_id]
+            rolename = staff_extended_prefix + str(staff_extended_role_id)
+        else:
+            role_users = [r for r in role_users if r['user_id'] not in course_staff_extended]
 
     response_payload = {
         'course_id': str(course_id),
-        rolename: list(map(extract_user_info, list_with_level(
-            course, rolename
-        ))),
+        rolename: role_users,
     }
     return JsonResponse(response_payload)
 

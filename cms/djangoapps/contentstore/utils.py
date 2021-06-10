@@ -110,12 +110,14 @@ def get_lms_link_for_item(location, preview=False):
     """
     assert isinstance(location, UsageKey)
 
+    conf_lms_base = configuration_helpers.get_value('LMS_BASE', settings.LMS_BASE)
+
     # checks LMS_BASE value in site configuration for the given course_org_filter(org)
     # if not found returns settings.LMS_BASE
     lms_base = SiteConfiguration.get_value_for_org(
         location.org,
         "LMS_BASE",
-        settings.LMS_BASE
+        conf_lms_base
     )
 
     if lms_base is None:

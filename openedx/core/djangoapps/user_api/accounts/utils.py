@@ -247,3 +247,13 @@ def is_user_credo_anonymous(user):
 
 def get_hide_profile_setting():
     return configuration_helpers.get_value('HIDE_PROFILE', settings.HIDE_PROFILE)
+
+
+def can_display_studio_link(user, course):
+    show_studio_link = user.instructor_dashboard_tabs.show_studio_link \
+        if hasattr(user, 'instructor_dashboard_tabs') else True
+    if not user.is_superuser and show_studio_link and user.coursestaffextended_set.filter(
+            role__course_studio_access=False,
+            course_id=course.id).exists():
+        return False
+    return show_studio_link
