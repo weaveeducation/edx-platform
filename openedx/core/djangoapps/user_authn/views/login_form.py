@@ -186,6 +186,11 @@ def login_and_registration_form(request, initial_mode="login"):
         except (KeyError, ValueError, IndexError) as ex:
             log.exception("Unknown tpa_hint provider: %s", ex)
 
+    disable_signin_button = configuration_helpers.get_value('DISABLE_LOGIN_BUTTON',
+                                                            settings.FEATURES['DISABLE_LOGIN_BUTTON'])
+    disable_registration_button = configuration_helpers.get_value('DISABLE_REGISTER_BUTTON',
+                                                                  settings.FEATURES['DISABLE_REGISTER_BUTTON'])
+
     # Redirect to authn MFE if it is enabled
     # AND
     #   user is not an enterprise user
@@ -264,6 +269,8 @@ def login_and_registration_form(request, initial_mode="login"):
             'is_require_third_party_auth_enabled': is_require_third_party_auth_enabled(),
             'enable_coppa_compliance': settings.ENABLE_COPPA_COMPLIANCE,
             'edx_user_info_cookie_name': settings.EDXMKTG_USER_INFO_COOKIE_NAME,
+            'disable_registration_button': disable_registration_button,
+            'disable_signin_button': disable_signin_button
         },
         'login_redirect_url': redirect_to,  # This gets added to the query string of the "Sign In" button in header
         'responsive': True,
