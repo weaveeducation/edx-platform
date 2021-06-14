@@ -11,10 +11,12 @@ import random
 import re
 import string
 from collections import defaultdict
+from uuid import uuid4
 
 import django.utils
 from ccx_keys.locator import CCXLocator
 from django.conf import settings
+from django.db import transaction
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseNotFound
@@ -27,7 +29,7 @@ from edx_django_utils.monitoring import function_trace
 from edx_toggles.toggles import LegacyWaffleSwitchNamespace
 from milestones import api as milestones_api
 from opaque_keys import InvalidKeyError
-from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys.edx.locator import BlockUsageLocator
 from organizations.api import add_organization_course, ensure_organization
 from organizations.exceptions import InvalidOrganizationException
@@ -81,6 +83,8 @@ from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import DuplicateCourseError, ItemNotFoundError
 from xmodule.partitions.partitions import UserPartition
 from xmodule.tabs import CourseTab, CourseTabList, InvalidTabsException
+from common.djangoapps.credo_modules.models import CopyBlockTask, CourseStaffExtended, get_inactive_orgs
+from common.djangoapps.credo_modules.mongo import get_unit_block_versions
 
 from ..course_group_config import (
     COHORT_SCHEME,
@@ -102,11 +106,12 @@ from ..utils import (
     reverse_course_url,
     reverse_library_url,
     reverse_url,
-    reverse_usage_url
+    reverse_usage_url,
+    get_role_features
 )
 from .component import ADVANCED_COMPONENT_TYPES
 from .entrance_exam import create_entrance_exam, delete_entrance_exam, update_entrance_exam
-from .item import create_xblock_info
+from .item import create_xblock_info, copy_to_other_course, copy_unit_to_library, copy_components_to_library
 from .library import (
     LIBRARIES_ENABLED,
     LIBRARY_AUTHORING_MICROFRONTEND_URL,
@@ -118,6 +123,10 @@ log = logging.getLogger(__name__)
 
 
 __all__ = ['course_info_handler', 'course_handler', 'course_listing',
+            'course_listing_short', 'libraries_listing_short',
+           'copy_section_to_other_courses', 'copy_section_to_other_courses_result',
+           'copy_units_to_libraries', 'copy_units_to_libraries_result',
+           'copy_components_to_libraries', 'copy_components_to_libraries_result',
            'course_info_update_handler', 'course_search_index_handler',
            'course_rerun_handler',
            'settings_handler',
@@ -126,7 +135,8 @@ __all__ = ['course_info_handler', 'course_handler', 'course_listing',
            'advanced_settings_handler',
            'course_notifications_handler',
            'textbooks_list_handler', 'textbooks_detail_handler',
-           'group_configurations_list_handler', 'group_configurations_detail_handler']
+           'group_configurations_list_handler', 'group_configurations_detail_handler',
+           'get_versions_list', 'restore_block_version']
 
 WAFFLE_NAMESPACE = 'studio_home'
 
@@ -145,6 +155,8 @@ def get_course_and_check_access(course_key, user, depth=0):
     for the view functions in this file.
     """
     if not has_studio_read_access(user, course_key):
+        raise PermissionDenied()
+    if CourseStaffExtended.objects.filter(role__course_studio_access=False, user=user, course_id=course_key).exists():
         raise PermissionDenied()
     course_module = modulestore().get_course(course_key, depth=depth)
     return course_module
@@ -475,11 +487,15 @@ def _accessible_courses_list_from_groups(request):
 
     instructor_courses = UserBasedRole(request.user, CourseInstructorRole.ROLE).courses_with_role()
     staff_courses = UserBasedRole(request.user, CourseStaffRole.ROLE).courses_with_role()
+    staff_access_denied = [str(c['course_id']) for c in CourseStaffExtended.objects.filter(
+        user=request.user, role__course_studio_access=False).values('course_id')]
     all_courses = list(filter(filter_ccx, instructor_courses | staff_courses))
     courses_list = []
     course_keys = {}
 
     for course_access in all_courses:
+        if str(course_access.course_id) in staff_access_denied:
+            continue
         if course_access.course_id is None:
             raise AccessListFallback
         course_keys[course_access.course_id] = course_access.course_id
@@ -551,7 +567,26 @@ def course_listing(request):
     active_courses, archived_courses = _process_courses_list(courses_iter, in_process_course_actions, split_archived)
     in_process_course_actions = [format_in_process_course_view(uca) for uca in in_process_course_actions]
 
+    orgs = []
+    for c in active_courses:
+        if c['org'] not in orgs:
+            orgs.append(c['org'])
+    for c in archived_courses:
+        if c['org'] not in orgs:
+            orgs.append(c['org'])
+
+    libraries_result = [_format_library_for_view(lib, request) for lib in libraries]
+    for l in libraries_result:
+        if l['org'] not in orgs:
+            orgs.append(l['org'])
+
+    if orgs:
+        orgs = sorted(orgs)
+
     return render_to_response('index.html', {
+        'display_all_courses': False,
+        'orgs': orgs,
+        'orgs_json': json.dumps(orgs),
         'courses': active_courses,
         'split_studio_home': split_library_view_on_dashboard(),
         'archived_courses': archived_courses,
@@ -559,7 +594,7 @@ def course_listing(request):
         'libraries_enabled': LIBRARIES_ENABLED,
         'redirect_to_library_authoring_mfe': should_redirect_to_library_authoring_mfe(),
         'library_authoring_mfe_url': LIBRARY_AUTHORING_MICROFRONTEND_URL,
-        'libraries': [_format_library_for_view(lib, request) for lib in libraries],
+        'libraries': libraries_result,
         'show_new_library_button': get_library_creator_status(user) and not should_redirect_to_library_authoring_mfe(),
         'user': user,
         'request_course_creator_url': reverse('request_course_creator'),
@@ -701,6 +736,11 @@ def course_index(request, course_key):
             settings.FEATURES.get('FRONTEND_APP_PUBLISHER_URL', False)
         )
 
+        initial_state = course_outline_initial_state(locator_to_show, course_structure) if locator_to_show else None
+        if not initial_state:
+            initial_state = {}
+        initial_state['user_permissions'] = get_role_features(course_key, request.user)
+
         course_authoring_microfrontend_url = get_proctored_exam_settings_url(course_module)
 
         # gather any errors in the currently stored proctoring settings.
@@ -713,7 +753,7 @@ def course_index(request, course_key):
             'lms_link': lms_link,
             'sections': sections,
             'course_structure': course_structure,
-            'initial_state': course_outline_initial_state(locator_to_show, course_structure) if locator_to_show else None,  # lint-amnesty, pylint: disable=line-too-long
+            'initial_state': initial_state,
             'rerun_notification_id': current_action.id if current_action else None,
             'course_release_date': course_release_date,
             'settings_url': settings_url,
@@ -788,12 +828,14 @@ def _process_courses_list(courses_iter, in_process_course_actions, split_archive
     active_courses = []
     archived_courses = []
 
+    deactivated_orgs = get_inactive_orgs()
+
     for course in courses_iter:
         if isinstance(course, ErrorBlock) or (course.id in in_process_action_course_keys):
             continue
 
         formatted_course = format_course_for_view(course)
-        if split_archived and course.has_ended():
+        if split_archived and (course.has_ended() or course.location.course_key.org in deactivated_orgs):
             archived_courses.append(formatted_course)
         else:
             active_courses.append(formatted_course)
@@ -1829,6 +1871,23 @@ def group_configurations_detail_handler(request, course_key_string, group_config
             )
 
 
+@login_required
+@ensure_csrf_cookie
+def get_versions_list(request, usage_key_string):
+    block_versions = get_unit_block_versions(usage_key_string)
+    return JsonResponse({'versions': block_versions})
+
+
+@login_required
+@ensure_csrf_cookie
+@require_http_methods(["POST"])
+def restore_block_version(request, usage_key_string):
+    version_guid = request.POST.get('versionId')
+    usage_key = UsageKey.from_string(usage_key_string)
+    modulestore().revert_to_published(usage_key, request.user.id, version_guid)
+    return JsonResponse({'success': True})
+
+
 def are_content_experiments_enabled(course):
     """
     Returns True if content experiments have been enabled for the course.
@@ -1863,3 +1922,251 @@ def _get_course_creator_status(user):
         course_creator_status = 'granted'
 
     return course_creator_status
+
+
+@login_required
+@ensure_csrf_cookie
+def course_listing_short(request):
+    courses_iter, in_process_course_actions = get_courses_accessible_to_user(request)
+    split_archived = settings.FEATURES.get('ENABLE_SEPARATE_ARCHIVED_COURSES', False)
+    active_courses, _ = _process_courses_list(courses_iter, in_process_course_actions, split_archived)
+    return JsonResponse([course for course in active_courses])
+
+
+@login_required
+@ensure_csrf_cookie
+def libraries_listing_short(request):
+    optimization_enabled = GlobalStaff().has_user(request.user) and \
+                           LegacyWaffleSwitchNamespace(name=WAFFLE_NAMESPACE).is_enabled(
+                               'enable_global_staff_optimization')
+    org = request.GET.get('org', '') if optimization_enabled else None
+    libraries = _accessible_libraries_iter(request.user, org) if LIBRARIES_ENABLED else []
+    return JsonResponse([{
+        'display_name': l.display_name,
+        'course_key': str(l.id),
+        'url': reverse_library_url('library_handler', l.id),
+        'course': l.id.course,
+        'org': l.id.org,
+        'location': str(l.location)
+    } for l in libraries])
+
+
+@login_required
+@ensure_csrf_cookie
+@require_http_methods(["POST"])
+@transaction.non_atomic_requests
+def copy_section_to_other_courses(request):
+    json_data = json.loads(request.body.decode('utf8'))
+    usage_key_string = json_data.get('usage_key')
+    copy_to_courses = json_data.get('copy_to_courses', [])
+
+    task_id = str(uuid4())
+
+    usage_key = ''
+    source_course_key = None
+    try:
+        usage_key = UsageKey.from_string(usage_key_string)
+        source_course_key = usage_key.course_key
+    except InvalidKeyError:
+        pass
+
+    if not source_course_key or not usage_key or not copy_to_courses\
+            or not has_studio_read_access(request.user, usage_key.course_key):
+        return JsonResponse({'task_id': None})
+
+    tasks_num = 0
+    for course_id in copy_to_courses:
+        try:
+            course_key = CourseKey.from_string(course_id)
+            if has_studio_write_access(request.user, course_key):
+                with transaction.atomic():
+                    section_task = CopyBlockTask(
+                        task_id=task_id,
+                        block_ids=usage_key_string,
+                        dst_location=course_id
+                    )
+                    section_task.save()
+                copy_to_other_course.delay(int(section_task.id), request.user.id,
+                                           usage_key_string, course_id)
+                tasks_num = tasks_num + 1
+        except InvalidKeyError:
+            pass
+
+    if tasks_num > 0:
+        return JsonResponse({'task_id': task_id})
+    else:
+        return JsonResponse({'task_id': None})
+
+
+@require_http_methods(["POST"])
+def copy_section_to_other_courses_result(request):
+    json_data = json.loads(request.body.decode('utf8'))
+    task_id = json_data.get('task_id')
+    if not task_id:
+        return HttpResponseBadRequest()
+
+    result = True
+    result_list = []
+
+    tasks = CopyBlockTask.objects.filter(task_id=task_id)
+
+    for t in tasks:
+        if not t.is_finished():
+            result = False
+        result_list.append({
+            'title': t.dst_location,
+            'status': t.status,
+            'result': t.is_finished()
+        })
+
+    return JsonResponse({'result': result, 'courses': result_list})
+
+
+@login_required
+@ensure_csrf_cookie
+@require_http_methods(["POST"])
+@transaction.non_atomic_requests
+def copy_units_to_libraries(request):
+    json_data = json.loads(request.body.decode('utf8'))
+    usage_keys_strings = json_data.get('usage_keys', [])
+    copy_to_libraries = json_data.get('copy_to_libraries', [])
+
+    task_id = str(uuid4())
+
+    usage_keys = []
+
+    for usage_key_string in usage_keys_strings:
+        try:
+            usage_key = UsageKey.from_string(usage_key_string)
+            if has_studio_read_access(request.user, usage_key.course_key):
+                usage_keys.append(usage_key_string)
+        except InvalidKeyError:
+            pass
+
+    if not usage_keys or not copy_to_libraries:
+        return JsonResponse({'task_id': None})
+
+    tasks_num = 0
+
+    for library_key_string in copy_to_libraries:
+        try:
+            library_key = UsageKey.from_string(library_key_string)
+            if has_studio_write_access(request.user, library_key):
+                with transaction.atomic():
+                    section_task = CopyBlockTask(
+                        task_id=task_id,
+                        block_ids=usage_keys,
+                        dst_location=library_key_string
+                    )
+                    section_task.save()
+                copy_unit_to_library.delay(int(section_task.id), request.user.id,
+                                            usage_keys, library_key_string)
+                tasks_num = tasks_num + 1
+        except InvalidKeyError:
+            pass
+
+    if tasks_num > 0:
+        return JsonResponse({'task_id': task_id})
+    else:
+        return JsonResponse({'task_id': None})
+
+
+@require_http_methods(["POST"])
+def copy_units_to_libraries_result(request):
+    json_data = json.loads(request.body.decode('utf8'))
+    task_id = json_data.get('task_id')
+    if not task_id:
+        return HttpResponseBadRequest()
+
+    result = True
+    result_list = []
+
+    tasks = CopyBlockTask.objects.filter(task_id=task_id)
+
+    for t in tasks:
+        if not t.is_finished():
+            result = False
+        library = modulestore().get_library(UsageKey.from_string(t.dst_location).course_key)
+        result_list.append({
+            'title': library.display_name,
+            'location': t.dst_location,
+            'status': t.status,
+            'result': t.is_finished()
+        })
+
+    return JsonResponse({'result': result, 'libraries': result_list})
+
+
+@login_required
+@ensure_csrf_cookie
+@require_http_methods(["POST"])
+@transaction.non_atomic_requests
+def copy_components_to_libraries(request):
+    json_data = json.loads(request.body.decode('utf8'))
+    usage_keys_strings = json_data.get('usage_keys', [])
+    copy_to_libraries = json_data.get('copy_to_libraries', [])
+
+    task_id = str(uuid4())
+
+    usage_keys = []
+
+    for usage_key_string in usage_keys_strings:
+        try:
+            usage_key = UsageKey.from_string(usage_key_string)
+            if has_studio_read_access(request.user, usage_key.course_key):
+                usage_keys.append(usage_key_string)
+        except InvalidKeyError:
+            pass
+
+    if not usage_keys or not copy_to_libraries:
+        return JsonResponse({'task_id': None})
+
+    tasks_num = 0
+
+    for library_key_string in copy_to_libraries:
+        try:
+            library_key = UsageKey.from_string(library_key_string)
+            if has_studio_write_access(request.user, library_key):
+                with transaction.atomic():
+                    section_task = CopyBlockTask(
+                        task_id=task_id,
+                        block_ids=usage_keys,
+                        dst_location=library_key_string
+                    )
+                    section_task.save()
+                copy_components_to_library.delay(int(section_task.id), request.user.id,
+                                            usage_keys, library_key_string)
+                tasks_num = tasks_num + 1
+        except InvalidKeyError:
+            pass
+
+    if tasks_num > 0:
+        return JsonResponse({'task_id': task_id})
+    else:
+        return JsonResponse({'task_id': None})
+
+
+@require_http_methods(["POST"])
+def copy_components_to_libraries_result(request):
+    json_data = json.loads(request.body.decode('utf8'))
+    task_id = json_data.get('task_id')
+    if not task_id:
+        return HttpResponseBadRequest()
+
+    result = True
+    result_list = []
+
+    tasks = CopyBlockTask.objects.filter(task_id=task_id)
+
+    for t in tasks:
+        if not t.is_finished():
+            result = False
+        library = modulestore().get_library(UsageKey.from_string(t.dst_location).course_key)
+        result_list.append({
+            'title': library.display_name,
+            'location': t.dst_location,
+            'status': t.status,
+            'result': t.is_finished()
+        })
+
+    return JsonResponse({'result': result, 'libraries': result_list})

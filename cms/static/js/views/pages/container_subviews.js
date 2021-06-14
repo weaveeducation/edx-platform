@@ -2,8 +2,9 @@
  * Subviews (usually small side panels) for XBlockContainerPage.
  */
 define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/components/utils/view_utils',
-    'js/views/utils/xblock_utils', 'js/views/utils/move_xblock_utils', 'edx-ui-toolkit/js/utils/html-utils'],
-    function($, _, gettext, BaseView, ViewUtils, XBlockViewUtils, MoveXBlockUtils, HtmlUtils) {
+    'js/views/utils/xblock_utils', 'js/views/utils/move_xblock_utils', 'js/views/modals/copy_to_libraries',
+    'edx-ui-toolkit/js/utils/html-utils'],
+    function($, _, gettext, BaseView, ViewUtils, XBlockViewUtils, MoveXBlockUtils, CopyToLibraryModal, HtmlUtils) {
         'use strict';
 
         var disabledCss = 'is-disabled';
@@ -30,6 +31,42 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
             },
 
             render: function() {}
+        });
+
+        var ContainerActionsView = BaseView.extend({
+            events: {
+                'click .copy-to-libraries-button': 'onCopyToLibraries',
+            },
+
+            initialize: function() {
+                this.template = this.loadTemplate('container-actions');
+                this.model.on('change:selected_children', this.render, this);
+            },
+
+            render: function() {
+                HtmlUtils.setHtml(
+                    this.$el,
+                    HtmlUtils.HTML(
+                        this.template({
+                            selected_children_count: this.model.get('selected_children').length
+                        })
+                    )
+                );
+                return this;
+            },
+
+            onCopyToLibraries: function(event) {
+                // var xblockElement = this.findXBlockElement(event.target),
+                    // parentXBlockElement = xblockElement.parents('.studio-xblock-wrapper'),
+                var modal = new CopyToLibraryModal({
+                    model: this.model,
+                    selectedXblocks: this.model.get('selected_children')
+                    // onSave: this.refresh.bind(this),
+                });
+
+                event.preventDefault();
+                modal.show();
+            }
         });
 
         var ContainerAccess = ContainerStateListenerView.extend({
@@ -106,6 +143,8 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
             events: {
                 'click .action-publish': 'publish',
                 'click .action-discard': 'discardChanges',
+                'click .action-list-versions': 'getListVersions',
+                'click .version-to-restore-link': 'restoreVersion',
                 'click .action-staff-lock': 'toggleStaffLock'
             },
 
@@ -116,6 +155,9 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
                 this.template = this.loadTemplate('publish-xblock');
                 this.model.on('sync', this.onSync, this);
                 this.renderPage = this.options.renderPage;
+                this.versionsListProgress = false;
+                this.versionsRestoreInProgress = false;
+                this.versionsData = {};
             },
 
             onSync: function(model) {
@@ -254,6 +296,64 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
                 }
             },
 
+            getListVersions: function(e) {
+                var self = this;
+                if (this.versionsListProgress) {
+                    return;
+                }
+                this.versionsListProgress = true;
+                this.$el.find('.versions-list').html('Loading...');
+                $.ajax({
+                    url: '/get_versions_list/' + this.model.get('id'),
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        self.versionsListProgress = false;
+                        if (data.versions.length > 0) {
+                            var versionsHtml = '';
+                            $.each(data.versions, function(idx, val) {
+                                self.versionsData[val.id] = val;
+                                versionsHtml += '<div class="version-to-restore">' +
+                                  '<div>' + val.datetime + '</div>' +
+                                  '<div>by ' + val.user + ' | <a href="javascript: void(0);" class="version-to-restore-link ' + (val.can_restore ? 'can-restore' : 'cant-restore') + '" data-version-id="' + val.id + '">' + (val.can_restore ? 'Restore' : 'Current Version') + '</a></div>' +
+                                  '</div>';
+                            });
+                            self.$el.find('.versions-list').html(versionsHtml);
+                        } else {
+                            self.$el.find('.versions-list').html('Previous versions not found');
+                        }
+                    }
+                });
+            },
+
+            restoreVersion: function(e) {
+                var self = this;
+                if ((this.versionsRestoreInProgress) || ($(e.target).hasClass('cant-restore'))) {
+                    return;
+                }
+                var versionId = $(e.target).data('version-id');
+                var version = this.versionsData[versionId];
+                if (window.confirm("Do you wish to revert to this previously published version (" + (version.datetime + ' - ' + version.user) + ")?")) {
+                    this.versionsRestoreInProgress = true;
+                    ViewUtils.runOperationShowingMessage(gettext('Restore in progress. Please wait'),
+                        function() {
+                            return $.ajax({
+                                url: '/restore_block_version/' + self.model.get('id'),
+                                type: 'POST',
+                                data: {versionId: versionId},
+                                dataType: 'json',
+                                success: function(data) {
+                                    if (data.success) {
+                                        location.reload();
+                                    }
+                                }
+                            });
+                        }).always(function() {
+                        }).done(function() {
+                        });
+                }
+            },
+
             checkStaffLock: function(check) {
                 this.$('.action-staff-lock i').removeClass('fa-check-square-o fa-square-o');
                 this.$('.action-staff-lock i').addClass(check ? 'fa-check-square-o' : 'fa-square-o');
@@ -299,6 +399,7 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
             ViewLiveButtonController: ViewLiveButtonController,
             Publisher: Publisher,
             PublishHistory: PublishHistory,
-            ContainerAccess: ContainerAccess
+            ContainerAccess: ContainerAccess,
+            ContainerActionsView: ContainerActionsView
         };
     }); // end define();

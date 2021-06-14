@@ -16,6 +16,7 @@ collapsible_class = "is-collapsible" if xblock.has_children else ""
 label = xblock.display_name_with_default or xblock.scope_ids.block_type
 messages = xblock.validate().to_json()
 block_is_unit = is_unit(xblock)
+library_block_is_hidden = str(xblock.location).startswith('lib-block-v1') and getattr(xblock, 'hidden', False)
 %>
 
 <%namespace name='static' file='static_content.html'/>
@@ -23,6 +24,18 @@ block_is_unit = is_unit(xblock)
 <%block name="header_extras">
 <script type="text/template" id="xblock-validation-messages-tpl">
     <%static:include path="js/xblock-validation-messages.underscore" />
+</script>
+<script type="text/template" id="course-outline-modal-tpl">
+    <%static:include path="js/course-outline-modal.underscore" />
+</script>
+<script type="text/template" id="copy-to-other-course-tpl">
+    <%static:include path="js/copy-to-other-course-unit.underscore" />
+</script>
+<script type="text/template" id="copy-to-libraries-tpl">
+    <%static:include path="js/copy-to-libraries.underscore" />
+</script>
+<script type="text/template" id="move-xblock-modal-tpl">
+    <%static:include path="js/move-xblock-modal.underscore" />
 </script>
 </%block>
 
@@ -47,7 +60,11 @@ block_is_unit = is_unit(xblock)
     % if is_visible_to_specific_partition_groups(xblock):
         has-group-visibility-set
     % endif
-    ">
+    "
+    % if library_block_is_hidden:
+    style="border-left: 5px solid #000;"
+    % endif
+    >
 % endif
 
 <header class="xblock-header xblock-header-${xblock.category}">
@@ -56,6 +73,11 @@ block_is_unit = is_unit(xblock)
         is-collapsed
     % endif
     ">
+        % if not is_root and root_xblock_is_library:
+            <div class="header-select">
+                <input type="checkbox" id="${xblock.scope_ids.usage_id}" class="field-input input-checkbox">
+            </div>
+        % endif
         <div class="header-details">
             % if show_inline:
             <a href="#" data-tooltip="${_('Expand or Collapse')}" class="action expand-collapse collapse">
@@ -74,13 +96,22 @@ block_is_unit = is_unit(xblock)
             <ul class="actions-list">
                 % if not is_root:
                     % if can_edit:
+                        % if library_block_is_hidden:
+                        <li class="action-item">
+                            <span class="icon fa fa-lock" aria-hidden="true"></span> Content is hidden
+                        </li>
+                        % endif
                         % if not show_inline:
+                            % if root_xblock_is_library_content and not ability_edit_library_content:
+                            &nbsp;
+                            % else:
                             <li class="action-item action-edit">
                                 <button class="btn-default edit-button action-button">
                                     <span class="icon fa fa-pencil" aria-hidden="true"></span>
                                     <span class="action-button-text">${_("Edit")}</span>
                                 </button>
                             </li>
+                            % endif
                             % if can_edit_visibility:
                                 <li class="action-item action-visibility">
                                     <button data-tooltip="${_("Access Settings")}" class="btn-default access-button action-button">
@@ -105,6 +136,16 @@ block_is_unit = is_unit(xblock)
                                             <span class="fa fa-arrow-right fa-stack-1x fa-fw" aria-hidden="true"></span>
                                         </span>
                                         <span class="sr">${_("Move")}</span>
+                                    </button>
+                                </li>
+                            % endif
+                            % if can_copy:
+                                <li class="action-item action-copy">
+                                    <button data-tooltip="${_("Copy")}" class="btn-default copy-button action-button">
+                                        <span class="stack-move-icon fa-stack fa-lg ">
+                                            <span class="fa fa-share-square-o fa-stack-2x fa-fw" aria-hidden="true"></span>
+                                        </span>
+                                        <span class="sr">${_("Copy")}</span>
                                     </button>
                                 </li>
                             % endif

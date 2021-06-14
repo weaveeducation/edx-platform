@@ -315,7 +315,12 @@ class LibraryContentBlock(
         actual BlockUsageLocators, it is necessary to use self.children,
         because the block_ids alone do not specify the block type.
         """
-        block_keys = self.make_selection(self.selected, self.children, self.max_count, "random")  # pylint: disable=no-member
+        selected_block_ids = [selected_block_item[1] for selected_block_item in self.selected]
+        source_children = [self.runtime.get_block(child_key) for child_key in self.children]
+        children = [block.location for block in source_children
+                    if not getattr(block, 'hidden', False) or (block and block.location.block_id in selected_block_ids)]
+
+        block_keys = self.make_selection(self.selected, children, self.max_count, "random")  # pylint: disable=no-member
 
         # Publish events for analytics purposes:
         lib_tools = self.runtime.service(self, 'library_tools')
@@ -392,6 +397,7 @@ class LibraryContentBlock(
                 }))
                 context['can_edit_visibility'] = False
                 context['can_move'] = False
+                context['can_copy'] = False
                 self.render_children(context, fragment, can_reorder=False, can_add=False)
         # else: When shown on a unit page, don't show any sort of preview -
         # just the status of this block in the validation area.
@@ -498,7 +504,8 @@ class LibraryContentBlock(
         user_perms = self.runtime.service(self, 'studio_user_permissions')
         if not self.tools:
             raise RuntimeError("Library tools unavailable, duplication will not be sane!")
-        self.tools.update_children(self, user_perms, version=self.source_library_version)
+        self.tools.update_children(self, user_perms, version=self.source_library_version,
+                                   check_permissions=False)
 
         self._copy_overrides(store, user_id, source_block, self)
 

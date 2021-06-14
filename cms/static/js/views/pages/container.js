@@ -5,10 +5,11 @@
 define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page',
     'common/js/components/utils/view_utils', 'js/views/container', 'js/views/xblock',
     'js/views/components/add_xblock', 'js/views/modals/edit_xblock', 'js/views/modals/move_xblock_modal',
+    'js/views/modals/copy_xblock_modal',
     'js/models/xblock_info', 'js/views/xblock_string_field_editor', 'js/views/xblock_access_editor',
     'js/views/pages/container_subviews', 'js/views/unit_outline', 'js/views/utils/xblock_utils'],
     function($, _, Backbone, gettext, BasePage, ViewUtils, ContainerView, XBlockView, AddXBlockComponent,
-          EditXBlockModal, MoveXBlockModal, XBlockInfo, XBlockStringFieldEditor, XBlockAccessEditor,
+          EditXBlockModal, MoveXBlockModal, CopyXBlockModal, XBlockInfo, XBlockStringFieldEditor, XBlockAccessEditor,
           ContainerSubviews, UnitOutlineView, XBlockUtils) {
         'use strict';
         var XBlockContainerPage = BasePage.extend({
@@ -19,7 +20,10 @@ define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page
                 'click .access-button': 'editVisibilitySettings',
                 'click .duplicate-button': 'duplicateXBlock',
                 'click .move-button': 'showMoveXBlockModal',
+                'click .copy-button': 'showCopyXBlockModal',
                 'click .delete-button': 'deleteXBlock',
+                'click .button-copy-to-library': 'copyToLibrary',
+                'click .header-select input': 'toggleXBlockSelectedState',
                 'click .new-component-button': 'scrollToNewComponentButtons'
             },
 
@@ -62,6 +66,13 @@ define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page
                     model: this.model
                 });
                 this.messageView.render();
+                if (this.isLibraryPage) {
+                    this.containerActionsView = new ContainerSubviews.ContainerActionsView({
+                        el: this.$('.container-actions'),
+                        model: this.model
+                    });
+                    this.containerActionsView.render();
+                }
                 // Display access message on units and split test components
                 if (!this.isLibraryPage) {
                     this.containerAccessView = new ContainerSubviews.ContainerAccess({
@@ -98,6 +109,7 @@ define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page
                 }
 
                 this.listenTo(Backbone, 'move:onXBlockMoved', this.onXBlockMoved);
+                this.listenTo(Backbone, 'ready:onXBlockReady', this.onXBlockReady);
             },
 
             getViewParameters: function() {
@@ -117,6 +129,7 @@ define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page
                     xblockView = this.xblockView,
                     loadingElement = this.$('.ui-loading'),
                     unitLocationTree = this.$('.unit-location'),
+                    containerActions = this.$('.container-actions'),
                     hiddenCss = 'is-hidden';
 
                 loadingElement.removeClass(hiddenCss);
@@ -142,6 +155,7 @@ define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page
                         // Refresh the views now that the xblock is visible
                         self.onXBlockRefresh(xblockView);
                         unitLocationTree.removeClass(hiddenCss);
+                        containerActions.removeClass(hiddenCss)
 
                         // Re-enable Backbone events for any updated DOM elements
                         self.delegateEvents();
@@ -177,6 +191,38 @@ define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page
                     });
                 } else {
                     this.$('.add-xblock-component').remove();
+                }
+            },
+
+            isXBlockSelected(xblockElement) {
+                var xblockInfo = XBlockUtils.findXBlockInfo(xblockElement, this.model)
+                return this.model.get('selected_children').includes(xblockInfo.id)
+            },
+
+            selectXBlock: function (xblockElement) {
+                var xblockInfo = XBlockUtils.findXBlockInfo(xblockElement, this.model)
+                var selectedChildren = this.model.get('selected_children').slice()
+                selectedChildren.push(xblockInfo.id)
+                this.model.set('selected_children', selectedChildren)
+                xblockElement.prop('checked', true);
+            },
+
+            unselectXBlock: function (xblockElement) {
+                var xblockInfo = XBlockUtils.findXBlockInfo(xblockElement, this.model);
+                var selectedChildren = this.model.get('selected_children').slice();
+                var index = selectedChildren.indexOf(xblockInfo.id);
+                selectedChildren.splice(index, 1);
+                this.model.set('selected_children', selectedChildren);
+                xblockElement.prop('checked', false);
+            },
+
+            toggleXBlockSelectedState: function (event) {
+                var xblockElement = this.findXBlockElement(event.target);
+                var isSelected = this.isXBlockSelected(xblockElement);
+                if (isSelected) {
+                    this.unselectXBlock(xblockElement);
+                } else {
+                    this.selectXBlock(xblockElement);
                 }
             },
 
@@ -217,6 +263,35 @@ define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page
                         sourceParentXBlockInfo: XBlockUtils.findXBlockInfo(parentXBlockElement, this.model),
                         XBlockURLRoot: this.getURLRoot(),
                         outlineURL: this.options.outlineURL
+                    });
+
+                event.preventDefault();
+                modal.show();
+            },
+
+            showCopyXBlockModal: function(event) {
+                var xblockElement = this.findXBlockElement(event.target),
+                    parentXBlockElement = xblockElement.parents('.studio-xblock-wrapper'),
+                    modal = new CopyXBlockModal({
+                        sourceXBlockInfo: XBlockUtils.findXBlockInfo(xblockElement, this.model),
+                        sourceParentXBlockInfo: XBlockUtils.findXBlockInfo(parentXBlockElement, this.model),
+                        XBlockURLRoot: this.getURLRoot(),
+                        outlineURL: this.options.outlineURL
+                    });
+
+                event.preventDefault();
+                modal.show();
+            },
+
+            copyToLibrary: function(event) {
+                var xblockElement = this.findXBlockElement(event.target),
+                    parentXBlockElement = xblockElement.parents('.studio-xblock-wrapper'),
+                    modal = new CopyXBlockModal({
+                        sourceXBlockInfo: XBlockUtils.findXBlockInfo(parentXBlockElement, this.model),
+                        sourceParentXBlockInfo: XBlockUtils.findXBlockInfo(parentXBlockElement, this.model),
+                        XBlockURLRoot: this.getURLRoot(),
+                        outlineURL: this.options.outlineURL,
+                        copyLibToLib: true
                     });
 
                 event.preventDefault();
@@ -287,6 +362,8 @@ define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page
             },
 
             onDelete: function(xblockElement) {
+                // unselect element
+                this.unselectXBlock(xblockElement)
                 // get the parent so we can remove this component from its parent.
                 var xblockView = this.xblockView,
                     parent = this.findXBlockElement(xblockElement.parent());
@@ -305,6 +382,14 @@ define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page
              */
             onXBlockMoved: function() {
                 this.model.fetch();
+            },
+
+            onXBlockReady: function() {
+                var selectedChildren = this.model.get('selected_children');
+                var xblockElements = this.$('.studio-xblock-wrapper .header-select input');
+                xblockElements.each(function(index, element) {
+                    $(element).prop('checked', selectedChildren.includes(element.id));
+                });
             },
 
             onNewXBlock: function(xblockElement, scrollOffset, is_duplicate, data) {

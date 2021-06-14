@@ -523,6 +523,19 @@
       // header
       .unit-header {
         @extend %outline-item-header;
+
+        .unit-header-checkbox {
+          @include float(left);
+
+          margin-right: 6px;
+          margin-top: 7px;
+
+          input {
+            width: 15px;
+            height: 15px;
+            z-index: 1;
+          }
+        }
       }
 
       .unit-header-details {

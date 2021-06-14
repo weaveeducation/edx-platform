@@ -16,6 +16,7 @@ import openedx.core.djangoapps.lang_pref.views
 from cms.djangoapps.contentstore import toggles
 from cms.djangoapps.contentstore import views as contentstore_views
 from cms.djangoapps.contentstore.views.organization import OrganizationListView
+from common.djangoapps.credo_modules.views import manage_org_tags, manage_org_tags_sorting
 from openedx.core.apidocs import api_info
 from openedx.core.djangoapps.password_policy import compliance as password_policy_compliance
 from openedx.core.djangoapps.password_policy.forms import PasswordPolicyAwareAdminAuthForm
@@ -98,6 +99,32 @@ urlpatterns = [
         ),
     url(r'^home/?$', contentstore_views.course_listing, name='home'),
     url(r'^home_library/?$', contentstore_views.library_listing, name='home_library'),
+
+    url(r'^course_listing/?$', contentstore_views.course_listing_short,
+        name='course_listing_short'),
+
+    url(r'^get_versions_list/{}?$'.format(settings.USAGE_KEY_PATTERN),
+        contentstore_views.get_versions_list,
+        name='get_versions_list'),
+    url(r'^restore_block_version/{}?$'.format(settings.USAGE_KEY_PATTERN),
+        contentstore_views.restore_block_version,
+        name='restore_block_version'),
+
+    url(r'^copy_section_to_other_course/?$', contentstore_views.copy_section_to_other_courses,
+        name='copy_section_to_other_courses'),
+    url(r'^copy_section_to_other_courses_result/?$', contentstore_views.copy_section_to_other_courses_result,
+        name='copy_section_to_other_courses_result'),
+    url(r'^copy_units_to_libraries/?$', contentstore_views.copy_units_to_libraries,
+        name='copy_units_to_libraries'),
+    url(r'^copy_units_to_libraries_result/?$', contentstore_views.copy_units_to_libraries_result,
+        name='copy_units_to_libraries_result'),
+    url(r'^copy_components_to_libraries/?$', contentstore_views.copy_components_to_libraries,
+        name='copy_components_to_libraries'),
+    url(r'^copy_components_to_libraries_result/?$', contentstore_views.copy_components_to_libraries_result,
+        name='copy_components_to_libraries_result'),
+    url(r'^libraries_listing/?$', contentstore_views.libraries_listing_short,
+        name='libraries_listing_short'),
+
     url(fr'^course/{settings.COURSE_KEY_PATTERN}/search_reindex?$',
         contentstore_views.course_search_index_handler,
         name='course_search_index_handler'
@@ -180,6 +207,7 @@ urlpatterns = [
     url(r'^api/val/v0/', include('edxval.urls')),
     url(r'^api/tasks/v0/', include('user_tasks.urls')),
     url(r'^accessibility$', contentstore_views.accessibility, name='accessibility'),
+    url(r'^turnitin/', include('common.djangoapps.turnitin_integration.urls')),
 ]
 
 if not settings.DISABLE_DEPRECATED_SIGNIN_URL:
@@ -222,11 +250,9 @@ if toggles.EXPORT_GIT.is_enabled():
 if settings.FEATURES.get('ENABLE_SERVICE_STATUS'):
     urlpatterns.append(url(r'^status/', include('openedx.core.djangoapps.service_status.urls')))
 
-# The password pages in the admin tool are disabled so that all password
-# changes go through our user portal and follow complexity requirements.
-if not settings.FEATURES.get('ENABLE_CHANGE_USER_PASSWORD_ADMIN'):
-    urlpatterns.append(url(r'^admin/auth/user/\d+/password/$', handler404))
-urlpatterns.append(url(r'^admin/password_change/$', handler404))
+urlpatterns.append(url(r'^admin/configure-org-tags/(?P<org_id>\d+)', manage_org_tags, name='admin-manage-org-tags'))
+urlpatterns.append(url(r'^admin/configure-org-tags-order/(?P<org_id>\d+)', manage_org_tags_sorting,
+            name='admin-manage-org-tags-order'),)
 urlpatterns.append(url(r'^admin/', admin.site.urls))
 
 # enable entrance exams

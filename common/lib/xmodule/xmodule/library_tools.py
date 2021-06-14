@@ -135,7 +135,7 @@ class LibraryToolsService:
         """
         return self.store.check_supports(block.location.course_key, 'copy_from_template')
 
-    def update_children(self, dest_block, user_perms=None, version=None):
+    def update_children(self, dest_block, user_perms=None, version=None, check_permissions=True):
         """
         This method is to be used when the library that a LibraryContentBlock
         references has been updated. It will re-fetch all matching blocks from

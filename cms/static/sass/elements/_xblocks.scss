@@ -43,6 +43,19 @@
     display: flex;
     align-items: center;
 
+    .header-select {
+      @include float(left);
+
+      margin-right: 6px;
+      margin-top: 5px;
+
+      input {
+        width: 15px;
+        height: 15px;
+        z-index: 1;
+      }
+    }
+
     .header-details {
       @extend %cont-truncated;
 

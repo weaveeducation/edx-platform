@@ -97,6 +97,55 @@ class SequenceFields:  # lint-amnesty, pylint: disable=missing-class-docstring
         scope=Scope.settings,
     )
 
+    top_of_course_outline = Boolean(
+        display_name=_("Attach at the top of the course outline"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Attach at the top of the course outline"),
+    )
+
+    course_outline_description = String(
+        display_name=_("Course outline: description"),
+        default="",
+        scope=Scope.settings,
+        help=_("Course outline: description"),
+    )
+
+    course_outline_button_title = String(
+        display_name=_("Course outline: button title"),
+        default="",
+        scope=Scope.settings,
+        help=_("Course outline: button title"),
+    )
+
+    after_finish_return_to_course_outline = Boolean(
+        display_name=_("When the section is completed return the user to the course outline"),
+        default=False,
+        scope=Scope.settings,
+        help=_("When the section is completed return the user to the course outline"),
+    )
+
+    do_not_display_in_course_outline = Boolean(
+        display_name=_("Do not display in course outline"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Do not display in course outline")
+    )
+
+    use_as_survey_for_supervisor = Boolean(
+        display_name=_("Use as survey for supervisor"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Use as survey for supervisor")
+    )
+
+    supervisor_evaluation_hash = String(
+        display_name=_("Supervisor evaluation hash"),
+        default="",
+        scope=Scope.settings,
+        help=_("Supervisor evaluation hash"),
+    )
+
 
 class SequenceMixin(SequenceFields):
     """
