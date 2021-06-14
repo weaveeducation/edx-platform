@@ -55,6 +55,8 @@
                     };
 
                     this.thirdPartyAuthHint = options.third_party_auth_hint || null;
+                    this.disableSigninButton = options.disable_signin_button || false;
+                    this.disableRegistrationButton = options.disable_registration_button || false;
 
                     // Account activation messages
                     this.accountActivationMessages = options.account_activation_messages || [];
@@ -159,6 +161,7 @@
                             accountRecoveryMessages: this.accountRecoveryMessages,
                             platformName: this.platformName,
                             supportURL: this.supportURL,
+                            disableRegistrationButton: this.disableRegistrationButton,
                             passwordResetSupportUrl: this.passwordResetSupportUrl,
                             createAccountOption: this.createAccountOption,
                             hideAuthWarnings: this.hideAuthWarnings,
@@ -208,6 +211,7 @@
                             thirdPartyAuth: this.thirdPartyAuth,
                             platformName: this.platformName,
                             hideAuthWarnings: this.hideAuthWarnings,
+                            disableSigninButton: this.disableSigninButton,
                             is_require_third_party_auth_enabled: this.is_require_third_party_auth_enabled
                         });
 
