@@ -1946,6 +1946,7 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookma
             'is_learning_mfe': is_learning_mfe,
             'is_mobile_app': is_request_from_mobile_app(request),
             'reset_deadlines_url': reverse(RESET_COURSE_DEADLINES_NAME),
+            'block_type': usage_key.block_type,
 
             **optimization_flags,
         }
