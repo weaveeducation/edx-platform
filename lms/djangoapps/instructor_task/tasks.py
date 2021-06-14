@@ -47,7 +47,8 @@ from lms.djangoapps.instructor_task.tasks_helper.module_state import (
     override_score_module_state,
     perform_module_state_update,
     rescore_problem_module_state,
-    reset_attempts_module_state
+    reset_attempts_module_state,
+    reset_progress_student
 )
 from lms.djangoapps.instructor_task.tasks_helper.runner import run_main_task
 
@@ -94,6 +95,14 @@ def override_problem_score(entry_id, xmodule_instance_args):
 
     visit_fcn = partial(perform_module_state_update, update_fcn, None)
     return run_main_task(entry_id, visit_fcn, action_name)
+
+
+@shared_task(base=BaseInstructorTask)
+@set_code_owner_attribute
+def reset_progress_for_student_credo(entry_id, xmodule_instance_args):
+    action_name = ugettext_noop('reset')
+    task_fn = partial(reset_progress_student, xmodule_instance_args)
+    return run_main_task(entry_id, task_fn, action_name)
 
 
 @shared_task(base=BaseInstructorTask)

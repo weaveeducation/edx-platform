@@ -43,7 +43,8 @@ from lms.djangoapps.instructor_task.tasks import (
     rescore_problem,
     reset_problem_attempts,
     send_bulk_course_email,
-    generate_anonymous_ids_for_course
+    generate_anonymous_ids_for_course,
+    reset_progress_for_student_credo
 )
 from xmodule.modulestore.django import modulestore
 
@@ -211,6 +212,14 @@ def submit_reset_problem_attempts_for_all_students(request, usage_key):  # pylin
     task_class = reset_problem_attempts
     task_input, task_key = encode_problem_and_student_input(usage_key)
     return submit_task(request, task_type, task_class, usage_key.course_key, task_input, task_key)
+
+
+def submit_reset_progress_for_student(request, course_key, student_id):  # pylint: disable=invalid-name
+    task_type = 'reset_progress_for_student_credo'
+    task_class = reset_progress_for_student_credo
+    task_input = {'course_id': str(course_key), 'student': student_id}
+    task_key = ""
+    return submit_task(request, task_type, task_class, course_key, task_input, task_key)
 
 
 def submit_reset_problem_attempts_in_entrance_exam(request, usage_key, student):  # pylint: disable=invalid-name
