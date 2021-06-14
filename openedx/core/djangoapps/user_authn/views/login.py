@@ -578,10 +578,13 @@ def redirect_to_lms_login(request):
     This view redirect the admin/login url to the site's login page if
     waffle switch is on otherwise returns the admin site's login view.
     """
-    if ENABLE_LOGIN_USING_THIRDPARTY_AUTH_ONLY.is_enabled():
-        return redirect('/login?next=/admin')
+    if request.user.is_authenticated:
+        if request.user.is_staff or request.user.is_superuser:
+            return redirect('/admin')
+        else:
+            return HttpResponseForbidden("You don't have permissions to access this page")
     else:
-        return admin.site.login(request)
+        return redirect('/login?next=/admin')
 
 
 class LoginSessionView(APIView):
