@@ -107,11 +107,11 @@ edx-api-doc-tools==1.4.0  # via -r requirements/edx/testing.txt
 edx-bulk-grades==0.8.8    # via -r requirements/edx/testing.txt, staff-graded-xblock
 edx-ccx-keys==1.2.0       # via -r requirements/edx/testing.txt
 edx-celeryutils==1.0.0    # via -r requirements/edx/testing.txt, super-csv
-edx-completion==4.0.3     # via -r requirements/edx/testing.txt
+git+https://github.com/CredoEducation/completion.git@integration-lilac#egg=edx-completion==4.0.4
 edx-django-release-util==1.0.0  # via -r requirements/edx/testing.txt
 edx-django-sites-extensions==3.0.0  # via -r requirements/edx/testing.txt
 edx-django-utils==3.16.0  # via -r requirements/edx/testing.txt, django-config-models, edx-drf-extensions, edx-enterprise, edx-rest-api-client, edx-toggles, edx-when, ora2, super-csv
-edx-drf-extensions==6.5.0  # via -r requirements/edx/testing.txt, edx-completion, edx-enterprise, edx-organizations, edx-proctoring, edx-rbac, edx-when, edxval
+git+https://github.com/CredoEducation/edx-drf-extensions.git@integration-lilac#egg=edx-drf-extensions==6.5.1
 edx-enterprise==3.22.1    # via -c requirements/edx/../constraints.txt, -r requirements/edx/testing.txt
 edx-event-routing-backends==4.0.1  # via -r requirements/edx/testing.txt
 edx-i18n-tools==0.5.3     # via -r requirements/edx/testing.txt, ora2
@@ -120,7 +120,7 @@ edx-milestones==0.3.1     # via -r requirements/edx/testing.txt
 edx-opaque-keys[django]==2.2.0  # via -r requirements/edx/testing.txt, edx-bulk-grades, edx-ccx-keys, edx-completion, edx-drf-extensions, edx-enterprise, edx-milestones, edx-organizations, edx-proctoring, edx-user-state-client, edx-when, lti-consumer-xblock, xmodule
 edx-organizations==6.9.0  # via -r requirements/edx/testing.txt
 edx-proctoring-proctortrack==1.0.5  # via -r requirements/edx/testing.txt
-edx-proctoring==3.8.5     # via -r requirements/edx/testing.txt, edx-proctoring-proctortrack
+git+https://github.com/CredoEducation/edx-proctoring.git@integration-lilac#egg=edx-proctoring==3.8.6
 edx-rbac==1.4.2           # via -r requirements/edx/testing.txt, edx-enterprise
 edx-rest-api-client==5.3.0  # via -r requirements/edx/testing.txt, edx-enterprise, edx-proctoring
 edx-search==3.0.0         # via -r requirements/edx/testing.txt
