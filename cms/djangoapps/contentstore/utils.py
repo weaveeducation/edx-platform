@@ -617,6 +617,15 @@ def translation_language(language):
         yield
 
 
+def feature_is_available(course_key, user, feature):
+    if not hasattr(user, 'extended_role'):
+        role = get_custom_user_role(course_key, user, check_enrollment=False)
+        setattr(user, 'extended_role', role)
+    if user.extended_role:
+        return getattr(user.extended_role, feature)
+    return True
+
+
 def get_role_features(course_key, user):
     if not hasattr(user, 'extended_role'):
         role = get_custom_user_role(course_key, user, check_enrollment=False)
