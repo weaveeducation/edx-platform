@@ -456,6 +456,7 @@ def jump_to(request, course_id, location):
 @ensure_csrf_cookie
 @ensure_valid_course_key
 @data_sharing_consent_required
+@login_required
 def course_info(request, course_id):
     """
     Display the course's info.html, or 404 if there is no such course.
@@ -649,21 +650,24 @@ class CourseTabView(EdxFragmentView):
         """
         course_key = CourseKey.from_string(course_id)
         with modulestore().bulk_operations(course_key):
+            course_obj = modulestore().get_course(course_key, depth=0)
+            if request.user.is_authenticated and is_user_credo_anonymous(request.user) \
+                and course_obj and course_obj.allow_anonymous_access:
+                CourseEnrollment.enroll(request.user, course_key)
+
             course = get_course_with_access(request.user, 'load', course_key)
-            try:
-                # Render the page
-                course_tabs = course.tabs + _get_dynamic_tabs(course, request.user)
-                tab = CourseTabList.get_tab_by_type(course_tabs, tab_type)
-                page_context = self.create_page_context(request, course=course, tab=tab, **kwargs)
 
-                # Show warnings if the user has limited access
-                # Must come after masquerading on creation of page context
-                self.register_user_access_warning_messages(request, course)
+            # Render the page
+            course_tabs = course.tabs + _get_dynamic_tabs(course, request.user)
+            tab = CourseTabList.get_tab_by_type(course_tabs, tab_type)
+            page_context = self.create_page_context(request, course=course, tab=tab, **kwargs)
 
-                set_custom_attributes_for_course_key(course_key)
-                return super().get(request, course=course, page_context=page_context, **kwargs)
-            except Exception as exception:  # pylint: disable=broad-except
-                return CourseTabView.handle_exceptions(request, course_key, course, exception)
+            # Show warnings if the user has limited access
+            # Must come after masquerading on creation of page context
+            self.register_user_access_warning_messages(request, course)
+
+            set_custom_attributes_for_course_key(course_key)
+            return super().get(request, course=course, page_context=page_context, **kwargs)
 
     @staticmethod
     def url_to_enroll(course_key):

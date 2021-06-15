@@ -15,6 +15,7 @@ from openedx.core.lib.course_tabs import CourseTabPluginManager
 from openedx.features.course_experience import DISABLE_UNIFIED_COURSE_TAB_FLAG, default_course_url_name
 from openedx.features.course_experience.url_helpers import get_learning_mfe_home_url
 from common.djangoapps.student.models import CourseEnrollment
+from common.djangoapps.credo_modules.models import Organization
 from xmodule.tabs import CourseTab, CourseTabList, course_reverse_func_from_name_func, key_checker
 
 
@@ -355,6 +356,16 @@ def get_course_tab_list(user, course):
     course_tab_list = []
     must_complete_ee = not user_can_skip_entrance_exam(user, course)
     for tab in xmodule_tab_list:
+        if tab.type == 'progress':
+            enable_extended_progress_page = False
+            try:
+                org = Organization.objects.get(org=course.id.org)
+                if org.org_type is not None:
+                    enable_extended_progress_page = org.org_type.enable_extended_progress_page
+            except Organization.DoesNotExist:
+                pass
+            if enable_extended_progress_page:
+                tab.name = _("My Skills")
         if must_complete_ee:
             # Hide all of the tabs except for 'Courseware'
             # Rename 'Courseware' tab to 'Entrance Exam'
@@ -377,6 +388,11 @@ def get_course_tab_list(user, course):
 
     # Add in any dynamic tabs, i.e. those that are not persisted
     course_tab_list += _get_dynamic_tabs(course, user)
+
+    for tab_item in course_tab_list:
+        if hasattr(course, 'course_tab_names') and tab_item.type in course.course_tab_names:
+            tab_item.name = course.course_tab_names[tab_item.type]
+
     # Sorting here because although the CourseTabPluginManager.get_tab_types function
     # does do sorting on priority, we only use it for getting the dynamic tabs.
     # We can't switch this function to just use the CourseTabPluginManager without

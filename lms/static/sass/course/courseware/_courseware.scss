@@ -40,14 +40,14 @@ html.video-fullscreen {
     padding: ($baseline/4) ($baseline/2);
     border-radius: ($baseline/4);
     background-color: $light-gray1;
-    color: $staff-color;
+    color: $staff-color !important;
     text-transform: uppercase;
 
     @extend %ui-print-excluded;
 
     &:hover {
-      background-color: $staff-color;
-      color: $white;
+      background-color: $staff-color !important;
+      color: $white !important;
     }
   }
 }
@@ -704,12 +704,20 @@ html.video-fullscreen {
 
     .xqa-modal,
     .staff-modal,
-    .history-modal {
+    .history-modal,
+    .scores-modal {
       width: 80%;
       height: 80%;
       left: left(20%);
       overflow: auto;
       display: none;
+    }
+
+    .scores-modal {
+      background: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      max-width: 1400px;
     }
 
     div.staff_info {

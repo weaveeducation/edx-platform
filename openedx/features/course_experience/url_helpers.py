@@ -213,7 +213,10 @@ def is_request_from_learning_mfe(request: HttpRequest):
     """
     Returns whether the given request was made by the frontend-app-learning MFE.
     """
+    http_referer = request.META.get('HTTP_REFERER', '')
+    if http_referer is None:
+        http_referer = ''
     return (
         settings.LEARNING_MICROFRONTEND_URL and
-        request.META.get('HTTP_REFERER', '').startswith(settings.LEARNING_MICROFRONTEND_URL)
+        http_referer.startswith(settings.LEARNING_MICROFRONTEND_URL)
     )

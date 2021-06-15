@@ -89,7 +89,7 @@ class DjangoXBlockUserStateClient(XBlockUserStateClient):
         """
         course_key_func = attrgetter('course_key')
         by_course = itertools.groupby(
-            sorted(block_keys, key=course_key_func),
+            sorted([bk.for_branch(None) for bk in block_keys], key=course_key_func),
             course_key_func,
         )
 
@@ -244,15 +244,16 @@ class DjangoXBlockUserStateClient(XBlockUserStateClient):
 
         for usage_key, state in block_keys_to_state.items():
             try:
-                student_module, created = StudentModule.objects.get_or_create(
-                    student=user,
-                    course_id=usage_key.context_key,
-                    module_state_key=usage_key,
-                    defaults={
-                        'state': json.dumps(state),
-                        'module_type': usage_key.block_type,
-                    },
-                )
+                with transaction.atomic():
+                    student_module, created = StudentModule.objects.get_or_create(
+                        student=user,
+                        course_id=usage_key.context_key,
+                        module_state_key=usage_key,
+                        defaults={
+                            'state': json.dumps(state),
+                            'module_type': usage_key.block_type,
+                        },
+                    )
             except IntegrityError:
                 # PLAT-1109 - Until we switch to read committed, we cannot rely
                 # on get_or_create to be able to see rows created in another

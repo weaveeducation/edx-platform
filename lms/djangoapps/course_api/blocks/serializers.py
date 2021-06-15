@@ -81,6 +81,8 @@ SUPPORTED_FIELDS = [
     ),
     SupportedFieldType(BlockCompletionTransformer.COMPLETION, BlockCompletionTransformer),
     SupportedFieldType(BlockCompletionTransformer.COMPLETE),
+    SupportedFieldType(BlockCompletionTransformer.COMPLETE_PERCENT),
+    SupportedFieldType(BlockCompletionTransformer.COMPLETE_STATUS),
     SupportedFieldType(BlockCompletionTransformer.RESUME_BLOCK),
 
     *[SupportedFieldType(field_name) for field_name in ExtraFieldsTransformer.get_requested_extra_fields()],

@@ -72,6 +72,12 @@ class CourseMetadata:
         'default_tab',
         'highlights_enabled_for_messaging',
         'is_onboarding_exam',
+        'top_of_course_outline',
+        'course_outline_description',
+        'course_outline_button_title',
+        'after_finish_return_to_course_outline',
+        'use_as_survey_for_supervisor',
+        'supervisor_evaluation_hash'
     ]
 
     @classmethod

@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_control
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.contrib.auth.decorators import login_required
 from opaque_keys.edx.keys import CourseKey
 from web_fragments.fragment import Fragment
 
@@ -37,6 +38,7 @@ from openedx.features.discounts.utils import get_first_purchase_offer_banner_fra
 from openedx.features.discounts.utils import format_strikeout_price
 from common.djangoapps.student.models import CourseEnrollment
 from common.djangoapps.util.views import ensure_valid_course_key
+from common.djangoapps.credo_modules.models import Organization
 from xmodule.course_module import COURSE_VISIBILITY_PUBLIC, COURSE_VISIBILITY_PUBLIC_OUTLINE
 
 from .. import (
@@ -59,6 +61,7 @@ class CourseHomeView(CourseTabView):
     """
     The home page for a course.
     """
+    @method_decorator(login_required)
     @method_decorator(ensure_csrf_cookie)
     @method_decorator(cache_control(no_cache=True, no_store=True, must_revalidate=True))
     @method_decorator(ensure_valid_course_key)
@@ -119,6 +122,11 @@ class CourseHomeFragmentView(EdxFragmentView):
         """
         course_key = CourseKey.from_string(course_id)
         course = get_course_with_access(request.user, 'load', course_key)
+
+        try:
+            org = Organization.objects.get(org=course.org)
+        except Organization.DoesNotExist:
+            org = None
 
         # Render the course dates as a fragment
         dates_fragment = CourseDatesFragmentView().render_to_fragment(request, course_id=course_id, **kwargs)
@@ -249,6 +257,7 @@ class CourseHomeFragmentView(EdxFragmentView):
             'upgrade_url': upgrade_url,
             'has_discount': has_discount,
             'show_search': show_search,
+            'enable_new_carousel_view': org and org.is_carousel_view,
             'show_proctoring_info_panel': COURSEWARE_PROCTORING_IMPROVEMENTS.is_enabled(course_key),
         }
         html = render_to_string('course_experience/course-home-fragment.html', context)
