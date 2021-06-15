@@ -785,7 +785,8 @@ def get_cms_course_link(course, page='course'):
     """
     # This is fragile, but unfortunately the problem is that within the LMS we
     # can't use the reverse calls from the CMS
-    return "//{}/{}/{}".format(settings.CMS_BASE, page, str(course.id))
+    cms_base = configuration_helpers.get_value('CMS_BASE', settings.CMS_BASE)
+    return "//{}/{}/{}".format(cms_base, page, str(course.id))
 
 
 def get_cms_block_link(block, page):
@@ -795,7 +796,8 @@ def get_cms_block_link(block, page):
     """
     # This is fragile, but unfortunately the problem is that within the LMS we
     # can't use the reverse calls from the CMS
-    return f"//{settings.CMS_BASE}/{page}/{block.location}"
+    cms_base = configuration_helpers.get_value('CMS_BASE', settings.CMS_BASE)
+    return f"//{cms_base}/{page}/{block.location}"
 
 
 def get_studio_url(course, page):
