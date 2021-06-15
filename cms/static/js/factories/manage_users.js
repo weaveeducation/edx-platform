@@ -4,7 +4,7 @@
 define(['underscore', 'gettext', 'js/views/manage_users_and_roles'],
 function(_, gettext, ManageUsersAndRoles) {
     'use strict';
-    return function(containerName, users, tplUserURL, current_user_id, allow_actions) {
+    return function(containerName, users, tplUserURL, current_user_id, allow_actions, custom_roles, is_library) {
         function updateMessages(messages) {
             var local_messages = _.extend({}, messages);
             local_messages.alreadyMember.title = gettext('Already a course team member');
@@ -26,7 +26,9 @@ function(_, gettext, ManageUsersAndRoles) {
             users: users,
             messages_modifier: updateMessages,
             current_user_id: current_user_id,
-            allow_actions: allow_actions
+            allow_actions: allow_actions,
+            custom_roles: custom_roles,
+            is_library: is_library
         };
 
         var view = new ManageUsersAndRoles(options);
