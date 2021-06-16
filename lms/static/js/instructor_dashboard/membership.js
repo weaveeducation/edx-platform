@@ -55,40 +55,25 @@ such that the value can be defined later than this assignment (file load order).
                 labels: ['field1', 'field2', 'field3'],
                 add_placeholder: 'Enter name',
                 add_btn_label: 'Add Member',
-                add_handler: function() {}
+                add_handler: function() {},
+                bulk_handler: function() {}
             });
             templateHtml = edx.HtmlUtils.template($('#membership-list-widget-tpl').text())(memberListParams);
             edx.HtmlUtils.setHtml(this.$container, templateHtml);
             this.$('input[type="button"].add').click(function() {
                 condition = typeof memberListParams.add_handler === 'function';
-                var membersRes = [];
-                memberlistwidget.$('.add-field').each(function(idx, item) {
-                  var tmpVal = $(item).val();
-                  if ((tmpVal != null) && tmpVal !== '') {
-                    membersRes.push(tmpVal);
-                  }
-                });
-                return condition ? memberListParams.add_handler(
-                  (membersRes.length > 0) ? membersRes.join(';') : ''
-                ) : undefined;
+                return condition ? memberListParams.add_handler(memberlistwidget.$('.add-field').val()) : undefined;
             });
-            this.$('input[type="button"].add-role-new-field').click(function() {
-              var newElem = $('<div class="user-input" style="padding-bottom: 10px;">' +
-                  '<label>' +
-                  '<span class="label-text sr">Enter username or email</span>' +
-                  '<input type="text" name="add-field" class="add-field" placeholder="Enter username or email" style="width: 300px;">&nbsp;' +
-                  '<button class="remove-field">Remove</button>' +
-                  '</label>' +
-                  '</div>');
-              newElem.on("click", '.remove-field', function() {
-                $(this).closest('.user-input').remove();
-              });
-              memberlistwidget.$('.users-input').append(newElem);
+            this.$('.roles-bulk-update').click(function() {
+                var action = $(this).data('action');
+                condition = typeof memberListParams.bulk_handler === 'function';
+                return condition ? memberListParams.bulk_handler(
+                  memberlistwidget.$('.student-ids-role-bulk-update').val(), action) : undefined;
             });
         }
 
         memberListWidget.prototype.clear_input = function() {
-            this.$('.user-input').not('.original').remove();
+            this.$('.student-ids-role-bulk-update').val('');
             return this.$('.add-field').val('');
         };
 
@@ -146,6 +131,9 @@ such that the value can be defined later than this assignment (file load order).
                 add_btn_label: $container.data('add-button-label'),
                 add_handler: function(input) {
                     return authListWidget.add_handler(input);
+                },
+                bulk_handler: function(input, action) {
+                    return authListWidget.bulk_handler(input, action);
                 }
             });
             this.debug = true;
@@ -167,7 +155,7 @@ such that the value can be defined later than this assignment (file load order).
         AuthListWidget.prototype.add_handler = function(input) {
             var authListWidgetAddHandler = this;
             if ((input != null) && input !== '') {
-                return this.modify_member_access(input, 'allow', function(error) {
+                return this.modify_member_access(input, 'allow', false, function(error) {
                     if (error !== null) {
                         return authListWidgetAddHandler.show_errors(error);
                     }
@@ -177,6 +165,22 @@ such that the value can be defined later than this assignment (file load order).
                 });
             } else {
                 return this.show_errors(gettext('Please enter a username or email.'));
+            }
+        };
+
+        AuthListWidget.prototype.bulk_handler = function(input, action) {
+            var authListWidgetAddHandler = this;
+            if ((input != null) && input !== '') {
+                return this.modify_member_access(input, action, true, function(error) {
+                    if (error !== null) {
+                        return authListWidgetAddHandler.show_errors(error);
+                    }
+                    authListWidgetAddHandler.clear_errors();
+                    authListWidgetAddHandler.clear_input();
+                    return authListWidgetAddHandler.reload_list();
+                });
+            } else {
+                return this.show_errors(gettext('Please enter at least one username or email.'));
             }
         };
 
@@ -200,7 +204,7 @@ such that the value can be defined later than this assignment (file load order).
                         class: 'revoke'
                     });
                     $revokeBtn.click(function() {
-                        authListWidgetReloadList.modify_member_access(member.email, 'revoke', function(err) {
+                        authListWidgetReloadList.modify_member_access(member.email, 'revoke', false, function(err) {
                             if (err !== null) {
                                 authListWidgetReloadList.show_errors(err);
                                 return;
@@ -272,7 +276,7 @@ such that the value can be defined later than this assignment (file load order).
             });
         };
 
-        AuthListWidget.prototype.modify_member_access = function(uniqueStudentIdentifier, action, cb) {
+        AuthListWidget.prototype.modify_member_access = function(uniqueStudentIdentifier, action, isBulk, cb) {
             var authlistwidgetmemberaccess = this;
             return $.ajax({
                 type: 'POST',
@@ -281,10 +285,11 @@ such that the value can be defined later than this assignment (file load order).
                 data: {
                     unique_student_identifier: uniqueStudentIdentifier,
                     rolename: this.rolename,
-                    action: action
+                    action: action,
+                    is_bulk: (isBulk) ? '1' : '0'
                 },
                 success: function(data) {
-                    if ($.isArray(data)) {
+                    if (isBulk) {
                         return authlistwidgetmemberaccess.members_response(data);
                     } else {
                         return authlistwidgetmemberaccess.member_response(data);

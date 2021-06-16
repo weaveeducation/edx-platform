@@ -880,8 +880,11 @@ def bulk_beta_modify_access(request, course_id):
 )
 @common_exceptions_400
 def modify_access(request, course_id):
-    student_lst = request.POST.get('unique_student_identifier').split(';')
-    if len(student_lst) > 1:
+    is_bulk = request.POST.get('is_bulk', '0')
+    student_data = request.POST.get('unique_student_identifier')
+
+    if str(is_bulk) == '1':
+        student_lst = _split_input_list(student_data)
         result = []
         processed_users = []
         for unique_student_identifier in student_lst:
@@ -892,7 +895,7 @@ def modify_access(request, course_id):
                 result.append(res)
         return JsonResponse(result)
     else:
-        response_payload = _modify_access(request, course_id, request.POST.get('unique_student_identifier'))
+        response_payload = _modify_access(request, course_id, student_data)
         return JsonResponse(response_payload)
 
 
