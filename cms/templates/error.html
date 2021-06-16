@@ -4,7 +4,8 @@
 from django.utils.translation import ugettext as _
 from django.urls import reverse
 from django.conf import settings
-from openedx.core.djangolib.markup import Text
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+from openedx.core.djangolib.markup import HTML, Text
 %>
 <%block name="bodyclass">error</%block>
 <%block name="title">

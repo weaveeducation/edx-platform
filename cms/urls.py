@@ -210,6 +210,7 @@ urlpatterns = [
     url(r'^api/tasks/v0/', include('user_tasks.urls')),
     url(r'^accessibility$', contentstore_views.accessibility, name='accessibility'),
     url(r'^turnitin/', include('common.djangoapps.turnitin_integration.urls')),
+    url(r'^logout-redirect$', contentstore_views.logout_redirect_to_lms, name='logout_redirect_to_lms'),
 ]
 
 if not settings.DISABLE_DEPRECATED_SIGNIN_URL:
