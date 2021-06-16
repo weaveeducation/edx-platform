@@ -290,6 +290,11 @@
             border-bottom: 1px solid #CCC;
             padding-top: 5px;
             padding-bottom: 5px;
+
+            .cant-restore {
+              cursor: not-allowed;
+              color: #CCC;
+            }
           }
         }
       }
