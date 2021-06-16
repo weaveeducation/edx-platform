@@ -330,18 +330,6 @@ class UserChangeForm(BaseUserChangeForm):
     """
     last_name = forms.CharField(max_length=30, required=False)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        if not settings.FEATURES.get('ENABLE_CHANGE_USER_PASSWORD_ADMIN'):
-            self.fields["password"] = ReadOnlyPasswordHashField(
-                label=_("Password"),
-                help_text=_(
-                    "Raw passwords are not stored, so there is no way to see this "
-                    "user's password."
-                ),
-            )
-
 
 class CustomUserCreationForm(UserCreationForm):
     def __init__(self, *args, **kwargs):
