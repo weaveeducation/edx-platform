@@ -137,7 +137,7 @@ class FormDescription:
             self, name, label="", field_type="text", default="",
             placeholder="", instructions="", required=True, restrictions=None,
             options=None, include_default_option=False, error_messages=None,
-            supplementalLink="", supplementalText=""
+            supplementalLink="", supplementalText="", autocomplete=None
     ):
         """Add a field to the form description.
 
@@ -208,6 +208,7 @@ class FormDescription:
             "supplementalLink": supplementalLink,
             "supplementalText": supplementalText,
             "loginIssueSupportLink": settings.LOGIN_ISSUE_SUPPORT_LINK,
+            "autocomplete": autocomplete
         }
 
         field_override = self._field_overrides.get(name, {})

@@ -8,11 +8,13 @@
 from django.urls import reverse
 from django.utils.translation import ugettext as _
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous
 %>
 
 <%
   show_explore_courses = settings.FEATURES.get('COURSES_ARE_BROWSABLE')
   self.real_user = getattr(user, 'real_user', user)
+  credo_anonymous_user = is_user_credo_anonymous(self.real_user)
   enable_help_link = settings.FEATURES.get('ENABLE_HELP_LINK')
 
   support_link = configuration_helpers.get_value('SUPPORT_SITE_LINK', settings.SUPPORT_SITE_LINK)
@@ -54,6 +56,14 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
     % endif
   </div>
   <div class="secondary">
+    % if not credo_anonymous_user:
     <%include file="user_dropdown.html"/>
+    % else:
+    <div class="nav-item hidden-mobile">
+      <a class="menu-title" href="${reverse('logout')}?redirect_url=%2Flogin">
+        ${_("Login as admin")}
+      </a>
+    </div>
+    % endif
   </div>
 </div>

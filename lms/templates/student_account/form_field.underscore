@@ -93,6 +93,9 @@
         <input id="<%- form %>-<%- name %>"
            type="<%- type %>"
            name="<%- name %>"
+           <% if ( autocomplete ) { %>
+           autocomplete="<%- autocomplete %>"
+           <% } %>
            class="input-block <% if ( type === 'checkbox' ) { %>checkbox<% } %>"
             <% if ( instructions ) { %>
             aria-describedby="<%- form %>-<%- name %>-desc <%- form %>-<%- name %>-validation-error"

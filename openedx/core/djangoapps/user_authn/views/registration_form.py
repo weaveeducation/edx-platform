@@ -334,6 +334,16 @@ class RegistrationFormFactory:
         "specialty",
     ]
 
+    AUTOCOMPLETE = {
+        'email': 'email',
+        'name': 'name',
+        'username': 'username',
+        'password': 'new-password',
+        'password_copy': 'new-password',
+        'gender': 'sex',
+        'year_of_birth': 'bday-year'
+    }
+
     def _is_field_visible(self, field_name):
         """Check whether a field is visible based on Django settings. """
         return self._extra_fields_setting.get(field_name) in ["required", "optional"]
@@ -436,6 +446,8 @@ class RegistrationFormFactory:
                             field_name
                         )
                     )
+                autocomplete = self.AUTOCOMPLETE.get(field_name, None)
+
                 form_desc.add_field(
                     field_name,
                     label=field.label,
@@ -448,6 +460,7 @@ class RegistrationFormFactory:
                     options=getattr(field, 'choices', None),
                     error_messages=field.error_messages,
                     include_default_option=True,
+                    autocomplete=autocomplete
                 )
         else:
             # Go through the fields in the fields order and add them if they are required or visible
@@ -491,7 +504,8 @@ class RegistrationFormFactory:
              error_messages={
                  "required": error_msg
              },
-             required=required
+             required=required,
+             autocomplete=self.AUTOCOMPLETE.get('password_copy', None)
          )
 
     def _get_registration_submit_url(self, request):
@@ -521,7 +535,8 @@ class RegistrationFormFactory:
                 "min_length": accounts.EMAIL_MIN_LENGTH,
                 "max_length": accounts.EMAIL_MAX_LENGTH,
             },
-            required=required
+            required=required,
+            autocomplete=self.AUTOCOMPLETE.get('email', None)
         )
 
     def _add_confirm_email_field(self, form_desc, required=True):
@@ -544,7 +559,8 @@ class RegistrationFormFactory:
             required=required,
             error_messages={
                 "required": error_msg
-            }
+            },
+            autocomplete=self.AUTOCOMPLETE.get('email', None)
         )
 
     def _add_name_field(self, form_desc, required=True):
@@ -569,7 +585,8 @@ class RegistrationFormFactory:
             restrictions={
                 "max_length": accounts.NAME_MAX_LENGTH,
             },
-            required=required
+            required=required,
+            autocomplete=self.AUTOCOMPLETE.get('name', None)
         )
 
     def _add_username_field(self, form_desc, required=True):
@@ -597,7 +614,8 @@ class RegistrationFormFactory:
                 "min_length": accounts.USERNAME_MIN_LENGTH,
                 "max_length": accounts.USERNAME_MAX_LENGTH,
             },
-            required=required
+            required=required,
+            autocomplete=self.AUTOCOMPLETE.get('username', None)
         )
 
     def _add_password_field(self, form_desc, required=True):
@@ -617,7 +635,8 @@ class RegistrationFormFactory:
             field_type="password",
             instructions=password_validators_instruction_texts(),
             restrictions=password_validators_restrictions(),
-            required=required
+            required=required,
+            autocomplete=self.AUTOCOMPLETE.get('password', None)
         )
 
     def _add_level_of_education_field(self, form_desc, required=True):
