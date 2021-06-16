@@ -11,6 +11,7 @@ from django.utils.translation import LANGUAGE_SESSION_KEY
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from openedx.core.djangoapps.lang_pref import COOKIE_DURATION, LANGUAGE_KEY
+from openedx.core.djangoapps.site_configuration.helpers import get_value
 
 
 @ensure_csrf_cookie
@@ -27,7 +28,7 @@ def update_session_language(request):
         response.set_cookie(
             settings.LANGUAGE_COOKIE,
             language,
-            domain=settings.SESSION_COOKIE_DOMAIN,
+            domain=get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN),
             max_age=COOKIE_DURATION,
             secure=request.is_secure(),
         )

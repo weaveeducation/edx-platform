@@ -24,6 +24,7 @@ from openedx.core.djangoapps.user_api.accounts.utils import retrieve_last_sitewi
 from openedx.core.djangoapps.user_authn.exceptions import AuthFailedError
 from common.djangoapps.util.json_request import JsonResponse
 from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_image_urls_for_user
+from openedx.core.djangoapps.site_configuration.helpers import get_value
 
 
 log = logging.getLogger(__name__)
@@ -78,7 +79,7 @@ def delete_logged_in_cookies(response):
         response.delete_cookie(
             cookie_name,
             path='/',
-            domain=settings.SESSION_COOKIE_DOMAIN
+            domain=get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN)
         )
 
     return response
@@ -88,7 +89,7 @@ def standard_cookie_settings(request):
     """ Returns the common cookie settings (e.g. expiration time). """
 
     cookie_settings = {
-        'domain': settings.SESSION_COOKIE_DOMAIN,
+        'domain': get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN),
         'path': '/',
         'httponly': None,
     }
