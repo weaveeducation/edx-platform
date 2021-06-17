@@ -57,6 +57,7 @@ from common.djangoapps.student.models import (
     UserProfile
 )
 from common.djangoapps.util.milestones_helpers import get_pre_requisite_courses_not_completed
+from common.djangoapps.credo_modules.models import get_inactive_orgs
 from xmodule.modulestore.django import modulestore
 
 log = logging.getLogger("edx.student")
@@ -85,6 +86,15 @@ def get_org_black_and_whitelist_for_site():
         # have been configured for any other sites. This applies to edx.org,
         # where it is easier to blacklist all other orgs.
         org_blacklist = configuration_helpers.get_all_orgs()
+
+    deactivated_orgs = get_inactive_orgs()
+    if len(deactivated_orgs):
+        if org_blacklist:
+            for deactivated_org in deactivated_orgs:
+                if deactivated_org not in org_blacklist:
+                    org_blacklist.add(deactivated_org)
+        else:
+            org_blacklist = set(deactivated_orgs)
 
     return org_whitelist, org_blacklist
 
