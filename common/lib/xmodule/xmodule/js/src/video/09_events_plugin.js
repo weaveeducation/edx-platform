@@ -153,6 +153,16 @@
                     code: this.state.isYoutubeType() ? this.state.youtubeId() : this.state.canPlayHLS ? 'hls' : 'html5',
                     duration: this.state.duration
                 }, data, this.options.data);
+
+                if (eventName === 'load_video') {
+                    if (window.videoReady === undefined) {
+                        window.videoReady = [];
+                    }
+                    if (window.videoReady.indexOf(this.state.id) === -1) {
+                        window.videoReady.push(this.state.id);
+                    }
+                }
+
                 Logger.log(eventName, logInfo);
             }
         };
