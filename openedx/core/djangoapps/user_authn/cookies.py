@@ -89,10 +89,13 @@ def standard_cookie_settings(request):
     """ Returns the common cookie settings (e.g. expiration time). """
 
     cookie_settings = {
-        'domain': get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN),
         'path': '/',
         'httponly': None,
     }
+
+    session_cookie_domain = get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN)
+    if session_cookie_domain:
+        cookie_settings['domain'] = session_cookie_domain
 
     _set_expires_in_cookie_settings(cookie_settings, request.session.get_expiry_age())
 
