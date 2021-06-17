@@ -38,6 +38,11 @@ from openedx.core.djangolib.markup import HTML, Text
 from openedx.core.lib.edx_six import get_gettext
 from xmodule.stringify import stringify_children
 
+try:
+    from django.utils.html import strip_spaces_between_tags
+except ImportError:
+    strip_spaces_between_tags = None
+
 # extra things displayed after "show answers" is pressed
 solution_tags = ['solution']
 
@@ -561,7 +566,10 @@ class LoncapaProblem(object):
         if answer_text:
             return answer_id[0]
         if xml_element.tag == 'optioninput':
-            return xml_element.xpath('@correct')[0]
+            try:
+                return xml_element.xpath('@correct')[0]
+            except IndexError:
+                return
         return ', '.join(xml_element.xpath('*[@correct="true"]/text()'))
 
     def find_question_label(self, answer_id):
@@ -668,9 +676,14 @@ class LoncapaProblem(object):
         """
         if isinstance(current_answer, list):
             # Multiple answers. This case happens e.g. in multiple choice problems
-            answer_text = ", ".join(
-                self.find_answer_text(answer_id, answer) for answer in current_answer
-            )
+            answer_text = ''
+            answer_lst = []
+            for answer in current_answer:
+                answer_id_text = self.find_answer_text(answer_id, answer)
+                if answer_id_text:
+                    answer_lst.append(answer_id_text)
+            if answer_lst:
+                answer_text = ", ".join(answer_lst)
 
         elif isinstance(current_answer, six.string_types) and current_answer.startswith('choice_'):
             # Many problem (e.g. checkbox) report "choice_0" "choice_1" etc.
@@ -789,7 +802,7 @@ class LoncapaProblem(object):
             etree.tostring(self._extract_html(self.tree)).decode('utf-8'),
             self.context
         )
-        return html
+        return strip_spaces_between_tags(html) if strip_spaces_between_tags else html
 
     def handle_input_ajax(self, data):
         """
