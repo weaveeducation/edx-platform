@@ -14,6 +14,7 @@ from credo_modules.models import Organization, OrganizationType
 from credo_modules.course_access_handler import CourseAccessHandler
 from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin, view_auth_classes
 from openedx.core.djangoapps.content.block_structure.tasks import _update_course_structure
+from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from opaque_keys.edx.keys import CourseKey
 from util.disable_rate_limit import can_disable_rate_limit
 
@@ -441,6 +442,29 @@ class CourseIdExtendedListView(APIView):
                 'user': request.user,
                 'values': None
             })
+        return Response({'courses': courses})
+
+
+class OrgsCourseInfoView(APIView):
+    authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
+    permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
+
+    def get(self, request):
+        courses = []
+        org_list = request.query_params.getlist('org')
+
+        if not org_list:
+            raise ValidationError('org query param is required')
+
+        course_overviews = CourseOverview.objects.filter(org__in=org_list)
+
+        for course in course_overviews:
+            courses.append({
+                'id': str(course.id),
+                'start_date': course.start_date,
+                'end_date': course.end_date
+            })
+
         return Response({'courses': courses})
 
 
