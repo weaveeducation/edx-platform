@@ -154,6 +154,9 @@ class LibraryToolsService:
             dest_block.source_library_version = ""
             return
 
+        if check_permissions is None:
+            check_permissions = True
+
         source_blocks = []
         library_key = dest_block.source_library_key
         if version:
@@ -161,7 +164,7 @@ class LibraryToolsService:
         library = self._get_library(library_key)
         if library is None:
             raise ValueError(f"Requested library {library_key} not found.")
-        if user_perms and not user_perms.can_read(library_key):
+        if check_permissions and user_perms and not user_perms.can_read(library_key):
             raise PermissionDenied()
         filter_children = (dest_block.capa_type != ANY_CAPA_TYPE_VALUE)
         if filter_children:
