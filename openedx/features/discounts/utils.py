@@ -164,33 +164,7 @@ def generate_offer_html(user, course):
     Returns a openedx.core.djangolib.markup.HTML object, or None if the user
     should not be shown an offer message.
     """
-    data = generate_offer_data(user, course)
-    if not data:
-        return None
-
-    # Translator: xgettext:no-python-format
-    offer_message = _('{banner_open} Upgrade by {discount_expiration_date} and save {percentage}% '
-                      '[{strikeout_price}]{span_close}{br}Use code {b_open}{code}{b_close} at checkout! '
-                      '{a_open}Upgrade Now{a_close}{div_close}')
-
-    message_html = HTML(offer_message).format(
-        a_open=HTML('<a id="welcome" href="{upgrade_link}">').format(upgrade_link=data['upgrade_url']),
-        a_close=HTML('</a>'),
-        b_open=HTML('<b>'),
-        code=Text(data['code']),
-        b_close=HTML('</b>'),
-        br=HTML('<br>'),
-        banner_open=HTML(
-            '<div class="first-purchase-offer-banner" role="note">'
-            '<span class="first-purchase-offer-banner-bold"><b>'
-        ),
-        discount_expiration_date=strftime_localized_html(data['expiration_date'], 'SHORT_DATE'),
-        percentage=data['percentage'],
-        span_close=HTML('</b></span>'),
-        div_close=HTML('</div>'),
-        strikeout_price=_format_discounted_price(data['original_price'], data['discounted_price']),
-    )
-    return message_html
+    return None
 
 
 def get_first_purchase_offer_banner_fragment(user, course):
