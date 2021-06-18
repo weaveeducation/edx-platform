@@ -87,7 +87,7 @@ from lms.djangoapps.courseware.url_helpers import get_redirect_url
 from lms.djangoapps.courseware.user_state_client import DjangoXBlockUserStateClient
 from lms.djangoapps.courseware.extended_progress import progress_main_page, progress_skills_page, progress_grades_page
 from lms.djangoapps.courseware.utils import get_block_children, CREDO_GRADED_ITEM_CATEGORIES,\
-    get_answer_and_correctness, get_score_points
+    get_answer_and_correctness, get_score_points, get_lti_context_session_key
 from lms.djangoapps.experiments.utils import get_experiment_user_metadata_context
 from lms.djangoapps.grades.api import CourseGradeFactory
 from lms.djangoapps.instructor.enrollment import uses_shib
@@ -1735,7 +1735,7 @@ def _track_successful_certificate_generation(user_id, course_id):
 @xframe_options_exempt
 @transaction.non_atomic_requests
 @ensure_csrf_cookie
-def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookmark_button=None):
+def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookmark_button=None, lti_context_id=None):
     """
     Returns an HttpResponse with HTML content for the xBlock with the given usage_key.
     The returned HTML is a chromeless rendering of the xBlock (excluding content of the containing courseware).
@@ -1827,7 +1827,8 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookma
             'web_app_course_url': reverse(COURSE_HOME_VIEW_NAME, args=[course.id]),
             'on_courseware_page': True,
             'verified_upgrade_link': verified_upgrade_deadline_link(request.user, course=course),
-            'is_learning_mfe': is_learning_mfe
+            'is_learning_mfe': is_learning_mfe,
+            'lti_context_id': lti_context_id
         }
         return render_to_response('courseware/courseware-chromeless.html', context)
 
@@ -2178,7 +2179,14 @@ def launch_new_tab(request, course_id, usage_id):
         )
         raise Http404()
     update_lms_course_usage(request, usage_key, course_key)
-    return render_xblock(request, str(usage_key), check_if_enrolled=False, show_bookmark_button=False)
+
+    lti_context_id = None
+    lti_context_id_key = get_lti_context_session_key(usage_id)
+
+    if lti_context_id_key in request.session:
+        lti_context_id = request.session[lti_context_id_key]
+    return render_xblock(request, str(usage_key), check_if_enrolled=False, show_bookmark_button=False,
+                         lti_context_id=lti_context_id)
 
 
 def _get_browser_datetime(last_answer_datetime, timezone_offset=None, dt_format=None):

@@ -73,6 +73,9 @@ if course is not None:
 
 <script type="text/javascript">
     window.chromlessView = true;
+    % if lti_context_id:
+    window.lti_context_id = "${lti_context_id}";
+    % endif
     var $$course_id = "${course.id | n, js_escaped_string}";
     var $$lastSentPostMessageValue = null;
 
