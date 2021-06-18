@@ -472,6 +472,10 @@
           .proctoring-configuration-button {
             @extend %ui-btn-flat-outline;
           }
+
+          .action-button.is-disabled {
+            color: #bbb8b8;
+          }
         }
       }
 
