@@ -23,6 +23,7 @@ export default function LibraryFactory(componentTemplates, XBlockInfoJson, optio
     xmoduleLoader.done(function() {
         var view = new PagedContainerPage(_.extend(main_options, options));
         view.render();
+        view.renderFilters();
     });
 };
 

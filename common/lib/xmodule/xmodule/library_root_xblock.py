@@ -85,7 +85,6 @@ class LibraryRoot(XBlock):
             page_size = raw_page_size if raw_page_size is not None else children_count
             item_start, item_end = page_size * page_number, page_size * (page_number + 1)
 
-        children_to_show = self.children[item_start:item_end]  # pylint: disable=no-member
         if tags:
             children_to_show = self.children
         else:

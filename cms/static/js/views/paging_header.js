@@ -126,6 +126,14 @@ define([
 
         previousPage: function() {
             this.view.previousPage();
+        },
+
+        show: function() {
+            this.$el.show();
+        },
+
+        hide: function() {
+            this.$el.hide();
         }
     });
 
