@@ -207,7 +207,7 @@ class ReportStore:
         storage_type = config.get('STORAGE_TYPE', '').lower()
         if storage_type == 's3':
             return DjangoStorageReportStore(
-                storage_class='storages.backends.s3boto.S3BotoStorage',
+                storage_class='common.djangoapps.credo_modules.storages.PublicS3BotoStorage',
                 storage_kwargs={
                     'bucket': config['BUCKET'],
                     'location': config['ROOT_PATH'],
