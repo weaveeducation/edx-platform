@@ -541,7 +541,7 @@ def login_user(request):
         return response
     except AuthFailedError as error:
         response_content = error.get_response()
-        log.exception(response_content)
+        #log.exception(response_content)
 
         error_code = response_content.get('error_code')
         if error_code:
