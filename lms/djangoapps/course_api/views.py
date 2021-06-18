@@ -449,11 +449,11 @@ class OrgsCourseInfoView(APIView):
     authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
     permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
 
-    def get(self, request):
+    def post(self, request):
         courses = []
 
         try:
-            json_body = json.loads(request.body)
+            json_body = json.loads(request.body.decode('utf8'))
         except ValueError:
             return Response('Invalid JSON body', status=400)
 
