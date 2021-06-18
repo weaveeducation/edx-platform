@@ -1070,7 +1070,7 @@ def get_extended_role_default_permissions():
     return CustomUserRole().to_dict()
 
 
-def _get_sequential_parent_block(course_id, item):
+def get_sequential_parent_block(course_id, item):
     block = BlockToSequential.objects.filter(course_id=str(course_id), block_id=str(item.location)).first()
     if block:
         return block.sequential_id
@@ -1098,7 +1098,7 @@ def get_student_properties(request, course_key, item=None):
     elif item.category == 'sequential':
         student_properties = get_student_properties_event_data(user, course_key, parent_id=str(item.location))
     else:
-        seq_parent_id = _get_sequential_parent_block(str(course_key), item)
+        seq_parent_id = get_sequential_parent_block(str(course_key), item)
         if seq_parent_id:
             student_properties = get_student_properties_event_data(user, course_key, parent_id=seq_parent_id)
 
