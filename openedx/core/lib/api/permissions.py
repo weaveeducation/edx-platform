@@ -16,6 +16,7 @@ from rest_framework.authentication import BaseAuthentication
 from edx_rest_framework_extensions.permissions import IsStaff, IsUserInUrl
 from openedx.core.lib.log_utils import audit_log
 from common.djangoapps.student.roles import CourseInstructorRole, CourseStaffRole
+from common.djangoapps.credo_modules.models import EdxApiToken
 
 
 class ApiKeyHeaderPermission(permissions.BasePermission):
@@ -34,8 +35,10 @@ class ApiKeyHeaderPermission(permissions.BasePermission):
         matches the setting.
         """
         api_key = getattr(settings, "EDX_API_KEY", None)
+        header_val = request.META.get("HTTP_X_EDX_API_KEY")
 
-        if api_key is not None and request.META.get("HTTP_X_EDX_API_KEY") == api_key:
+        if (api_key is not None and header_val == api_key) or (header_val and EdxApiToken.objects.filter(
+                is_active=True, header_value=header_val).exists()):
             audit_log("ApiKeyHeaderPermission used",
                       path=request.path,
                       ip=request.META.get("REMOTE_ADDR"))
@@ -141,8 +144,10 @@ class APIAdminAuthentication(BaseAuthentication):
 
     def authenticate(self, request):
         api_key = getattr(settings, "EDX_API_KEY", None)
+        header_val = request.META.get("HTTP_X_EDX_API_KEY")
 
-        if api_key is not None and request.META.get("HTTP_X_EDX_API_KEY") == api_key:
+        if (api_key is not None and request.META.get("HTTP_X_EDX_API_KEY") == api_key) \
+                or (header_val and EdxApiToken.objects.filter(is_active=True, header_value=header_val).exists()):
             user = User.objects.filter(is_superuser=True).order_by('id').first()
             return (user, None)
         return None
