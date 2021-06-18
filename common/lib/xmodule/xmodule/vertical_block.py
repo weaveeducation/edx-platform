@@ -82,6 +82,9 @@ class VerticalBlock(SequenceFields, XModuleFields, StudioEditableBlock, XmlParse
 
         # pylint: disable=no-member
         for child in child_blocks:
+            if child.category == 'openassessment' and child.is_hidden():
+                continue
+
             if context.get('hide_access_error_blocks') and getattr(child, 'has_access_error', False):
                 continue
             child_block_context = copy(child_context)

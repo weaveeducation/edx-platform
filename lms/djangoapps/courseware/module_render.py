@@ -1107,7 +1107,8 @@ def get_module_by_usage_id(request, course_id, usage_id, disable_staff_debug_inf
         tracking_context['module']['original_usage_key'] = str(descriptor_orig_usage_key)
         tracking_context['module']['original_usage_version'] = str(descriptor_orig_version)
 
-    unused_masquerade, user = setup_masquerade(request, course_id, has_access(user, 'staff', descriptor, course_id))
+    if hasattr(request, 'session'):
+        unused_masquerade, user = setup_masquerade(request, course_id, has_access(user, 'staff', descriptor, course_id))
     field_data_cache = FieldDataCache.cache_for_descriptor_descendents(
         course_id,
         user,
