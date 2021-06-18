@@ -462,8 +462,8 @@ class OrgsCourseInfoView(APIView):
 
         org_list = json_body.get('orgs', [])
 
-        if not org_list:
-            return Response("orgs JSON key is required and mustn't be an empty", status=400)
+        if not org_list or not isinstance(org_list, list):
+            return Response({'courses': []})
 
         course_overviews = CourseOverview.objects.filter(org__in=org_list)
 
