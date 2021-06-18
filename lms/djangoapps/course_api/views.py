@@ -28,6 +28,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from openedx.core.lib.api.authentication import OAuth2AuthenticationAllowInactiveUser
 from openedx.core.lib.api.permissions import ApiKeyHeaderPermissionIsAuthenticated
+from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from common.djangoapps.credo_modules.models import get_inactive_orgs
 
 
@@ -530,6 +531,29 @@ class CourseIdExtendedListView(APIView):
                 'user': request.user,
                 'values': None
             })
+        return Response({'courses': courses})
+
+
+class OrgsCourseInfoView(APIView):
+    authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
+    permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
+
+    def get(self, request):
+        courses = []
+        org_list = request.query_params.getlist('org')
+
+        if not org_list:
+            raise ValidationError('org query param is required')
+
+        course_overviews = CourseOverview.objects.filter(org__in=org_list)
+
+        for course in course_overviews:
+            courses.append({
+                'id': str(course.id),
+                'start_date': course.start_date,
+                'end_date': course.end_date
+            })
+
         return Response({'courses': courses})
 
 
