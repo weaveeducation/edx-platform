@@ -2,7 +2,7 @@
 Course API Views
 """
 
-
+import json
 from django.core.exceptions import ValidationError
 from django.core.paginator import InvalidPage
 from edx_rest_framework_extensions.paginators import NamespacedPageNumberPagination
@@ -451,10 +451,19 @@ class OrgsCourseInfoView(APIView):
 
     def get(self, request):
         courses = []
-        org_list = request.query_params.getlist('org')
+
+        try:
+            json_body = json.loads(request.body)
+        except ValueError:
+            return Response('Invalid JSON body', status=400)
+
+        if not isinstance(json_body, dict):
+            return Response('JSON body must be in the dict format', status=400)
+
+        org_list = json_body.get('orgs', [])
 
         if not org_list:
-            raise ValidationError('org query param is required')
+            return Response("orgs JSON key is required and mustn't be an empty", status=400)
 
         course_overviews = CourseOverview.objects.filter(org__in=org_list)
 
