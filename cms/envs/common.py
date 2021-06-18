@@ -536,6 +536,7 @@ CONTEXT_PROCESSORS = (
     'django.template.context_processors.csrf',
     'help_tokens.context_processor',
     'openedx.core.djangoapps.site_configuration.context_processors.configuration_context',
+    'common.djangoapps.credo_modules.context_processors.studio_configuration_context',
 )
 
 # Django templating
