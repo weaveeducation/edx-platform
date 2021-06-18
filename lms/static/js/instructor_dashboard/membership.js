@@ -694,11 +694,13 @@ such that the value can be defined later than this assignment (file load order).
                 }));
                 $idsList = $('<ul/>');
                 $taskResSection.append($idsList);
-                for (h = 0, len3 = ids.length; h < len3; h++) {
+                if (ids !== undefined) {
+                  for (h = 0, len3 = ids.length; h < len3; h++) {
                     identifier = ids[h];
                     $idsList.append($('<li/>', {
-                        text: identifier
+                      text: identifier
                     }));
+                  }
                 }
                 return displayResponse.$task_response.append($taskResSection);
             };
