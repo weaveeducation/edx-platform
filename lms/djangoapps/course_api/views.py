@@ -2,6 +2,7 @@
 Course API Views
 """
 
+import json
 
 from django.core.exceptions import ValidationError
 from django.core.paginator import InvalidPage
@@ -538,12 +539,21 @@ class OrgsCourseInfoView(APIView):
     authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
     permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
 
-    def get(self, request):
+    def post(self, request):
         courses = []
-        org_list = request.query_params.getlist('org')
 
-        if not org_list:
-            raise ValidationError('org query param is required')
+        try:
+            json_body = json.loads(request.body.decode('utf8'))
+        except ValueError:
+            return Response('Invalid JSON body', status=400)
+
+        if not isinstance(json_body, dict):
+            return Response('JSON body must be in the dict format', status=400)
+
+        org_list = json_body.get('orgs', [])
+
+        if not org_list or not isinstance(org_list, list):
+            return Response({'courses': []})
 
         course_overviews = CourseOverview.objects.filter(org__in=org_list)
 
