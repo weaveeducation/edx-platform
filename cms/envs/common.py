@@ -734,6 +734,8 @@ MIDDLEWARE = [
     # Instead of AuthenticationMiddleware, we use a cache-backed version
     'openedx.core.djangoapps.cache_toolbox.middleware.CacheBackedAuthenticationMiddleware',
 
+    'common.djangoapps.credo_modules.middleware.LinkAccessOnlyMiddleware',
+
     'common.djangoapps.student.middleware.UserStandingMiddleware',
     'openedx.core.djangoapps.contentserver.middleware.StaticContentServer',
 
@@ -1791,6 +1793,11 @@ ADVANCED_PROBLEM_TYPES = [
     {
         'component': 'staffgradedxblock',
         'boilerplate_name': None
+    },
+    {
+        'component': 'supervisor-evaluation',
+        'boilerplate_name': None,
+        'component_display_name': 'Supervisor Evaluation'
     }
 ]
 
