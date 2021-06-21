@@ -192,9 +192,14 @@ class GradeReportBase:
         the given batched_rows and context.
         """
         # partition and chain successes and errors
-        success_rows, error_rows = zip(*batched_rows)
-        success_rows = list(chain(*success_rows))
-        error_rows = list(chain(*error_rows))
+        batched_rows_res = [v for v in batched_rows]
+        if batched_rows_res:
+            success_rows, error_rows = zip(*batched_rows_res)
+            success_rows = list(chain(*success_rows))
+            error_rows = list(chain(*error_rows))
+        else:
+            success_rows = []
+            error_rows = []
 
         # update metrics on task status
         context.task_progress.succeeded = len(success_rows)
@@ -508,9 +513,14 @@ class CourseGradeReport:
         the given batched_rows and context.
         """
         # partition and chain successes and errors
-        success_rows, error_rows = zip(*batched_rows)
-        success_rows = list(chain(*success_rows))
-        error_rows = list(chain(*error_rows))
+        batched_rows_res = [v for v in batched_rows]
+        if batched_rows_res:
+            success_rows, error_rows = zip(*batched_rows_res)
+            success_rows = list(chain(*success_rows))
+            error_rows = list(chain(*error_rows))
+        else:
+            success_rows = []
+            error_rows = []
 
         # update metrics on task status
         context.task_progress.succeeded = len(success_rows)
