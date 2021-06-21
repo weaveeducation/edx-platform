@@ -880,6 +880,26 @@ def bulk_beta_modify_access(request, course_id):
 )
 @common_exceptions_400
 def modify_access(request, course_id):
+    is_bulk = request.POST.get('is_bulk', '0')
+    student_data = request.POST.get('unique_student_identifier')
+
+    if str(is_bulk) == '1':
+        student_lst = _split_input_list(student_data)
+        result = []
+        processed_users = []
+        for unique_student_identifier in student_lst:
+            res = _modify_access(request, course_id, unique_student_identifier)
+            if res:
+                if 'user_id' in res:
+                    processed_users.append(res['user_id'])
+                result.append(res)
+        return JsonResponse(result)
+    else:
+        response_payload = _modify_access(request, course_id, student_data)
+        return JsonResponse(response_payload)
+
+
+def _modify_access(request, course_id, unique_student_identifier, ignore_users=None):
     """
     Modify staff/instructor access of other user.
     Requires instructor access.
@@ -896,13 +916,15 @@ def modify_access(request, course_id):
         request.user, 'instructor', course_id, depth=None
     )
     try:
-        user = get_student_from_identifier(request.POST.get('unique_student_identifier'))
+        user = get_student_from_identifier(unique_student_identifier)
+        if ignore_users and user.id in ignore_users:
+            return
     except User.DoesNotExist:
         response_payload = {
-            'unique_student_identifier': request.POST.get('unique_student_identifier'),
+            'unique_student_identifier': unique_student_identifier,
             'userDoesNotExist': True,
         }
-        return JsonResponse(response_payload)
+        return response_payload
 
     # Check that user is active, because add_users
     # in common/djangoapps/student/roles.py fails
@@ -910,9 +932,10 @@ def modify_access(request, course_id):
     if not user.is_active:
         response_payload = {
             'unique_student_identifier': user.username,
+            'user_id': user.id,
             'inactiveUser': True,
         }
-        return JsonResponse(response_payload)
+        return response_payload
 
     rolename = request.POST.get('rolename')
     action = request.POST.get('action')
@@ -938,11 +961,12 @@ def modify_access(request, course_id):
     if rolename == 'instructor' and user == request.user and action != 'allow':
         response_payload = {
             'unique_student_identifier': user.username,
+            'user_id': user.id,
             'rolename': rolename,
             'action': action,
-            'removingSelfAsInstructor': True,
+            'removingSelfAsInstructor': True
         }
-        return JsonResponse(response_payload)
+        return response_payload
 
     if action == 'allow':
         allow_access(course, user, rolename)
@@ -966,11 +990,12 @@ def modify_access(request, course_id):
 
     response_payload = {
         'unique_student_identifier': user.username,
+        'user_id': user.id,
         'rolename': rolename,
         'action': action,
-        'success': 'yes',
+        'success': 'yes'
     }
-    return JsonResponse(response_payload)
+    return response_payload
 
 
 @require_POST
