@@ -169,7 +169,10 @@ def compose_activation_email(root_url, user, user_registration=None, route_enabl
     through celery task
     """
     if user_registration is None:
-        user_registration = Registration.objects.get(user=user)
+        try:
+            user_registration = Registration.objects.get(user=user)
+        except Registration.DoesNotExist:
+            return None
 
     message_context = generate_activation_email_context(user, user_registration)
     message_context.update({
@@ -211,6 +214,8 @@ def compose_and_send_activation_email(user, profile, user_registration=None):
 
     root_url = configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL)
     msg = compose_activation_email(root_url, user, user_registration, route_enabled, profile.name)
+    if msg is None:
+        return
 
     from_address = configuration_helpers.get_value('ACTIVATION_EMAIL_FROM_ADDRESS', None)
     send_activation_email.delay(str(msg), from_address=from_address)

@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_GET
 
 from common.djangoapps.edxmako.shortcuts import render_to_response
+from common.djangoapps.credo_modules.models import check_my_skills_access
 from lms.djangoapps.learner_dashboard.programs import ProgramDetailsFragmentView, ProgramsFragmentView
 from openedx.core.djangoapps.programs.models import ProgramsApiConfig
 
@@ -23,6 +24,7 @@ def program_listing(request):
         'show_dashboard_tabs': True,
         'show_program_listing': programs_config.enabled,
         'uses_bootstrap': True,
+        'show_my_skills': check_my_skills_access(request.user)
     }
 
     return render_to_response('learner_dashboard/programs.html', context)
@@ -44,6 +46,7 @@ def program_details(request, program_uuid):
         'nav_hidden': True,
         'disable_courseware_js': True,
         'uses_bootstrap': True,
+        'show_my_skills': check_my_skills_access(request.user)
     }
 
     return render_to_response('learner_dashboard/program_details.html', context)

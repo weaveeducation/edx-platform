@@ -29,6 +29,8 @@ from lms.djangoapps.courseware.views.index import CoursewareIndex
 from lms.djangoapps.courseware.views.views import CourseTabView, EnrollStaffView, StaticCourseTabView, \
     cookie_check, launch_new_tab, email_student_progress, block_student_progress, check_credo_access, \
     render_xblock_course, render_supervisor_evaluation_block
+from lms.djangoapps.courseware.global_progress import global_skills_page, api_get_global_tag_data,\
+    api_get_global_tag_section_data
 from lms.djangoapps.discussion import views as discussion_views
 from lms.djangoapps.discussion.config.settings import is_forum_daily_digest_enabled
 from lms.djangoapps.discussion.notification_prefs import views as notification_prefs_views
@@ -106,6 +108,12 @@ urlpatterns = [
     # TODO: Move lms specific student views out of common code
     url(r'^dashboard/?$', student_views.student_dashboard, name='dashboard'),
     url(r'^change_enrollment$', student_views.change_enrollment, name='change_enrollment'),
+
+    url(r'^myskills/api-get-global-tag-data/?$', api_get_global_tag_data,
+        name='global_skills_api_get_tag_data'),
+    url(r'^myskills/api-get-global-tag-section-data/?$', api_get_global_tag_section_data,
+        name='global_skills_api_get_tag_section_data'),
+    url(r'^myskills/?$', global_skills_page, name='global_skills'),
 
     # Event tracking endpoints
     url(r'', include('common.djangoapps.track.urls')),

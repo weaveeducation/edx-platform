@@ -57,7 +57,7 @@ from common.djangoapps.student.models import (
     UserProfile
 )
 from common.djangoapps.util.milestones_helpers import get_pre_requisite_courses_not_completed
-from common.djangoapps.credo_modules.models import get_inactive_orgs
+from common.djangoapps.credo_modules.models import get_inactive_orgs, check_my_skills_access
 from xmodule.modulestore.django import modulestore
 
 log = logging.getLogger("edx.student")
@@ -791,6 +791,7 @@ def student_dashboard(request):  # lint-amnesty, pylint: disable=too-many-statem
         'inverted_programs': inverted_programs,
         'show_program_listing': ProgramsApiConfig.is_enabled(),
         'show_dashboard_tabs': True,
+        'show_my_skills': check_my_skills_access(request.user),
         'disable_courseware_js': True,
         'display_course_modes_on_dashboard': enable_verified_certificates and display_course_modes_on_dashboard,
         'display_sidebar_on_dashboard': display_sidebar_on_dashboard,

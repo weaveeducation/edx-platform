@@ -52,6 +52,10 @@ hide_profile = get_hide_profile_setting()
             <div class="mobile-nav-item dropdown-item dropdown-nav-item"><a href="${settings.ENTERPRISE_LEARNER_PORTAL_BASE_URL}/${enterprise_customer_portal.get('slug')}" role="menuitem">${_("Dashboard")}</a></div>
         % endif
 
+        % if my_skills_access:
+        <div class="mobile-nav-item dropdown-item dropdown-nav-item"><a href="${reverse('global_skills')}" role="menuitem" >${_("My Skills")}</a></div>
+        % endif
+
         % if not credo_anonymous_user and not hide_profile:
         <div class="mobile-nav-item dropdown-item dropdown-nav-item"><a href="${reverse('learner_profile', kwargs={'username': username})}" role="menuitem">${_("Profile")}</a></div>
         % endif

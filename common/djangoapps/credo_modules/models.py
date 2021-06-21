@@ -1199,6 +1199,9 @@ def check_my_skills_access(user):
     """
     check access to my skills tab for user
     """
+    if not user.is_authenticated:
+        return None
+
     try:
         with transaction.atomic():
             user_settings = UserSettings.objects.filter(user=user).first()
