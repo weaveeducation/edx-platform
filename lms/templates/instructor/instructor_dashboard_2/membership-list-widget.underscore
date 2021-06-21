@@ -21,5 +21,14 @@
             <input type="text" name="add-field" class="add-field" placeholder="<%- add_placeholder %>">
         </label>
         <input type="button" name="add" class="add" value="<%- add_btn_label %>">
+        <div style="padding-top: 10px;">
+        <hr />
+        <label for="student-ids-role-bulk-update">Bulk update (Enter email addresses and/or usernames separated by new lines or commas):</label>
+        <div><textarea rows="6" cols="50" id="student-ids-role-bulk-update" class="student-ids-role-bulk-update" name="student-ids-bulk-update" placeholder="Email Addresses/Usernames" spellcheck="false" style="height: auto; width: 90%;"></textarea></div>
+        <div style="padding-top:5px;">
+            <input type="button" name="roles-bulk-update-add" class="roles-bulk-update" value="Add" data-action="allow">
+            <input type="button" name="roles-bulk-update-remove" class="roles-bulk-update" value="Remove" data-action="revoke">
+        </div>
+        </div>
     </div>
 </div>
