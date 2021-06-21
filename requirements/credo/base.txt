@@ -5,4 +5,4 @@ jwcrypto==0.9
 parsel==1.6.0
 openpyxl==3.0.7
 vertica-python==1.0.1
-git+https://github.com/CredoEducation/xblock-image-explorer.git@8b073c5c2da602472b6be6638c662e3264d271d7#egg=xblock-image-explorer==2.1
+git+https://github.com/CredoEducation/xblock-image-explorer.git@integration-lilac#egg=xblock-image-explorer==2.1
