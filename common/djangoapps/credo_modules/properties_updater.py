@@ -83,14 +83,23 @@ class PropertiesUpdater(object):
 
     def update_prop_info(self, org, course_id, props_lst):
         prop_obj_data = []
-        try:
-            prop_obj = PropertiesInfo.objects.get(org=org, course_id=course_id)
-            prop_obj_data = json.loads(prop_obj.data)
-        except PropertiesInfo.DoesNotExist:
-            prop_obj = PropertiesInfo(
-                org=org,
-                course_id=course_id
-            )
+
+        if course_id is None:
+            prop_obj = self._get_org_prop_obj(org)
+            if not prop_obj:
+                prop_obj = PropertiesInfo(
+                    org=org,
+                    course_id=None
+                )
+        else:
+            try:
+                prop_obj = PropertiesInfo.objects.get(org=org, course_id=course_id)
+                prop_obj_data = json.loads(prop_obj.data)
+            except PropertiesInfo.DoesNotExist:
+                prop_obj = PropertiesInfo(
+                    org=org,
+                    course_id=course_id
+                )
 
         for prop in props_lst:
             if prop not in prop_obj_data:
