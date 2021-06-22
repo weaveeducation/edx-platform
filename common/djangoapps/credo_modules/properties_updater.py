@@ -35,6 +35,16 @@ class PropertiesUpdater(object):
     def get_exclude_properties(self):
         return EXCLUDE_PROPERTIES + COURSE_PROPERTIES
 
+    def _get_org_prop_obj(self, org):
+        """
+        Return org properties using case-sensitive search by org
+        """
+        prop_obj_data = PropertiesInfo.objects.filter(org=org, course_id=None)
+        for prop_obj in prop_obj_data:
+            if prop_obj == org:
+                return prop_obj
+        return None
+
     def _init_org_properties(self, org):
         reg_props_models = [RegistrationPropertiesPerMicrosite, RegistrationPropertiesPerOrg]
         exclude_properties = self.get_exclude_properties()
@@ -43,11 +53,9 @@ class PropertiesUpdater(object):
             self._log('Prepare properties for org: ' + org)
 
             self._org_props[org] = []
-            try:
-                prop_obj = PropertiesInfo.objects.get(org=org, course_id=None)
+            prop_obj = self._get_org_prop_obj(org)
+            if prop_obj:
                 self._org_props[org] = json.loads(prop_obj.data)
-            except PropertiesInfo.DoesNotExist:
-                pass
 
         if org not in self._org_common_props:
             self._org_common_props[org] = []
@@ -112,9 +120,12 @@ class PropertiesUpdater(object):
                 enrollment_properties = json.loads(properties.data)
             except ValueError:
                 return
+
             if enrollment_properties:
                 for k, v in enrollment_properties.items():
                     prop_key = k.strip().lower()
+                    if prop_key not in self._org_props[org] and prop_key not in exclude_properties:
+                        self._org_props[org].append(prop_key)
                     if prop_key not in course_props and prop_key not in exclude_properties:
                         course_props.append(prop_key)
 
@@ -166,7 +177,9 @@ class PropertiesUpdater(object):
         course_user_id = hashlib.md5(course_user_id_source.encode('utf-8')).hexdigest()
 
         if not org_props:
-            prop_obj = PropertiesInfo.objects.get(org=org, course_id=None)
+            prop_obj = self._get_org_prop_obj(org)
+            if not prop_obj:
+                return None
             org_props = json.loads(prop_obj.data)
 
         props = get_student_properties_event_data(user, course_key, skip_user_profile=True)
