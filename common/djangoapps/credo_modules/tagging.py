@@ -66,6 +66,8 @@ def get_tags(course_key, org_val, user_id, saved_tags=None, tags_history=None, u
 
         if isinstance(current_values, str):
             current_values = [current_values]
+        current_values = [v.replace('–', '-').strip().encode("utf-8").decode('ascii', errors='ignore')
+                          for v in current_values]
 
         values_not_exists = [cur_val for cur_val in current_values if cur_val not in values]
         has_access_this_tag = True

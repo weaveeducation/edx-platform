@@ -363,7 +363,8 @@ def _update_course_structure(course_id, published_on):
                             if isinstance(tag_values, list):
                                 for tag_value in tag_values:
                                     t_name = tag_name.strip()
-                                    t_value = tag_value.strip()
+                                    t_value = tag_value.replace('–', '-').strip().encode("utf-8")\
+                                        .decode('ascii', errors='ignore')
                                     if not t_value:
                                         continue
 
@@ -402,7 +403,8 @@ def _update_course_structure(course_id, published_on):
                                 if isinstance(tag_values, list):
                                     for tag_value in tag_values:
                                         t_name = tag_name.strip()
-                                        t_value = tag_value.strip()
+                                        t_value = tag_value.replace('–', '-').strip().encode("utf-8")\
+                                            .decode('ascii', errors='ignore')
                                         if not t_value:
                                             continue
 
