@@ -127,6 +127,8 @@ class StructuredTagsAside(XBlockAside):
 
                         tag_values = tag.get_values(course_id=course_id, org=org)
                         tmp_list = [v for v in request.POST[tag_key].splitlines() if v.strip()]
+                        tmp_list = [v.replace('–', '-').strip().encode("utf-8").decode('ascii', errors='ignore')
+                                    for v in tmp_list]
 
                         values_to_add = list(set(tmp_list) - set(tag_values))
                         values_to_remove = list(set(tag_values) - set(tmp_list))
