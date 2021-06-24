@@ -192,6 +192,7 @@ urlpatterns = [
 
     url(r'^verify_student/', include('lms.djangoapps.verify_student.urls')),
     url(r'^credo_modules/', include('common.djangoapps.credo_modules.urls')),
+    url(r'^turnitin/', include('common.djangoapps.turnitin_integration.urls')),
 
     # URLs for managing dark launches of languages
     url(r'^update_lang/', include(('openedx.core.djangoapps.dark_lang.urls', 'openedx.core.djangoapps.dark_lang'),
