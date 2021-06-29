@@ -2386,7 +2386,7 @@ def launch_new_tab(request, course_id, usage_id):
     if lti_context_id_key in request.session:
         lti_context_id = request.session[lti_context_id_key]
 
-    return render_xblock(request, str(usage_key), check_if_enrolled=False, show_bookmark_button=Fals,
+    return render_xblock(request, str(usage_key), check_if_enrolled=False, show_bookmark_button=False,
                          lti_context_id=lti_context_id)
 
 

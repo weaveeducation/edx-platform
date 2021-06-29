@@ -25,11 +25,13 @@ def update_session_language(request):
         language = data.get(LANGUAGE_KEY, settings.LANGUAGE_CODE)
         if request.session.get(LANGUAGE_SESSION_KEY, None) != language:
             request.session[LANGUAGE_SESSION_KEY] = str(language)
-        response.set_cookie(
-            settings.LANGUAGE_COOKIE,
-            language,
-            domain=get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN),
-            max_age=COOKIE_DURATION,
-            secure=request.is_secure(),
-        )
+        domain = get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN)
+        if domain:
+            response.set_cookie(
+                settings.LANGUAGE_COOKIE,
+                language,
+                domain=domain,
+                max_age=COOKIE_DURATION,
+                secure=request.is_secure(),
+            )
     return response
