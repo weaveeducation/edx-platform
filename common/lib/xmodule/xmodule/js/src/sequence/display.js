@@ -73,7 +73,6 @@
             this.scores = null;
 
             this.scoresBarTopPosition = null;
-            this.courseNavBarMarginTop = null;
 
             this.returnToCourseOutline = parseInt(this.el.data('return-to-course-outline')) == 1;
             if (window.chromlessView) {
@@ -147,14 +146,13 @@
                 });
 
                 this.scoresBarTopPosition = $(panel).position().top;
-                this.courseNavBarMarginTop = this.scoresBarTopPosition - 3;
 
                 $(panel).find('.get-scores-btn').click(function () {
                     self.fetchAndDisplayResults();
                     $(panel).find('.get-scores-link').trigger('click');
                 });
 
-                this._checkScroll(window, this.scoresBarTopPosition, this.courseNavBarMarginTop);
+                this._checkScroll(window, this.scoresBarTopPosition);
                 $(window).bind('scroll', this.detectScroll);
             }
         };
@@ -169,16 +167,14 @@
         };
 
         Sequence.prototype.detectScroll = function(event) {
-            this._checkScroll(event.currentTarget, this.scoresBarTopPosition, this.courseNavBarMarginTop);
+            this._checkScroll(event.currentTarget, this.scoresBarTopPosition);
         };
 
-        Sequence.prototype._checkScroll = function(target, scoresBarTopPosition, courseNavBarMarginTop) {
+        Sequence.prototype._checkScroll = function(target, scoresBarTopPosition) {
             if ($(target).scrollTop() > scoresBarTopPosition) {
                 $(".scores-panel").addClass('is-fixed');
-                $(".wrapper-course-material").css('margin-top', courseNavBarMarginTop + 'px');
             } else {
                 $(".scores-panel").removeClass('is-fixed');
-                $(".wrapper-course-material").css('margin-top', '0');
             }
         };
 
