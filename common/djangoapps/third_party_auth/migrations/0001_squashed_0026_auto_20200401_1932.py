@@ -55,6 +55,7 @@ class Migration(migrations.Migration):
                 ('changed_by', models.ForeignKey(editable=False, null=True, on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL, verbose_name='Changed by')),
                 ('site', models.ForeignKey(default=1, help_text='The Site that this SAML configuration belongs to.', on_delete=django.db.models.deletion.CASCADE, related_name='samlconfigurations', to='sites.Site')),
                 ('slug', models.SlugField(default='default', help_text='A short string uniquely identifying this configuration. Cannot contain spaces. Examples: "ubc", "mit-staging"', max_length=30)),
+                ('separate_settings_per_microsite', models.BooleanField(default=False, verbose_name='Separate Settings per Microsite')),
             ],
             options={
                 'verbose_name_plural': 'SAML Configuration',

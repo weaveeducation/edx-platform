@@ -67,6 +67,7 @@ class Migration(migrations.Migration):
                 ('org_info_str', models.TextField(default='{"en-US": {"url": "http://www.example.com", "displayname": "Example Inc.", "name": "example"}}', help_text="JSON dictionary of 'url', 'displayname', and 'name' for each language", verbose_name='Organization Info')),
                 ('other_config_str', models.TextField(default='{\n"SECURITY_CONFIG": {"metadataCacheDuration": 604800, "signMetadata": false}\n}', help_text='JSON object defining advanced settings that are passed on to python-saml. Valid keys that can be set here include: SECURITY_CONFIG and SP_EXTRA')),
                 ('changed_by', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, editable=False, to=settings.AUTH_USER_MODEL, null=True, verbose_name='Changed by')),
+                ('separate_settings_per_microsite', models.BooleanField(default=False, verbose_name='Separate Settings per Microsite')),
             ],
             options={
                 'verbose_name': 'SAML Configuration',
