@@ -83,7 +83,7 @@ from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import DuplicateCourseError, ItemNotFoundError
 from xmodule.partitions.partitions import UserPartition
 from xmodule.tabs import CourseTab, CourseTabList, InvalidTabsException
-from common.djangoapps.credo_modules.models import CopyBlockTask, CourseStaffExtended, get_inactive_orgs
+from common.djangoapps.credo_modules.models import CopyBlockTask, SiblingBlockUpdateTask, CourseStaffExtended, get_inactive_orgs
 from common.djangoapps.credo_modules.mongo import get_unit_block_versions
 
 from ..course_group_config import (
@@ -111,20 +111,23 @@ from ..utils import (
 )
 from .component import ADVANCED_COMPONENT_TYPES
 from .entrance_exam import create_entrance_exam, delete_entrance_exam, update_entrance_exam
-from .item import create_xblock_info, copy_to_other_course, copy_unit_to_library, copy_components_to_library
+from .item import create_xblock_info, copy_block_to_other_course_task, copy_unit_to_library_task,\
+    copy_components_to_library_task, copy_course_to_other_course_task
 from .library import (
     LIBRARIES_ENABLED,
     LIBRARY_AUTHORING_MICROFRONTEND_URL,
     get_library_creator_status,
     should_redirect_to_library_authoring_mfe
 )
+from .api_block_info import get_courses_with_duplicates, update_api_block_info, SyncApiBlockInfo
 
 log = logging.getLogger(__name__)
 
 
 __all__ = ['course_info_handler', 'course_handler', 'course_listing',
-            'course_listing_short', 'libraries_listing_short',
+           'course_listing_short', 'libraries_listing_short',
            'copy_section_to_other_courses', 'copy_section_to_other_courses_result',
+           'copy_course_to_other_course', 'copy_course_to_other_course_result',
            'copy_units_to_libraries', 'copy_units_to_libraries_result',
            'copy_components_to_libraries', 'copy_components_to_libraries_result',
            'course_info_update_handler', 'course_search_index_handler',
@@ -136,7 +139,8 @@ __all__ = ['course_info_handler', 'course_handler', 'course_listing',
            'course_notifications_handler',
            'textbooks_list_handler', 'textbooks_detail_handler',
            'group_configurations_list_handler', 'group_configurations_detail_handler',
-           'get_versions_list', 'restore_block_version']
+           'get_versions_list', 'restore_block_version', 'api_get_courses_with_duplicates',
+           'update_block_in_related_courses_result']
 
 WAFFLE_NAMESPACE = 'studio_home'
 
@@ -1884,7 +1888,10 @@ def get_versions_list(request, usage_key_string):
 def restore_block_version(request, usage_key_string):
     version_guid = request.POST.get('versionId')
     usage_key = UsageKey.from_string(usage_key_string)
-    modulestore().revert_to_published(usage_key, request.user.id, version_guid)
+    item = modulestore().get_item(usage_key)
+    with SyncApiBlockInfo(item, request.user):
+        modulestore().revert_to_published(usage_key, request.user.id, version_guid)
+        update_api_block_info(usage_key_string, reverted_to_previous_version=True)
     return JsonResponse({'success': True})
 
 
@@ -1986,8 +1993,8 @@ def copy_section_to_other_courses(request):
                         dst_location=course_id
                     )
                     section_task.save()
-                copy_to_other_course.delay(int(section_task.id), request.user.id,
-                                           usage_key_string, course_id)
+                copy_block_to_other_course_task.delay(int(section_task.id), request.user.id,
+                                                      usage_key_string, course_id)
                 tasks_num = tasks_num + 1
         except InvalidKeyError:
             pass
@@ -1998,8 +2005,7 @@ def copy_section_to_other_courses(request):
         return JsonResponse({'task_id': None})
 
 
-@require_http_methods(["POST"])
-def copy_section_to_other_courses_result(request):
+def _copy_item_to_course_result(request):
     json_data = json.loads(request.body.decode('utf8'))
     task_id = json_data.get('task_id')
     if not task_id:
@@ -2015,6 +2021,83 @@ def copy_section_to_other_courses_result(request):
             result = False
         result_list.append({
             'title': t.dst_location,
+            'status': t.status,
+            'result': t.is_finished()
+        })
+
+    return JsonResponse({'result': result, 'courses': result_list})
+
+
+@require_http_methods(["POST"])
+def copy_section_to_other_courses_result(request):
+    return _copy_item_to_course_result(request)
+
+
+@login_required
+@ensure_csrf_cookie
+@require_http_methods(["POST"])
+@transaction.non_atomic_requests
+def copy_course_to_other_course(request):
+    json_data = json.loads(request.body.decode('utf8'))
+    src_course_id = json_data.get('src_course_id')
+    copy_to_courses = json_data.get('copy_to_courses', [])
+
+    task_id = str(uuid4())
+
+    src_course_key = None
+    try:
+        src_course_key = CourseKey.from_string(src_course_id)
+    except InvalidKeyError:
+        pass
+
+    if not src_course_key or not has_studio_read_access(request.user, src_course_key):
+        return JsonResponse({'task_id': None})
+
+    tasks_num = 0
+    for course_id in copy_to_courses:
+        try:
+            course_key = CourseKey.from_string(course_id)
+            if has_studio_write_access(request.user, course_key):
+                with transaction.atomic():
+                    section_task = CopyBlockTask(
+                        task_id=task_id,
+                        block_ids=src_course_id,
+                        dst_location=course_id
+                    )
+                    section_task.save()
+                copy_course_to_other_course_task.delay(int(section_task.id), request.user.id, src_course_id, course_id)
+                tasks_num = tasks_num + 1
+        except InvalidKeyError:
+            pass
+
+    if tasks_num > 0:
+        return JsonResponse({'task_id': task_id})
+    else:
+        return JsonResponse({'task_id': None})
+
+
+@require_http_methods(["POST"])
+def copy_course_to_other_course_result(request):
+    return _copy_item_to_course_result(request)
+
+
+@require_http_methods(["POST"])
+def update_block_in_related_courses_result(request):
+    json_data = json.loads(request.body.decode('utf8'))
+    task_id = json_data.get('task_id')
+    if not task_id:
+        return HttpResponseBadRequest()
+
+    result = True
+    result_list = []
+
+    tasks = SiblingBlockUpdateTask.objects.filter(task_id=task_id)
+
+    for t in tasks:
+        if not t.is_finished():
+            result = False
+        result_list.append({
+            'title': t.sibling_course_id,
             'status': t.status,
             'result': t.is_finished()
         })
@@ -2055,12 +2138,11 @@ def copy_units_to_libraries(request):
                 with transaction.atomic():
                     section_task = CopyBlockTask(
                         task_id=task_id,
-                        block_ids=usage_keys,
+                        block_ids=json.dumps(usage_keys),
                         dst_location=library_key_string
                     )
                     section_task.save()
-                copy_unit_to_library.delay(int(section_task.id), request.user.id,
-                                            usage_keys, library_key_string)
+                copy_unit_to_library_task.delay(int(section_task.id), request.user.id, usage_keys, library_key_string)
                 tasks_num = tasks_num + 1
         except InvalidKeyError:
             pass
@@ -2130,12 +2212,12 @@ def copy_components_to_libraries(request):
                 with transaction.atomic():
                     section_task = CopyBlockTask(
                         task_id=task_id,
-                        block_ids=usage_keys,
+                        block_ids=json.dumps(usage_keys),
                         dst_location=library_key_string
                     )
                     section_task.save()
-                copy_components_to_library.delay(int(section_task.id), request.user.id,
-                                            usage_keys, library_key_string)
+                copy_components_to_library_task.delay(int(section_task.id), request.user.id,
+                                                      usage_keys, library_key_string)
                 tasks_num = tasks_num + 1
         except InvalidKeyError:
             pass
@@ -2170,3 +2252,9 @@ def copy_components_to_libraries_result(request):
         })
 
     return JsonResponse({'result': result, 'libraries': result_list})
+
+
+@login_required
+def api_get_courses_with_duplicates(request, usage_key_string):
+    result = get_courses_with_duplicates(usage_key_string, request.user)
+    return JsonResponse({'data': result})

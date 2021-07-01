@@ -3,8 +3,9 @@
  */
 define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/components/utils/view_utils',
     'js/views/utils/xblock_utils', 'js/views/utils/move_xblock_utils', 'js/views/modals/copy_to_libraries',
-    'edx-ui-toolkit/js/utils/html-utils'],
-    function($, _, gettext, BaseView, ViewUtils, XBlockViewUtils, MoveXBlockUtils, CopyToLibraryModal, HtmlUtils) {
+    'edx-ui-toolkit/js/utils/html-utils', 'js/views/utils/push_changes_utils'],
+    function($, _, gettext, BaseView, ViewUtils, XBlockViewUtils, MoveXBlockUtils, CopyToLibraryModal,
+             HtmlUtils, PushChangesUtils) {
         'use strict';
 
         var disabledCss = 'is-disabled';
@@ -203,16 +204,18 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
                 if (e && e.preventDefault) {
                     e.preventDefault();
                 }
-                ViewUtils.runOperationShowingMessage(gettext('Publishing'),
-                    function() {
-                        return xblockInfo.save({publish: 'make_public'}, {patch: true});
-                    }).always(function() {
+
+                PushChangesUtils.publishChanges({
+                    target: xblockInfo,
+                    xblockType: gettext('unit'),
+                    alwaysShow: false,
+                    onSave: function () {
                         xblockInfo.set('publish', null);
+                        xblockInfo.fetch();
                         // Hide any move notification if present.
                         MoveXBlockUtils.hideMovedNotification();
-                    }).done(function() {
-                        xblockInfo.fetch();
-                    });
+                    }
+                });
             },
 
             discardChanges: function(e) {

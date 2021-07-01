@@ -103,6 +103,10 @@ urlpatterns = [
     url(r'^course_listing/?$', contentstore_views.course_listing_short,
         name='course_listing_short'),
 
+    url(r'^get_courses_with_duplicates/{}?$'.format(settings.USAGE_KEY_PATTERN),
+        contentstore_views.api_get_courses_with_duplicates,
+        name='courses_with_duplicates'),
+
     url(r'^get_versions_list/{}?$'.format(settings.USAGE_KEY_PATTERN),
         contentstore_views.get_versions_list,
         name='get_versions_list'),
@@ -114,6 +118,14 @@ urlpatterns = [
         name='copy_section_to_other_courses'),
     url(r'^copy_section_to_other_courses_result/?$', contentstore_views.copy_section_to_other_courses_result,
         name='copy_section_to_other_courses_result'),
+    url(r'^update_block_in_related_courses_result/?$', contentstore_views.update_block_in_related_courses_result,
+        name='update_block_in_related_courses_result'),
+
+    url(r'^copy_course_to_other_course/?$', contentstore_views.copy_course_to_other_course,
+        name='copy_course_to_other_course'),
+    url(r'^copy_course_to_other_course_result/?$', contentstore_views.copy_course_to_other_course_result,
+        name='copy_course_to_other_course_result'),
+
     url(r'^copy_units_to_libraries/?$', contentstore_views.copy_units_to_libraries,
         name='copy_units_to_libraries'),
     url(r'^copy_units_to_libraries_result/?$', contentstore_views.copy_units_to_libraries_result,

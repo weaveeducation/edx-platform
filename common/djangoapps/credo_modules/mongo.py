@@ -10,12 +10,33 @@ from opaque_keys.edx.keys import UsageKey
 User = get_user_model()
 
 
-def get_course_structure(course_key):
+def _get_mongo_connection():
     connection = MongoClient(host=settings.CONTENTSTORE['DOC_STORE_CONFIG']['host'],
                              port=settings.CONTENTSTORE['DOC_STORE_CONFIG']['port'])
     mongo_conn = Database(connection, settings.CONTENTSTORE['DOC_STORE_CONFIG']['db'])
     mongo_conn.authenticate(settings.CONTENTSTORE['DOC_STORE_CONFIG']['user'],
                             settings.CONTENTSTORE['DOC_STORE_CONFIG']['password'])
+    return mongo_conn
+
+
+def _get_hash_from_set(data):
+    data_lst = list(data)
+    data_str = json.dumps(sorted(data_lst))
+    return hashlib.md5(data_str.encode('utf-8')).hexdigest()
+
+
+def get_last_published_course_version(course_key):
+    mongo_conn = _get_mongo_connection()
+
+    active_versions = mongo_conn.modulestore.active_versions
+    course = active_versions.find_one({'org': course_key.org, 'course': course_key.course, 'run': course_key.run})
+    if not course:
+        return None
+    return str(course['versions']['published-branch'])
+
+
+def get_course_structure(course_key):
+    mongo_conn = _get_mongo_connection()
 
     active_versions = mongo_conn.modulestore.active_versions
     course = active_versions.find_one({'org': course_key.org, 'course': course_key.course, 'run': course_key.run})
@@ -27,21 +48,11 @@ def get_course_structure(course_key):
     return block_version
 
 
-def _get_hash_from_set(data):
-    data_lst = list(data)
-    data_str = json.dumps(sorted(data_lst))
-    return hashlib.md5(data_str.encode('utf-8')).hexdigest()
-
-
 def get_unit_block_versions(block_id):
     usage_key = UsageKey.from_string(block_id)
     course_key = usage_key.course_key
 
-    connection = MongoClient(host=settings.CONTENTSTORE['DOC_STORE_CONFIG']['host'],
-                             port=settings.CONTENTSTORE['DOC_STORE_CONFIG']['port'])
-    mongo_conn = Database(connection, settings.CONTENTSTORE['DOC_STORE_CONFIG']['db'])
-    mongo_conn.authenticate(settings.CONTENTSTORE['DOC_STORE_CONFIG']['user'],
-                            settings.CONTENTSTORE['DOC_STORE_CONFIG']['password'])
+    mongo_conn = _get_mongo_connection()
 
     active_versions = mongo_conn.modulestore.active_versions
     course = active_versions.find_one({'org': course_key.org, 'course': course_key.course, 'run': course_key.run})
@@ -104,3 +115,29 @@ def get_unit_block_versions(block_id):
     for d in result:
         del d['edited_on']
     return result[::-1]
+
+
+def get_last_block_version(block_id, branch_type='published'):
+    usage_key = UsageKey.from_string(block_id)
+    course_key = usage_key.course_key
+
+    if branch_type not in ('published', 'draft'):
+        raise Exception('Invalid branch_type value')
+
+    mongo_conn = _get_mongo_connection()
+
+    active_versions = mongo_conn.modulestore.active_versions
+    course = active_versions.find_one({'org': course_key.org, 'course': course_key.course, 'run': course_key.run})
+
+    structures = mongo_conn.modulestore.structures
+    branch_name = branch_type + '-branch'
+    block_version = structures.find_one({'_id': course['versions'][branch_name]})
+
+    for block in block_version['blocks']:
+        if block['block_type'] == usage_key.block_type and block['block_id'] == usage_key.block_id:
+            return {
+                'id': str(block_version['_id']),
+                'user_id': block['edit_info']['edited_by'],
+                'datetime': block['edit_info']['edited_on']
+            }
+    return None

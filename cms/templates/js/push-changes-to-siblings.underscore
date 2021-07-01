@@ -1,0 +1,20 @@
+<% if (siblings.length) { %>
+    <div class="push-changes-to-siblings-modal">
+        <div class="block-title"><%- gettext("Push Changes to Sibling Content Blocks") %></div>
+        <div class="block-subtitle"><%- gettext("Please select all courses to be updated") %></div>
+        <div class="siblings">
+            <% _.each(siblings, function(item) { %>
+            <div class="item" data-id="<%- item.id %>">
+                <span class="title"><%- item.display_name %> (<%- item.course %> / <%- item.run %>) <span class="status"></span></span>
+                <select name="change-type" data-id="<%- item.id %>" class="change-type">
+                    <option value="none"><%- gettext("Don't update that copy") %></option>
+                    <option value="draft"><%- gettext("Replace it as a draft") %></option>
+                    <option value="publish"><%- gettext("Replace it published") %></option>
+                </select>
+            </div>
+            <% }); %>
+        </div>
+
+        <div class="push-changes-to-siblings-result" style="padding-top: 10px;"></div>
+    </div>
+<% } %>

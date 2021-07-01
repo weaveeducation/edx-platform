@@ -271,10 +271,12 @@ def _update_course_structure(course_id, published_on):
                     item_display_name = item.display_name.strip().replace('|', ' ').replace('$', ' ')
                     if block_item.display_name != item_display_name\
                       or block_item.graded != item.graded\
-                      or block_item.section_path != section_path:
+                      or block_item.section_path != section_path\
+                      or block_item.parent_id != str(item.parent):
                         block_item.display_name = item_display_name
                         block_item.graded = item.graded
                         block_item.section_path = section_path
+                        block_item.parent_id = str(item.parent)
                         block_item.save()
                         items_updated += 1
 
@@ -348,9 +350,11 @@ def _update_course_structure(course_id, published_on):
                             b2s_item = block_to_sequential_items_dict[block_id]
                             if b2s_item.sequential_name != parent.display_name.strip() \
                               or b2s_item.graded != parent_graded\
-                              or b2s_item.visible_to_staff_only != item.visible_to_staff_only:
+                              or b2s_item.visible_to_staff_only != item.visible_to_staff_only\
+                              or b2s_item.sequential_id != parent_id:
                                 b2s_item.sequential_name = parent.display_name.strip()
                                 b2s_item.graded = parent_graded
+                                b2s_item.sequential_id = parent_id
                                 b2s_item.visible_to_staff_only = item.visible_to_staff_only
                                 b2s_item.save()
                                 b2s_updated += 1
