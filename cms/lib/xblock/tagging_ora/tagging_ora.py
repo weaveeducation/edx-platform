@@ -173,3 +173,13 @@ class OraStructuredTagsAside(StructuredTagsAside):
             if event_type.startswith('openassessmentblock.') or event_type.startswith('openassessment.'):
                 return {'saved_tags': self.saved_tags}
         return None
+
+    def get_sorted_tags(self):
+        res = {}
+        for rubric, saved_tags in self.saved_tags.items():
+            r_name = rubric.strip()
+            if isinstance(saved_tags, dict):
+                for tag_name, tag_values in saved_tags.items():
+                    if isinstance(tag_values, list):
+                        res[r_name + '|' + tag_name.strip()] = sorted(tag_values)
+        return res

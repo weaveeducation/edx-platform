@@ -21,6 +21,36 @@ from xblock.fields import Scope
 log = logging.getLogger(__name__)
 
 
+class CopyInfoEntry:
+    data = None
+    metadata = None
+    fields = None
+    tags = None
+    asides_to_update = None
+
+    def __init__(self, xblock):
+        self.metadata = {}
+        self.fields = {}
+
+        for field in xblock.fields.values():
+            if field.scope == Scope.settings and field.is_set_on(xblock):
+                self.metadata[field.name] = field.read_from(xblock)
+            if field.scope == Scope.content and field.is_set_on(xblock):
+                self.fields[field.name] = field.read_from(xblock)
+
+        self.data = getattr(xblock, 'data', None)
+        if self.data and not isinstance(self.data, str):
+            self.data = None
+
+        self.asides_to_update = None
+        self.tags = {}
+        for aside in xblock.runtime.get_asides(xblock):
+            if aside.scope_ids.block_type in ('tagging_aside', 'tagging_ora_aside') and aside.saved_tags:
+                self.asides_to_update = [aside]
+                self.tags = aside.get_sorted_tags()
+                break
+
+
 def create_api_block_info(usage_key, user, block_hash_id=None, created_as_copy=False,
                           published_after_copy=False, auto_save=True):
     if not block_hash_id:
@@ -159,23 +189,22 @@ def update_sibling_block_after_publish(related_courses, xblock, xblock_is_publis
 def _copy_fields_from_one_xblock_to_other(store, source_block, dst_block_id, user, save_xblock_fn):
     dst_item = store.get_item(UsageKey.from_string(dst_block_id))
 
-    metadata = {}
-    for field in source_block.fields.values():
-        if field.scope == Scope.settings and field.is_set_on(source_block):
-            metadata[field.name] = field.read_from(source_block)
-    data = getattr(source_block, 'data', None)
-    if data and not isinstance(data, str):
-        data = None
+    source_block_info = CopyInfoEntry(source_block)
+    dst_block_info = CopyInfoEntry(dst_item)
 
-    asides_to_update = None
-    for aside in source_block.runtime.get_asides(source_block):
-        for field in aside.fields.values():
-            if field.scope in (Scope.settings, Scope.content,) and field.is_set_on(aside):
-                asides_to_update = [aside]
-                break
+    need_update = False
+    if source_block_info.metadata != dst_block_info.metadata\
+      or source_block_info.fields != dst_block_info.fields\
+      or source_block_info.data != dst_block_info.data\
+      or source_block_info.tags != dst_block_info.tags:
+        need_update = True
 
-    save_xblock_fn(user, dst_item, data=data, metadata=metadata, asides=asides_to_update)
-    return dst_item
+    if need_update:
+        save_xblock_fn(user, dst_item,
+                       data=source_block_info.data,
+                       metadata=source_block_info.metadata,
+                       fields=source_block_info.fields,
+                       asides=source_block_info.asides_to_update)
 
 
 @task()
