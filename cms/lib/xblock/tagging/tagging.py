@@ -212,3 +212,11 @@ class StructuredTagsAside(XBlockAside):
             return {'saved_tags': self.saved_tags}
         else:
             return None
+
+    def get_sorted_tags(self):
+        res = {}
+        if isinstance(self.saved_tags, dict):
+            for tag_name, tag_values in self.saved_tags.items():
+                if isinstance(tag_values, list):
+                    res[tag_name.strip()] = sorted(tag_values)
+        return res
