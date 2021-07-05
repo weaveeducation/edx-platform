@@ -1,11 +1,12 @@
 """
 Helper Methods
 """
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.db import transaction
 from django.db.utils import IntegrityError
 
+User = get_user_model()
 USERNAME_DB_FIELD_SIZE = 30
 EMAIL_DB_FIELD_SIZE = 254
 

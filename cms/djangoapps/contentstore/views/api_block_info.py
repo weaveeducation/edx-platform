@@ -4,7 +4,7 @@ from collections import OrderedDict
 
 from celery.task import task
 from django.db import transaction, IntegrityError
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from common.djangoapps.util.module_utils import yield_dynamic_descriptor_descendants
 from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo
@@ -18,6 +18,7 @@ from xmodule.modulestore.exceptions import ItemNotFoundError
 from xblock.fields import Scope
 
 
+User = get_user_model()
 log = logging.getLogger(__name__)
 
 

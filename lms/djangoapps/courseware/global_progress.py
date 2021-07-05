@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 from django.db import transaction
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.views.decorators.http import require_POST
 from django.http import Http404
 from django.urls import reverse
@@ -27,6 +27,7 @@ from .extended_progress import get_tag_values, get_tags_summary_data, get_tag_ti
     convert_into_tree, get_ora_submission_id
 
 
+User = get_user_model()
 MAX_COURSES_PER_USER = 50
 
 
