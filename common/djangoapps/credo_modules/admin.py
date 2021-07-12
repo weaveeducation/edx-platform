@@ -17,6 +17,7 @@ class RegistrationPropertiesPerOrgForm(admin.ModelAdmin):
 
 class EnrollmentPropertiesPerCourseForm(admin.ModelAdmin):
     list_display = ('id', 'course_id')
+    search_fields = ('id', 'course_id', 'data')
 
 
 class OrganizationForm(admin.ModelAdmin):
