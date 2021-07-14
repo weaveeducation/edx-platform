@@ -2,7 +2,7 @@
 Course API Views
 """
 
-
+import json
 from django.core.exceptions import ValidationError
 from django.core.paginator import InvalidPage
 from edx_rest_framework_extensions.paginators import NamespacedPageNumberPagination
@@ -13,7 +13,8 @@ from rest_framework.exceptions import NotFound
 from credo_modules.models import Organization, OrganizationType
 from credo_modules.course_access_handler import CourseAccessHandler
 from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin, view_auth_classes
-from openedx.core.djangoapps.content.block_structure.tasks import _update_course_structure
+from openedx.core.djangoapps.content.block_structure.tasks import _update_course_structure, _update_sequential_block_in_vertica
+from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from opaque_keys.edx.keys import CourseKey
 from util.disable_rate_limit import can_disable_rate_limit
 
@@ -444,6 +445,38 @@ class CourseIdExtendedListView(APIView):
         return Response({'courses': courses})
 
 
+class OrgsCourseInfoView(APIView):
+    authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
+    permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
+
+    def post(self, request):
+        courses = []
+
+        try:
+            json_body = json.loads(request.body.decode('utf8'))
+        except ValueError:
+            return Response('Invalid JSON body', status=400)
+
+        if not isinstance(json_body, dict):
+            return Response('JSON body must be in the dict format', status=400)
+
+        org_list = json_body.get('orgs', [])
+
+        if not org_list or not isinstance(org_list, list):
+            return Response({'courses': []})
+
+        course_overviews = CourseOverview.objects.filter(org__in=org_list)
+
+        for course in course_overviews:
+            courses.append({
+                'id': str(course.id),
+                'start_date': course.start_date,
+                'end_date': course.end_date
+            })
+
+        return Response({'courses': courses})
+
+
 @can_disable_rate_limit
 class CustomerInfoView(APIView):
     authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
@@ -510,4 +543,18 @@ class UpdateCourseStructureView(APIView):
             return Response({'success': False, 'error': "course_id is not set"})
 
         _update_course_structure(course_id, None)
+        return Response({'success': True})
+
+
+@can_disable_rate_limit
+class UpdateSequentialBlockView(APIView):
+    authentication_classes = (JwtAuthentication, OAuth2AuthenticationAllowInactiveUser)
+    permission_classes = ApiKeyHeaderPermissionIsAuthenticated,
+
+    def post(self, request):
+        sequential_id = request.POST.get('sequential_id')
+        if not sequential_id:
+            return Response({'success': False, 'error': "sequential_id is not set"})
+
+        _update_sequential_block_in_vertica(sequential_id)
         return Response({'success': True})

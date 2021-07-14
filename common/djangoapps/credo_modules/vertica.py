@@ -4,7 +4,9 @@ import tempfile
 import vertica_python
 import time
 
+from django.db import transaction
 from django.conf import settings
+from .models import TrackingLog
 
 
 def get_vertica_dsn():
@@ -129,3 +131,69 @@ def merge_data_into_vertica_table(model_class, update_process_num=None, ids_list
         print('Vertica INSERT done: %s sec' % str(t4 - t3))
 
         cursor.execute("COMMIT")
+
+
+def update_data_in_vertica(vertica_conn, where_condition, update_condition):
+    if not isinstance(where_condition, dict) or 'org_id' not in where_condition:
+        raise Exception('org_id must be set in the WHERE fields')
+
+    if not update_condition or not isinstance(update_condition , dict):
+        raise Exception('update_condition is not set')
+
+    update_fields_lst = list(update_condition.copy())
+    update_condition_vertica = {}
+    select_fields = list(update_condition.keys())
+    select_fields.append('id')
+
+    for update_field, update_val in update_condition.items():
+        if isinstance(update_val, str):
+            update_condition_vertica[update_field] = "'" + update_val.strip().replace("\n", " ").replace("\t", " ")\
+                .replace("'", '').encode("utf-8").decode('ascii', errors='ignore') + "'"
+        elif isinstance(update_val, bool):
+            update_condition_vertica[update_field] = '1' if update_val else '0'
+        else:
+            update_condition_vertica[update_field] = str(update_val)
+
+    limit = 1000
+    id_from = 0
+    id_to = id_from + limit
+    process = True
+
+    while process:
+        data = TrackingLog.objects.filter(**where_condition).order_by('id').values(*select_fields)[id_from:id_to]
+        len_items = len(data)
+
+        if not len_items:
+            process = False
+        else:
+            id_from = id_from + limit
+            id_to = id_to + limit
+
+            ids_to_update = []
+            for v in data:
+                for update_field in update_fields_lst:
+                    if v[update_field] != update_condition[update_field]:
+                        ids_to_update.append(v['id'])
+                        break
+
+            if ids_to_update:
+                where_condition_res = []
+                for where_field, where_val in where_condition.items():
+                    where_condition_res.append(where_field + "='" + where_val + "'")
+                where_condition_res.append('id IN (' + ','.join([str(id_upd) for id_upd in ids_to_update]) + ')')
+
+                update_condition_vertica_res = []
+                for update_field, update_val in update_condition_vertica.items():
+                    update_condition_vertica_res.append(update_field + '=' + update_val)
+
+                sql = "UPDATE credo_modules_trackinglog SET " \
+                      + ', '.join(update_condition_vertica_res) + ' WHERE ' + ' AND '.join(where_condition_res)
+
+                where_condition_copy = where_condition.copy()
+                where_condition_copy['id__in'] = ids_to_update
+
+                with transaction.atomic():
+                    TrackingLog.objects.filter(**where_condition_copy).update(**update_condition)
+                    cursor = vertica_conn.cursor()
+                    cursor.execute(sql)
+                    cursor.execute("COMMIT")

@@ -6,6 +6,7 @@ import hashlib
 import logging
 import time
 import json
+import vertica_python
 from django.db import transaction
 from django.utils.html import strip_tags
 
@@ -13,7 +14,7 @@ from celery.task import task
 from django.conf import settings
 from edxval.api import ValInternalError
 from lxml.etree import XMLSyntaxError
-from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.keys import CourseKey, UsageKey
 
 from capa.responsetypes import LoncapaProblemError
 from openedx.core.djangoapps.content.block_structure import api
@@ -23,6 +24,9 @@ from xmodule.modulestore.django import modulestore
 from xmodule.modulestore import ModuleStoreEnum
 from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure, ApiCourseStructureTags,\
     ApiCourseStructureLock, BlockToSequential, CourseAuthProfileFieldsCache, OraBlockStructure
+from credo_modules.event_parser import prepare_text_for_column_db
+from credo_modules.models import TrackingLogConfig
+from credo_modules.vertica import update_data_in_vertica, get_vertica_dsn
 
 log = logging.getLogger('edx.celery.task')
 
@@ -110,6 +114,65 @@ def update_course_structure(self, **kwargs):
             ApiCourseStructureLock.remove(course_id)
 
 
+@block_structure_task()
+def update_sequential_block_in_vertica(self, **kwargs):
+    sequential_id = kwargs.get('sequential_id')
+    if not sequential_id:
+        return
+
+    try:
+        _update_sequential_block_in_vertica(sequential_id)
+    except Exception as exc:
+        log.exception('Error during update sequential block %s in Vertica: %s' % (str(sequential_id), str(exc)))
+        raise self.retry(kwargs=kwargs, exc=exc, countdown=120)  # retry in 2 minutes
+
+
+def _update_sequential_block_in_vertica(sequential_id):
+    usage_key = UsageKey.from_string(sequential_id)
+    course_key = usage_key.course_key
+
+    with modulestore().branch_setting(ModuleStoreEnum.Branch.published_only):
+        with modulestore().bulk_operations(course_key):
+            seq_block = modulestore().get_item(usage_key)
+            sequential_name = seq_block.display_name.strip()
+            sequential_name = prepare_text_for_column_db(sequential_name)
+            sequential_graded = seq_block.graded
+
+            dsn = get_vertica_dsn()
+            additional_settings = {}
+            # if settings.VERTICA_BACKUP_SERVER_NODES:
+            #    additional_settings['backup_server_node'] = settings.VERTICA_BACKUP_SERVER_NODES
+
+            with vertica_python.connect(dsn=dsn, **additional_settings) as vertica_conn:
+                for vert_block in seq_block.get_children():
+                    for item in vert_block.get_children():
+                        if item.category == 'library_content':
+                            for sub_item in item.get_children():
+                                _update_problem_block_in_vertica(
+                                    vertica_conn, sub_item, course_key.org, sequential_id,
+                                    sequential_name, sequential_graded)
+                        else:
+                            _update_problem_block_in_vertica(
+                                vertica_conn, item, course_key.org, sequential_id,
+                                sequential_name, sequential_graded)
+
+
+def _update_problem_block_in_vertica(vertica_conn, xblock, org_id, sequential_id, sequential_name, sequential_graded):
+    where_fields = {
+        'org_id': org_id,
+        'sequential_id': sequential_id,
+        'block_id': str(xblock.location)
+    }
+    question_name = xblock.display_name
+    question_token = sequential_name + '|' + prepare_text_for_column_db(question_name, 2048)
+    update_fields = {
+        'sequential_name': sequential_name,
+        'sequential_graded': 1 if sequential_graded else 0,
+        'question_hash': hashlib.md5(question_token.encode('utf-8')).hexdigest()
+    }
+    update_data_in_vertica(vertica_conn, where_fields, update_fields)
+
+
 def _get_course_in_cache(self, **kwargs):
     """
     Gets the course blocks for the specified course, updating the cache if needed.
@@ -154,6 +217,7 @@ def _update_course_structure(course_id, published_on):
                           'openassessment', 'drag-and-drop-v2', 'image-explorer', 'html', 'video']
     course_key = CourseKey.from_string(course_id)
     t1 = time.time()
+    auto_update_seq_block_in_vertica = int(TrackingLogConfig.get_setting('auto_update_sequential_block_in_vertica', 0))
 
     with modulestore().branch_setting(ModuleStoreEnum.Branch.published_only):
         with modulestore().bulk_operations(course_key):
@@ -227,6 +291,7 @@ def _update_course_structure(course_id, published_on):
     ora_to_insert = []
     tags_to_insert = []
     b2s_to_insert = []
+    sequential_ids_updates = []
     items_updated = 0
     b2s_updated = 0
     ora_items_updated = 0
@@ -265,6 +330,7 @@ def _update_course_structure(course_id, published_on):
                     block_item = existing_structure_items_dict[block_id]
                     section_path = _get_section_path(item, structure_dict)
                     item_display_name = item.display_name.strip().replace('|', ' ').replace('$', ' ')
+
                     if block_item.display_name != item_display_name\
                       or block_item.graded != item.graded\
                       or block_item.section_path != section_path\
@@ -355,6 +421,16 @@ def _update_course_structure(course_id, published_on):
                                 b2s_item.save()
                                 b2s_updated += 1
 
+                                if auto_update_seq_block_in_vertica \
+                                  and not settings.DEBUG \
+                                  and b2s_item.sequential_id not in sequential_ids_updates \
+                                  and (b2s_item.sequential_name != parent.display_name.strip()
+                                       or b2s_item.graded != parent_graded):
+                                    sequential_ids_updates.append(b2s_item.sequential_id)
+                                    update_sequential_block_in_vertica.apply_async(
+                                        kwargs=dict(sequential_id=str(b2s_item.sequential_id))
+                                    )
+
                 if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer', 'html', 'video')\
                     or (item.category == 'openassessment' and len(item.rubric_criteria) == 0):
                     aside = item.runtime.get_aside_of_type(item, 'tagging_aside')
@@ -363,7 +439,8 @@ def _update_course_structure(course_id, published_on):
                             if isinstance(tag_values, list):
                                 for tag_value in tag_values:
                                     t_name = tag_name.strip()
-                                    t_value = tag_value.strip()
+                                    t_value = tag_value.replace('–', '-').strip().encode("utf-8") \
+                                        .decode('ascii', errors='ignore')
                                     if not t_value:
                                         continue
 
@@ -402,7 +479,8 @@ def _update_course_structure(course_id, published_on):
                                 if isinstance(tag_values, list):
                                     for tag_value in tag_values:
                                         t_name = tag_name.strip()
-                                        t_value = tag_value.strip()
+                                        t_value = tag_value.replace('–', '-').strip().encode("utf-8") \
+                                            .decode('ascii', errors='ignore')
                                         if not t_value:
                                             continue
 
