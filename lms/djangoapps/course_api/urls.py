@@ -7,7 +7,7 @@ from django.conf import settings
 from django.conf.urls import include, url
 
 from .views import CourseDetailView, CourseIdListView, CourseListView, CustomerInfoView, OrgsView,\
-    UpdateCourseStructureView, CourseIdExtendedListView, OrgsCourseInfoView
+    UpdateCourseStructureView, UpdateSequentialBlockView, CourseIdExtendedListView, OrgsCourseInfoView
 
 urlpatterns = [
     url(r'^v1/courses/$', CourseListView.as_view(), name="course-list"),
@@ -18,5 +18,6 @@ urlpatterns = [
     url(r'^v1/orgs/$', OrgsView.as_view(), name="orgs-types-info"),
     url(r'^v1/orgs/course-info/$', OrgsCourseInfoView.as_view(), name="orgs-course-info"),
     url(r'^v1/course-structure-update/$', UpdateCourseStructureView.as_view(), name="course-structure-update"),
+    url(r'^v1/sequential-block-update/$', UpdateSequentialBlockView.as_view(), name="sequential-block-update"),
     url(r'', include('lms.djangoapps.course_api.blocks.urls'))
 ]
