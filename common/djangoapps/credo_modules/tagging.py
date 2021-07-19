@@ -29,8 +29,8 @@ def get_available_tags(org):
 
 
 def check_user_access(role, course_id, user=None, user_is_superuser=False):
-    from student.auth import user_has_role
-    from student.roles import CourseStaffRole, CourseInstructorRole
+    from common.djangoapps.student.auth import user_has_role
+    from common.djangoapps.student.roles import CourseStaffRole, CourseInstructorRole
     roles = {
         CourseStaffRole.ROLE: CourseStaffRole,
         CourseInstructorRole.ROLE: CourseInstructorRole
