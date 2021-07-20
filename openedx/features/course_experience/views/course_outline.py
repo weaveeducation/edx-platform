@@ -141,9 +141,10 @@ class CourseOutlineFragmentView(EdxFragmentView):
                     if i['id'] in featured_map:
                         top_sequential_blocks.append(featured_map[i['id']])
 
-                    status_map[i['id']] = i['complete_status']
+                    complete_status = i.get('complete_status')
+                    status_map[i['id']] = complete_status
 
-                    if i['complete_status'] == 'finished':
+                    if complete_status == 'finished':
                         num_completed += 1
 
                     i['jump_to'] = reverse(
