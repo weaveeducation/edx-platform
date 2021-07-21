@@ -139,7 +139,9 @@ class LinkAccessOnlyMiddleware:
         user = getattr(request, 'user', None)
         if user and user.is_authenticated:
             hash_id = request.session.get('link_access_only')
-            if hash_id:
+            allowed_resources = ('.js', '.css', '.map', '.png', '.gif', '.jpg', '.jpeg', '.doc', '.docx')
+
+            if hash_id and not request.path.endswith(allowed_resources):
                 referer_url = request.META.get('HTTP_REFERER', '')
                 url_allowed = '/supervisor/evaluation/' + hash_id
                 if not request.is_ajax() or url_allowed not in referer_url:
