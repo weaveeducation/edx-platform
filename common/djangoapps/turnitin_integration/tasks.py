@@ -23,7 +23,7 @@ def get_countdown(attempt_num):
     return (int(2.71 ** attempt_num) + 5) * 60
 
 
-@CELERY_APP.task(name='turnitin_integration.tasks.turnitin_create_submissions',
+@CELERY_APP.task(name='common.djangoapps.turnitin_integration.tasks.turnitin_create_submissions',
                  max_retries=TURNITIN_TASKS_MAX_RETRIES, bind=True)
 def turnitin_create_submissions(self, key_id, submission_uuid, course_id, block_id, user_id):
     try:
@@ -32,7 +32,7 @@ def turnitin_create_submissions(self, key_id, submission_uuid, course_id, block_
         raise self.retry(exc=exc, countdown=get_countdown(self.request.retries))
 
 
-@CELERY_APP.task(name='turnitin_integration.tasks.turnitin_generate_report',
+@CELERY_APP.task(name='common.djangoapps.turnitin_integration.tasks.turnitin_generate_report',
                  max_retries=TURNITIN_TASKS_MAX_RETRIES, bind=True)
 def turnitin_generate_report(self, turnitin_submission_id):
     try:

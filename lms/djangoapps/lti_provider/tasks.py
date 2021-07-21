@@ -27,7 +27,8 @@ def get_countdown(attempt_num):
     return (int(2.71 ** attempt_num) + 5) * 60
 
 
-@CELERY_APP.task(name='lti_provider.tasks.send_composite_outcome', max_retries=LTI_TASKS_MAX_RETRIES, bind=True)
+@CELERY_APP.task(name='lms.djangoapps.lti_provider.tasks.send_composite_outcome',
+                 max_retries=LTI_TASKS_MAX_RETRIES, bind=True)
 def send_composite_outcome(self, user_id, course_id, assignment_id, version):
     """
     Calculate and transmit the score for a composite module (such as a
