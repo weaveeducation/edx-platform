@@ -199,7 +199,7 @@ nodeenv==1.5.0            # via -r requirements/edx/testing.txt
 numpy==1.20.2             # via -r requirements/edx/testing.txt, chem, openedx-calc, scipy
 oauthlib==3.0.1           # via -c requirements/edx/../constraints.txt, -r requirements/edx/testing.txt, django-oauth-toolkit, lti-consumer-xblock, requests-oauthlib, social-auth-core
 openedx-calc==2.0.1       # via -r requirements/edx/testing.txt
-git+https://github.com/CredoEducation/edx-ora2.git@72ad17b6301f3b6cbf37249f1280d28f6845f23e#egg=ora2==3.4.4
+git+https://github.com/CredoEducation/edx-ora2.git@b0ddd49ba8c54ef1fdda10dab59acab2ac203d6d#egg=ora2==3.4.5
 packaging==20.9           # via -r requirements/edx/testing.txt, bleach, drf-yasg, pytest, sphinx, tox
 path.py==12.5.0           # via -r requirements/edx/testing.txt, edx-enterprise, edx-i18n-tools, ora2, staff-graded-xblock, xmodule
 path==13.1.0              # via -c requirements/edx/../constraints.txt, -r requirements/edx/testing.txt, path.py
