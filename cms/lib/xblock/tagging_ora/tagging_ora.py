@@ -22,6 +22,9 @@ class OraStructuredTagsAside(StructuredTagsAside):
     Aside that allows tagging blocks
     """
 
+    def prepare_rubric_name(self, rubric):
+        return rubric.replace('.', '_dot_').strip()
+
     @XBlockAside.aside_for(AUTHOR_VIEW)
     def student_view_aside(self, block, context):  # pylint: disable=unused-argument
         """
@@ -56,7 +59,7 @@ class OraStructuredTagsAside(StructuredTagsAside):
                 rubrics_current_values = {}
 
                 for rubric in rubrics:
-                    current_values = self.saved_tags.get(rubric, {}).get(tag.name, [])
+                    current_values = self.saved_tags.get(self.prepare_rubric_name(rubric), {}).get(tag.name, [])
 
                     if isinstance(current_values, str):
                         current_values = [current_values]
@@ -130,7 +133,8 @@ class OraStructuredTagsAside(StructuredTagsAside):
         for av_tag in self._get_available_tags():
             for rubric, rubric_tags in posted_data.items():
                 tag_category = av_tag.name.strip()
-                saved_tag_values = self.saved_tags.get(rubric, {}).get(tag_category, [])
+                rubric_name = self.prepare_rubric_name(rubric)
+                saved_tag_values = self.saved_tags.get(rubric_name, {}).get(tag_category, [])
 
                 if tag_category in rubric_tags and rubric_tags[tag_category]:
                     tag_available_values = av_tag.get_values()
@@ -156,9 +160,9 @@ class OraStructuredTagsAside(StructuredTagsAside):
                         else:
                             tags_history[tag_key] = self.tags_history[tag_key].copy()
 
-                    if rubric not in saved_tags:
-                        saved_tags[rubric] = {}
-                    saved_tags[rubric][tag_category] = rubric_tags[tag_category]
+                    if rubric_name not in saved_tags:
+                        saved_tags[rubric_name] = {}
+                    saved_tags[rubric_name][tag_category] = rubric_tags[tag_category]
 
         self.saved_tags = saved_tags
         self.tags_history = tags_history
