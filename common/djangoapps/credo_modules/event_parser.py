@@ -837,7 +837,7 @@ class OraParser(EventParser):
     def get_saved_tags(self, event, **kwargs):
         criterion_name = kwargs['criterion_name']
         saved_tags = event.get('context').get('asides', {}).get('tagging_ora_aside', {}).get('saved_tags', {})
-        return saved_tags.get(criterion_name, {})
+        return saved_tags.get(criterion_name.replace('_dot_', '.'), {})
 
     def get_student_id(self, event, *args, **kwargs):
         return event.get('context').get('asides', {}).get('student_properties_aside', {}).get('student_id', None)

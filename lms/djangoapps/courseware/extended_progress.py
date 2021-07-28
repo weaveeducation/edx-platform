@@ -243,6 +243,7 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
                                 criterions[part['option']['criterion']['label'].strip()]['earned'] = part["option"]['points']
 
                     for criterion, tags_dict in aside.saved_tags.items():
+                        criterion = criterion.replace('_dot_', '.')
                         if criterion in criterions:
                             for tag_cat, tag_values in tags_dict.items():
                                 if tag_categories == '*' or tag_cat in tag_categories:
