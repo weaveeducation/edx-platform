@@ -35,7 +35,8 @@ log = logging.getLogger(__name__)
 User = get_user_model()
 
 GROUPED_ORGANIZATION_TAGS = [
-    'AAC&U VALUE Rubric'
+    'AAC&U VALUE Rubric',
+    'AAC&U Value Rubric'
 ]
 
 
