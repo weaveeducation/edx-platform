@@ -191,6 +191,9 @@ def get_tags_global_data(student, orgs, course_ids, tag_value=None, group_tags=F
             else:
                 correctness = 'partially correct'
 
+        if not answered:
+            continue
+
         for tmp_tag in tmp_tag_values:
             tag_key = tmp_tag['value'].strip()
             if tag_key not in tags:
@@ -383,12 +386,15 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
                 problem_block.location, submission_uuid=submission_uuid)
 
             if not block_info['is_ora'] or item_block_location in ora_empty_rubrics:
+                answered = 1 if score.first_attempted else 0
+                if not answered:
+                    continue
                 od = OrderedDict(sorted(answer.items())) if answer else {}
                 items.append({
                     'problem_id': item_block_location,
                     'possible': get_score_points(score.possible),
                     'earned': get_score_points(score.earned),
-                    'answered': 1 if score.first_attempted else 0,
+                    'answered': answered,
                     'answer': '; '.join(od.values()) if answer else None,
                     'correctness': tmp_correctness.title() if tmp_correctness else 'Not Answered',
                     'display_name': problem_block.display_name,
@@ -419,13 +425,16 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
                             criterion_correctness = 'correct'
                         else:
                             criterion_correctness = 'partially correct'
+                        answered = 1 if ora_answer else 0
+                        if not answered:
+                            continue
 
                         items.append({
                             'problem_id': item_block_location,
                             'criterion': rubric,
                             'possible': get_score_points(points_possible),
                             'earned': get_score_points(points_earned),
-                            'answered': 1 if ora_answer else 0,
+                            'answered': answered,
                             'answer': ora_answer,
                             'correctness': criterion_correctness.title() if tmp_correctness else 'Not Answered',
                             'display_name': problem_block.display_name + ': ' + rubric.title(),
