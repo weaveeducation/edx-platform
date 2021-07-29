@@ -146,6 +146,8 @@ def tags_student_progress(course, student, problem_blocks, courseware_summary, g
 
     for item_block_location in items:
         section_id = items[item_block_location]['section_id']
+        if not items[item_block_location]['answered']:
+            continue
         if item_block_location in problem_locations_dict:
             problem_block = problem_locations_dict[item_block_location]
             problem_detailed_info = get_problem_detailed_info(problem_block, None, add_correctness=False)
