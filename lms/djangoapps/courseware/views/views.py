@@ -150,7 +150,8 @@ from common.djangoapps.util.views import add_p3p_header
 from openedx.core.djangoapps.user_authn.views.custom import register_login_and_enroll_anonymous_user,\
     validate_credo_access
 from common.djangoapps.credo_modules.models import user_must_fill_additional_profile_fields,\
-    Organization, CredoModulesUserProfile, SendScores, SendScoresMailing, SupervisorEvaluationInvitation
+    Organization, CredoModulesUserProfile, SendScores, SendScoresMailing, SupervisorEvaluationInvitation,\
+    CourseStaffExtended
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotAllowed,\
     JsonResponse
 from django.core.serializers.json import DjangoJSONEncoder
@@ -1236,6 +1237,12 @@ def _progress(request, course_key, student_id, display_in_frame=False):
     enrollment_mode, _ = CourseEnrollment.enrollment_mode_for_user(student, course_key)
 
     course_expiration_fragment = generate_course_expired_fragment(student, course)
+    studio_staff_access = False
+    if staff_access:
+        studio_staff_access = True
+        if CourseStaffExtended.objects.filter(role__course_studio_access=False,
+                                              user=request.user, course_id=course_key).exists():
+            studio_staff_access = False
 
     context = {
         'course': course,
@@ -1244,6 +1251,7 @@ def _progress(request, course_key, student_id, display_in_frame=False):
         'grade_summary': course_grade.summary,
         'can_masquerade': can_masquerade,
         'staff_access': staff_access,
+        'studio_staff_access': studio_staff_access,
         'masquerade': masquerade,
         'supports_preview_menu': True,
         'student': student,

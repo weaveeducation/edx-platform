@@ -40,7 +40,7 @@ from common.djangoapps.student.roles import (
     CourseStaffRole
 )
 from common.djangoapps.util.json_request import JsonResponse
-from common.djangoapps.credo_modules.models import Organization, Feature, get_org_roles_types
+from common.djangoapps.credo_modules.models import Organization, Feature, CourseStaffExtended, get_org_roles_types
 from lms.djangoapps.bulk_email.api import is_bulk_email_feature_enabled
 from lms.djangoapps.certificates import api as certs_api
 from lms.djangoapps.certificates.models import (
@@ -273,9 +273,15 @@ def _get_instructor_dashboard_2(request, course_id):
 
     certificate_invalidations = CertificateInvalidation.get_certificate_invalidations(course_key)
 
+    studio_staff_access = True
+    if CourseStaffExtended.objects.filter(role__course_studio_access=False,
+                                          user=request.user, course_id=course_key).exists():
+        studio_staff_access = False
+
     context = {
         'course': course,
         'studio_url': get_studio_url(course, 'course'),
+        'studio_staff_access': studio_staff_access,
         'sections': sections,
         'disable_buttons': disable_buttons,
         'analytics_dashboard_message': analytics_dashboard_message,
