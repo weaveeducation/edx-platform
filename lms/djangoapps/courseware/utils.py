@@ -199,7 +199,7 @@ def get_answer_and_correctness(user_state_dict, score, category, block, key,
         answer_state = user_state_dict.get(str(key))
         if answer_state:
             try:
-                state_gen = block.generate_report_data([answer_state])
+                state_gen = block.generate_report_data([answer_state], minimal_init=False)
                 for state_username, state_item in state_gen:
                     tmp_answer = state_item.get('Answer')
                     answer[state_item.get('Answer ID')] = tmp_answer.strip().replace('\n', ' ') \
