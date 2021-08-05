@@ -1030,8 +1030,13 @@ class ProblemResponses:
                     if hasattr(block, 'generate_report_data'):
                         try:
                             user_state_iterator = user_state_client.iter_all_for_block(block_key)
-                            for username, state in block.generate_report_data(user_state_iterator, max_count,
-                                                                              minimal_init=False):
+                            if block.category == 'problem':
+                                rep_data = block.generate_report_data(user_state_iterator, max_count,
+                                                                      minimal_init=False)
+                            else:
+                                rep_data = block.generate_report_data(user_state_iterator, max_count)
+
+                            for username, state in rep_data:
                                 generated_report_data[username].append(state)
                         except NotImplementedError:
                             pass
