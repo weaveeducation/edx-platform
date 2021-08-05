@@ -46,7 +46,7 @@ class Command(BaseProcessUsageLogsCommand):
         props_updater = PropertiesUpdater(show_logs=False)
 
         while process:
-            dt_to = dt_from + datetime.timedelta(hours=4)
+            dt_to = dt_from + datetime.timedelta(days=7)
             print('Process CourseUsageLogEntry items from %s to %s: ' % (str(dt_from), str(dt_to)))
             logs = CourseUsageLogEntry.objects.filter(time__gt=dt_from, time__lte=dt_to).order_by('time')
             logs_count = len(logs)
@@ -104,7 +104,7 @@ class Command(BaseProcessUsageLogsCommand):
                 TrackingLogConfig.update_setting('update_usage_process_num', self.update_process_num)
                 TrackingLogConfig.update_setting('update_usage_time', current_update_time)
 
-                dt_from = dt_from + datetime.timedelta(hours=4)
+                dt_from = dt_from + datetime.timedelta(days=7)
             else:
                 print('New logs are absent')
                 process = False

@@ -60,7 +60,7 @@ class Command(BaseProcessLogsCommand):
         props_updater = PropertiesUpdater(show_logs=False)
 
         while process:
-            dt_to = dt_from + datetime.timedelta(hours=4)
+            dt_to = dt_from + datetime.timedelta(days=7)
             print('Process DBLogEntry items from %s to %s: ' % (str(dt_from), str(dt_to)))
             logs = DBLogEntry.objects.filter(time__gt=dt_from, time__lte=dt_to).order_by('time')
             logs_count = len(logs)
@@ -103,7 +103,7 @@ class Command(BaseProcessLogsCommand):
                 else:
                     print('Nothing to insert (log items)')
 
-                dt_from = dt_from + datetime.timedelta(hours=4)
+                dt_from = dt_from + datetime.timedelta(days=7)
             else:
                 print('New logs are absent')
                 process = False
