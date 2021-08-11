@@ -42,6 +42,7 @@ from common.djangoapps.util.json_request import JsonResponse, expect_json
 from common.djangoapps.xblock_django.user_service import DjangoXBlockUserService
 from common.djangoapps.credo_modules.models import CopyBlockTask
 from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.bookmarks import api as bookmarks_api
 from openedx.core.lib.gating import api as gating_api
 from openedx.core.lib.xblock_utils import hash_resource, request_token, wrap_xblock, wrap_xblock_aside
@@ -1436,7 +1437,7 @@ def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=F
                     'highlights_enabled_for_messaging': course.highlights_enabled_for_messaging,
                 })
             xblock_info.update({
-                'highlights_enabled': True,  # used to be controlled by a waffle switch, now just always enabled
+                'highlights_enabled': configuration_helpers.get_value('highlights_enabled', True),  # used to be controlled by a waffle switch, now just always enabled
                 'highlights_preview_only': False,  # used to be controlled by a waffle flag, now just always disabled
                 'highlights_doc_url': HelpUrlExpert.the_one().url_for_token('content_highlights'),
             })
