@@ -108,7 +108,7 @@
                 if (timestampFrom && timestampTo) {
                     data_obj.browser_tz_offset = (-1) * tzOffset;
                     data_obj.timestamp_from = Math.floor(timestampFrom.getTime() / 1000);
-                    data_obj.timestamp_to = Math.floor(timestampTo.getTime() / 1000);
+                    data_obj.timestamp_to = Math.floor(timestampTo.getTime() / 1000) + 24 * 60 * 60 - 1;
                 }
             };
 
