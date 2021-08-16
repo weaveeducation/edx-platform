@@ -58,7 +58,8 @@ def send_composite_outcome(self, user_id, course_id, assignment_id, version):
     try:
         handler.send_composite_outcome(user_id, course_id, assignment_id, version, self.request.retries)
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=get_countdown(self.request.retries))
+        raise self.retry(exc=exc, countdown=get_countdown(self.request.retries),
+                         routing_key=settings.HIGH_PRIORITY_QUEUE)
 
 
 @CELERY_APP.task(max_retries=LTI_TASKS_MAX_RETRIES, bind=True)
@@ -74,7 +75,8 @@ def send_leaf_outcome(self, assignment_id, points_earned, points_possible):
     try:
         handler.send_leaf_outcome(assignment_id, points_earned, points_possible, self.request.retries)
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=get_countdown(self.request.retries))
+        raise self.retry(exc=exc, countdown=get_countdown(self.request.retries),
+                         routing_key=settings.HIGH_PRIORITY_QUEUE)
 
 
 class ScoresHandler(object):
