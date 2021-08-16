@@ -1067,6 +1067,14 @@ EXPLICIT_QUEUES = {
         'queue': PROGRAM_CERTIFICATES_ROUTING_KEY},
     'openedx.core.djangoapps.coursegraph.dump_course_to_neo4j': {
         'queue': COURSEGRAPH_JOB_QUEUE},
+    'lms.djangoapps.lti_provider.tasks.send_composite_outcome': {
+        'queue': HIGH_PRIORITY_QUEUE},
+    'lms.djangoapps.lti_provider.tasks.send_leaf_outcome': {
+        'queue': HIGH_PRIORITY_QUEUE},
+    'lms.djangoapps.lti1p3_tool.tasks.lti1p3_send_composite_outcome': {
+        'queue': HIGH_PRIORITY_QUEUE},
+    'lms.djangoapps.lti1p3_tool.tasks.lti1p3_send_leaf_outcome': {
+        'queue': HIGH_PRIORITY_QUEUE},
 }
 
 LOGO_IMAGE_EXTRA_TEXT = ENV_TOKENS.get('LOGO_IMAGE_EXTRA_TEXT', '')

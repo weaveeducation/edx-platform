@@ -16,7 +16,7 @@ except ImportError:
     pass
 
 
-@CELERY_APP.task(name='lms.djangoapps.lti1p3_tool.tasks.send_composite_outcome',
+@CELERY_APP.task(name='lms.djangoapps.lti1p3_tool.tasks.lti1p3_send_composite_outcome',
                  max_retries=LTI_TASKS_MAX_RETRIES, bind=True)
 def lti1p3_send_composite_outcome(self, user_id, course_id, assignment_id, version):
     handler = Lti1p3ScoresHandler()
