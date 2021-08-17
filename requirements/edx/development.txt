@@ -62,6 +62,7 @@ distlib==0.3.1            # via -r requirements/edx/testing.txt, virtualenv
 django-appconf==1.0.4     # via -r requirements/edx/testing.txt, django-statici18n
 django-cache-memoize==0.1.8  # via -r requirements/edx/testing.txt, edx-enterprise
 django-celery-results==2.0.1  # via -r requirements/edx/testing.txt
+django-celery-beat==2.2.1
 django-classy-tags==2.0.0  # via -r requirements/edx/testing.txt, django-sekizai
 django-config-models==2.1.1  # via -r requirements/edx/testing.txt, edx-enterprise, edx-event-routing-backends
 django-cookies-samesite==0.9.0  # via -r requirements/edx/testing.txt
