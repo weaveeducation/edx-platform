@@ -187,7 +187,7 @@ def send_score_update(assignment, score, attempt_num=0, countdown=0):
                     (assignment.user, assignment.course_key, assignment.usage_key, score,
                      assignment.outcome_service.lis_outcome_service_url, response, str(attempt_num))
 
-        if attempt_num in [4, 10]:
+        if attempt_num in [4, 7]:
             if attempt_num == 4:
                 error_msg = error_msg + '. Will be retried in ' + str(countdown) + 's'
             else:

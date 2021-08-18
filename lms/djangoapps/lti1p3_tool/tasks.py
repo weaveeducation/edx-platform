@@ -3,8 +3,9 @@ import json
 
 from django.conf import settings
 from lms import CELERY_APP
-from lms.djangoapps.lti_provider.tasks import ScoresHandler, LTI_TASKS_MAX_RETRIES, get_countdown
+from lms.djangoapps.lti_provider.tasks import ScoresHandler, LTI_TASKS_MAX_RETRIES
 from lms.djangoapps.lti_provider.outcomes import OutcomeServiceSendScoreError
+from common.djangoapps.credo_modules.task_repeater import TaskRepeater
 from .models import GradedAssignment
 from .tool_conf import ToolConfDb
 
@@ -16,25 +17,32 @@ except ImportError:
     pass
 
 
-@CELERY_APP.task(name='lms.djangoapps.lti1p3_tool.tasks.lti1p3_send_composite_outcome',
-                 max_retries=LTI_TASKS_MAX_RETRIES, bind=True)
-def lti1p3_send_composite_outcome(self, user_id, course_id, assignment_id, version):
+@CELERY_APP.task(name='lms.djangoapps.lti1p3_tool.tasks.lti1p3_send_composite_outcome', bind=True)
+def lti1p3_send_composite_outcome(self, user_id, course_id, assignment_id, version, task_id=None):
     handler = Lti1p3ScoresHandler()
+    tr = TaskRepeater(task_id)
     try:
-        handler.send_composite_outcome(user_id, course_id, assignment_id, version, self.request.retries)
+        attempt_num = tr.get_current_attempt_num()
+        handler.send_composite_outcome(user_id, course_id, assignment_id, version, attempt_num)
+        tr.finish()
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=get_countdown(self.request.retries),
-                         routing_key=settings.HIGH_PRIORITY_QUEUE)
+        tr.restart(self.request.id, 'lti1p3_send_composite_outcome',
+                   {'user_id': user_id, 'course_id': course_id, 'assignment_id': assignment_id, 'version': version},
+                   err_msg=str(exc), max_attempts=LTI_TASKS_MAX_RETRIES)
 
 
-@CELERY_APP.task(max_retries=LTI_TASKS_MAX_RETRIES, bind=True)
-def lti1p3_send_leaf_outcome(self, assignment_id, points_earned, points_possible):
+@CELERY_APP.task(bind=True)
+def lti1p3_send_leaf_outcome(self, assignment_id, points_earned, points_possible, task_id=None):
     handler = Lti1p3ScoresHandler()
+    tr = TaskRepeater(task_id)
     try:
-        handler.send_leaf_outcome(assignment_id, points_earned, points_possible, self.request.retries)
+        attempt_num = tr.get_current_attempt_num()
+        handler.send_leaf_outcome(assignment_id, points_earned, points_possible, attempt_num)
+        tr.finish()
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=get_countdown(self.request.retries),
-                         routing_key=settings.HIGH_PRIORITY_QUEUE)
+        tr.restart(self.request.id, 'lti1p3_send_leaf_outcome',
+                   {'assignment_id': assignment_id, 'points_earned': points_earned, 'points_possible': points_possible},
+                   err_msg=str(exc), max_attempts=LTI_TASKS_MAX_RETRIES)
 
 
 class Lti1p3ScoresHandler(ScoresHandler):

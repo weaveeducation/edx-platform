@@ -13,7 +13,7 @@ from django.utils.safestring import mark_safe
 from .models import RegistrationPropertiesPerOrg, EnrollmentPropertiesPerCourse,\
     Organization, OrganizationType, CourseExcludeInsights, CustomUserRole, TagDescription, EdxApiToken,\
     RutgersCampusMapping, Feature, FeatureBetaTester, CredoModulesUserProfile, CredoStudentProperties, SendScores,\
-    TrackingLogConfig, PropertiesInfo, SiblingBlockUpdateTask, SiblingBlockNotUpdated
+    TrackingLogConfig, PropertiesInfo, SiblingBlockUpdateTask, SiblingBlockNotUpdated, DelayedTask
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 
@@ -182,6 +182,13 @@ class ExportCsvMixin:
     export_as_csv.short_description = "Export as CSV"
 
 
+class DelayedTaskForm(ReadOnlyMixin, admin.ModelAdmin):
+    list_display = ('id', 'task_id', 'celery_task_id', 'task_name', 'start_time', 'countdown',
+                    'attempt_num', 'status', 'result', 'course_id', 'user_id', 'assignment_id', 'created', 'updated')
+    search_fields = ['course_id', 'user_id', 'assignment_id']
+    ordering = ['-created']
+
+
 class CredoModulesUserProfileForm(ReadOnlyMixin, admin.ModelAdmin):
     list_display = ('id', 'user', 'course_id', 'meta')
     search_fields = ['user__username', 'user__email', 'course_id']
@@ -327,6 +334,7 @@ admin.site.register(TagDescription, TagDescriptionForm)
 admin.site.register(EdxApiToken, EdxApiTokenForm)
 admin.site.register(RutgersCampusMapping, RutgersCampusMappingForm)
 admin.site.register(Feature, FeatureForm)
+admin.site.register(DelayedTask, DelayedTaskForm)
 admin.site.register(FeatureBetaTester, FeatureBetaTesterForm)
 admin.site.register(CredoModulesUserProfile, CredoModulesUserProfileForm)
 admin.site.register(CredoStudentProperties, CredoStudentPropertiesForm)

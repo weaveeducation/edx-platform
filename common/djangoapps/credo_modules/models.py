@@ -1050,6 +1050,47 @@ class SupervisorEvaluationInvitation(models.Model):
     created = models.DateTimeField(auto_now_add=True, db_index=True)
 
 
+class DelayedTaskStatus:
+    CREATED = 'created'
+    IN_PROGRESS = 'in_progress'
+    PROCESSED = 'processed'
+
+
+class DelayedTaskResult:
+    UNKNOWN = 'unknown'
+    SUCCESS = 'success'
+    FAILURE = 'failure'
+
+
+class DelayedTask(models.Model):
+    task_id = models.CharField(max_length=255, unique=True)
+    celery_task_id = models.CharField(max_length=255)
+    task_name = models.CharField(max_length=255, db_index=True)
+    task_params = models.TextField(blank=True, null=True)
+    start_time = models.DateTimeField(db_index=True)
+    countdown = models.IntegerField(default=0)
+    attempt_num = models.IntegerField(default=0)
+    status = models.CharField(max_length=32, choices=(
+        (DelayedTaskStatus.CREATED, 'Created'),
+        (DelayedTaskStatus.IN_PROGRESS, 'In Progress'),
+        (DelayedTaskStatus.PROCESSED, 'Processed'),
+    ), default=DelayedTaskStatus.CREATED)
+    result = models.CharField(max_length=32, choices=(
+        (DelayedTaskResult.UNKNOWN, 'Unknown'),
+        (DelayedTaskResult.SUCCESS, 'Success'),
+        (DelayedTaskResult.FAILURE, 'Failure'),
+    ), default=DelayedTaskResult.UNKNOWN)
+    prev_attempt_err_msg = models.TextField(blank=True, null=True)
+    course_id = models.CharField(max_length=255, null=True, db_index=True)
+    user_id = models.IntegerField(null=True, db_index=True)
+    assignment_id = models.IntegerField(null=True, db_index=True)
+    created = models.DateTimeField(null=True, blank=True, auto_now_add=True)
+    updated = models.DateTimeField(null=True, blank=True, auto_now=True)
+
+    class Meta:
+        ordering = ['-start_time']
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values

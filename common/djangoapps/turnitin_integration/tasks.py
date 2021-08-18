@@ -11,6 +11,7 @@ from xmodule.modulestore.django import modulestore
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
 from openassessment.fileupload.backends.s3 import Backend as S3Backend
 from .models import TurnitinApiKey, TurnitinSubmission, TurnitinUser, TurnitinReportStatus
+from common.djangoapps.credo_modules.task_repeater import TaskRepeater
 from .api import TurnitinApi
 from .utils import log_action
 
@@ -19,26 +20,29 @@ TURNITIN_TASKS_MAX_RETRIES = 7
 User = get_user_model()
 
 
-def get_countdown(attempt_num):
-    return (int(2.71 ** attempt_num) + 5) * 60
-
-
-@CELERY_APP.task(name='common.djangoapps.turnitin_integration.tasks.turnitin_create_submissions',
-                 max_retries=TURNITIN_TASKS_MAX_RETRIES, bind=True)
-def turnitin_create_submissions(self, key_id, submission_uuid, course_id, block_id, user_id):
+@CELERY_APP.task(name='common.djangoapps.turnitin_integration.tasks.turnitin_create_submissions', bind=True)
+def turnitin_create_submissions(self, key_id, submission_uuid, course_id, block_id, user_id, task_id=None):
+    tr = TaskRepeater(task_id)
     try:
         _create_submissions(key_id, submission_uuid, course_id, block_id, user_id)
+        tr.finish()
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=get_countdown(self.request.retries))
+        tr.restart(self.request.id, 'turnitin_create_submissions',
+                   {'key_id': key_id, 'submission_uuid': submission_uuid, 'course_id': course_id,
+                    'block_id': block_id, 'user_id': user_id},
+                   err_msg=str(exc), max_attempts=TURNITIN_TASKS_MAX_RETRIES)
 
 
-@CELERY_APP.task(name='common.djangoapps.turnitin_integration.tasks.turnitin_generate_report',
-                 max_retries=TURNITIN_TASKS_MAX_RETRIES, bind=True)
-def turnitin_generate_report(self, turnitin_submission_id):
+@CELERY_APP.task(name='common.djangoapps.turnitin_integration.tasks.turnitin_generate_report', bind=True)
+def turnitin_generate_report(self, turnitin_submission_id, task_id=None):
+    tr = TaskRepeater(task_id)
     try:
         _generate_report(turnitin_submission_id)
+        tr.finish()
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=get_countdown(self.request.retries))
+        tr.restart(self.request.id, 'turnitin_generate_report',
+                   {'turnitin_submission_id': turnitin_submission_id},
+                   err_msg=str(exc), max_attempts=TURNITIN_TASKS_MAX_RETRIES)
 
 
 def _create_submissions(key_id, submission_uuid, course_id, item_id, user_id):

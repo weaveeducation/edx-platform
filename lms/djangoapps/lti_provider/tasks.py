@@ -14,6 +14,7 @@ from lms import CELERY_APP
 from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
 from lms.djangoapps.lti_provider.models import GradedAssignment, SendScoresLock, log_lti
 from lms.djangoapps.lti_provider.views import parse_course_and_usage_keys
+from common.djangoapps.credo_modules.task_repeater import TaskRepeater, get_countdown
 from xmodule.modulestore.django import modulestore
 
 log = logging.getLogger("edx.lti_provider")
@@ -23,13 +24,8 @@ User = get_user_model()
 LTI_TASKS_MAX_RETRIES = 7
 
 
-def get_countdown(attempt_num):
-    return (int(2.71 ** attempt_num) + 5) * 60
-
-
-@CELERY_APP.task(name='lms.djangoapps.lti_provider.tasks.send_composite_outcome',
-                 max_retries=LTI_TASKS_MAX_RETRIES, bind=True)
-def send_composite_outcome(self, user_id, course_id, assignment_id, version):
+@CELERY_APP.task(name='lms.djangoapps.lti_provider.tasks.send_composite_outcome', bind=True)
+def send_composite_outcome(self, user_id, course_id, assignment_id, version, task_id=None):
     """
     Calculate and transmit the score for a composite module (such as a
     vertical).
@@ -55,15 +51,19 @@ def send_composite_outcome(self, user_id, course_id, assignment_id, version):
     in the wrong order.
     """
     handler = ScoresHandler()
+    tr = TaskRepeater(task_id)
     try:
-        handler.send_composite_outcome(user_id, course_id, assignment_id, version, self.request.retries)
+        attempt_num = tr.get_current_attempt_num()
+        handler.send_composite_outcome(user_id, course_id, assignment_id, version, attempt_num)
+        tr.finish()
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=get_countdown(self.request.retries),
-                         routing_key=settings.HIGH_PRIORITY_QUEUE)
+        tr.restart(self.request.id, 'send_composite_outcome',
+                   {'user_id': user_id, 'course_id': course_id, 'assignment_id': assignment_id, 'version': version},
+                   err_msg=str(exc), max_attempts=LTI_TASKS_MAX_RETRIES)
 
 
-@CELERY_APP.task(max_retries=LTI_TASKS_MAX_RETRIES, bind=True)
-def send_leaf_outcome(self, assignment_id, points_earned, points_possible):
+@CELERY_APP.task(bind=True)
+def send_leaf_outcome(self, assignment_id, points_earned, points_possible, task_id=None):
     """
     Calculate and transmit the score for a single problem. This method assumes
     that the individual problem was the source of a score update, and so it
@@ -72,11 +72,15 @@ def send_leaf_outcome(self, assignment_id, points_earned, points_possible):
     than send_outcome_for_composite_assignment.
     """
     handler = ScoresHandler()
+    tr = TaskRepeater(task_id)
     try:
-        handler.send_leaf_outcome(assignment_id, points_earned, points_possible, self.request.retries)
+        attempt_num = tr.get_current_attempt_num()
+        handler.send_leaf_outcome(assignment_id, points_earned, points_possible, attempt_num)
+        tr.finish()
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=get_countdown(self.request.retries),
-                         routing_key=settings.HIGH_PRIORITY_QUEUE)
+        tr.restart(self.request.id, 'send_leaf_outcome',
+                   {'assignment_id': assignment_id, 'points_earned': points_earned, 'points_possible': points_possible},
+                   err_msg=str(exc), max_attempts=LTI_TASKS_MAX_RETRIES)
 
 
 class ScoresHandler(object):
@@ -204,8 +208,7 @@ class ScoresHandler(object):
             log_lti('send_composite_outcome_task_error', user_id, message, course_id, True,
                     assignment, None, task_id, response_body, request_body, lis_outcome_service_url, version=version,
                     request_error=request_error, lti_version=self._lti_version)
-            if not settings.DEBUG:
-                raise
+            raise
 
     def send_leaf_outcome(self, assignment_id, points_earned, points_possible, request_retries):
         assignment = self._get_graded_assignment_by_id(assignment_id)
@@ -248,8 +251,7 @@ class ScoresHandler(object):
                     request_body, lis_outcome_service_url,
                     points_earned=points_earned, points_possible=points_possible, request_error=request_error,
                     lti_version=self._lti_version)
-            if not settings.DEBUG:
-                raise
+            raise
 
     def _get_graded_assignment_by_id(self, assignment_id):
         return GradedAssignment.objects.get(id=assignment_id)
