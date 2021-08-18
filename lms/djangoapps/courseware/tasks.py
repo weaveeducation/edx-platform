@@ -6,15 +6,12 @@ from django.conf import settings
 from django.utils import timezone
 from django.db import transaction
 from lms import CELERY_APP
-from lms.djangoapps.lti_provider.tasks import send_composite_outcome, send_leaf_outcome
-from lms.djangoapps.lti1p3_tool.tasks import lti1p3_send_composite_outcome, lti1p3_send_leaf_outcome
 from lms.djangoapps.courseware.models import StudentModule
 from lms.djangoapps.courseware.module_render import get_module_by_usage_id
 from lms.djangoapps.courseware.utils import get_block_children, CREDO_GRADED_ITEM_CATEGORIES
 from xmodule.modulestore.django import modulestore
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from common.djangoapps.credo_modules.models import get_student_properties_event_data, DelayedTask, DelayedTaskStatus
-from common.djangoapps.turnitin_integration.tasks import turnitin_create_submissions, turnitin_generate_report
 from completion.models import BlockCompletion
 from eventtracking import tracker
 
@@ -156,6 +153,10 @@ def _copy_ora_submission(course, course_key, child_block, student, student_item_
 
 
 def handle_delayed_tasks():
+    from lms.djangoapps.lti_provider.tasks import send_composite_outcome, send_leaf_outcome
+    from lms.djangoapps.lti1p3_tool.tasks import lti1p3_send_composite_outcome, lti1p3_send_leaf_outcome
+    from common.djangoapps.turnitin_integration.tasks import turnitin_create_submissions, turnitin_generate_report
+
     dt_2 = timezone.now()
     dt_1 = dt_2 - datetime.timedelta(minutes=15)
     tasks = DelayedTask.objects.filter(
