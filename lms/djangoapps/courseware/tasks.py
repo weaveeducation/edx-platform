@@ -200,6 +200,6 @@ def handle_delayed_tasks():
                 transaction.on_commit(lambda: turnitin_generate_report.delay(data['turnitin_submission_id']))
 
 
-@CELERY_APP.task(name='common.djangoapps.credo_modules.tasks.exec_delayed_tasks', bind=True)
-def exec_delayed_tasks(self):
+@CELERY_APP.task
+def exec_delayed_tasks():
     handle_delayed_tasks()
