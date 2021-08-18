@@ -1075,6 +1075,8 @@ EXPLICIT_QUEUES = {
         'queue': HIGH_PRIORITY_QUEUE},
     'lms.djangoapps.lti1p3_tool.tasks.lti1p3_send_leaf_outcome': {
         'queue': HIGH_PRIORITY_QUEUE},
+    'lms.djangoapps.courseware.tasks.exec_delayed_tasks': {
+        'queue': HIGH_PRIORITY_QUEUE},
 }
 
 LOGO_IMAGE_EXTRA_TEXT = ENV_TOKENS.get('LOGO_IMAGE_EXTRA_TEXT', '')

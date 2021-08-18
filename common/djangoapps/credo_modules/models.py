@@ -1084,7 +1084,7 @@ class DelayedTask(models.Model):
     course_id = models.CharField(max_length=255, null=True, db_index=True)
     user_id = models.IntegerField(null=True, db_index=True)
     assignment_id = models.IntegerField(null=True, db_index=True)
-    created = models.DateTimeField(null=True, blank=True, auto_now_add=True)
+    created = models.DateTimeField(null=True, blank=True, db_index=True, auto_now_add=True)
     updated = models.DateTimeField(null=True, blank=True, auto_now=True)
 
     class Meta:

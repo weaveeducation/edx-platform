@@ -158,7 +158,7 @@ def handle_delayed_tasks():
     from common.djangoapps.turnitin_integration.tasks import turnitin_create_submissions, turnitin_generate_report
 
     dt_2 = timezone.now()
-    dt_1 = dt_2 - datetime.timedelta(minutes=15)
+    dt_1 = dt_2 - datetime.timedelta(hours=1)
     tasks = DelayedTask.objects.filter(
         start_time__gte=dt_1, start_time__lte=dt_2,
         status=DelayedTaskStatus.CREATED).order_by('start_time')

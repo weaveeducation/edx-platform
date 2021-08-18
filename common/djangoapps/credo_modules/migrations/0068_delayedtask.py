@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
                 ('course_id', models.CharField(db_index=True, max_length=255, null=True)),
                 ('user_id', models.IntegerField(db_index=True, null=True)),
                 ('assignment_id', models.IntegerField(db_index=True, null=True)),
-                ('created', models.DateTimeField(auto_now_add=True, null=True)),
+                ('created', models.DateTimeField(db_index=True, auto_now_add=True, null=True)),
                 ('updated', models.DateTimeField(auto_now=True, null=True)),
             ],
             options={
