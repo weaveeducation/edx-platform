@@ -152,53 +152,44 @@ def _copy_ora_submission(course, course_key, child_block, student, student_item_
         ora_additional_rubric.generate_create_submission_event(submission)
 
 
-def handle_delayed_tasks():
+def _run_celery_tasks(celery_tasks_data):
     from lms.djangoapps.lti_provider.tasks import send_composite_outcome, send_leaf_outcome
     from lms.djangoapps.lti1p3_tool.tasks import lti1p3_send_composite_outcome, lti1p3_send_leaf_outcome
     from common.djangoapps.turnitin_integration.tasks import turnitin_create_submissions, turnitin_generate_report
 
+    for t in celery_tasks_data:
+        task_name = t[0]
+        task_args = t[1]
+        if task_name == 'send_composite_outcome':
+            send_composite_outcome.apply_async(args=task_args, routing_key=settings.HIGH_PRIORITY_QUEUE)
+        elif task_name == 'send_leaf_outcome':
+            send_leaf_outcome.apply_async(args=task_args, routing_key=settings.HIGH_PRIORITY_QUEUE)
+        elif task_name == 'lti1p3_send_composite_outcome':
+            lti1p3_send_composite_outcome.apply_async(args=task_args, routing_key=settings.HIGH_PRIORITY_QUEUE)
+        elif task_name == 'lti1p3_send_leaf_outcome':
+            lti1p3_send_leaf_outcome.apply_async(args=task_args, routing_key=settings.HIGH_PRIORITY_QUEUE)
+        elif task_name == 'turnitin_create_submissions':
+            turnitin_create_submissions.apply_async(args=task_args)
+        elif task_name == 'turnitin_generate_report':
+            turnitin_generate_report.apply_async(args=task_args)
+
+
+def handle_delayed_tasks():
+    celery_tasks_data = []
     dt_2 = timezone.now()
     dt_1 = dt_2 - datetime.timedelta(hours=1)
-    tasks = DelayedTask.objects.filter(
+    tasks = DelayedTask.objects.select_for_update().filter(
         start_time__gte=dt_1, start_time__lte=dt_2,
         status=DelayedTaskStatus.CREATED).order_by('start_time')
-    for t in tasks:
-        with transaction.atomic():
+    with transaction.atomic():
+        for t in tasks:
             data = json.loads(t.task_params)
             t.status = DelayedTaskStatus.IN_PROGRESS
             t.save()
 
-            if t.task_name == 'send_composite_outcome':
-                transaction.on_commit(lambda: send_composite_outcome.apply_async(
-                    (data['user_id'], data['course_id'], data['assignment_id'],
-                     data['version'], t.task_id),
-                    routing_key=settings.HIGH_PRIORITY_QUEUE
-                ))
-            elif t.task_name == 'send_leaf_outcome':
-                transaction.on_commit(lambda: send_leaf_outcome.apply_async(
-                    (data['assignment_id'], data['points_earned'], data['points_possible'],
-                     t.task_id),
-                    routing_key=settings.HIGH_PRIORITY_QUEUE
-                ))
-            elif t.task_name == 'lti1p3_send_composite_outcome':
-                transaction.on_commit(lambda: lti1p3_send_composite_outcome.apply_async(
-                    (data['user_id'], data['course_id'], data['assignment_id'],
-                     data['version'], t.task_id),
-                    routing_key=settings.HIGH_PRIORITY_QUEUE
-                ))
-            elif t.task_name == 'lti1p3_send_leaf_outcome':
-                transaction.on_commit(lambda: lti1p3_send_leaf_outcome.apply_async(
-                    (data['assignment_id'], data['points_earned'], data['points_possible'],
-                     t.task_id),
-                    routing_key=settings.HIGH_PRIORITY_QUEUE
-                ))
-            elif t.task_name == 'turnitin_create_submissions':
-                transaction.on_commit(lambda: turnitin_create_submissions.delay(
-                    data['key_id'], data['submission_uuid'], data['course_id'],
-                    data['block_id'], data['user_id'], t.task_id
-                ))
-            elif t.task_name == 'turnitin_generate_report':
-                transaction.on_commit(lambda: turnitin_generate_report.delay(data['turnitin_submission_id']))
+            data.append(t.task_id)
+            celery_tasks_data.append((t.task_name, data))
+        transaction.on_commit(lambda: _run_celery_tasks(celery_tasks_data))
 
 
 @CELERY_APP.task

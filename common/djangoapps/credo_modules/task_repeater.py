@@ -24,10 +24,8 @@ class TaskRepeater:
         else:
             return 0
 
-    def restart(self, celery_task_id, task_name, task_params_dict, err_msg='', max_attempts=10):
-        course_id = task_params_dict.get('course_id', None)
-        user_id = task_params_dict.get('user_id', None)
-        assignment_id = task_params_dict.get('assignment_id', None)
+    def restart(self, celery_task_id, task_name, task_params_lst, err_msg='', max_attempts=10,
+                course_id=None, user_id=None, assignment_id=None):
 
         new_attempt_num = self.get_current_attempt_num() + 1
         if self.delayed_task:
@@ -46,7 +44,7 @@ class TaskRepeater:
             task_id=str(uuid.uuid4()),
             celery_task_id=celery_task_id,
             task_name=task_name,
-            task_params=json.dumps(task_params_dict),
+            task_params=json.dumps(task_params_lst),
             start_time=start_time,
             countdown=countdown,
             attempt_num=new_attempt_num,

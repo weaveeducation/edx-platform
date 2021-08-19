@@ -27,7 +27,8 @@ def lti1p3_send_composite_outcome(self, user_id, course_id, assignment_id, versi
         tr.finish()
     except Exception as exc:
         tr.restart(self.request.id, 'lti1p3_send_composite_outcome',
-                   {'user_id': user_id, 'course_id': course_id, 'assignment_id': assignment_id, 'version': version},
+                   [user_id, course_id, assignment_id, version],
+                   course_id=course_id, user_id=user_id, assignment_id=assignment_id,
                    err_msg=str(exc), max_attempts=LTI_TASKS_MAX_RETRIES)
 
 
@@ -41,8 +42,8 @@ def lti1p3_send_leaf_outcome(self, assignment_id, points_earned, points_possible
         tr.finish()
     except Exception as exc:
         tr.restart(self.request.id, 'lti1p3_send_leaf_outcome',
-                   {'assignment_id': assignment_id, 'points_earned': points_earned, 'points_possible': points_possible},
-                   err_msg=str(exc), max_attempts=LTI_TASKS_MAX_RETRIES)
+                   [assignment_id, points_earned, points_possible],
+                   assignment_id=assignment_id, err_msg=str(exc), max_attempts=LTI_TASKS_MAX_RETRIES)
 
 
 class Lti1p3ScoresHandler(ScoresHandler):

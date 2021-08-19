@@ -58,7 +58,8 @@ def send_composite_outcome(self, user_id, course_id, assignment_id, version, tas
         tr.finish()
     except Exception as exc:
         tr.restart(self.request.id, 'send_composite_outcome',
-                   {'user_id': user_id, 'course_id': course_id, 'assignment_id': assignment_id, 'version': version},
+                   [user_id, course_id, assignment_id, version],
+                   course_id=course_id, user_id=user_id, assignment_id=assignment_id,
                    err_msg=str(exc), max_attempts=LTI_TASKS_MAX_RETRIES)
 
 
@@ -79,8 +80,8 @@ def send_leaf_outcome(self, assignment_id, points_earned, points_possible, task_
         tr.finish()
     except Exception as exc:
         tr.restart(self.request.id, 'send_leaf_outcome',
-                   {'assignment_id': assignment_id, 'points_earned': points_earned, 'points_possible': points_possible},
-                   err_msg=str(exc), max_attempts=LTI_TASKS_MAX_RETRIES)
+                   [assignment_id, points_earned, points_possible],
+                   assignment_id=assignment_id, err_msg=str(exc), max_attempts=LTI_TASKS_MAX_RETRIES)
 
 
 class ScoresHandler(object):

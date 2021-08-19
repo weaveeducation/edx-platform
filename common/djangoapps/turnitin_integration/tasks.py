@@ -28,8 +28,8 @@ def turnitin_create_submissions(self, key_id, submission_uuid, course_id, block_
         tr.finish()
     except Exception as exc:
         tr.restart(self.request.id, 'turnitin_create_submissions',
-                   {'key_id': key_id, 'submission_uuid': submission_uuid, 'course_id': course_id,
-                    'block_id': block_id, 'user_id': user_id},
+                   [key_id, submission_uuid, course_id, block_id, user_id],
+                   course_id=course_id, user_id=user_id,
                    err_msg=str(exc), max_attempts=TURNITIN_TASKS_MAX_RETRIES)
 
 
@@ -40,8 +40,7 @@ def turnitin_generate_report(self, turnitin_submission_id, task_id=None):
         _generate_report(turnitin_submission_id)
         tr.finish()
     except Exception as exc:
-        tr.restart(self.request.id, 'turnitin_generate_report',
-                   {'turnitin_submission_id': turnitin_submission_id},
+        tr.restart(self.request.id, 'turnitin_generate_report', [turnitin_submission_id],
                    err_msg=str(exc), max_attempts=TURNITIN_TASKS_MAX_RETRIES)
 
 
