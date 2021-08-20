@@ -11,7 +11,8 @@ from django.utils import http
 from oauth2_provider.models import Application
 
 
-def is_safe_login_or_logout_redirect(redirect_to, request_host, dot_client_id, require_https):
+def is_safe_login_or_logout_redirect(redirect_to, request_host, dot_client_id, require_https,
+                                     login_redirect_whitelist_lst=None):
     """
     Determine if the given redirect URL/path is safe for redirection.
 
@@ -32,6 +33,8 @@ def is_safe_login_or_logout_redirect(redirect_to, request_host, dot_client_id, r
     """
     login_redirect_whitelist = set(getattr(settings, 'LOGIN_REDIRECT_WHITELIST', []))
     login_redirect_whitelist.add(request_host)
+    if login_redirect_whitelist_lst:
+        login_redirect_whitelist.update(login_redirect_whitelist_lst)
 
     # Allow OAuth2 clients to redirect back to their site after logout.
     if dot_client_id:

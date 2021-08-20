@@ -1091,6 +1091,19 @@ class DelayedTask(models.Model):
         ordering = ['-start_time']
 
 
+class LoginRedirectAllowedHost(models.Model):
+    host = models.CharField(max_length=255, unique=True)
+    is_active = models.BooleanField(default=False)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['host']
+
+    @classmethod
+    def get_all(cls):
+        return [l.host for l in cls.objects.filter(is_active=True)]
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values

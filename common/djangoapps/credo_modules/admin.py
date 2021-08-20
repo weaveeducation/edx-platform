@@ -13,7 +13,8 @@ from django.utils.safestring import mark_safe
 from .models import RegistrationPropertiesPerOrg, EnrollmentPropertiesPerCourse,\
     Organization, OrganizationType, CourseExcludeInsights, CustomUserRole, TagDescription, EdxApiToken,\
     RutgersCampusMapping, Feature, FeatureBetaTester, CredoModulesUserProfile, CredoStudentProperties, SendScores,\
-    TrackingLogConfig, PropertiesInfo, SiblingBlockUpdateTask, SiblingBlockNotUpdated, DelayedTask
+    TrackingLogConfig, PropertiesInfo, SiblingBlockUpdateTask, SiblingBlockNotUpdated, DelayedTask,\
+    LoginRedirectAllowedHost
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 
@@ -220,6 +221,10 @@ class SiblingBlockUpdateTaskForm(ReadOnlyMixin, admin.ModelAdmin):
     search_fields = ['source_course_id', 'source_block_id', 'sibling_course_id', 'sibling_block_id']
 
 
+class LoginRedirectAllowedHostForm(admin.ModelAdmin):
+    list_display = ('id', 'created', 'host', 'is_active')
+
+
 class IgnoredFilter(admin.SimpleListFilter):
 
     title = 'Display'
@@ -343,3 +348,4 @@ admin.site.register(TrackingLogConfig, TrackingLogConfigForm)
 admin.site.register(PropertiesInfo, PropertiesInfoForm)
 admin.site.register(SiblingBlockUpdateTask, SiblingBlockUpdateTaskForm)
 admin.site.register(SiblingBlockNotUpdated, SiblingBlockNotUpdatedForm)
+admin.site.register(LoginRedirectAllowedHost, LoginRedirectAllowedHostForm)

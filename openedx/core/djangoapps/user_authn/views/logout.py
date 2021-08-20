@@ -14,6 +14,7 @@ from oauth2_provider.models import Application
 from openedx.core.djangoapps.user_authn.cookies import delete_logged_in_cookies
 from openedx.core.djangoapps.user_authn.utils import is_safe_login_or_logout_redirect
 from common.djangoapps.third_party_auth import pipeline as tpa_pipeline
+from common.djangoapps.credo_modules.models import LoginRedirectAllowedHost
 
 
 class LogoutView(TemplateView):
@@ -64,6 +65,7 @@ class LogoutView(TemplateView):
             request_host=self.request.get_host(),
             dot_client_id=self.request.GET.get('client_id'),
             require_https=self.request.is_secure(),
+            login_redirect_whitelist_lst=LoginRedirectAllowedHost.get_all()
         )
         return target_url if use_target_url else self.default_target
 

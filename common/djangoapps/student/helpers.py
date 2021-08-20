@@ -35,6 +35,7 @@ from common.djangoapps.student.models import (
     username_exists_or_retired
 )
 from common.djangoapps.util.password_policy_validators import normalize_password
+from common.djangoapps.credo_modules.models import LoginRedirectAllowedHost
 from lms.djangoapps.certificates.api import get_certificate_url, has_html_certificates_enabled
 from lms.djangoapps.certificates.models import CertificateStatuses, certificate_status_for_student
 from lms.djangoapps.grades.api import CourseGradeFactory
@@ -347,6 +348,7 @@ def _get_redirect_to(request_host, request_headers, request_params, request_is_h
             request_host=request_host,
             dot_client_id=request_params.get('client_id'),
             require_https=request_is_https,
+            login_redirect_whitelist_lst=LoginRedirectAllowedHost.get_all()
         )
         if not safe_redirect:
             log.warning(
