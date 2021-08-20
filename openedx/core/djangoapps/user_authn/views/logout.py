@@ -65,7 +65,7 @@ class LogoutView(TemplateView):
             request_host=self.request.get_host(),
             dot_client_id=self.request.GET.get('client_id'),
             require_https=self.request.is_secure(),
-            login_redirect_whitelist_lst=LoginRedirectAllowedHost.get_all()
+            login_redirect_whitelist_dict=LoginRedirectAllowedHost.get_all()
         )
         return target_url if use_target_url else self.default_target
 

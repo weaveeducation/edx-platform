@@ -12,7 +12,7 @@ from oauth2_provider.models import Application
 
 
 def is_safe_login_or_logout_redirect(redirect_to, request_host, dot_client_id, require_https,
-                                     login_redirect_whitelist_lst=None):
+                                     login_redirect_whitelist_dict=None):
     """
     Determine if the given redirect URL/path is safe for redirection.
 
@@ -26,15 +26,21 @@ def is_safe_login_or_logout_redirect(redirect_to, request_host, dot_client_id, r
             ID of Django OAuth Toolkit client.
             It is acceptable to redirect to any of the DOT client's redirct URIs.
             This argument is ignored if it is None.
-        require_https (str):
+        require_https (bool):
             Whether HTTPs should be required in the redirect URL.
+        login_redirect_whitelist_dict (dict):
+            Format: {host: require_https}
 
     Returns: bool
     """
     login_redirect_whitelist = set(getattr(settings, 'LOGIN_REDIRECT_WHITELIST', []))
     login_redirect_whitelist.add(request_host)
-    if login_redirect_whitelist_lst:
-        login_redirect_whitelist.update(login_redirect_whitelist_lst)
+
+    if login_redirect_whitelist_dict:
+        login_redirect_whitelist.update(list(login_redirect_whitelist_dict.keys()))
+        redirect_host = urlparse(redirect_to).netloc
+        if redirect_host and redirect_host in login_redirect_whitelist_dict:
+            require_https = login_redirect_whitelist_dict[redirect_host]
 
     # Allow OAuth2 clients to redirect back to their site after logout.
     if dot_client_id:

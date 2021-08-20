@@ -348,7 +348,7 @@ def _get_redirect_to(request_host, request_headers, request_params, request_is_h
             request_host=request_host,
             dot_client_id=request_params.get('client_id'),
             require_https=request_is_https,
-            login_redirect_whitelist_lst=LoginRedirectAllowedHost.get_all()
+            login_redirect_whitelist_dict=LoginRedirectAllowedHost.get_all()
         )
         if not safe_redirect:
             log.warning(

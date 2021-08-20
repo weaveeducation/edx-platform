@@ -1095,13 +1095,14 @@ class LoginRedirectAllowedHost(models.Model):
     host = models.CharField(max_length=255, unique=True)
     is_active = models.BooleanField(default=False)
     created = models.DateTimeField(auto_now_add=True)
+    require_https = models.BooleanField(default=True)
 
     class Meta:
         ordering = ['host']
 
     @classmethod
     def get_all(cls):
-        return [l.host for l in cls.objects.filter(is_active=True)]
+        return {lg.host: lg.require_https for lg in cls.objects.filter(is_active=True)}
 
 
 def usage_dt_now():
