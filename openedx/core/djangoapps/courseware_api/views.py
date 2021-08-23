@@ -19,6 +19,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from common.djangoapps.course_modes.models import CourseMode
+from common.djangoapps.credo_modules.models import Organization
 from common.djangoapps.util.views import expose_header
 from lms.djangoapps.edxnotes.helpers import is_feature_enabled
 from lms.djangoapps.certificates.api import get_certificate_url
@@ -40,6 +41,7 @@ from lms.djangoapps.verify_student.services import IDVerificationService
 from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiveUser
 from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin
 from openedx.core.djangoapps.programs.utils import ProgramProgressMeter
+from openedx.core.djangoapps.user_api.accounts.utils import retrieve_last_sitewide_block_completed
 from openedx.features.course_experience import DISPLAY_COURSE_SOCK_FLAG
 from openedx.features.content_type_gating.models import ContentTypeGatingConfig
 from openedx.features.course_duration_limits.access import get_access_expiration_data
@@ -92,6 +94,14 @@ class CoursewareMeta:
         self.is_staff = has_access(self.effective_user, 'staff', self.overview).has_access
         self.enrollment_object = CourseEnrollment.get_enrollment(self.effective_user, self.course_key,
                                                                  select_related=['celebration', 'user__celebration'])
+
+        self.enable_extended_progress_page = False
+        try:
+            org = Organization.objects.get(org=course_key.org)
+            if org.org_type is not None:
+                self.enable_extended_progress_page = org.org_type.enable_extended_progress_page
+        except Organization.DoesNotExist:
+            pass
 
     def __getattr__(self, name):
         return getattr(self.overview, name)
@@ -165,6 +175,8 @@ class CoursewareMeta:
         tabs = []
         for priority, tab in enumerate(get_course_tab_list(self.effective_user, self.overview)):
             title = tab.title or tab.get('name', '')
+            if tab.type == 'progress' and self.enable_extended_progress_page:
+                title = "My Skills"
             tabs.append({
                 'title': _(title),  # pylint: disable=translation-of-non-string
                 'slug': tab.tab_id,
@@ -316,6 +328,10 @@ class CoursewareMeta:
         """Returns the user's timezone setting (may be None)"""
         user_timezone_locale = user_timezone_locale_prefs(self.request)
         return user_timezone_locale['user_timezone']
+
+    @property
+    def resume_block(self):
+        return retrieve_last_sitewide_block_completed(self.request.user, False)
 
 
 class CoursewareInformation(RetrieveAPIView):
