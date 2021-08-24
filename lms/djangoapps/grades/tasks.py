@@ -294,11 +294,11 @@ def _has_db_updated_with_new_score(self, scored_block_usage_key, **kwargs):
 
     if not db_is_updated:
         log.info(
-            "Grades: tasks._has_database_updated_with_new_score is False. Task ID: {}. Kwargs: {}. Found "
-            "modified time: {}".format(
+            "Grades: tasks._has_database_updated_with_new_score is False. Task ID: {}. Found modified time: {}. "
+            "Kwargs: {}".format(
                 self.request.id,
-                kwargs,
                 found_modified_time,
+                kwargs,
             )
         )
 
