@@ -23,7 +23,8 @@ from openedx.core.djangoapps.content.block_structure.models import ApiCourseStru
 from common.djangoapps.edxmako.shortcuts import render_to_response
 from opaque_keys.edx.keys import UsageKey, CourseKey
 from xmodule.modulestore.django import modulestore
-from .extended_progress import get_tag_values, get_tags_summary_data, get_tag_title, get_tag_title_short,\
+from common.djangoapps.myskills.extended_progress import get_tags_summary_data
+from common.djangoapps.myskills.utils import get_tag_values, get_tag_title, get_tag_title_short,\
     convert_into_tree, get_ora_submission_id
 
 

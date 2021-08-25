@@ -3086,6 +3086,7 @@ INSTALLED_APPS = [
 
     'common.djangoapps.credo_modules.apps.CredoAppConfig',
     'common.djangoapps.turnitin_integration.apps.TurnitinIntegrationAppConfig',
+    'common.djangoapps.myskills.apps.MySkillsAppConfig',
 
     # Learning Sequence Navigation
     'openedx.core.djangoapps.content.learning_sequences.apps.LearningSequencesConfig',

@@ -1,115 +1,12 @@
 import json
 from collections import OrderedDict
 
-from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
-from lms.djangoapps.courseware.utils import get_problem_detailed_info, get_answer_and_correctness, get_score_points,\
-    CREDO_GRADED_ITEM_CATEGORIES
+from lms.djangoapps.courseware.utils import get_problem_detailed_info, get_answer_and_correctness, get_score_points
 from lms.djangoapps.courseware.user_state_client import DjangoXBlockUserStateClient
 from openassessment.assessment.api import staff as staff_api
-from submissions.api import get_submissions
 from common.djangoapps.student.models import anonymous_id_for_user
 from common.djangoapps.credo_modules.models import OrganizationTag, TagDescription
-from xmodule.modulestore.django import modulestore
-
-
-def get_tag_title(tag):
-    tag_parts = tag.split(' - ')
-    if len(tag_parts) > 1:
-        return ' > '.join(tag_parts[1:]).replace('"', '')
-    else:
-        return tag.replace('"', '')
-
-
-def get_tag_title_short(tag):
-    tag_parts = tag.split(' - ')
-    if len(tag_parts) > 1:
-        return tag_parts[-1].replace('"', '')
-    else:
-        return tag.replace('"', '')
-
-
-def get_ora_submission_id(course_id, anonymous_user_id, block_id):
-    student_item_dict = dict(
-        course_id=str(course_id),
-        student_id=anonymous_user_id,
-        item_id=block_id,
-        item_type='openassessment'
-    )
-    context = dict(**student_item_dict)
-    submissions = get_submissions(context)
-    if len(submissions) > 0:
-        return submissions[0]
-    return None
-
-
-def get_tag_values(data, group_tags=False, tags_to_hide=None, tag_descriptions=None):
-    res = []
-    tags_used = []
-    if not tags_to_hide:
-        tags_to_hide = []
-    if not tag_descriptions:
-        tag_descriptions = {}
-
-    if group_tags:
-        for v in data:
-            if v.startswith(tuple(tags_to_hide)):
-                continue
-            tag_split_lst = v.split(' - ')
-            if len(tag_split_lst) > 1:
-                for idx, tag_part in enumerate(tag_split_lst):
-                    if idx > 0:
-                        tag_new_val = ' - '.join(tag_split_lst[0:idx + 1])
-                        if tag_new_val not in tags_used:
-                            res.append({
-                                'value': tag_new_val,
-                                'num': idx - 1,
-                                'is_last': (idx == (len(tag_split_lst) - 1)),
-                                'id': tag_new_val,
-                                'parent_id': ' - '.join(tag_split_lst[0:idx]) if idx > 1 else None,
-                                'description': tag_descriptions.get(tag_new_val, '').replace('\n', ' ').replace('\r', '')
-                            })
-                            tags_used.append(tag_new_val)
-            else:
-                res.append({
-                    'value': v,
-                    'num': 0,
-                    'is_last': True,
-                    'id': v,
-                    'parent_id': None,
-                    'description': tag_descriptions.get(v, '').replace('\n', ' ').replace('\r', '')
-                })
-        return res
-    else:
-        for v in data:
-            if v.startswith(tuple(tags_to_hide)):
-                continue
-            res.append({
-                'value': v,
-                'num': 0,
-                'is_last': True,
-                'id': v,
-                'parent_id': None,
-                'description': tag_descriptions.get(v, '').replace('\n', ' ').replace('\r', '')
-            })
-        return res
-
-
-def _convert_into_tree_filter(_d):
-    return {a: b for a, b in _d.items() if a != 'parent_id'}
-
-
-def _sort_tree_node(tags):
-    return sorted(tags, key=lambda k: "%03d_%s" % (100 - k['percent_correct'], k['tag_title_short']))
-
-
-def convert_into_tree(_d, _start=None):
-    res = []
-    for i in _d:
-        if i['parent_id'] == _start:
-            p = i.copy()
-            p['children'] = convert_into_tree(_d, i['id'])
-            res.append(_convert_into_tree_filter(p))
-    return _sort_tree_node(res)
+from .utils import get_tag_title_short, get_tag_title, get_tag_values, get_ora_submission_id
 
 
 def tags_student_progress(course, student, problem_blocks, courseware_summary, group_tags=False):
@@ -360,7 +257,7 @@ def _process_tag_section_info(section_val, sections):
     sections.append(section_val)
 
 
-def assessments_progress(courseware_summary, problems_dict=None):
+def assessments_progress(courseware_summary, problems_dict=None, include_data_str=True):
     data = []
     percent_correct_sections_lst = []
     total_grade_lst = []
@@ -484,7 +381,7 @@ def assessments_progress(courseware_summary, problems_dict=None):
 
     return {
         'data': data,
-        'data_str': json.dumps(data),
+        'data_str': json.dumps(data) if include_data_str else None,
         'total_grade': total_grade,
         'best_grade': max(percent_correct_sections_lst) if percent_correct_sections_lst else 0,
         'lowest_grade': min(percent_correct_sections_lst) if percent_correct_sections_lst else 0,
@@ -493,83 +390,3 @@ def assessments_progress(courseware_summary, problems_dict=None):
         'not_started_assessments': not_started_assessments,
         'course_tree': course_tree
     }
-
-
-def progress_main_page(request, course, student):
-    problem_blocks = modulestore().get_items(course.id, qualifiers={'category': {'$in': CREDO_GRADED_ITEM_CATEGORIES}})
-
-    course_grade = CourseGradeFactory().read(student, course)
-    courseware_summary = course_grade.chapter_grades.values()
-
-    tags = tags_student_progress(course, student, problem_blocks, courseware_summary)
-    assessments = assessments_progress(courseware_summary)
-
-    tags_to_100 = sorted(tags, key=lambda k: "%03d_%s" % (k['percent_correct'], k['tag']))
-    tags_from_100 = sorted(tags, key=lambda k: "%03d_%s" % (100 - k['percent_correct'], k['tag']))
-
-    context = {
-        'top5tags': tags_from_100[:5],
-        'lowest5tags': tags_to_100[:5],
-        'assessments': assessments
-    }
-    return context
-
-
-def progress_skills_page(request, course, student):
-    problem_blocks = modulestore().get_items(course.id, qualifiers={'category': {'$in': CREDO_GRADED_ITEM_CATEGORIES}})
-
-    course_grade = CourseGradeFactory().read(student, course)
-    courseware_summary = course_grade.chapter_grades.values()
-
-    tags = tags_student_progress(course, student, problem_blocks, courseware_summary, group_tags=True)
-    tags_assessments = [v.copy() for v in tags if v['tag_is_last']]
-
-    tags = convert_into_tree(tags)
-    tags_assessments = sorted(tags_assessments, key=lambda k: "%03d_%s" % (100 - k['percent_correct'], k['tag']))
-
-    context = {
-        'tags': tags,
-        'tags_assessments': tags_assessments,
-        'url_api_get_tag_data': '',
-        'url_api_get_tag_section_data': '',
-        'api_student_id': 0,
-        'api_org': ''
-    }
-    return context
-
-
-def progress_grades_page(request, course, student):
-    problems_dict = {}
-    problem_blocks = modulestore().get_items(course.id, qualifiers={'category': {'$in': CREDO_GRADED_ITEM_CATEGORIES}})
-    for pr in problem_blocks:
-        parent = pr.get_parent()
-        if parent is None:
-            continue
-        problems_dict[str(pr.location)] = {
-            'display_name': pr.display_name,
-            'vertical_id': None,
-            'vertical_name': '',
-            'hidden': False
-        }
-        if pr.category == 'openassessment':
-            problems_dict[str(pr.location)]['hidden'] = pr.is_hidden()
-        if parent.category == 'vertical':
-            problems_dict[str(pr.location)]['vertical_id'] = str(parent.location)
-            problems_dict[str(pr.location)]['vertical_name'] = parent.display_name
-        else:
-            parent = parent.get_parent()
-            if parent.category == 'vertical':
-                problems_dict[str(pr.location)]['vertical_id'] = str(parent.location)
-                problems_dict[str(pr.location)]['vertical_name'] = parent.display_name
-            else:
-                raise Exception("Can't find vertical block for element: " + str(pr.location))
-
-    course_grade = CourseGradeFactory().read(student, course)
-    courseware_summary = course_grade.chapter_grades.values()
-
-    assessments = assessments_progress(courseware_summary, problems_dict)
-
-    context = {
-        'assessments': assessments
-    }
-    return context

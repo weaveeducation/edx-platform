@@ -91,7 +91,6 @@ from lms.djangoapps.courseware.permissions import (  # lint-amnesty, pylint: dis
     VIEW_XQA_INTERFACE
 )
 from lms.djangoapps.courseware.user_state_client import DjangoXBlockUserStateClient
-from lms.djangoapps.courseware.extended_progress import progress_main_page, progress_skills_page, progress_grades_page
 from lms.djangoapps.courseware.utils import get_block_children, CREDO_GRADED_ITEM_CATEGORIES,\
     get_answer_and_correctness, get_score_points, get_lti_context_session_key
 from lms.djangoapps.experiments.utils import get_experiment_user_metadata_context
@@ -135,6 +134,7 @@ from common.djangoapps.util.cache import cache, cache_if_anonymous
 from common.djangoapps.util.db import outer_atomic
 from common.djangoapps.util.milestones_helpers import get_prerequisite_courses_display
 from common.djangoapps.util.views import ensure_valid_course_key, ensure_valid_usage_key
+from common.djangoapps.myskills.services import MySkillsService
 from xmodule.course_module import COURSE_VISIBILITY_PUBLIC, COURSE_VISIBILITY_PUBLIC_OUTLINE
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError, NoPathToItem
@@ -1289,14 +1289,17 @@ def _extended_progress_page(request, course, student, student_id=None, is_frame=
     page = request.GET.get('page')
 
     with modulestore().bulk_operations(course.id):
+        myskills_service = MySkillsService(student, course)
+
         if page is None or page == 'progress':
-            page_context = progress_main_page(request, course, student)
+            page_context = myskills_service.get_tags_summary()
+            page_context['assessments'] = myskills_service.get_assessment_summary()
             tpl_name = 'extended_progress.html'
         elif page == 'skills':
-            page_context = progress_skills_page(request, course, student)
+            page_context = myskills_service.get_tags_all_data()
             tpl_name = 'extended_progress_skills.html'
         elif page == 'grades':
-            page_context = progress_grades_page(request, course, student)
+            page_context = myskills_service.get_assessment_all_data()
             tpl_name = 'extended_progress_assessments.html'
         else:
             raise Http404

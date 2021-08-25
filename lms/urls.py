@@ -215,6 +215,8 @@ urlpatterns = [
     ),
     url(r'^api/discounts/', include(('openedx.features.discounts.urls', 'openedx.features.discounts'),
                                     namespace='api_discounts')),
+    url(r'^api/myskills/', include('common.djangoapps.myskills.urls')),
+
     path('403', handler403),
     path('404', handler404),
     path('429', handler429),
