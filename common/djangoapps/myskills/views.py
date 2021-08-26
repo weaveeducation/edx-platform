@@ -82,10 +82,8 @@ class TagsGlobalSummaryView(APIView):
         context_data = {
             'orgs': sorted(orgs),
             'student_id': student.id,
-            'student': student,
             'student_name': get_student_name(student),
-            'api_student_id': student.id,
-            'api_org': org,
+            'org': org,
         }
 
         if len(course_ids) > MAX_COURSES_PER_USER and len(orgs) > 1 and not org:
@@ -114,10 +112,8 @@ class TagsGlobalView(APIView):
         context_data = {
             'orgs': sorted(orgs),
             'student_id': student.id,
-            'student': student,
             'student_name': get_student_name(student),
-            'api_student_id': student.id,
-            'api_org': org,
+            'org': org,
         }
 
         if len(course_ids) > MAX_COURSES_PER_USER and len(orgs) > 1 and not org:
