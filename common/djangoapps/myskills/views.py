@@ -4,6 +4,7 @@ from django.http import Http404
 from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework import permissions
 from edx_rest_framework_extensions.auth.jwt.authentication import JwtAuthentication
 from edx_rest_framework_extensions.auth.session.authentication import SessionAuthenticationAllowInactiveUser
 from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiveUser
@@ -46,6 +47,7 @@ class TagsSummaryView(APIView):
         BearerAuthenticationAllowInactiveUser,
         SessionAuthenticationAllowInactiveUser,
     )
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, course_id, student_id=None):
         course_key = CourseKey.from_string(course_id)
@@ -61,6 +63,7 @@ class TagsView(APIView):
         BearerAuthenticationAllowInactiveUser,
         SessionAuthenticationAllowInactiveUser,
     )
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, course_id, student_id=None):
         course_key = CourseKey.from_string(course_id)
@@ -76,6 +79,7 @@ class TagsGlobalSummaryView(APIView):
         BearerAuthenticationAllowInactiveUser,
         SessionAuthenticationAllowInactiveUser,
     )
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, student_id=None):
         user_id, student, course_ids, orgs, org = get_global_skills_context(request, student_id)
@@ -105,6 +109,7 @@ class TagsGlobalView(APIView):
         BearerAuthenticationAllowInactiveUser,
         SessionAuthenticationAllowInactiveUser,
     )
+    permission_classes = (permissions.IsAuthenticated,)
 
     @method_decorator(transaction.non_atomic_requests)
     def get(self, request, student_id=None):
@@ -159,6 +164,7 @@ class TagsTagDataView(APIView):
         BearerAuthenticationAllowInactiveUser,
         SessionAuthenticationAllowInactiveUser,
     )
+    permission_classes = (permissions.IsAuthenticated,)
 
     @method_decorator(transaction.non_atomic_requests)
     def post(self, request, student_id=None):
@@ -172,6 +178,7 @@ class TagsTagSectionView(APIView):
         BearerAuthenticationAllowInactiveUser,
         SessionAuthenticationAllowInactiveUser,
     )
+    permission_classes = (permissions.IsAuthenticated,)
 
     @method_decorator(transaction.non_atomic_requests)
     def post(self, request, student_id=None):
@@ -185,6 +192,7 @@ class AssessmentSummaryView(APIView):
         BearerAuthenticationAllowInactiveUser,
         SessionAuthenticationAllowInactiveUser,
     )
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, course_id, student_id=None):
         course_key = CourseKey.from_string(course_id)
@@ -200,6 +208,7 @@ class AssessmentView(APIView):
         BearerAuthenticationAllowInactiveUser,
         SessionAuthenticationAllowInactiveUser,
     )
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, course_id, student_id=None):
         course_key = CourseKey.from_string(course_id)
