@@ -99,3 +99,13 @@ def convert_into_tree(_d, _start=None):
             p['children'] = convert_into_tree(_d, i['id'])
             res.append(_convert_into_tree_filter(p))
     return _sort_tree_node(res)
+
+
+def get_student_name(student):
+    student_name = student.first_name + ' ' + student.last_name
+    student_name = student_name.strip()
+    if student_name:
+        student_name = student_name + ' (' + student.email + ')'
+    else:
+        student_name = student.email
+    return student_name
