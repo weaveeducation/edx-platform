@@ -214,5 +214,5 @@ class AssessmentView(APIView):
         course_key = CourseKey.from_string(course_id)
         student, course = _get_student(request, course_key, student_id)
         service = MySkillsService(student, course)
-        data = service.get_assessment_all_data()
+        data = service.get_assessment_all_data(include_data_str=False)
         return Response(data)

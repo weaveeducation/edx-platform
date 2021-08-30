@@ -62,7 +62,7 @@ class MySkillsService:
         assessments = assessments_progress(courseware_summary, include_data_str=include_data_str)
         return assessments
 
-    def get_assessment_all_data(self):
+    def get_assessment_all_data(self, include_data_str=True):
         problems_dict = {}
         problem_blocks = self._get_course_problem_blocks()
         for pr in problem_blocks:
@@ -89,7 +89,7 @@ class MySkillsService:
                     raise Exception("Can't find vertical block for element: " + str(pr.location))
 
         courseware_summary = self._get_courseware_summary()
-        assessments = assessments_progress(courseware_summary, problems_dict)
+        assessments = assessments_progress(courseware_summary, problems_dict, include_data_str=include_data_str)
 
         context = {
             'assessments': assessments

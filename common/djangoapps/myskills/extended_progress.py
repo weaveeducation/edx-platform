@@ -275,6 +275,7 @@ def assessments_progress(courseware_summary, problems_dict=None, include_data_st
         for section in chapter['sections']:
             if section.graded:
                 sequential_block = {
+                    'id': str(section.location),
                     'display_name': section.display_name,
                     'vertical_blocks': []
                 }
