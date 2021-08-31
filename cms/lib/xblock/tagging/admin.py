@@ -6,6 +6,7 @@ from django.contrib import admin
 from django.utils.translation import ugettext_lazy as _
 from .models import TagCategories, TagOrgTypes, TagAvailableValues
 from common.djangoapps.student.roles import CourseStaffRole, CourseInstructorRole
+from common.djangoapps.credo_modules.admin import ExportCsvMixin
 
 
 class TagCategoriesForm(forms.ModelForm):
@@ -75,10 +76,20 @@ class TagCategoriesAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'title', 'editable_in_studio', 'role', 'scoped_by')
 
 
-class TagAvailableValuesAdmin(admin.ModelAdmin):
+class TagAvailableValuesAdmin(ExportCsvMixin, admin.ModelAdmin):
     """Admin for TagAvailableValues"""
     list_display = ('id', 'category', 'course_id', 'org', 'value')
     search_fields = ('id', 'category__name', 'category__title', 'course_id', 'org', 'value')
+    csv_name = 'tag_values'
+    actions = ('export_as_csv',)
+
+    def get_csv_value(self, request, field_name, obj):
+        if field_name == 'category':
+            return obj.category.title
+        return super().get_csv_value(request, field_name, obj)
+
+    def get_export_csv_queryset(self, request):
+        return TagAvailableValues.objects.all().order_by('category__title', 'value')
 
 
 admin.site.register(TagCategories, TagCategoriesAdmin)

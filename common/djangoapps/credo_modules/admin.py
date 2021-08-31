@@ -163,7 +163,7 @@ class ExportCsvMixin:
             field_names[field_name] = self.get_csv_title(request, field_name)
 
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename=cousin_content_block_{}.csv'.format(now_str)
+        response['Content-Disposition'] = 'attachment; filename={}_{}.csv'.format(self.csv_name, now_str)
         writer = csv.writer(response)
 
         writer.writerow(field_names.values())
@@ -264,6 +264,7 @@ class SiblingBlockNotUpdatedForm(ReadOnlyMixin, ExportCsvMixin, admin.ModelAdmin
     actions = ('set_ignored', 'export_as_csv',)
     list_filter = (IgnoredFilter,)
     users_cache = {}
+    csv_name = 'cousin_content_block'
 
     def set_ignored(self, request, queryset):
         queryset.update(ignore=True)
