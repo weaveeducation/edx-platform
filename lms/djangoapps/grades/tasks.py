@@ -261,9 +261,11 @@ def _has_db_updated_with_new_score(self, scored_block_usage_key, **kwargs):
     Returns whether the database has been updated with the
     expected new score values for the given problem and user.
     """
+    checks = []
     if kwargs['score_db_table'] == ScoreDatabaseTableEnum.courseware_student_module:
         score = get_score(kwargs['user_id'], scored_block_usage_key)
         found_modified_time = score.modified if score is not None else None
+        checks.append({'1': str(score)})
 
     elif kwargs['score_db_table'] == ScoreDatabaseTableEnum.submissions:
         score = sub_api.get_score(
@@ -275,6 +277,7 @@ def _has_db_updated_with_new_score(self, scored_block_usage_key, **kwargs):
             }
         )
         found_modified_time = score['created_at'] if score is not None else None
+        checks.append({'2': str(score)})
     else:
         assert kwargs['score_db_table'] == ScoreDatabaseTableEnum.overrides
         from . import api
@@ -284,23 +287,28 @@ def _has_db_updated_with_new_score(self, scored_block_usage_key, **kwargs):
             usage_key_or_id=kwargs['usage_id']
         )
         found_modified_time = score.modified if score is not None else None
+        checks.append({'3': str(score)})
 
     if score is None:
         # score should be None only if it was deleted.
         # Otherwise, it hasn't yet been saved.
         db_is_updated = kwargs['score_deleted']
+        checks.append({'4': db_is_updated})
     else:
         db_is_updated = found_modified_time >= from_timestamp(kwargs['expected_modified_time'])
+        checks.append({'5': db_is_updated})
 
     if not db_is_updated:
         log.info(
-            "Grades: tasks._has_database_updated_with_new_score is False. Task ID: {}. Found modified time: {}. "
-            "Kwargs: {}".format(
+            "Grades: tasks._has_database_updated_with_new_score is False. Task ID: {}. Score is None: {}. "
+            "Found modified time: {}. Kwargs: {}".format(
                 self.request.id,
+                True if score is None else False,
                 found_modified_time,
                 kwargs,
             )
         )
+        log.info("Grades: tasks._has_database_updated_with_new_score is False. Debug info: {}".format(checks))
 
     return db_is_updated
 
