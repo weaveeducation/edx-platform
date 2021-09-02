@@ -41,4 +41,10 @@ urlpatterns = [
         views.AssessmentView.as_view(), name='myskills_assessments_all'),
     url(r'^assessments/{}/all/(?P<student_id>[^/]*)/$'.format(settings.COURSE_ID_PATTERN),
         views.AssessmentView.as_view(), name='myskills_assessments_all_some_user'),
+
+    url(r'^userinfo/{}/(?P<student_id>[^/]*)/$'.format(settings.COURSE_ID_PATTERN),
+        views.UserInfo.as_view(), name='myskills_course_user_info_some_user'),
+    url(r'^userinfo/(?P<student_id>[^/]*)/$'.format(settings.COURSE_ID_PATTERN),
+        views.UserInfo.as_view(), name='myskills_global_user_info_some_user'),
+    url(r'^userinfo/$', views.UserInfo.as_view(), name='myskills_global_user_info')
 ]
