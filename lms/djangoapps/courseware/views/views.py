@@ -2697,7 +2697,7 @@ def send_email_with_scores(course_id, usage_id, mailing_id, emails):
 
         log.info("Task to send scores successfully finished. Mailing id: %s", str(mailing_id))
     except SendScoresMailing.DoesNotExist:
-        log.info("Task to send scores finished with error. Mailing id: %s", str(mailing_id))
+        log.error("Task to send scores finished with error. Mailing id: %s", str(mailing_id))
 
 
 def get_embedded_new_tab_page(is_time_exam=False, url_query=None, request_hash=None):

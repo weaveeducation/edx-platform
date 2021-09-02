@@ -23,7 +23,7 @@ from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore import ModuleStoreEnum
 from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure, ApiCourseStructureTags,\
-    ApiCourseStructureLock, BlockToSequential, CourseAuthProfileFieldsCache, OraBlockStructure
+    ApiCourseStructureLock, BlockToSequential, CourseFieldsCache, OraBlockStructure
 from common.djangoapps.credo_modules.event_parser import prepare_text_for_column_db
 from common.djangoapps.credo_modules.models import TrackingLogConfig
 from common.djangoapps.credo_modules.vertica import update_data_in_vertica, get_vertica_dsn
@@ -228,30 +228,8 @@ def _update_course_structure(course_id, published_on):
         with modulestore().bulk_operations(course_key):
             try:
                 course = modulestore().get_course(course_key, depth=0)
-                if course:
-                    if course.credo_additional_profile_fields:
-                        mongo_profile_fields = course.credo_additional_profile_fields
-                        try:
-                            profile_fields_cache = CourseAuthProfileFieldsCache.objects.get(course_id=course_id)
-                            profile_fields_cache_fields = profile_fields_cache.get_fields()
-                            if not profile_fields_cache_fields or set(profile_fields_cache_fields.keys()) != set(mongo_profile_fields.keys()):
-                                profile_fields_cache.data = json.dumps(mongo_profile_fields)
-                                profile_fields_cache.save()
-                        except CourseAuthProfileFieldsCache.DoesNotExist:
-                            profile_fields_cache = CourseAuthProfileFieldsCache(
-                                course_id=course_id,
-                                data=json.dumps(mongo_profile_fields)
-                            )
-                            profile_fields_cache.save()
-                    else:
-                        try:
-                            profile_fields_cache = CourseAuthProfileFieldsCache.objects.get(course_id=course_id)
-                            profile_fields_cache.delete()
-                        except CourseAuthProfileFieldsCache.DoesNotExist:
-                            pass
-                else:
+                if not course:
                     return
-
                 if published_on:
                     published_on = published_on.split('.')[0]
                 current_published_on = str(course.published_on).split('.')[0]
@@ -259,6 +237,7 @@ def _update_course_structure(course_id, published_on):
                     log.info("Skip outdated task for course %s. Course.published_on %s != passed published_on %s"
                              % (str(course_id), current_published_on, published_on))
                     return
+                CourseFieldsCache.refresh_cache(course_id, course=course)
                 data = modulestore().get_items(course_key)
             except ItemNotFoundError:
                 log.exception("Course isn't exist or not published: %s" % str(course_id))

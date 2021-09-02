@@ -19,6 +19,8 @@ from model_utils.models import TimeStampedModel
 
 from openedx.core.djangoapps.xmodule_django.models import UsageKeyWithRunField
 from openedx.core.storage import get_storage
+from opaque_keys.edx.keys import CourseKey
+from common.djangoapps.credo_modules.mongo import get_course_structure
 
 from . import config
 from .exceptions import BlockStructureNotFound
@@ -450,6 +452,79 @@ class CourseAuthProfileFieldsCache(models.Model):
     def get_fields(self):
         if self.data:
             return json.loads(self.data)
+        return None
+
+
+class CourseFieldsCache(models.Model):
+    course_id = models.CharField(max_length=255, unique=True)
+    additional_profile_fields = models.TextField(null=True, blank=True)
+    enable_subsection_gating = models.BooleanField(null=True)
+
+    @classmethod
+    def get_cache(cls, course_id, course=None, force_refresh=False, check_attr_to_refresh=None):
+        course_key = CourseKey.from_string(course_id)
+        obj_exists = True
+        try:
+            obj = cls.objects.get(course_id=course_id)
+        except cls.DoesNotExist:
+            obj = CourseFieldsCache(course_id=course_id)
+            obj_exists = False
+
+        if not obj_exists or force_refresh or\
+          (check_attr_to_refresh and (getattr(obj, check_attr_to_refresh, None) is None)):
+            additional_profile_fields_keys = set()
+            additional_profile_fields = {}
+            enable_subsection_gating = False
+            need_update = False
+
+            if course:
+                if course.credo_additional_profile_fields:
+                    additional_profile_fields = json.dumps(course.credo_additional_profile_fields)
+                    additional_profile_fields_keys = set(course.credo_additional_profile_fields.keys())
+                enable_subsection_gating = course.enable_subsection_gating
+            else:
+                fields_data = {}
+                course_structure = get_course_structure(course_key)
+                if course_structure:
+                    for st in course_structure['blocks']:
+                        if st['block_type'] == 'course':
+                            fields_data = st.get('fields', {})
+                            break
+                if fields_data:
+                    if 'credo_additional_profile_fields' in fields_data and fields_data['credo_additional_profile_fields']:
+                        additional_profile_fields = json.dumps(fields_data['credo_additional_profile_fields'])
+                        additional_profile_fields_keys = set(fields_data['credo_additional_profile_fields'].keys())
+                    if 'enable_subsection_gating' in fields_data:
+                        enable_subsection_gating = fields_data['enable_subsection_gating']
+
+            additional_profile_fields_keys_current = None
+            additional_profile_fields_current = obj.get_additional_profile_fields()
+            if additional_profile_fields_current:
+                additional_profile_fields_keys_current = set(additional_profile_fields_current.keys())
+
+            if additional_profile_fields_keys != additional_profile_fields_keys_current:
+                obj.additional_profile_fields = additional_profile_fields
+                need_update = True
+
+            if enable_subsection_gating != obj.enable_subsection_gating:
+                obj.enable_subsection_gating = enable_subsection_gating
+                need_update = True
+
+            if need_update:
+                obj.save()
+
+        return obj
+
+    @classmethod
+    def refresh_cache(cls, course_id, course=None):
+        cls.get_cache(course_id, course=course, force_refresh=True)
+
+    class Meta:
+        db_table = 'course_fields_cache'
+
+    def get_additional_profile_fields(self):
+        if self.additional_profile_fields:
+            return json.loads(self.additional_profile_fields)
         return None
 
 
