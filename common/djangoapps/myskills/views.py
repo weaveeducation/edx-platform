@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.http import Http404
+from django.http import Http404, HttpResponseBadRequest
 from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -238,6 +238,12 @@ class UserInfo(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, course_id=None, student_id=None):
+        if student_id:
+            try:
+                student_id = int(student_id)
+            except ValueError:
+                return HttpResponseBadRequest('Invalid student ID')
+
         if course_id:
             course_key = CourseKey.from_string(course_id)
             course = get_course_with_access(request.user, 'load', course_key)
