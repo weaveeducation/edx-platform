@@ -171,6 +171,8 @@ def get_problem_detailed_info(item, parent_name, add_correctness=True):
 
 
 def _get_dnd_answer_values(item_state, zones):
+    if not item_state:
+        return {}
     result = {}
     items = {}
     some_value = False
@@ -219,7 +221,7 @@ def get_answer_and_correctness(user_state_dict, score, category, block, key,
     elif category == 'drag-and-drop-v2':
         answer_state = user_state_dict.get(str(key))
         if answer_state:
-            answer = _get_dnd_answer_values(answer_state.state['item_state'], block.data)
+            answer = _get_dnd_answer_values(answer_state.state.get('item_state', {}), block.data)
         else:
             answer = _get_dnd_answer_values(block.item_state, block.data)
     elif category == 'image-explorer':
