@@ -182,13 +182,13 @@ class CoursewareMeta:
             url = tab.link_func(self.overview, reverse)
             url_abs = url
             if not url.startswith('http'):
-                url_abs = self.request.build_absolute_uri(tab.link_func(self.context.get('course'), reverse))
+                url_abs = self.request.build_absolute_uri(url)
             tabs.append({
                 'title': _(title),  # pylint: disable=translation-of-non-string
                 'slug': tab.tab_id,
                 'priority': priority,
                 'type': tab.type,
-                'url': tab.link_func(self.overview, reverse),
+                'url': url,
                 'url_absolute': url_abs,
                 'mf_feature': mf_feature
             })
