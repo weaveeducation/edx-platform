@@ -46,6 +46,12 @@ def get_global_skills_context(request, user_id=None):
         org = request.POST.get('org')
     student = request.user
 
+    if user_id:
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            raise Http404
+
     if request.user.is_superuser and user_id:
         student = User.objects.filter(id=user_id).first()
         if not student:
@@ -291,6 +297,13 @@ def get_tags_global_data(student, orgs, course_ids, tag_value=None, group_tags=F
 
 
 def get_sequential_block_questions(request, section_id, tag_value, student):
+    from django.test.client import RequestFactory
+
+    if request.user.id != student.id:
+        rf = RequestFactory()
+        request = rf.get('/fake-request/')
+        request.user = student
+
     usage_key = UsageKey.from_string(section_id)
     course_key = usage_key.course_key
     course_id = str(course_key)
