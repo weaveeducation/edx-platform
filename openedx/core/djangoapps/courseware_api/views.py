@@ -175,14 +175,22 @@ class CoursewareMeta:
         tabs = []
         for priority, tab in enumerate(get_course_tab_list(self.effective_user, self.overview)):
             title = tab.title or tab.get('name', '')
+            mf_feature = False
             if tab.type == 'progress' and self.enable_extended_progress_page:
                 title = "My Skills"
+                mf_feature = True
+            url = tab.link_func(self.overview, reverse)
+            url_abs = url
+            if not url.startswith('http'):
+                url_abs = self.request.build_absolute_uri(tab.link_func(self.context.get('course'), reverse))
             tabs.append({
                 'title': _(title),  # pylint: disable=translation-of-non-string
                 'slug': tab.tab_id,
                 'priority': priority,
                 'type': tab.type,
                 'url': tab.link_func(self.overview, reverse),
+                'url_absolute': url_abs,
+                'mf_feature': mf_feature
             })
         return tabs
 
