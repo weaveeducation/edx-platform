@@ -54,8 +54,13 @@ class Lti1p3ScoresHandler(ScoresHandler):
         locations = []
         current_descriptor = descriptor
         while current_descriptor:
-            locations.append(current_descriptor.location)
+            if current_descriptor.graded:
+                locations.append(current_descriptor.location)
+            if current_descriptor.category == 'sequential':
+                break
             current_descriptor = current_descriptor.get_parent()
+        if not locations:
+            return []
         assignments = GradedAssignment.objects.filter(
             user=user_id, course_key=course_key, usage_key__in=locations, disabled=False
         )
