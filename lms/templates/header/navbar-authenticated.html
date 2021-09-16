@@ -48,10 +48,16 @@ from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonym
     % endif
     % if show_my_skills:
         <div class="mobile-nav-item hidden-mobile nav-item nav-tab">
+          % if settings.NW_COURSEWARE_MFE_ENABLED and settings.NW_COURSEWARE_MFE_URL:
+          <a class="tab-nav-link" href="${settings.NW_COURSEWARE_MFE_URL}/myskills" aria-current="false">
+              ${_("My Skills")}
+          </a>
+          % else:
           <a class="${'active ' if reverse('global_skills') == request.path else ''}tab-nav-link" href="${reverse('global_skills')}"
               aria-current="${'page' if reverse('global_skills') == request.path else 'false'}">
               ${_("My Skills")}
           </a>
+          % endif
         </div>
     % endif
     % if show_explore_courses:

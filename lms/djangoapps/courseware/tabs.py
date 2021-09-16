@@ -17,6 +17,7 @@ from openedx.features.course_experience import DISABLE_UNIFIED_COURSE_TAB_FLAG, 
 from openedx.features.course_experience.url_helpers import get_learning_mfe_home_url
 from common.djangoapps.student.models import CourseEnrollment
 from common.djangoapps.credo_modules.models import Organization
+from common.djangoapps.credo_modules.utils import get_progress_page_url
 from xmodule.tabs import CourseTab, CourseTabList, course_reverse_func_from_name_func, key_checker
 
 
@@ -116,7 +117,8 @@ class ProgressTab(EnrolledTab):
             if course_home_mfe_progress_tab_is_active(course.id):
                 return get_learning_mfe_home_url(course_key=course.id, view_name=self.view_name)
             else:
-                return reverse_func(self.view_name, args=[str(course.id)])
+                progress_url = reverse_func(self.view_name, args=[str(course.id)])
+                return get_progress_page_url(course.id, default_progress_url=progress_url)
 
         tab_dict['link_func'] = link_func
         super(ProgressTab, self).__init__(tab_dict)  # pylint: disable=super-with-arguments

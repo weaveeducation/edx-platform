@@ -1117,3 +1117,6 @@ if raven_dsn:
             event_level=logging.ERROR  # Send errors as events
         )]
     )
+
+NW_COURSEWARE_MFE_ENABLED = ENV_TOKENS.get('NW_COURSEWARE_MFE_ENABLED', False)
+NW_COURSEWARE_MFE_URL = ENV_TOKENS.get('NW_COURSEWARE_MFE_URL', '')

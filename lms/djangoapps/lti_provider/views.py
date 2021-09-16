@@ -261,6 +261,19 @@ def _lti_launch(request, course_id=None, usage_id=None, page_name=None):
                        page_name=page_name)
         return result
     else:
+        if settings.NW_COURSEWARE_MFE_ENABLED and settings.NW_COURSEWARE_MFE_URL:
+            template = Template(render_to_string('static_templates/embedded_redirect.html', {
+                'disable_accordion': True,
+                'allow_iframing': True,
+                'disable_header': True,
+                'disable_footer': True,
+                'disable_window_wrap': True,
+                'page_type': page_name,
+                'course_id': str(course_key) if course_key else '',
+                'mfe_url': settings.NW_COURSEWARE_MFE_URL
+            }))
+            return HttpResponse(template.render())
+
         if not request_params.get('iframe'):
             log_lti_launch(course_id, usage_id, 301, request.user.id, params=request_params, page_name=page_name)
             if page_name == MY_SKILLS_PAGE:
@@ -271,6 +284,7 @@ def _lti_launch(request, course_id=None, usage_id=None, page_name=None):
                 raise Http404()
 
         log_lti_launch(course_id, usage_id, 200, request.user.id, params=request_params, page_name=page_name)
+
         if page_name == MY_SKILLS_PAGE:
             return render_global_skills_page(request, display_in_frame=True)
         elif page_name == COURSE_PROGRESS_PAGE:

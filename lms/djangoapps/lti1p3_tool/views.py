@@ -373,6 +373,19 @@ def _launch(request, block=None, course_id=None, page=None):
         result = render_courseware(request, usage_key, lti_context_id=context_id)
         return result
     else:
+        if settings.NW_COURSEWARE_MFE_ENABLED and settings.NW_COURSEWARE_MFE_URL:
+            template = Template(render_to_string('static_templates/embedded_redirect.html', {
+                'disable_accordion': True,
+                'allow_iframing': True,
+                'disable_header': True,
+                'disable_footer': True,
+                'disable_window_wrap': True,
+                'page_type': page,
+                'course_id': str(course_key) if course_key else '',
+                'mfe_url': settings.NW_COURSEWARE_MFE_URL
+            }))
+            return HttpResponse(template.render())
+
         if page == MY_SKILLS_PAGE:
             if not is_iframe:
                 return HttpResponseRedirect(reverse('global_skills') + '?frame=1')

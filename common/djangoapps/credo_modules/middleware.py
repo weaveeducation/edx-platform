@@ -5,6 +5,8 @@ from django.conf import settings
 from django.contrib.auth import logout
 from django.http import HttpResponse
 from openedx.core.djangoapps.site_configuration.helpers import get_value
+from openedx.core.djangoapps.user_authn.cookies import set_logged_in_cookies
+from edx_rest_framework_extensions.auth.jwt.cookies import jwt_cookie_header_payload_name, jwt_cookie_signature_name
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from xmodule.modulestore.django import modulestore
@@ -148,4 +150,21 @@ class LinkAccessOnlyMiddleware:
                     logout(request)
 
         response = self.get_response(request)
+        return response
+
+
+class JwtCookiesMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        user = getattr(request, 'user', None)
+        user_logged_in = getattr(request, '_user_logged_in', False)
+
+        header_payload_cookie = request.COOKIES.get(jwt_cookie_header_payload_name())
+        signature_cookie = request.COOKIES.get(jwt_cookie_signature_name())
+
+        if user and user.is_authenticated and user_logged_in and (not header_payload_cookie or not signature_cookie):
+            response = set_logged_in_cookies(request, response, user)
         return response

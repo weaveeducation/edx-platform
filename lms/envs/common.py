@@ -2019,6 +2019,7 @@ MIDDLEWARE = [
     'openedx.core.djangoapps.cache_toolbox.middleware.CacheBackedAuthenticationMiddleware',
 
     'common.djangoapps.credo_modules.middleware.LinkAccessOnlyMiddleware',
+    'common.djangoapps.credo_modules.middleware.JwtCookiesMiddleware',
 
     'common.djangoapps.student.middleware.UserStandingMiddleware',
     'openedx.core.djangoapps.contentserver.middleware.StaticContentServer',
@@ -4710,3 +4711,7 @@ LOGO_URL_PNG = None
 LOGO_TRADEMARK_URL = None
 FAVICON_URL = None
 DEFAULT_EMAIL_LOGO_URL = 'https://edx-cdn.org/v3/default/logo.png'
+
+
+NW_COURSEWARE_MFE_ENABLED = False
+NW_COURSEWARE_MFE_URL = ''

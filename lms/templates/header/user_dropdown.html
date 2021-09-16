@@ -53,7 +53,13 @@ hide_profile = get_hide_profile_setting()
         % endif
 
         % if my_skills_access:
-        <div class="mobile-nav-item dropdown-item dropdown-nav-item"><a href="${reverse('global_skills')}" role="menuitem" >${_("My Skills")}</a></div>
+        <div class="mobile-nav-item dropdown-item dropdown-nav-item">
+            % if settings.NW_COURSEWARE_MFE_ENABLED and settings.NW_COURSEWARE_MFE_URL:
+            <a href="${settings.NW_COURSEWARE_MFE_URL}/myskills" role="menuitem" >${_("My Skills")}</a>
+            % else:
+            <a href="${reverse('global_skills')}" role="menuitem" >${_("My Skills")}</a>
+            % endif
+        </div>
         % endif
 
         % if not credo_anonymous_user and not hide_profile:

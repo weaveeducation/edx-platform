@@ -1163,10 +1163,12 @@ def _progress(request, course_key, student_id, display_in_frame=False):
     User progress. We show the grade bar and every problem score.
     Course staff are allowed to see the progress of students in their class.
     """
+    url_params_list = []
 
     if student_id is not None:
         try:
             student_id = int(student_id)
+            url_params_list.append('userId=' + str(student_id))
         # Check for ValueError if 'student_id' cannot be converted to integer.
         except ValueError:
             raise Http404  # lint-amnesty, pylint: disable=raise-missing-from
@@ -1180,6 +1182,9 @@ def _progress(request, course_key, student_id, display_in_frame=False):
             is_frame = None
     if not is_frame:
         is_frame = display_in_frame
+
+    if is_frame:
+        url_params_list.append('headless=true')
 
     course = get_course_with_access(request.user, 'load', course_key)
 
@@ -1224,6 +1229,11 @@ def _progress(request, course_key, student_id, display_in_frame=False):
         pass
 
     if enable_extended_progress_page:
+        if settings.NW_COURSEWARE_MFE_ENABLED and settings.NW_COURSEWARE_MFE_URL and not request.user.is_superuser:
+            redirect_url = settings.NW_COURSEWARE_MFE_URL + reverse('progress', kwargs={'course_id': str(course_key)})
+            if url_params_list:
+                redirect_url = redirect_url + '?' + '&'.join(url_params_list)
+            return redirect(redirect_url)
         return _extended_progress_page(request, course, student, student_id, is_frame=is_frame)
 
     # NOTE: To make sure impersonation by instructor works, use
