@@ -2,12 +2,12 @@ from django.db import transaction
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.views.decorators.http import require_POST
-from django.conf import settings
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
 from common.djangoapps.student.models import CourseEnrollment
 from common.djangoapps.credo_modules.models import Organization, check_my_skills_access
+from common.djangoapps.credo_modules.utils import get_skills_mfe_url
 from common.djangoapps.edxmako.shortcuts import render_to_response
 from common.djangoapps.myskills.views import api_tag_global_data, api_tag_section_data
 from common.djangoapps.myskills.global_progress import get_tags_global_data, MAX_COURSES_PER_USER
@@ -63,8 +63,9 @@ def _get_global_skills_context(request, user_id, org):
 @transaction.non_atomic_requests
 @login_required
 def global_skills_page(request):
-    if settings.NW_COURSEWARE_MFE_ENABLED and settings.NW_COURSEWARE_MFE_URL and not request.user.is_superuser:
-        return redirect(settings.NW_COURSEWARE_MFE_URL + '/myskills')
+    mfe_url = get_skills_mfe_url()
+    if mfe_url and not request.user.is_superuser:
+        return redirect(mfe_url + '/myskills')
     return render_global_skills_page(request)
 
 

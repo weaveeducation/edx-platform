@@ -25,6 +25,7 @@ from lms.djangoapps.lti_provider.reset_progress import check_and_reset_lti_user_
 from lms.djangoapps.lti_provider.views import enroll_user_to_course, render_courseware, get_embedded_new_tab_page
 from common.djangoapps.util.views import add_p3p_header
 from common.djangoapps.credo_modules.models import check_and_save_enrollment_attributes, get_enrollment_attributes
+from common.djangoapps.credo_modules.utils import get_skills_mfe_url
 from common.djangoapps.edxmako.shortcuts import render_to_string
 from mako.template import Template
 from lms.djangoapps.courseware.courses import update_lms_course_usage
@@ -373,7 +374,8 @@ def _launch(request, block=None, course_id=None, page=None):
         result = render_courseware(request, usage_key, lti_context_id=context_id)
         return result
     else:
-        if settings.NW_COURSEWARE_MFE_ENABLED and settings.NW_COURSEWARE_MFE_URL:
+        mfe_url = get_skills_mfe_url()
+        if mfe_url:
             template = Template(render_to_string('static_templates/embedded_redirect.html', {
                 'disable_accordion': True,
                 'allow_iframing': True,
@@ -382,7 +384,7 @@ def _launch(request, block=None, course_id=None, page=None):
                 'disable_window_wrap': True,
                 'page_type': page,
                 'course_id': str(course_key) if course_key else '',
-                'mfe_url': settings.NW_COURSEWARE_MFE_URL
+                'mfe_url': mfe_url
             }))
             return HttpResponse(template.render())
 

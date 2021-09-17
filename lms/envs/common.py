@@ -4712,6 +4712,4 @@ LOGO_TRADEMARK_URL = None
 FAVICON_URL = None
 DEFAULT_EMAIL_LOGO_URL = 'https://edx-cdn.org/v3/default/logo.png'
 
-
-NW_COURSEWARE_MFE_ENABLED = False
-NW_COURSEWARE_MFE_URL = ''
+SKILLS_MFE_URL = None

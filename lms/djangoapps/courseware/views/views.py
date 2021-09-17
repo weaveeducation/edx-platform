@@ -156,6 +156,7 @@ from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpRespo
     JsonResponse
 from django.core.serializers.json import DjangoJSONEncoder
 from common.djangoapps.credo_modules.views import show_student_profile_form
+from common.djangoapps.credo_modules.utils import get_skills_mfe_url
 from mako.template import Template
 from lms import CELERY_APP
 from django.core import mail
@@ -1229,8 +1230,9 @@ def _progress(request, course_key, student_id, display_in_frame=False):
         pass
 
     if enable_extended_progress_page:
-        if settings.NW_COURSEWARE_MFE_ENABLED and settings.NW_COURSEWARE_MFE_URL and not request.user.is_superuser:
-            redirect_url = settings.NW_COURSEWARE_MFE_URL + reverse('progress', kwargs={'course_id': str(course_key)})
+        mfe_url = get_skills_mfe_url()
+        if mfe_url and not request.user.is_superuser:
+            redirect_url = mfe_url + reverse('progress', kwargs={'course_id': str(course_key)})
             if url_params_list:
                 redirect_url = redirect_url + '?' + '&'.join(url_params_list)
             return redirect(redirect_url)

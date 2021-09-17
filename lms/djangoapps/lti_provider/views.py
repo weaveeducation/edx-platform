@@ -29,6 +29,7 @@ from common.djangoapps.student.roles import CourseStaffRole
 from common.djangoapps.util.views import add_p3p_header
 from common.djangoapps.credo_modules.models import check_and_save_enrollment_attributes, get_enrollment_attributes,\
     RutgersCampusMapping, CourseStaffExtended, Organization
+from common.djangoapps.credo_modules.utils import get_skills_mfe_url
 from common.djangoapps.edxmako.shortcuts import render_to_string
 from mako.template import Template
 from lms.djangoapps.courseware.courses import update_lms_course_usage
@@ -261,7 +262,8 @@ def _lti_launch(request, course_id=None, usage_id=None, page_name=None):
                        page_name=page_name)
         return result
     else:
-        if settings.NW_COURSEWARE_MFE_ENABLED and settings.NW_COURSEWARE_MFE_URL:
+        mfe_url = get_skills_mfe_url()
+        if mfe_url:
             template = Template(render_to_string('static_templates/embedded_redirect.html', {
                 'disable_accordion': True,
                 'allow_iframing': True,
@@ -270,7 +272,7 @@ def _lti_launch(request, course_id=None, usage_id=None, page_name=None):
                 'disable_window_wrap': True,
                 'page_type': page_name,
                 'course_id': str(course_key) if course_key else '',
-                'mfe_url': settings.NW_COURSEWARE_MFE_URL
+                'mfe_url': mfe_url
             }))
             return HttpResponse(template.render())
 

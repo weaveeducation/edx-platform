@@ -3,11 +3,16 @@ import hashlib
 from django.conf import settings
 from django.urls import reverse
 from common.djangoapps.credo_modules.models import Organization
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 
 def additional_profile_fields_hash(fields_json):
     fields_str = json.dumps(fields_json, sort_keys=True)
     return hashlib.md5(fields_str.encode('utf-8')).hexdigest()
+
+
+def get_skills_mfe_url():
+    return configuration_helpers.get_value('SKILLS_MFE_URL', settings.SKILLS_MFE_URL)
 
 
 def get_progress_page_url(course_key, student_id=None, default_progress_url=None):
@@ -19,8 +24,9 @@ def get_progress_page_url(course_key, student_id=None, default_progress_url=None
     except Organization.DoesNotExist:
         pass
 
-    if enable_extended_progress_page and settings.NW_COURSEWARE_MFE_ENABLED and settings.NW_COURSEWARE_MFE_URL:
-        progress_url = settings.NW_COURSEWARE_MFE_URL + reverse('progress', kwargs={'course_id': str(course_key)})
+    mfe_url = get_skills_mfe_url()
+    if enable_extended_progress_page and mfe_url:
+        progress_url = mfe_url + reverse('progress', kwargs={'course_id': str(course_key)})
         if student_id:
             progress_url = progress_url + '?userId=' + str(student_id)
     else:
