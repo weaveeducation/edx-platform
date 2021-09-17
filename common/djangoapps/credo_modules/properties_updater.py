@@ -43,7 +43,7 @@ class PropertiesUpdater:
         """
         prop_obj_data = PropertiesInfo.objects.filter(org=org, course_id=None)
         for prop_obj in prop_obj_data:
-            if prop_obj == org:
+            if prop_obj.org == org:
                 return prop_obj
         return None
 
