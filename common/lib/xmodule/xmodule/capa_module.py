@@ -405,7 +405,7 @@ class ProblemBlock(
             maximum_score = lcp.get_max_score()
         return maximum_score
 
-    def generate_report_data(self, user_state_iterator, limit_responses=None, minimal_init=True):
+    def generate_report_data(self, user_state_iterator, limit_responses=None):
         """
         Return a list of student responses to this block in a readable way.
 
@@ -476,11 +476,6 @@ class ProblemBlock(
                     'seed': user_state.state.get('seed'),
                 },
                 seed=user_state.state.get('seed'),
-                # The main point of minimal_init=True here is to avoid invoking
-                # codejail, which makes the reports take much longer to run,
-                # and can also cause failures for CPU intensive instructor code
-                # in problems.
-                minimal_init=minimal_init,
                 # extract_tree=False allows us to work without a fully initialized CapaModule
                 # We'll still be able to find particular data in the XML when we need it
                 extract_tree=False,

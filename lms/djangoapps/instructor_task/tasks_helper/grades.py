@@ -1031,8 +1031,7 @@ class ProblemResponses:
                         try:
                             user_state_iterator = user_state_client.iter_all_for_block(block_key)
                             if block.category == 'problem':
-                                rep_data = block.generate_report_data(user_state_iterator, max_count,
-                                                                      minimal_init=False)
+                                rep_data = block.generate_report_data(user_state_iterator, max_count)
                             else:
                                 rep_data = block.generate_report_data(user_state_iterator, max_count)
 
