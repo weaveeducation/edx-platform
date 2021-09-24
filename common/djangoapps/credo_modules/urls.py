@@ -6,5 +6,7 @@ from common.djangoapps.credo_modules import views
 urlpatterns = [
     url(r'^profile/{}/$'.format(settings.COURSE_ID_PATTERN),
         views.StudentProfileView.as_view(), name='credo_modules_profile'),
+    url(r'^supervisor_evaluation/profile/(?P<hash_id>[\w-]+)/$',
+        views.SupervisorEvaluationProfileView.as_view(), name='supervisor_evaluation_profile'),
     url(r'^login_as_user/$', views.login_as_user, name='login_as_user')
 ]
