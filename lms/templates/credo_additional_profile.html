@@ -96,7 +96,7 @@ from django.utils.translation import ugettext as _
 
 <section class="register container" style="padding-left: 20px;">
     <section role="main">
-        <form role="form" id="credo-additional-fields-form" method="post" data-remote="true" action="/credo_modules/profile/${course_id}/">
+        <form role="form" id="credo-additional-fields-form" method="post" data-remote="true" action="${form_submit_url}">
             <div role="alert" class="status message submission-error hidden" tabindex="-1">
                 <h3 class="message-title">${_("The following errors occurred:")} </h3>
                 <ul class="message-copy"> </ul>
@@ -125,12 +125,17 @@ from django.utils.translation import ugettext as _
                                     <option value="${option}" ${selected}>${option}</option>
                                 % endfor
                             </select>
+                        % elif field.longtext:
+                           <textarea id="credo-modules-${field.alias}"
+                                     name="${field.alias}"
+                                     rows="7"
+                                     ${'required aria-required="true"' if field.required else ''}>${field.default if field.default else ''}</textarea>
                         % else:
                             <input class=""
                                    id="credo-modules-${field.alias}"
                                    type="${'number' if field.isnumber else 'text'}"
                                    name="${field.alias}"
-                                   value="${field.default}"
+                                   value="${field.default if field.default else ''}"
                                    ${'required aria-required="true"' if field.required else ''}
                                    ${'min="' + field.minnumber + '"' if field.minnumber else ''}
                                    ${'max="' + field.maxnumber + '"' if field.maxnumber else ''}

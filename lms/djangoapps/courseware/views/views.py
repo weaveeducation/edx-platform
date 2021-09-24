@@ -155,7 +155,7 @@ from common.djangoapps.credo_modules.models import user_must_fill_additional_pro
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotAllowed,\
     JsonResponse
 from django.core.serializers.json import DjangoJSONEncoder
-from common.djangoapps.credo_modules.views import show_student_profile_form
+from common.djangoapps.credo_modules.views import show_student_profile_form, StudentProfileField
 from common.djangoapps.credo_modules.utils import get_skills_mfe_url
 from mako.template import Template
 from lms import CELERY_APP
@@ -2762,6 +2762,21 @@ def render_supervisor_evaluation_block(request, hash_id):
         login(request, invitation.student, backend=settings.AUTHENTICATION_BACKENDS[0])
         request.session['link_access_only'] = hash_id
         request.session.modified = True
+
+    if supervisor_evaluation_xblock.profile_fields and not invitation.profile_fields:
+        fields = StudentProfileField.init_from_fields(supervisor_evaluation_xblock.profile_fields)
+        context = {
+            'fields': fields.values(),
+            'redirect_url': '',
+            'form_submit_url': reverse('supervisor_evaluation_profile', kwargs={'hash_id': hash_id}),
+            'disable_accordion': True,
+            'allow_iframing': True,
+            'disable_header': True,
+            'disable_footer': True,
+            'disable_window_wrap': True,
+            'disable_preview_menu': True,
+        }
+        return render_to_response("credo_additional_profile.html", context)
 
     return render_xblock(request, str(survey_sequential_block.location), check_if_enrolled=False,
                          show_bookmark_button=False)

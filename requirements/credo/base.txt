@@ -6,4 +6,4 @@ parsel==1.6.0
 openpyxl==3.0.7
 vertica-python==1.0.1
 git+https://github.com/CredoEducation/xblock-image-explorer.git@integration-lilac#egg=xblock-image-explorer==2.1
-git+https://github.com/CredoEducation/xblock-supervisor-evaluation.git@integration-lilac#egg=xblock-supervisor-evaluation==1.0.3
+git+https://github.com/CredoEducation/xblock-supervisor-evaluation.git@integration-lilac#egg=xblock-supervisor-evaluation==1.0.4
