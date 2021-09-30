@@ -278,6 +278,13 @@ def _get_user_info_cookie_data(request, user):
     return user_info
 
 
+def get_jwt_credentials(request, user):
+    expires_in = settings.JWT_AUTH['JWT_IN_COOKIE_EXPIRATION']
+    jwt = _create_jwt(request, user, expires_in)
+    jwt_header_and_payload, jwt_signature = _parse_jwt(jwt)
+    return jwt_header_and_payload, jwt_signature
+
+
 def _create_and_set_jwt_cookies(response, request, cookie_settings, user=None):
     """ Sets a cookie containing a JWT on the response. """
 

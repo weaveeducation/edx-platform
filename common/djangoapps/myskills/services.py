@@ -1,6 +1,18 @@
-from lms.djangoapps.courseware.utils import CREDO_GRADED_ITEM_CATEGORIES
+import json
+import time
+from datetime import timedelta
+from collections import OrderedDict
+from django.http import Http404
+from lms.djangoapps.courseware.courses import get_course_with_access
+from lms.djangoapps.courseware.module_render import get_module_by_usage_id
+from lms.djangoapps.courseware.utils import CREDO_GRADED_ITEM_CATEGORIES, get_block_children, get_score_points,\
+    get_answer_and_correctness
+from lms.djangoapps.courseware.user_state_client import DjangoXBlockUserStateClient
 from lms.djangoapps.grades.api import CourseGradeFactory
+from common.djangoapps.credo_modules.models import CredoModulesUserProfile
+from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous
 from xmodule.modulestore.django import modulestore
+from opaque_keys.edx.keys import CourseKey, UsageKey
 from .extended_progress import tags_student_progress, assessments_progress
 from .utils import convert_into_tree
 
@@ -95,3 +107,139 @@ class MySkillsService:
             'assessments': assessments
         }
         return context
+
+
+def _get_browser_datetime(last_answer_datetime, timezone_offset=None, dt_format=None):
+    if dt_format is None:
+        dt_format = '%Y-%m-%d %H:%M'
+    if timezone_offset is not None:
+        if timezone_offset > 0:
+            last_answer_datetime = last_answer_datetime + timedelta(minutes=timezone_offset)
+        else:
+            timezone_offset = (-1) * timezone_offset
+            last_answer_datetime = last_answer_datetime - timedelta(minutes=timezone_offset)
+    return last_answer_datetime.strftime(dt_format)
+
+
+def get_block_student_progress(request, course_id, usage_id, timezone_offset=None):
+    course_key = CourseKey.from_string(course_id)
+    full_name = str(request.user.first_name) + ' ' + str(request.user.last_name)
+
+    resp = {
+        'error': False,
+        'common': {},
+        'items': [],
+        'user': {
+            'username': request.user.username,
+            'email': request.user.email,
+            'full_name': full_name.strip()
+        }
+    }
+
+    try:
+        with modulestore().bulk_operations(course_key):
+            usage_key = UsageKey.from_string(usage_id)
+
+            course = get_course_with_access(request.user, 'load', course_key)
+
+            credo_anonymous_name_is_set = False
+            credo_anonymous_email_is_set = False
+            is_credo_anonymous = is_user_credo_anonymous(request.user)
+
+            if is_credo_anonymous and course.credo_additional_profile_fields:
+                profile = CredoModulesUserProfile.objects.filter(course_id=course_key, user=request.user).first()
+                if profile:
+                    profile_fileds = json.loads(profile.meta)
+                    if 'name' in profile_fileds:
+                        resp['user']['username'] = profile_fileds['name']
+                        credo_anonymous_name_is_set = True
+                    if 'email' in profile_fileds:
+                        resp['user']['email'] = profile_fileds['email']
+                        credo_anonymous_email_is_set = True
+
+            if not resp['user']['full_name']:
+                resp['user']['full_name'] = resp['user']['username']
+                if is_credo_anonymous and not credo_anonymous_name_is_set:
+                    resp['user']['full_name'] = None
+
+            if is_credo_anonymous and not credo_anonymous_email_is_set:
+                resp['user']['email'] = None
+
+            seq_item, _ = get_module_by_usage_id(
+                request, str(course_key), str(usage_key), disable_staff_debug_info=True, course=course
+            )
+            children_dict = get_block_children(seq_item, seq_item.display_name)
+            user_state_client = DjangoXBlockUserStateClient(request.user)
+            user_state_dict = {}
+            problem_locations = [item['data'].location for k, item in children_dict.items()
+                                 if item['category'] == 'problem' or item['category'] == 'image-explorer']
+
+            if problem_locations:
+                user_state_dict = user_state_client.get_all_blocks(request.user, course_key, problem_locations)
+
+            course_grade = CourseGradeFactory().read(request.user, course)
+            courseware_summary = course_grade.chapter_grades.values()
+
+            for chapter in courseware_summary:
+                for section in chapter['sections']:
+                    if str(section.location) == str(usage_id):
+                        resp['common']['quiz_name'] = seq_item.display_name
+                        resp['common']['last_answer_timestamp'] = section.last_answer_timestamp
+                        resp['common']['unix_timestamp'] = int(time.mktime(section.last_answer_timestamp.timetuple())) \
+                            if section.last_answer_timestamp else None
+                        resp['common']['browser_datetime'] = _get_browser_datetime(section.last_answer_timestamp,
+                                                                                   timezone_offset) \
+                            if section.last_answer_timestamp else ''
+                        resp['common']['browser_datetime_short'] = _get_browser_datetime(section.last_answer_timestamp,
+                                                                                         timezone_offset,
+                                                                                         "%B %d, %Y") \
+                            if section.last_answer_timestamp else ''
+                        resp['common']['percent_graded'] = int(section.percent_graded * 100)
+                        resp['common'].update(section.percent_info)
+                        if int(resp['common']['earned']) == resp['common']['earned']:
+                            resp['common']['earned'] = int(resp['common']['earned'])
+                        if int(resp['common']['possible']) == resp['common']['possible']:
+                            resp['common']['possible'] = int(resp['common']['possible'])
+
+                        for key, score in section.problem_scores.items():
+                            item = children_dict.get(str(key))
+                            if item and not item['hidden'] and item['category'] in CREDO_GRADED_ITEM_CATEGORIES:
+                                submission_uuid = None
+                                if item['category'] == 'openassessment':
+                                    submission_uuid = item['data'].submission_uuid
+                                answer, tmp_correctness = get_answer_and_correctness(user_state_dict, score,
+                                                                                     item['category'],
+                                                                                     item['data'],
+                                                                                     key,
+                                                                                     submission_uuid=submission_uuid)
+
+                                if answer and item['category'] in ('openassessment', 'drag-and-drop-v2', 'image-explorer'):
+                                    item['correctness'] = tmp_correctness
+
+                                unix_timestamp = int(time.mktime(score.last_answer_timestamp.timetuple())) \
+                                    if score.last_answer_timestamp else None
+                                browser_datetime = _get_browser_datetime(score.last_answer_timestamp,
+                                                                         timezone_offset) \
+                                    if score.last_answer_timestamp else ''
+
+                                od = OrderedDict(sorted(answer.items())) if answer else {}
+                                resp['items'].append({
+                                    'display_name': item['data'].display_name,
+                                    'question_text': item['question_text'],
+                                    'question_text_safe': item['question_text_safe'],
+                                    'answer': '; '.join(od.values()) if answer else None,
+                                    'question_description': '',
+                                    'parent_name': item['parent_name'],
+                                    'correctness': item['correctness'].title() if item[
+                                        'correctness'] else 'Not Answered',
+                                    'earned': get_score_points(score.earned),
+                                    'possible': get_score_points(score.possible),
+                                    'last_answer_timestamp': score.last_answer_timestamp,
+                                    'unix_timestamp': unix_timestamp,
+                                    'browser_datetime': browser_datetime,
+                                    'id': item['id']
+                                })
+    except Http404:
+        resp['error'] = True
+
+    return resp

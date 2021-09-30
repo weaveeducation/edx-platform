@@ -124,7 +124,13 @@ def get_block_children(block, parent_name, add_correctness=True):
 
 def get_problem_detailed_info(item, parent_name, add_correctness=True):
     brs_tags = ['<br>', '<br/>', '<br />']
-    res = {'data': item, 'category': item.category, 'parent_name': parent_name, 'id': str(item.location)}
+    res = {
+        'data': item,
+        'category': item.category,
+        'has_children': item.has_children,
+        'parent_name': parent_name,
+        'id': str(item.location)
+    }
     if item.category in CREDO_GRADED_ITEM_CATEGORIES:
         res['correctness'] = ''
         res['question_text'] = ''

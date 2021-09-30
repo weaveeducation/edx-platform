@@ -3002,6 +3002,9 @@ INSTALLED_APPS = [
     # Gating of course content
     'lms.djangoapps.gating.apps.GatingConfig',
 
+    # Supervisor Evaluation
+    'lms.djangoapps.supervisor_evaluation.apps.SupervisorEvaluationConfig',
+
     # Static i18n support
     'statici18n',
 
