@@ -34,6 +34,7 @@ def supervisor_survey_check_finish(**kwargs):
         if hash_id:
             email_from_address = configuration_helpers.get_value('email_from_address',
                                                                  settings.BULK_EMAIL_DEFAULT_FROM_EMAIL)
+            supervisor_generate_pdf = configuration_helpers.get_value('supervisor_generate_pdf', False)
 
             seq_block = BlockToSequential.objects.filter(
                 block_id=block_id, deleted=False, visible_to_staff_only=False).first()
@@ -42,5 +43,7 @@ def supervisor_survey_check_finish(**kwargs):
                     url_hash=hash_id, student=student, survey_finished=False).first()
                 if invitation:
                     transaction.on_commit(lambda: supervisor_survey_check_finish_task.delay(
-                        invitation.id, seq_block.sequential_id, skills_mfe_url, email_from_address))
+                        invitation.id, seq_block.sequential_id, skills_mfe_url,
+                        email_from_address, supervisor_generate_pdf
+                    ))
 

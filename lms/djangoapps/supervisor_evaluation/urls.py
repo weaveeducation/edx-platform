@@ -1,5 +1,6 @@
 from django.conf.urls import url
-from .views import render_supervisor_evaluation_block, SurveyResults, SupervisorEvaluationProfileView
+from .views import render_supervisor_evaluation_block, generate_pdf_report,\
+    SurveyResults, SupervisorEvaluationProfileView
 
 urlpatterns = [
     url(r'^evaluation/(?P<hash_id>[\w-]+)', render_supervisor_evaluation_block,
@@ -7,5 +8,7 @@ urlpatterns = [
     url(r'^profile/(?P<hash_id>[\w-]+)/$', SupervisorEvaluationProfileView.as_view(),
         name='supervisor_evaluation_profile'),
     url(r'^api/results/(?P<hash_id>[\w-]+)/$', SurveyResults.as_view(),
-        name='supervisor_api_survey_results')
+        name='supervisor_api_survey_results'),
+    url(r'^generate-pdf-report/(?P<hash_id>[\w-]+)', generate_pdf_report,
+        name="supervisor_generate_pdf_report")
 ]

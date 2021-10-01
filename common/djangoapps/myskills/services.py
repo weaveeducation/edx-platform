@@ -230,8 +230,7 @@ def get_block_student_progress(request, course_id, usage_id, timezone_offset=Non
                                     'answer': '; '.join(od.values()) if answer else None,
                                     'question_description': '',
                                     'parent_name': item['parent_name'],
-                                    'correctness': item['correctness'].title() if item[
-                                        'correctness'] else 'Not Answered',
+                                    'correctness': item['correctness'].title() if item['correctness'] else 'Not Answered',
                                     'earned': get_score_points(score.earned),
                                     'possible': get_score_points(score.possible),
                                     'last_answer_timestamp': score.last_answer_timestamp,

@@ -148,6 +148,8 @@ def get_problem_detailed_info(item, parent_name, add_correctness=True):
                 question_text = dt['content']['capa_content'].strip()
             res['question_text'] = question_text
             res['question_text_safe'] = question_text
+            res['question_text_list'] = dt['content']['capa_content_lst']
+            res['possible_options'] = dt['content']['possible_options']
 
         elif item.category == 'openassessment':
             prompts = []
@@ -160,19 +162,23 @@ def get_problem_detailed_info(item, parent_name, add_correctness=True):
             if len(prompts) > 1:
                 res['question_text'] = "<br />".join([p.replace('\n', '<br />') for p in prompts])
                 res['question_text_safe'] = "\n".join(prompts)
+                res['question_text_list'] = prompts[:]
             elif len(prompts) == 1:
                 res['question_text'] = prompts[0].replace('\n', '<br />')
                 res['question_text_safe'] = prompts[0]
+                res['question_text_list'] = prompts[:]
             res['hidden'] = item.is_hidden()
 
         elif item.category == 'drag-and-drop-v2':
             res['question_text'] = item.question_text
             res['question_text_safe'] = item.question_text
+            res['question_text_list'] = [item.question_text]
 
         elif item.category == 'image-explorer':
             description = item.student_view_data()['description']
             res['question_text'] = description
             res['question_text_safe'] = description
+            res['question_text_list'] = [description]
     return res
 
 
@@ -213,7 +219,7 @@ def get_answer_and_correctness(user_state_dict, score, category, block, key,
                     answer[state_item.get('Answer ID')] = tmp_answer.strip().replace('\n', ' ') \
                         if tmp_answer is not None else ''
             except AssertionError:
-                correctness = get_correctness(score)
+                correctness = get_correctness(score) if score else None
     elif category == 'openassessment':
         submission_dict = None
         if submission:
@@ -237,7 +243,7 @@ def get_answer_and_correctness(user_state_dict, score, category, block, key,
             answer['opened_hotspots'] = 'Opened hotspots: ' + str(opened_hotspots_cnt)
 
     if answer:
-        correctness = get_correctness(score)
+        correctness = get_correctness(score) if score else None
 
     return answer, correctness
 

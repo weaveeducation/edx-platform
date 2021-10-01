@@ -327,6 +327,33 @@ class ProblemBlock(
                                     <optioninput.*?</optioninput>
                                   """
 
+        possible_options = []
+        reg_options = r'<choice\s[\=\w\"\'\s]*>([\w\"\'\s]*)<\/choice>|<option[\=\w\"\'\s]*>([\w\"\'\s]*)<\/option>'
+        capa_content_possible_options = re.findall(re.compile(reg_options,re.DOTALL | re.VERBOSE), capa_content)
+        for possible_option_tpl in capa_content_possible_options:
+            possible_option = None
+            try:
+                if possible_option_tpl[0]:
+                    possible_option = possible_option_tpl[0]
+                elif possible_option_tpl[1]:
+                    possible_option = possible_option_tpl[1]
+            except IndexError:
+                pass
+            if possible_option:
+                possible_option_str = possible_option.strip().lower().title()
+                if possible_option_str not in possible_options:
+                    possible_options.append(possible_option_str)
+        if possible_options:
+            possible_options = sorted(possible_options)
+
+        capa_content_lst_tmp = re.split(
+            re.compile(
+                reg,
+                re.DOTALL |
+                re.VERBOSE),
+            capa_content
+        )
+
         capa_content = re.sub(
             re.compile(
                 reg,
@@ -335,15 +362,29 @@ class ProblemBlock(
             "",
             capa_content
         )
+
         capa_content = re.sub(
             r"(\s|&nbsp;|//)+",
             " ",
             Cleaner(tags=[], strip=True).clean(capa_content)
         )
 
+        capa_content_lst = []
+        for capa_content_item in capa_content_lst_tmp:
+            capa_content_item_cleared = re.sub(
+                r"(\s|&nbsp;|//)+",
+                " ",
+                Cleaner(tags=[], strip=True).clean(capa_content_item)
+            )
+            capa_content_item_cleared = capa_content_item_cleared.strip()
+            if capa_content_item_cleared:
+                capa_content_lst.append(capa_content_item_cleared)
+
         capa_body = {
+            "capa_content_lst": capa_content_lst,
             "capa_content": capa_content,
             "display_name": self.display_name,
+            "possible_options": possible_options
         }
         if "content" in xblock_body:
             xblock_body["content"].update(capa_body)

@@ -1,8 +1,9 @@
 import json
+from collections import OrderedDict
 from django.conf import settings
 from django.contrib.auth import login
 from django.db import transaction
-from django.http import Http404, HttpResponseForbidden, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseForbidden, HttpResponseBadRequest, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.views.generic.base import View
@@ -16,11 +17,15 @@ from edx_rest_framework_extensions.auth.session.authentication import SessionAut
 from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiveUser
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from lms.djangoapps.courseware.views.views import render_xblock
+from lms.djangoapps.courseware.utils import get_block_children, CREDO_GRADED_ITEM_CATEGORIES, get_answer_and_correctness
+from lms.djangoapps.courseware.module_render import get_module_by_usage_id
+from lms.djangoapps.courseware.user_state_client import DjangoXBlockUserStateClient
+from lms.djangoapps.supervisor_evaluation.tasks import generate_supervisor_pdf
 from lms.djangoapps.supervisor_evaluation.utils import get_course_block_with_survey
 from common.djangoapps.edxmako.shortcuts import render_to_response
 from common.djangoapps.credo_modules.models import SupervisorEvaluationInvitation
 from common.djangoapps.credo_modules.views import StudentProfileField, validate_profile_fields_post
-from common.djangoapps.myskills.services import get_block_student_progress
+from common.djangoapps.credo_modules.utils import get_skills_mfe_url
 from xmodule.modulestore.django import modulestore
 
 
@@ -105,10 +110,6 @@ class SurveyResults(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, hash_id=None):
-        timezone_offset = request.GET.get('timezone_offset', None)
-        if timezone_offset is not None:
-            timezone_offset = int(timezone_offset)
-
         invitation = SupervisorEvaluationInvitation.objects.filter(url_hash=hash_id).first()
         if not invitation:
             return JsonResponse({}, status=404)
@@ -119,13 +120,99 @@ class SurveyResults(APIView):
 
         course_key = CourseKey.from_string(invitation.course_id)
         usage_key = UsageKey.from_string(invitation.evaluation_block_id)
+        graded_categories = CREDO_GRADED_ITEM_CATEGORIES[:]
+        graded_categories.extend(['survey', 'freetextresponse'])
 
         with modulestore().bulk_operations(course_key):
+            course = modulestore().get_course(course_key)
             supervisor_evaluation_xblock = modulestore().get_item(usage_key)
-            result['form_fields_config'] = None
+            result['form_fields_config'] = []
+            if supervisor_evaluation_xblock.profile_fields:
+                for field_key, field_value in supervisor_evaluation_xblock.profile_fields.items():
+                    if not field_value.get('info', False):
+                        result['form_fields_config'].append(field_value)
+                result['form_fields_config'] = sorted(result['form_fields_config'], key=lambda k: k.get('order', 0))
 
+            survey_items = []
             survey_sequential_block = get_course_block_with_survey(course_key, supervisor_evaluation_xblock)
-            result['block_data'] = get_block_student_progress(
-                request, invitation.course_id, str(survey_sequential_block.location), timezone_offset)
+            block, tracking_context = get_module_by_usage_id(
+                request, str(course_key), str(survey_sequential_block.location), course=course)
+            block_children = get_block_children(block, '', add_correctness=False)
+
+            problem_locations = []
+            for problem_loc, problem_details in block_children.items():
+                problem_locations.append(UsageKey.from_string(problem_loc))
+
+            user_state_client = DjangoXBlockUserStateClient(request.user)
+            user_state_dict = {}
+
+            if problem_locations:
+                user_state_dict = user_state_client.get_all_blocks(request.user, course_key, problem_locations)
+
+            for problem_loc, problem_details in block_children.items():
+                category = problem_details['category']
+                if category in graded_categories:
+                    item = problem_details['data']
+                    survey_item = {
+                        'id': str(item.location),
+                        'category': problem_details['category'],
+                        'display_name': item.display_name,
+                        'parent_name': problem_details['parent_name'],
+                    }
+
+                    submission_uuid = None
+                    if problem_details['category'] == 'openassessment':
+                        submission_uuid = item.submission_uuid
+                    answer, tmp_correctness = get_answer_and_correctness(
+                        user_state_dict, None, problem_details['category'],
+                        item, str(item.location), submission_uuid=submission_uuid)
+                    od = OrderedDict(sorted(answer.items())) if answer else {}
+
+                    if problem_details['category'] == 'survey':
+                        survey_item.update({
+                            'display_name': item.block_name,
+                            'questions': [{'id': i[0], 'label': i[1]['label']} for i in item.questions],
+                            'possible_answers': [{'id': i[0], 'label': i[1]} for i in item.answers],
+                            'user_answers': item.choices
+                        })
+                    elif problem_details['category'] == 'freetextresponse':
+                        survey_item.update({
+                            'question_text': item.prompt,
+                            'answer': item.student_answer
+                        })
+                    else:
+                        answers = od.values() if answer else []
+                        survey_item.update({
+                            'question_text': problem_details['question_text'],
+                            'question_text_safe': problem_details['question_text_safe'],
+                            'question_text_list': problem_details['question_text_list'],
+                            'answer': '; '.join(answers) if answer else None,
+                            'answers_list': od.values() if answer else [],
+                            'possible_options': problem_details.get('possible_options', None),
+                        })
+                    survey_items.append(survey_item)
+            result['survey_items'] = survey_items
 
         return Response(result)
+
+
+@login_required
+def generate_pdf_report(request, hash_id):
+    skills_mfe_url = get_skills_mfe_url()
+    if not skills_mfe_url:
+        raise Http404("MFE url is unavailable")
+
+    invitation = SupervisorEvaluationInvitation.objects.filter(url_hash=hash_id).first()
+    if not invitation:
+        raise Http404("Invalid invitation link")
+
+    if not invitation.survey_finished:
+        return HttpResponseBadRequest('Survey is not finished yet')
+
+    try:
+        pdf_bytes = generate_supervisor_pdf(skills_mfe_url, hash_id, request.user)
+        response = HttpResponse(content=pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="report-' + hash_id + '.pdf"'
+        return response
+    except Exception as e:
+        return HttpResponseBadRequest('Error: ' + str(e))

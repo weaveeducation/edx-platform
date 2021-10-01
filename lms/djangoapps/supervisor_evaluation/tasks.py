@@ -30,7 +30,8 @@ class FakeRequest:
 
 
 @CELERY_APP.task(name='lms.djangoapps.supervisor_evaluation.tasks.supervisor_survey_check_finish_task', bind=True)
-def supervisor_survey_check_finish_task(self, invitation_id, sequential_id, skills_mfe_url, email_from_address):
+def supervisor_survey_check_finish_task(self, invitation_id, sequential_id, skills_mfe_url,
+                                        email_from_address, supervisor_generate_pdf):
     with transaction.atomic():
         invitation = SupervisorEvaluationInvitation.objects.filter(id=invitation_id).first()
         if invitation and not invitation.survey_finished:
@@ -40,8 +41,9 @@ def supervisor_survey_check_finish_task(self, invitation_id, sequential_id, skil
                 if res:
                     invitation.survey_finished = True
                     invitation.save()
-                    transaction.on_commit(lambda: generate_supervisor_pdf_task.delay(
-                        invitation.id, sequential_id, skills_mfe_url, email_from_address))
+                    if supervisor_generate_pdf:
+                        transaction.on_commit(lambda: generate_supervisor_pdf_task.delay(
+                            invitation.id, sequential_id, skills_mfe_url, email_from_address))
 
 
 @CELERY_APP.task(name='common.djangoapps.credo_modules.tasks.generate_supervisor_pdf_task', bind=True)
@@ -56,7 +58,12 @@ def generate_supervisor_pdf_task(self, invitation_id, survey_sequential_block_id
                                                          visible_to_staff_only=False).first()
             if seq_block:
                 student = User.objects.get(id=invitation.student_id)
-                pdf_path = generate_supervisor_pdf(skills_mfe_url, survey_sequential_block_id, student)
+                tf = tempfile.NamedTemporaryFile(mode='w+b', delete=False, suffix='.pdf')
+                pdf_bytes = generate_supervisor_pdf(skills_mfe_url, invitation.url_hash, student)
+                tf.write(pdf_bytes)
+                tf.close()
+                pdf_path = tf.name
+
                 send_supervisor_pdf(pdf_path, email_from_address, seq_block.sequential_name,
                                     invitation.course_id, student)
                 os.remove(pdf_path)
@@ -69,9 +76,9 @@ def generate_supervisor_pdf_task(self, invitation_id, survey_sequential_block_id
                    err_msg=str(exc), max_attempts=SUPERVISOR_PDF_TASKS_MAX_RETRIES)
 
 
-def generate_supervisor_pdf(skills_mfe_url, seq_block_id, student):
+def generate_supervisor_pdf(skills_mfe_url, hash_id, student):
     jwt_header_and_payload, jwt_signature = get_jwt_credentials(FakeRequest(), student)
-    mfe_url = skills_mfe_url + '/supervisor/' + seq_block_id + '/?headless=true'
+    mfe_url = skills_mfe_url + '/supervisor/results/' + hash_id + '/?headless=true'
 
     cookies = {}
     cookies[jwt_cookie_header_payload_name()] = jwt_header_and_payload
@@ -84,13 +91,9 @@ def generate_supervisor_pdf(skills_mfe_url, seq_block_id, student):
     else:
         raise Exception('MFE invalid status code: ' + str(r.status_code))
 
-    tf = tempfile.NamedTemporaryFile(mode='w+b', delete=False, suffix='.pdf')
-    css = CSS(string='@page { size: A4; margin: 0; size: portrait; }')
+    css = CSS(string='@page { size: A4; margin: 0; }')
     pdf_bytes = HTML(string=report_html, base_url=skills_mfe_url).write_pdf(stylesheets=[css])
-    tf.write(pdf_bytes)
-    tf.close()
-
-    return tf.name
+    return pdf_bytes
 
 
 def send_supervisor_pdf(pdf_path, email_from_address, seq_block_name, course_id, student):
