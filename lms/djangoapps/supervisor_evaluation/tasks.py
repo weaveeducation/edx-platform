@@ -9,11 +9,11 @@ from django.core.mail import EmailMessage
 from django.db import transaction
 from lms import CELERY_APP
 from lms.djangoapps.courseware.completion_check import check_sequential_block_is_completed
+from lms.djangoapps.supervisor_evaluation.utils import get_course_block_with_survey
 from common.djangoapps.credo_modules.task_repeater import TaskRepeater
 from common.djangoapps.credo_modules.models import SupervisorEvaluationInvitation
 from common.djangoapps.student.models import CourseAccessRole
-from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
-from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.keys import CourseKey, UsageKey
 from edx_rest_framework_extensions.auth.jwt.cookies import jwt_cookie_header_payload_name, jwt_cookie_signature_name
 from openedx.core.djangoapps.user_authn.cookies import get_jwt_credentials
 from xmodule.modulestore.django import modulestore
@@ -30,13 +30,18 @@ class FakeRequest:
 
 
 @CELERY_APP.task(name='lms.djangoapps.supervisor_evaluation.tasks.supervisor_survey_check_finish_task', bind=True)
-def supervisor_survey_check_finish_task(self, invitation_id, sequential_id, skills_mfe_url,
-                                        email_from_address, supervisor_generate_pdf):
+def supervisor_survey_check_finish_task(self, invitation_id, skills_mfe_url, email_from_address, supervisor_generate_pdf):
     with transaction.atomic():
         invitation = SupervisorEvaluationInvitation.objects.filter(id=invitation_id).first()
         if invitation and not invitation.survey_finished:
             course_key = CourseKey.from_string(invitation.course_id)
+            usage_key = UsageKey.from_string(invitation.evaluation_block_id)
+
             with modulestore().bulk_operations(course_key):
+                supervisor_evaluation_xblock = modulestore().get_item(usage_key)
+                survey_sequential_block = get_course_block_with_survey(course_key, supervisor_evaluation_xblock)
+                sequential_id = str(survey_sequential_block.location)
+
                 res = check_sequential_block_is_completed(course_key, sequential_id, invitation.student_id)
                 if res:
                     invitation.survey_finished = True
@@ -54,9 +59,12 @@ def generate_supervisor_pdf_task(self, invitation_id, survey_sequential_block_id
     try:
         invitation = SupervisorEvaluationInvitation.objects.filter(id=invitation_id).first()
         if invitation:
-            seq_block = BlockToSequential.objects.filter(sequential_id=survey_sequential_block_id, deleted=False,
-                                                         visible_to_staff_only=False).first()
-            if seq_block:
+            course_key = CourseKey.from_string(invitation.course_id)
+            usage_key = UsageKey.from_string(survey_sequential_block_id)
+            with modulestore().bulk_operations(course_key):
+                survey_sequential_block = modulestore().get_item(usage_key)
+                sequential_name = survey_sequential_block.display_name
+
                 student = User.objects.get(id=invitation.student_id)
                 tf = tempfile.NamedTemporaryFile(mode='w+b', delete=False, suffix='.pdf')
                 pdf_bytes = generate_supervisor_pdf(skills_mfe_url, invitation.url_hash, student)
@@ -64,8 +72,7 @@ def generate_supervisor_pdf_task(self, invitation_id, survey_sequential_block_id
                 tf.close()
                 pdf_path = tf.name
 
-                send_supervisor_pdf(pdf_path, email_from_address, seq_block.sequential_name,
-                                    invitation.course_id, student)
+                send_supervisor_pdf(pdf_path, email_from_address, sequential_name, invitation.course_id, student)
                 os.remove(pdf_path)
         tr.finish()
     except Exception as exc:
