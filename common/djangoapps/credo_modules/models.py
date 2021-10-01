@@ -1049,6 +1049,7 @@ class SupervisorEvaluationInvitation(models.Model):
     expiration_date = models.DateTimeField(null=True)
     profile_fields = models.TextField(blank=True, null=True)  # JSON dictionary
     created = models.DateTimeField(auto_now_add=True, db_index=True)
+    survey_finished = models.BooleanField(default=False)
 
 
 class DelayedTaskStatus:

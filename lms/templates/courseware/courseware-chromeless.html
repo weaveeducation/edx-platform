@@ -68,6 +68,7 @@ if course is not None:
     % endif
     var $$course_id = "${course.id | n, js_escaped_string}";
     var $$lastSentPostMessageValue = null;
+    var link_access_hash = "${link_access_hash if link_access_hash else ''}";
 
     function inIframe() {
         try {
@@ -113,6 +114,14 @@ if course is not None:
         var blockType = "${block_type}";
         if (blockType !== 'sequential') {
             postMessageResize();
+        }
+        if (link_access_hash !== '') {
+            var intervalId = setInterval(function() {
+                if ($.cookie('supervisor-link-hash') !== link_access_hash) {
+                    clearInterval(intervalId);
+                    $("body").html("Other survey was opened in the separate window");
+                }
+            }, 1000);
         }
     });
 </script>
