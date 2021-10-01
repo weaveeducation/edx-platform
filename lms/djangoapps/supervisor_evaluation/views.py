@@ -81,7 +81,9 @@ class SupervisorEvaluationProfileView(View):
     @method_decorator(login_required)
     @method_decorator(transaction.atomic)
     def post(self, request, hash_id):
-        invitation = SupervisorEvaluationInvitation.objects.filter(url_hash=hash_id).first()
+        user_id = request.user.id
+
+        invitation = SupervisorEvaluationInvitation.objects.filter(url_hash=hash_id, student_id=user_id).first()
         if not invitation:
             return JsonResponse({}, status=404)
 
@@ -110,7 +112,9 @@ class SurveyResults(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, hash_id=None):
-        invitation = SupervisorEvaluationInvitation.objects.filter(url_hash=hash_id).first()
+        user_id = request.user.id
+
+        invitation = SupervisorEvaluationInvitation.objects.filter(url_hash=hash_id, student_id=user_id).first()
         if not invitation:
             return JsonResponse({}, status=404)
 
@@ -202,7 +206,8 @@ def generate_pdf_report(request, hash_id):
     if not skills_mfe_url:
         raise Http404("MFE url is unavailable")
 
-    invitation = SupervisorEvaluationInvitation.objects.filter(url_hash=hash_id).first()
+    user_id = request.user.id
+    invitation = SupervisorEvaluationInvitation.objects.filter(url_hash=hash_id, student_id=user_id).first()
     if not invitation:
         raise Http404("Invalid invitation link")
 
