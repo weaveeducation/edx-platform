@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('credo_modules', '0071_supervisorevaluationinvitation_survey_finished'),
+        ('credo_modules', '0070_loginredirectallowedhost_require_https'),
     ]
 
     operations = [

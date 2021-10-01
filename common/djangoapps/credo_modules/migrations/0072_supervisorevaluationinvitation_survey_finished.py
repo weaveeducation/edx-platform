@@ -6,15 +6,10 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('credo_modules', '0070_loginredirectallowedhost_require_https'),
+        ('credo_modules', '0071_supervisorevaluationinvitation_profile_fields'),
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='supervisorevaluationinvitation',
-            name='profile_fields',
-            field=models.TextField(blank=True, null=True),
-        ),
         migrations.AddField(
             model_name='supervisorevaluationinvitation',
             name='survey_finished',
