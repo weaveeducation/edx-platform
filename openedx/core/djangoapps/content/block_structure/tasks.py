@@ -218,8 +218,7 @@ def _call_and_retry_if_needed(self, api_method, **kwargs):
 
 def _update_course_structure(course_id, published_on):
     allowed_categories = ['chapter', 'sequential', 'vertical', 'library_content', 'problem',
-                          'openassessment', 'drag-and-drop-v2', 'image-explorer', 'html', 'video',
-                          'survey', 'freetextresponse']
+                          'openassessment', 'drag-and-drop-v2', 'image-explorer', 'html', 'video']
     course_key = CourseKey.from_string(course_id)
     t1 = time.time()
 
@@ -381,8 +380,7 @@ def _update_course_structure(course_id, published_on):
                         ora_item.save()
                         ora_items_updated += 1
 
-                if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer', 'openassessment',
-                                     'survey', 'freetextresponse'):
+                if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer', 'openassessment'):
                     parent = _get_parent_sequential(item, structure_dict)
                     if parent:
                         parent_id = str(parent.location)
