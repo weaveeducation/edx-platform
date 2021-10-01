@@ -12,6 +12,11 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='supervisorevaluationinvitation',
+            name='profile_fields',
+            field=models.TextField(blank=True, null=True),
+        ),
+        migrations.AddField(
+            model_name='supervisorevaluationinvitation',
             name='survey_finished',
             field=models.BooleanField(default=False),
         ),
