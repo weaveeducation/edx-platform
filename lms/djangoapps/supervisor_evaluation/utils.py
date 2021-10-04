@@ -1,4 +1,6 @@
+from lms.djangoapps.courseware.models import StudentModule
 from xmodule.modulestore.django import modulestore
+from completion.models import BlockCompletion
 
 
 def get_course_block_with_survey(course_key, supervisor_evaluation_xblock):
@@ -11,3 +13,20 @@ def get_course_block_with_survey(course_key, supervisor_evaluation_xblock):
             return seq
 
     return None
+
+
+def copy_progress(course_key, block_keys, src_student, dst_student):
+    StudentModule.objects.filter(course_id=course_key, module_state_key__in=block_keys, student=dst_student).delete()
+    BlockCompletion.objects.filter(context_key=course_key, block_key__in=block_keys, user=dst_student).delete()
+
+    modules = StudentModule.objects.filter(course_id=course_key, module_state_key__in=block_keys, student=src_student)
+    for module in modules:
+        module.pk = None
+        module.student = dst_student
+        module.save()
+
+    completions = BlockCompletion.objects.filter(context_key=course_key, block_key__in=block_keys, user=src_student)
+    for completion in completions:
+        completion.pk = None
+        completion.user = dst_student
+        completion.save()

@@ -9,7 +9,7 @@ from django.core.mail import EmailMessage
 from django.db import transaction
 from lms import CELERY_APP
 from lms.djangoapps.courseware.completion_check import check_sequential_block_is_completed
-from lms.djangoapps.supervisor_evaluation.utils import get_course_block_with_survey
+from lms.djangoapps.supervisor_evaluation.utils import get_course_block_with_survey, copy_progress
 from common.djangoapps.credo_modules.task_repeater import TaskRepeater
 from common.djangoapps.credo_modules.models import SupervisorEvaluationInvitation
 from common.djangoapps.student.models import CourseAccessRole
@@ -30,22 +30,31 @@ class FakeRequest:
 
 
 @CELERY_APP.task(name='lms.djangoapps.supervisor_evaluation.tasks.supervisor_survey_check_finish_task', bind=True)
-def supervisor_survey_check_finish_task(self, invitation_id, skills_mfe_url, email_from_address, supervisor_generate_pdf):
+def supervisor_survey_check_finish_task(self, invitation_id, skills_mfe_url, email_from_address,
+                                        supervisor_generate_pdf):
     with transaction.atomic():
         invitation = SupervisorEvaluationInvitation.objects.filter(id=invitation_id).first()
-        if invitation and not invitation.survey_finished:
+        if invitation and not invitation.survey_finished and invitation.supervisor_user_id:
             course_key = CourseKey.from_string(invitation.course_id)
             usage_key = UsageKey.from_string(invitation.evaluation_block_id)
+
+            student = User.objects.filter(id=invitation.student_id).first()
+            supervisor = User.objects.filter(id=invitation.supervisor_user_id).first()
+            if not student or not supervisor:
+                return
 
             with modulestore().bulk_operations(course_key):
                 supervisor_evaluation_xblock = modulestore().get_item(usage_key)
                 survey_sequential_block = get_course_block_with_survey(course_key, supervisor_evaluation_xblock)
                 sequential_id = str(survey_sequential_block.location)
 
-                res = check_sequential_block_is_completed(course_key, sequential_id, invitation.student_id)
-                if res:
+                res, block_keys = check_sequential_block_is_completed(
+                    course_key, sequential_id, invitation.supervisor_user_id)
+                if res and block_keys:
                     invitation.survey_finished = True
                     invitation.save()
+
+                    copy_progress(course_key, block_keys, supervisor, student)
                     if supervisor_generate_pdf:
                         transaction.on_commit(lambda: generate_supervisor_pdf_task.delay(
                             invitation.id, sequential_id, skills_mfe_url, email_from_address))

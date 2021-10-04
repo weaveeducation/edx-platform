@@ -30,4 +30,4 @@ def check_sequential_block_is_completed(course_key, usage_id, user_id):
         if not block_data.get('has_children') and blocks.get(block_id, 0) != 1:
             is_completed = False
             break
-    return is_completed
+    return is_completed, blocks_ids
