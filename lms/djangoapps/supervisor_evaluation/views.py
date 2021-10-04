@@ -1,7 +1,7 @@
 import json
 from collections import OrderedDict
 from django.conf import settings
-from django.contrib.auth import login
+from django.contrib.auth import login, get_user_model
 from django.db import transaction
 from django.http import Http404, HttpResponse, HttpResponseForbidden, HttpResponseBadRequest, JsonResponse
 from django.urls import reverse
@@ -27,6 +27,10 @@ from common.djangoapps.credo_modules.models import SupervisorEvaluationInvitatio
 from common.djangoapps.credo_modules.views import StudentProfileField, validate_profile_fields_post
 from common.djangoapps.credo_modules.utils import get_skills_mfe_url
 from xmodule.modulestore.django import modulestore
+from openedx.core.djangoapps.user_authn.views.custom import register_login_and_enroll_anonymous_user
+
+
+User = get_user_model()
 
 
 def render_supervisor_evaluation_block(request, hash_id):
@@ -48,8 +52,23 @@ def render_supervisor_evaluation_block(request, hash_id):
     if not survey_sequential_block:
         return HttpResponseForbidden("Block with questions not found")
 
+    supervisor_user = None
     if not request.user.is_authenticated or request.user.id != invitation.student.id:
-        login(request, invitation.student, backend=settings.AUTHENTICATION_BACKENDS[0])
+        if invitation.supervisor_user_id is None:
+            supervisor_user = register_login_and_enroll_anonymous_user(
+                request, course_key, email_domain='supervisor.nimblywise.com')
+        else:
+            supervisor_user = User.objects.filter(id=invitation.supervisor_user_id).first()
+            if not supervisor_user:
+                supervisor_user = register_login_and_enroll_anonymous_user(
+                    request, course_key, email_domain='supervisor.nimblywise.com')
+            elif not request.user.is_authenticated or request.user.id != supervisor_user.id:
+                login(request, supervisor_user, backend=settings.AUTHENTICATION_BACKENDS[0])
+
+        if supervisor_user and supervisor_user.id != invitation.supervisor_user_id:
+            invitation.supervisor_user_id = supervisor_user.id
+            invitation.save()
+
         request.session['link_access_only'] = hash_id
         request.session.modified = True
 
@@ -81,9 +100,7 @@ class SupervisorEvaluationProfileView(View):
     @method_decorator(login_required)
     @method_decorator(transaction.atomic)
     def post(self, request, hash_id):
-        user_id = request.user.id
-
-        invitation = SupervisorEvaluationInvitation.objects.filter(url_hash=hash_id, student_id=user_id).first()
+        invitation = SupervisorEvaluationInvitation.objects.filter(url_hash=hash_id).first()
         if not invitation:
             return JsonResponse({}, status=404)
 
@@ -118,8 +135,16 @@ class SurveyResults(APIView):
         if not invitation:
             return JsonResponse({}, status=404)
 
+        course_key = CourseKey.from_string(invitation.course_id)
+        profile_fields = json.loads(invitation.profile_fields) if invitation.profile_fields else None
+
         result = {
-            'form_data': json.loads(invitation.profile_fields) if invitation.profile_fields else None
+            'form_data': profile_fields,
+            'common': {
+                'org': course_key.org,
+                'course': course_key.course,
+                'run': course_key.run
+            }
         }
 
         course_key = CourseKey.from_string(invitation.course_id)
@@ -134,7 +159,10 @@ class SurveyResults(APIView):
             if supervisor_evaluation_xblock.profile_fields:
                 for field_key, field_value in supervisor_evaluation_xblock.profile_fields.items():
                     if not field_value.get('info', False):
-                        result['form_fields_config'].append(field_value)
+                        field_value_upd = field_value.copy()
+                        field_value_upd['key'] = field_key
+                        field_value_upd['value'] = profile_fields.get(field_key, None) if profile_fields else None
+                        result['form_fields_config'].append(field_value_upd)
                 result['form_fields_config'] = sorted(result['form_fields_config'], key=lambda k: k.get('order', 0))
 
             survey_items = []
