@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from lms.djangoapps.courseware.module_render import get_module_by_usage_id
-from lms.djangoapps.courseware.utils import get_block_children
+from lms.djangoapps.courseware.utils import get_block_children, CREDO_GRADED_ITEM_CATEGORIES
 from xmodule.modulestore.django import modulestore
 from opaque_keys.edx.keys import UsageKey
 from completion.models import BlockCompletion
@@ -17,6 +17,9 @@ def check_sequential_block_is_completed(course_key, usage_id, user_id):
     req = rf.get('/fake-request/')
     req.user = user
 
+    graded_categories = CREDO_GRADED_ITEM_CATEGORIES[:]
+    graded_categories.extend(['survey', 'freetextresponse'])
+
     course = modulestore().get_course(course_key)
     block, tracking_context = get_module_by_usage_id(req, str(course_key), usage_id, course=course)
     block_children = get_block_children(block, '', add_correctness=False)
@@ -27,7 +30,9 @@ def check_sequential_block_is_completed(course_key, usage_id, user_id):
 
     is_completed = True
     for block_id, block_data in block_children.items():
-        if not block_data.get('has_children') and blocks.get(block_id, 0) != 1:
+        category = block_data.get('category')
+        has_children = block_data.get('has_children')
+        if not has_children and category in graded_categories and blocks.get(block_id, 0) != 1:
             is_completed = False
             break
     return is_completed, blocks_ids
