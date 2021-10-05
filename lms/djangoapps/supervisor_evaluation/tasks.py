@@ -1,6 +1,7 @@
 import logging
 import os
 import tempfile
+import time
 import requests
 
 from django.conf import settings
@@ -75,11 +76,14 @@ def generate_supervisor_pdf_task(self, invitation_id, survey_sequential_block_id
                 sequential_name = survey_sequential_block.display_name
 
                 student = User.objects.get(id=invitation.student_id)
-                tf = tempfile.NamedTemporaryFile(mode='w+b', delete=False, suffix='.pdf')
+
                 pdf_bytes = generate_supervisor_pdf(skills_mfe_url, invitation.url_hash, student)
+                pdf_name = 'Report-' + str(invitation_id) + '-' + str(int(time.time())) + '.pdf'
+                pdf_path = os.path.join(tempfile.mkdtemp(), pdf_name)
+
+                tf = open(pdf_path, 'w+b')
                 tf.write(pdf_bytes)
                 tf.close()
-                pdf_path = tf.name
 
                 send_supervisor_pdf(pdf_path, email_from_address, sequential_name, invitation.course_id, student)
                 os.remove(pdf_path)
