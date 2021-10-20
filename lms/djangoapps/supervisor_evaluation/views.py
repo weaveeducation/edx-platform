@@ -156,6 +156,8 @@ class SurveyResults(APIView):
             course = modulestore().get_course(course_key)
             supervisor_evaluation_xblock = modulestore().get_item(usage_key)
             result['form_fields_config'] = []
+            result['common']['report_name'] = supervisor_evaluation_xblock.display_name
+
             if supervisor_evaluation_xblock.profile_fields:
                 for field_key, field_value in supervisor_evaluation_xblock.profile_fields.items():
                     if not field_value.get('info', False):
