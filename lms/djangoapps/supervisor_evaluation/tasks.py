@@ -85,7 +85,7 @@ def generate_supervisor_pdf_task(self, invitation_id, survey_sequential_block_id
                 tf.write(pdf_bytes)
                 tf.close()
 
-                send_supervisor_pdf(pdf_path, email_from_address, sequential_name, invitation.course_id, student)
+                send_supervisor_pdf(pdf_path, email_from_address, sequential_name, invitation)
                 os.remove(pdf_path)
         tr.finish()
     except Exception as exc:
@@ -116,10 +116,10 @@ def generate_supervisor_pdf(skills_mfe_url, hash_id, student):
     return pdf_bytes
 
 
-def send_supervisor_pdf(pdf_path, email_from_address, seq_block_name, course_id, student):
-    course_key = CourseKey.from_string(course_id)
+def send_supervisor_pdf(pdf_path, email_from_address, seq_block_name, invitation):
+    course_key = CourseKey.from_string(invitation.course_id)
     course_staff_members = CourseAccessRole.objects.filter(role__in=['instructor', 'staff'], course_id=course_key)
-    emails = [student.email]
+    emails = [invitation.email]
     for r in course_staff_members:
         if r.user.email not in emails:
             emails.append(r.user.email)
