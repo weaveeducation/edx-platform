@@ -1327,6 +1327,7 @@ CELERY_EVENT_QUEUE_TTL = None
 
 CELERY_ACKS_LATE = True
 CELERYD_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
 
 ############################## Video ##########################################
 

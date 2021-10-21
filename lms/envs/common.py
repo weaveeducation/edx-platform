@@ -2643,6 +2643,7 @@ CELERY_BROKER_PASSWORD = 'celery'
 
 CELERY_ACKS_LATE = True
 CELERYD_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
 
 ############################## HEARTBEAT ######################################
 
