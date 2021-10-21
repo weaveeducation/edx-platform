@@ -27,4 +27,5 @@ APP.conf.task_protocol = 1
 # Using a string here means the worker will not have to
 # pickle the object when using Windows.
 APP.config_from_object('django.conf:settings')
+APP.conf.task_reject_on_worker_lost = True
 APP.autodiscover_tasks()
