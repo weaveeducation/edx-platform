@@ -301,6 +301,12 @@ def _create_and_set_jwt_cookies(response, request, cookie_settings, user=None):
     jwt = _create_jwt(request, user, expires_in)
     jwt_header_and_payload, jwt_signature = _parse_jwt(jwt)
 
+    prod_domain = get_value('PRODUCTION_SESSION_COOKIE_DOMAIN', None)
+    req_host = request.get_host()
+    if req_host.startswith(('lms.test.', 'test.')):
+        for jwt_cookie_name in JWT_COOKIE_NAMES:
+            response.delete_cookie(jwt_cookie_name, domain=prod_domain)
+
     _set_jwt_cookies(
         response,
         cookie_settings,
