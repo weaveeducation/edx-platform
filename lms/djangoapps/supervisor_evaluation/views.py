@@ -230,6 +230,65 @@ class SurveyResults(APIView):
         return Response(result)
 
 
+class ReportsView(APIView):
+    authentication_classes = (
+        JwtAuthentication,
+        BearerAuthenticationAllowInactiveUser,
+        SessionAuthenticationAllowInactiveUser,
+    )
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request, course_id):
+        user_id = request.user.id
+        course_key = CourseKey.from_string(course_id)
+        result = []
+
+        invitations = SupervisorEvaluationInvitation.objects.filter(
+            course_id=course_id, survey_finished=True, student_id=user_id).order_by('-created')
+        if len(invitations) > 0:
+            with modulestore().bulk_operations(course_key):
+                for invitation in invitations:
+                    evaluation_usage_key = UsageKey.from_string(invitation.evaluation_block_id)
+                    supervisor_evaluation_xblock = modulestore().get_item(evaluation_usage_key)
+                    result.append({
+                        'title': supervisor_evaluation_xblock.display_name,
+                        'url_hash': invitation.url_hash,
+                        'created': str(invitation.created)
+                    })
+
+        return Response(result)
+
+
+class CoursesView(APIView):
+    authentication_classes = (
+        JwtAuthentication,
+        BearerAuthenticationAllowInactiveUser,
+        SessionAuthenticationAllowInactiveUser,
+    )
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request):
+        org = request.GET.get('org')
+        user_id = request.user.id
+        courses = []
+        result = []
+
+        invitations = SupervisorEvaluationInvitation.objects.filter(
+            survey_finished=True, student_id=user_id).order_by('-created')
+        if len(invitations) > 0:
+            for invitation in invitations:
+                if invitation.course_id not in courses:
+                    course_key = CourseKey.from_string(invitation.course_id)
+                    if not org or org == course_key.org:
+                        result.append({
+                            'course_id': invitation.course_id,
+                            'org': course_key.org,
+                            'course': course_key.course,
+                            'run': course_key.run
+                        })
+        return Response(result)
+
+
 @login_required
 def generate_pdf_report(request, hash_id):
     skills_mfe_url = get_skills_mfe_url()
