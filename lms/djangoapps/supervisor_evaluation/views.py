@@ -280,6 +280,7 @@ class CoursesView(APIView):
                 if invitation.course_id not in courses:
                     course_key = CourseKey.from_string(invitation.course_id)
                     if not org or org == course_key.org:
+                        courses.append(invitation.course_id)
                         result.append({
                             'course_id': invitation.course_id,
                             'org': course_key.org,
