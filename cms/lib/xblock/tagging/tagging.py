@@ -56,7 +56,7 @@ class StructuredTagsAside(XBlockAside):
         """
         from common.djangoapps.credo_modules.tagging import get_tags
 
-        if block.category in ['problem', 'html', 'video', 'drag-and-drop-v2', 'image-explorer'] or \
+        if block.category in ['problem', 'html', 'video', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse'] or \
                 (block.category == 'openassessment' and len(block.rubric_criteria) == 0):
 
             tags, has_access_any_tag = get_tags(
@@ -210,7 +210,8 @@ class StructuredTagsAside(XBlockAside):
         This method return data that should be associated with the "check_problem" event
         """
         if self.saved_tags and event_type in ("problem_check", "edx.drag_and_drop_v2.item.dropped",
-                                              "xblock.image-explorer.hotspot.opened"):
+                                              "xblock.image-explorer.hotspot.opened",
+                                              "xblock.freetextresponse.submit"):
             return {'saved_tags': self.saved_tags}
         else:
             return None

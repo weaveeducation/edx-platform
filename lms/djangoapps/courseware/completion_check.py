@@ -18,7 +18,7 @@ def check_sequential_block_is_completed(course_key, usage_id, user_id):
     req.user = user
 
     graded_categories = CREDO_GRADED_ITEM_CATEGORIES[:]
-    graded_categories.extend(['survey', 'freetextresponse'])
+    graded_categories.append('survey')
 
     course = modulestore().get_course(course_key)
     block, tracking_context = get_module_by_usage_id(req, str(course_key), usage_id, course=course)

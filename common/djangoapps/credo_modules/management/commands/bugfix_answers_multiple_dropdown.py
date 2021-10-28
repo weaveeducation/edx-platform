@@ -5,7 +5,7 @@ import pytz
 from django.core.management import BaseCommand
 from django.core.cache import caches
 from common.djangoapps.credo_modules.models import DBLogEntry, TrackingLog, TrackingLogConfig
-from common.djangoapps.credo_modules.event_parser import EventProcessor
+from common.djangoapps.credo_modules.events_processor import EventProcessor
 from common.djangoapps.credo_modules.vertica import merge_data_into_vertica_table
 
 

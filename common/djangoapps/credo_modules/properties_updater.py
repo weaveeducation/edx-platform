@@ -4,8 +4,8 @@ import time
 
 from django.contrib.auth import get_user_model
 from opaque_keys.edx.keys import CourseKey
-from common.djangoapps.credo_modules.event_parser import EXCLUDE_PROPERTIES, COURSE_PROPERTIES, update_user_info,\
-    get_prop_user_info, combine_student_properties
+from common.djangoapps.credo_modules.events_processor.utils import EXCLUDE_PROPERTIES, COURSE_PROPERTIES,\
+    update_user_info, get_prop_user_info, combine_student_properties
 from common.djangoapps.credo_modules.models import RegistrationPropertiesPerMicrosite, RegistrationPropertiesPerOrg,\
     EnrollmentPropertiesPerCourse, PropertiesInfo, TrackingLogProp, get_student_properties_event_data
 from openedx.core.djangoapps.content.block_structure.models import CourseFieldsCache

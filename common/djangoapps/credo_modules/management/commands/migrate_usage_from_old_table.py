@@ -4,8 +4,8 @@ import time
 from django.core.management import BaseCommand
 from common.djangoapps.credo_modules.models import CourseUsage, CourseUsageLogEntry, OrgUsageMigration, UsageLog,\
     get_student_properties_event_data
-from common.djangoapps.credo_modules.event_parser import get_timestamp_from_datetime, update_course_and_student_properties,\
-    INSIGHTS_COURSE_STAFF_ROLES, INSIGHTS_ORG_STAFF_ROLES
+from common.djangoapps.credo_modules.events_processor.utils import get_timestamp_from_datetime,\
+    update_course_and_student_properties, INSIGHTS_COURSE_STAFF_ROLES, INSIGHTS_ORG_STAFF_ROLES
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure
 from common.djangoapps.student.models import CourseAccessRole
