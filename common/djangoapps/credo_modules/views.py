@@ -408,6 +408,8 @@ def login_as_user(request):
             })
 
     login(request, edx_user, backend=settings.AUTHENTICATION_BACKENDS[0])
+    request._user_logged_in = True
+
     return redirect(reverse('dashboard'))
 
 

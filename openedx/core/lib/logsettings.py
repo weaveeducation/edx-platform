@@ -25,7 +25,8 @@ class DBHandler(Handler):
         'openassessmentblock.self_assess',
         'openassessmentblock.peer_assess',
         'sequential_block.viewed',
-        'xblock.image-explorer.hotspot.opened'
+        'xblock.image-explorer.hotspot.opened',
+        'xblock.freetextresponse.submit'
     ]
 
     def emit(self, record):

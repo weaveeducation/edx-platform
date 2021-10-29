@@ -3,6 +3,7 @@ import time
 from datetime import timedelta
 from collections import OrderedDict
 from django.http import Http404
+from django.utils.html import escape
 from lms.djangoapps.courseware.courses import get_course_with_access
 from lms.djangoapps.courseware.module_render import get_module_by_usage_id
 from lms.djangoapps.courseware.utils import CREDO_GRADED_ITEM_CATEGORIES, get_block_children, get_score_points,\
@@ -136,6 +137,8 @@ def get_block_student_progress(request, course_id, usage_id, timezone_offset=Non
         }
     }
 
+    question_categories = ('openassessment', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse')
+
     try:
         with modulestore().bulk_operations(course_key):
             usage_key = UsageKey.from_string(usage_id)
@@ -172,7 +175,7 @@ def get_block_student_progress(request, course_id, usage_id, timezone_offset=Non
             user_state_client = DjangoXBlockUserStateClient(request.user)
             user_state_dict = {}
             problem_locations = [item['data'].location for k, item in children_dict.items()
-                                 if item['category'] == 'problem' or item['category'] == 'image-explorer']
+                                 if item['category'] in ('problem', 'image-explorer', 'freetextresponse')]
 
             if problem_locations:
                 user_state_dict = user_state_client.get_all_blocks(request.user, course_key, problem_locations)
@@ -213,7 +216,7 @@ def get_block_student_progress(request, course_id, usage_id, timezone_offset=Non
                                                                                      key,
                                                                                      submission_uuid=submission_uuid)
 
-                                if answer and item['category'] in ('openassessment', 'drag-and-drop-v2', 'image-explorer'):
+                                if answer and item['category'] in question_categories:
                                     item['correctness'] = tmp_correctness
 
                                 unix_timestamp = int(time.mktime(score.last_answer_timestamp.timetuple())) \
@@ -223,11 +226,14 @@ def get_block_student_progress(request, course_id, usage_id, timezone_offset=Non
                                     if score.last_answer_timestamp else ''
 
                                 od = OrderedDict(sorted(answer.items())) if answer else {}
+                                answer = '; '.join(od.values()) if answer else None
+                                if answer:
+                                    answer = escape(answer)
                                 resp['items'].append({
                                     'display_name': item['data'].display_name,
                                     'question_text': item['question_text'],
                                     'question_text_safe': item['question_text_safe'],
-                                    'answer': '; '.join(od.values()) if answer else None,
+                                    'answer': answer,
                                     'question_description': '',
                                     'parent_name': item['parent_name'],
                                     'correctness': item['correctness'].title() if item['correctness'] else 'Not Answered',

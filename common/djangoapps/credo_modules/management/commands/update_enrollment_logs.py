@@ -5,7 +5,7 @@ import hashlib
 
 from common.djangoapps.credo_modules.models import EnrollmentLog, EnrollmentTrigger, TrackingLogProp, TrackingLogConfig,\
     get_student_properties_event_data
-from common.djangoapps.credo_modules.event_parser import update_course_and_student_properties
+from common.djangoapps.credo_modules.events_processor.utils import update_course_and_student_properties
 from common.djangoapps.credo_modules.properties_updater import PropertiesUpdater
 from common.djangoapps.credo_modules.vertica import merge_data_into_vertica_table
 from django.contrib.auth import get_user_model

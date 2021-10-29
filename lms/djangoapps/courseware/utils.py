@@ -15,7 +15,7 @@ from django.utils.html import strip_tags
 from submissions import api as sub_data_api
 
 
-CREDO_GRADED_ITEM_CATEGORIES = ['problem', 'drag-and-drop-v2', 'openassessment', 'image-explorer']
+CREDO_GRADED_ITEM_CATEGORIES = ['problem', 'drag-and-drop-v2', 'openassessment', 'image-explorer', 'freetextresponse']
 
 
 def verified_upgrade_deadline_link(user, course=None, course_id=None):
@@ -170,15 +170,23 @@ def get_problem_detailed_info(item, parent_name, add_correctness=True):
             res['hidden'] = item.is_hidden()
 
         elif item.category == 'drag-and-drop-v2':
-            res['question_text'] = item.question_text
-            res['question_text_safe'] = item.question_text
-            res['question_text_list'] = [item.question_text]
+            question_text = strip_tags(item.question_text)
+            res['question_text'] = question_text
+            res['question_text_safe'] = question_text
+            res['question_text_list'] = [question_text]
 
         elif item.category == 'image-explorer':
-            description = item.student_view_data()['description']
+            description = strip_tags(item.student_view_data()['description'])
             res['question_text'] = description
             res['question_text_safe'] = description
             res['question_text_list'] = [description]
+
+        elif item.category == 'freetextresponse':
+            description = strip_tags(item.prompt)
+            res['question_text'] = description
+            res['question_text_safe'] = description
+            res['question_text_list'] = [description]
+
     return res
 
 
@@ -241,6 +249,10 @@ def get_answer_and_correctness(user_state_dict, score, category, block, key,
         if answer_state:
             opened_hotspots_cnt = len(answer_state.state.get('opened_hotspots', []))
             answer['opened_hotspots'] = 'Opened hotspots: ' + str(opened_hotspots_cnt)
+    elif category == 'freetextresponse':
+        answer_state = user_state_dict.get(str(key))
+        if answer_state:
+            answer['student_answer'] = answer_state.state.get('student_answer')
 
     if answer:
         correctness = get_correctness(score) if score else None
@@ -253,10 +265,10 @@ def get_score_points(score_points):
 
 
 def get_correctness(score):
-    if score.earned == 0:
-        return 'incorrect'
-    elif score.possible == score.earned:
+    if score.possible == score.earned:
         return 'correct'
+    elif score.earned == 0:
+        return 'incorrect'
     else:
         return 'partially correct'
 

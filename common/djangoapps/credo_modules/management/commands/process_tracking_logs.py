@@ -11,7 +11,8 @@ from django.conf import settings
 from django.core.management import BaseCommand
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from common.djangoapps.credo_modules.event_parser import EventProcessor, prepare_text_for_column_db, update_user_info,\
+from common.djangoapps.credo_modules.events_processor import EventProcessor
+from common.djangoapps.credo_modules.events_processor.utils import prepare_text_for_column_db, update_user_info,\
     INSIGHTS_COURSE_STAFF_ROLES, INSIGHTS_ORG_STAFF_ROLES
 from common.djangoapps.credo_modules.models import DBLogEntry, TrackingLog, TrackingLogFile, TrackingLogConfig,\
     SequentialBlockAttempt
@@ -31,6 +32,7 @@ class Command(BaseCommand):
         'edx.drag_and_drop_v2.item.dropped',
         'xblock.image-explorer.hotspot.opened',
         'sequential_block.viewed',
+        'xblock.freetextresponse.submit'
     ]
     update_process_num = None
     _updated_user_attempts = None
