@@ -107,7 +107,9 @@ def update_course_structure(self, **kwargs):
     if course_id and course_id.startswith('course-v1'):
         lock = ApiCourseStructureLock.create(course_id)
         if not lock:
-            raise self.retry(kwargs=kwargs, countdown=120)  # retry in 2 minutes
+            if self.request.retries < settings.BLOCK_STRUCTURES_SETTINGS['TASK_MAX_RETRIES']:
+                raise self.retry(kwargs=kwargs, countdown=120)  # retry in 2 minutes
+            return
 
         try:
             _update_course_structure(course_id, published_on)

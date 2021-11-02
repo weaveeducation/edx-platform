@@ -33,7 +33,6 @@ class EnrollmentPropertiesPerCourseForm(admin.ModelAdmin):
 class OrganizationForm(admin.ModelAdmin):
     search_fields = ('org', 'org_type__title',)
     list_display = ('id', 'org', 'org_type', 'default_frame_domain', 'custom_actions')
-    actions = ['actions', ]
 
     def custom_actions(self, obj):
         cms_base = configuration_helpers.get_value(
