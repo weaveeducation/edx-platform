@@ -58,22 +58,21 @@ def supervisor_survey_check_finish_task(self, invitation_id, skills_mfe_url, ema
                     copy_progress(course_key, block_keys, supervisor, student)
                     if supervisor_generate_pdf:
                         transaction.on_commit(lambda: generate_supervisor_pdf_task.delay(
-                            invitation.id, sequential_id, skills_mfe_url, email_from_address))
+                            invitation.id, skills_mfe_url, email_from_address))
 
 
 @CELERY_APP.task(name='common.djangoapps.credo_modules.tasks.generate_supervisor_pdf_task', bind=True)
-def generate_supervisor_pdf_task(self, invitation_id, survey_sequential_block_id, skills_mfe_url,
-                                 email_from_address, task_id=None):
+def generate_supervisor_pdf_task(self, invitation_id, skills_mfe_url, email_from_address, task_id=None):
     tr = TaskRepeater(task_id)
     pdf_path = None
     try:
         invitation = SupervisorEvaluationInvitation.objects.filter(id=invitation_id).first()
         if invitation:
             course_key = CourseKey.from_string(invitation.course_id)
-            usage_key = UsageKey.from_string(survey_sequential_block_id)
+            usage_key = UsageKey.from_string(invitation.evaluation_block_id)
             with modulestore().bulk_operations(course_key):
-                survey_sequential_block = modulestore().get_item(usage_key)
-                sequential_name = survey_sequential_block.display_name
+                invitation_sequential_block = modulestore().get_item(usage_key)
+                sequential_name = invitation_sequential_block.display_name
 
                 student = User.objects.get(id=invitation.student_id)
 
@@ -92,7 +91,7 @@ def generate_supervisor_pdf_task(self, invitation_id, survey_sequential_block_id
         if pdf_path:
             os.remove(pdf_path)
         tr.restart(self.request.id, 'generate_supervisor_pdf_task',
-                   [invitation_id, survey_sequential_block_id, skills_mfe_url, email_from_address],
+                   [invitation_id, skills_mfe_url, email_from_address],
                    err_msg=str(exc), max_attempts=SUPERVISOR_PDF_TASKS_MAX_RETRIES)
 
 
@@ -127,7 +126,9 @@ def send_supervisor_pdf(pdf_path, email_from_address, seq_block_name, invitation
     if settings.DEBUG:
         log.info("Supervisor report - recipient list: " + str(emails))
 
-    email = EmailMessage(
-        "Supervisor's report: " + seq_block_name, '', email_from_address, emails)
-    email.attach_file(pdf_path)
-    email.send(fail_silently=False)
+    for email_to in emails:
+        email_msg = EmailMessage(
+            "Supervisor's report: " + seq_block_name, 'PDF report was successfully generated',
+            email_from_address, [email_to])
+        email_msg.attach_file(pdf_path)
+        email_msg.send(fail_silently=False)
