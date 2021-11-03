@@ -126,7 +126,9 @@ def send_supervisor_pdf(pdf_path, email_from_address, seq_block_name, invitation
     if settings.DEBUG:
         log.info("Supervisor report - recipient list: " + str(emails))
 
-    email = EmailMessage(
-        "Supervisor's report: " + seq_block_name, 'PDF report was successfully generated', email_from_address, emails)
-    email.attach_file(pdf_path)
-    email.send(fail_silently=False)
+    for email_to in emails:
+        email_msg = EmailMessage(
+            "Supervisor's report: " + seq_block_name, 'PDF report was successfully generated',
+            email_from_address, [email_to])
+        email_msg.attach_file(pdf_path)
+        email_msg.send(fail_silently=False)
