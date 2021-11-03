@@ -107,7 +107,9 @@ def update_course_structure(self, **kwargs):
     if course_id and course_id.startswith('course-v1'):
         lock = ApiCourseStructureLock.create(course_id)
         if not lock:
-            raise self.retry(kwargs=kwargs, countdown=120)  # retry in 2 minutes
+            if self.request.retries < settings.BLOCK_STRUCTURES_SETTINGS['TASK_MAX_RETRIES']:
+                raise self.retry(kwargs=kwargs, countdown=120)  # retry in 2 minutes
+            return
 
         try:
             _update_course_structure(course_id, published_on)
@@ -218,7 +220,7 @@ def _call_and_retry_if_needed(self, api_method, **kwargs):
 
 def _update_course_structure(course_id, published_on):
     allowed_categories = ['chapter', 'sequential', 'vertical', 'library_content', 'problem',
-                          'openassessment', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse', 'html', 'video']
+                          'openassessment', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse', 'html', 'video', 'survey']
     course_key = CourseKey.from_string(course_id)
     t1 = time.time()
 
@@ -381,7 +383,7 @@ def _update_course_structure(course_id, published_on):
                         ora_items_updated += 1
 
                 if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer',
-                                     'freetextresponse', 'openassessment'):
+                                     'freetextresponse', 'survey', 'openassessment'):
                     parent = _get_parent_sequential(item, structure_dict)
                     if parent:
                         parent_id = str(parent.location)

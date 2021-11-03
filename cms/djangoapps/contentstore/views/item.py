@@ -645,7 +645,9 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
         if data:
             validate_res, validate_err = _validate_xml(data)
             if not validate_res:
-                return JsonResponse({"error": 'XML Error: ' + validate_err}, 400)
+                return JsonResponse({
+                    "error": f'XML Validation Failure: {validate_err} Adjust problem XML and try again.'
+                }, 400)
 
             # TODO Allow any scope.content fields not just "data" (exactly like the get below this)
             xblock.data = data

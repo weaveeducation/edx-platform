@@ -152,7 +152,7 @@ from common.djangoapps.credo_modules.models import user_must_fill_additional_pro
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotAllowed,\
     JsonResponse
 from django.core.serializers.json import DjangoJSONEncoder
-from common.djangoapps.credo_modules.views import show_student_profile_form, StudentProfileField
+from common.djangoapps.credo_modules.views import show_student_profile_form
 from common.djangoapps.credo_modules.utils import get_skills_mfe_url
 from mako.template import Template
 from lms import CELERY_APP

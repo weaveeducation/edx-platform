@@ -52,9 +52,10 @@ class CourseUsageMiddleware(MiddlewareMixin):
                 pass
             if block_id:
                 course_key = CourseKey.from_string(course_id)
-                position = int(request.POST.get('position', None)) - 1
+                position = request.POST.get('position', None)
                 item = modulestore().get_item(UsageKey.from_string(block_id))
                 if position is not None and hasattr(item, 'position'):
+                    position = int(position) - 1
                     try:
                         child = item.get_children()[position]
                         student_properties = get_student_properties(request, course_key, child)
