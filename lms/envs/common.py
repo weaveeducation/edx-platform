@@ -2019,6 +2019,7 @@ MIDDLEWARE = [
     'openedx.core.djangoapps.cache_toolbox.middleware.CacheBackedAuthenticationMiddleware',
 
     'common.djangoapps.credo_modules.middleware.LinkAccessOnlyMiddleware',
+    'common.djangoapps.credo_modules.middleware.JwtCookiesMiddleware',
 
     'common.djangoapps.student.middleware.UserStandingMiddleware',
     'openedx.core.djangoapps.contentserver.middleware.StaticContentServer',
@@ -3001,6 +3002,9 @@ INSTALLED_APPS = [
 
     # Gating of course content
     'lms.djangoapps.gating.apps.GatingConfig',
+
+    # Supervisor Evaluation
+    'lms.djangoapps.supervisor_evaluation.apps.SupervisorEvaluationConfig',
 
     # Static i18n support
     'statici18n',
@@ -4711,3 +4715,5 @@ LOGO_URL_PNG = None
 LOGO_TRADEMARK_URL = None
 FAVICON_URL = None
 DEFAULT_EMAIL_LOGO_URL = 'https://edx-cdn.org/v3/default/logo.png'
+
+SKILLS_MFE_URL = None

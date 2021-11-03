@@ -25,16 +25,18 @@ log = logging.getLogger("edx.student")
 log_json = logging.getLogger("credo_json")
 
 
-def register_login_and_enroll_anonymous_user(request, course_key, redirect_to=None):
+def register_login_and_enroll_anonymous_user(request, course_key, redirect_to=None, email_domain=None):
     created = False
     edx_username = None
     edx_password = None
     edx_user = None
+    if email_domain is None:
+        email_domain = 'credomodules.com'
 
     while not created:
         edx_username = str(uuid.uuid4())[0:30]
         edx_password = str(uuid.uuid4())
-        edx_email = '%s@credomodules.com' % edx_username
+        edx_email = '%s@%s' % (edx_username, email_domain)
 
         try:
             with transaction.atomic():
@@ -67,6 +69,7 @@ def register_login_and_enroll_anonymous_user(request, course_key, redirect_to=No
         return redirect(redirect_to)
     else:
         update_unique_user_id_cookie(request)
+        return edx_user
 
 
 def validate_credo_access(request, redirect_to=None):

@@ -7,8 +7,8 @@ from django.core.management import BaseCommand
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q
-from common.djangoapps.credo_modules.event_parser import get_timestamp_from_datetime, update_course_and_student_properties,\
-    INSIGHTS_COURSE_STAFF_ROLES, INSIGHTS_ORG_STAFF_ROLES
+from common.djangoapps.credo_modules.events_processor.utils import get_timestamp_from_datetime,\
+    update_course_and_student_properties, INSIGHTS_COURSE_STAFF_ROLES, INSIGHTS_ORG_STAFF_ROLES
 from common.djangoapps.credo_modules.models import EnrollmentLog, TrackingLogConfig, get_student_properties_event_data
 from common.djangoapps.student.models import CourseAccessRole, CourseEnrollment
 from opaque_keys.edx.keys import CourseKey

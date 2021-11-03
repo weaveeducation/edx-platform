@@ -83,6 +83,8 @@ class UserService(object):
             # Switch them to the LTI user
             self.switch_user(request, lti_user, lti_consumer)
 
+        request._user_logged_in = True
+
     def create_lti_user(self, lti_user_id, lti_consumer, lti_params=None):
         """
         Generate a new user on the edX platform with a random username and password,

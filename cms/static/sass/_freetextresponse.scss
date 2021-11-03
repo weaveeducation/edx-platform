@@ -1,0 +1,11 @@
+.freetextresponse .user_input.unanswered .status {
+  background: url("#{$static-path}/images/ftr-unanswered-icon.png") center center no-repeat;
+}
+
+.freetextresponse .user_input.correct .status {
+  background: url("#{$static-path}/images/ftr-correct-icon.png") center center no-repeat;
+}
+
+.freetextresponse .user_input.incorrect .status {
+  background: url("#{$static-path}/images/ftr-incorrect-icon.png") center center no-repeat;
+}

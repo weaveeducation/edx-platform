@@ -24,7 +24,7 @@ from xmodule.modulestore.django import modulestore
 from xmodule.modulestore import ModuleStoreEnum
 from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure, ApiCourseStructureTags,\
     ApiCourseStructureLock, BlockToSequential, CourseFieldsCache, OraBlockStructure
-from common.djangoapps.credo_modules.event_parser import prepare_text_for_column_db
+from common.djangoapps.credo_modules.events_processor.utils import prepare_text_for_column_db
 from common.djangoapps.credo_modules.models import TrackingLogConfig
 from common.djangoapps.credo_modules.vertica import update_data_in_vertica, get_vertica_dsn
 
@@ -220,7 +220,7 @@ def _call_and_retry_if_needed(self, api_method, **kwargs):
 
 def _update_course_structure(course_id, published_on):
     allowed_categories = ['chapter', 'sequential', 'vertical', 'library_content', 'problem',
-                          'openassessment', 'drag-and-drop-v2', 'image-explorer', 'html', 'video', 'survey']
+                          'openassessment', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse', 'html', 'video', 'survey']
     course_key = CourseKey.from_string(course_id)
     t1 = time.time()
 
@@ -382,7 +382,8 @@ def _update_course_structure(course_id, published_on):
                         ora_item.save()
                         ora_items_updated += 1
 
-                if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer', 'openassessment', 'survey'):
+                if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer',
+                                     'freetextresponse', 'survey', 'openassessment'):
                     parent = _get_parent_sequential(item, structure_dict)
                     if parent:
                         parent_id = str(parent.location)
@@ -421,7 +422,7 @@ def _update_course_structure(course_id, published_on):
                                         kwargs=dict(sequential_id=str(b2s_item.sequential_id))
                                     )
 
-                if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer', 'html', 'video')\
+                if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse', 'html', 'video')\
                     or (item.category == 'openassessment' and len(item.rubric_criteria) == 0):
                     aside = item.runtime.get_aside_of_type(item, 'tagging_aside')
                     if isinstance(aside.saved_tags, dict):

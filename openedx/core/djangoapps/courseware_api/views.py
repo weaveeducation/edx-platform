@@ -179,7 +179,9 @@ class CoursewareMeta:
             if tab.type == 'progress' and self.enable_extended_progress_page:
                 title = "My Skills"
                 mf_feature = True
-            url = tab.link_func(self.overview, reverse)
+                url = reverse('progress', kwargs={'course_id': str(self.course_key)})
+            else:
+                url = tab.link_func(self.overview, reverse)
             url_abs = url
             if not url.startswith('http'):
                 url_abs = self.request.build_absolute_uri(url)

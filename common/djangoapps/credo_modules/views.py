@@ -225,6 +225,7 @@ def show_student_profile_form(request, course, simple_layout=False, redirect_to=
             'disable_footer': True,
             'disable_window_wrap': True,
             'disable_preview_menu': True,
+            'link_access_hash': None
         })
 
     return render_to_response("credo_additional_profile.html", context)
@@ -407,6 +408,8 @@ def login_as_user(request):
             })
 
     login(request, edx_user, backend=settings.AUTHENTICATION_BACKENDS[0])
+    request._user_logged_in = True
+
     return redirect(reverse('dashboard'))
 
 

@@ -67,6 +67,7 @@ from common.djangoapps.util.file import (
 )
 from common.djangoapps.util.json_request import JsonResponse, JsonResponseBadRequest
 from common.djangoapps.util.views import require_global_staff
+from common.djangoapps.credo_modules.utils import get_progress_page_url
 from lms.djangoapps.bulk_email.api import is_bulk_email_feature_enabled
 from lms.djangoapps.bulk_email.models import CourseEmail
 from lms.djangoapps.certificates import api as certs_api
@@ -1519,8 +1520,7 @@ def get_student_progress_url(request, course_id):
     """
     course_id = CourseKey.from_string(course_id)
     user = get_student_from_identifier(request.POST.get('unique_student_identifier'))
-
-    progress_url = reverse('student_progress', kwargs={'course_id': str(course_id), 'student_id': user.id})
+    progress_url = get_progress_page_url(course_id, student_id=user.id)
 
     response_payload = {
         'course_id': str(course_id),

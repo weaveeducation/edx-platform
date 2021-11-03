@@ -72,6 +72,18 @@ from django.utils.translation import ugettext as _
         $submitButton.addClass('is-disabled').prop('disabled', true);
       }
     }
+
+    $(document).ready(function() {
+       var link_access_hash = "${link_access_hash if link_access_hash else ''}";
+       if (link_access_hash !== '') {
+            var intervalId = setInterval(function() {
+                if ($.cookie('supervisor-link-hash') !== link_access_hash) {
+                    clearInterval(intervalId);
+                    $("body").html("Other survey was opened in the separate window");
+                }
+            }, 1000);
+        }
+    });
   </script>
 </%block>
 

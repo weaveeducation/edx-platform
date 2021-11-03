@@ -1117,3 +1117,5 @@ if raven_dsn:
             event_level=logging.ERROR  # Send errors as events
         )]
     )
+
+SKILLS_MFE_URL = ENV_TOKENS.get('SKILLS_MFE_URL', None)
