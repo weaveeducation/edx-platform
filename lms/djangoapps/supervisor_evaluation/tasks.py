@@ -58,7 +58,7 @@ def supervisor_survey_check_finish_task(self, invitation_id, skills_mfe_url, ema
                     copy_progress(course_key, block_keys, supervisor, student)
                     if supervisor_generate_pdf:
                         transaction.on_commit(lambda: generate_supervisor_pdf_task.delay(
-                            invitation.id, sequential_id, skills_mfe_url, email_from_address))
+                            invitation.id, skills_mfe_url, email_from_address))
 
 
 @CELERY_APP.task(name='common.djangoapps.credo_modules.tasks.generate_supervisor_pdf_task', bind=True)
