@@ -98,6 +98,7 @@ from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.util.sandboxing import can_execute_unsafe_code, get_python_lib_zip
 from xmodule.x_module import XModuleDescriptor
+from common.djangoapps.badgr_integration.service import check_badge_is_ready_to_issue
 
 log = logging.getLogger(__name__)
 
@@ -1219,6 +1220,11 @@ def _invoke_xblock_handler(request, course_id, usage_id, handler, suffix, course
         except Exception:
             log.exception("error executing xblock handler")
             raise
+
+        if request.user.known and suffix in ('problem_check', 'submit', 'drop_item'):
+            badge_res = check_badge_is_ready_to_issue(request.user, course_key, instance)
+            if badge_res.is_ready:
+                resp = append_data_to_webob_response(resp, {'badge_ready': True})
 
     return webob_to_django_response(resp)
 

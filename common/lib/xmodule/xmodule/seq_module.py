@@ -146,6 +146,13 @@ class SequenceFields:  # lint-amnesty, pylint: disable=missing-class-docstring
         help=_("Supervisor evaluation hash"),
     )
 
+    badge_id = String(
+        display_name=_("Issue a Badge"),
+        default="",
+        scope=Scope.settings,
+        help=_("Issue a Badge")
+    )
+
 
 class SequenceMixin(SequenceFields):
     """
@@ -561,6 +568,8 @@ class SequenceBlock(
          # disable scores panel for timed and proctored exams
         is_time_exam = getattr(self, 'is_proctored_exam', False) or getattr(self, 'is_time_limited', False)
 
+        badge_id = getattr(self, 'badge_id', None)
+
         items = self._render_student_view_for_items(context, display_items, fragment, view) if prereq_met else []
 
         params = {
@@ -586,14 +595,18 @@ class SequenceBlock(
             'graded': self.graded,
             'lms_url_to_get_grades': context.get('lms_url_to_get_grades'),
             'lms_url_to_email_grades': context.get('lms_url_to_email_grades'),
+            'lms_url_to_issue_badge': context.get('lms_url_to_issue_badge'),
             'show_summary_info_after_quiz': False if is_time_exam else context.get('show_summary_info_after_quiz',
                                                                                    False),
+            'badge_id': badge_id if badge_id else None,
+
             'summary_info_imgs': context.get('summary_info_imgs', {
                 'correct_icon': '',
                 'incorrect_icon': '',
                 'unanswered_icon': '',
                 'assessment_done_img': ''
             }),
+            'logo_url': context.get('logo_url')
         }
 
         return params

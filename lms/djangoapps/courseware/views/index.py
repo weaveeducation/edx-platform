@@ -68,7 +68,7 @@ from ..model_data import FieldDataCache
 from ..module_render import get_module_for_descriptor, toc_for_course
 from ..permissions import MASQUERADE_AS_STUDENT
 from ..toggles import courseware_legacy_is_visible, courseware_mfe_is_advertised
-from .views import CourseTabView, get_student_progress_images
+from .views import CourseTabView, get_student_progress_images, get_logo_url
 
 log = logging.getLogger("edx.courseware.views.index")
 
@@ -498,9 +498,14 @@ class CoursewareIndex(View):
             section_context['lms_url_to_email_grades'] = reverse('email_student_progress',
                                                                  kwargs={'course_id': str(self.course_key),
                                                                          'usage_id': str(self.section.location)})
+            section_context['lms_url_to_issue_badge'] = reverse('badgr_integration_issue_badge',
+                                                                kwargs={'course_id': str(self.course_key),
+                                                                        'usage_id': str(self.section.location)})
             section_context['show_summary_info_after_quiz'] = self.course.show_summary_info_after_quiz
             section_context['enable_new_carousel_view'] = False
             section_context['summary_info_imgs'] = get_student_progress_images()
+            section_context['logo_url'] = get_logo_url(request.is_secure())
+
             try:
                 org = Organization.objects.get(org=self.course.org)
                 if org.org_type is not None:

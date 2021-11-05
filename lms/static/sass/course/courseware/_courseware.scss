@@ -705,7 +705,7 @@ html.video-fullscreen {
     .xqa-modal,
     .staff-modal,
     .history-modal,
-    .scores-modal {
+    .scores-modal{
       width: 80%;
       height: 80%;
       left: left(20%);
@@ -713,7 +713,16 @@ html.video-fullscreen {
       display: none;
     }
 
-    .scores-modal {
+    .badge-modal {
+      width: 50%;
+      height: 80%;
+      left: left(50%);
+      overflow: auto;
+      display: none;
+    }
+
+    .scores-modal,
+    .badge-modal {
       background: none !important;
       box-shadow: none !important;
       padding: 0 !important;

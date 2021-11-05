@@ -717,9 +717,15 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             var isProctoredExam = xblockInfo.get('is_proctored_exam');
             var isPracticeExam = xblockInfo.get('is_practice_exam');
             var isOnboardingExam = xblockInfo.get('is_onboarding_exam');
+            var isBadgrEnabled = xblockInfo.get('badgr_enabled');
+            var badges = xblockInfo.get('badges');
+            var badgeId = xblockInfo.get('badge_id');
             var html = this.template($.extend({}, {
                 xblockInfo: xblockInfo,
                 xblockType: this.options.xblockType,
+                isBadgrEnabled: isBadgrEnabled,
+                badges: badges,
+                badgeId: badgeId,
                 enableProctoredExams: this.options.enable_proctored_exams,
                 enableTimedExams: this.options.enable_timed_exams,
                 isSpecialExam: isTimeLimited,
@@ -1007,6 +1013,12 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             var notDisplayInCourseOutline = this.$('[name="do_not_display_in_course_outline"]').is(':checked');
             var returnToCourseOutline = this.$('[name="after_finish_return_to_course_outline"]').is(':checked');
             var useAsSurveyForSupervisor = this.$('[name="use_as_survey_for_supervisor"]').is(':checked');
+            var badgeId = '';
+            var badgeEl = this.$('[name="badge_id"]');
+            if (badgeEl.length) {
+                badgeId = badgeEl.val();
+            }
+
             if (attachAtTheTop === 'yes') {
                 return {
                     metadata: {
@@ -1015,7 +1027,8 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                         course_outline_button_title: this.$('[name="course_outline_button_title"]').val(),
                         do_not_display_in_course_outline: notDisplayInCourseOutline,
                         after_finish_return_to_course_outline: returnToCourseOutline,
-                        use_as_survey_for_supervisor: useAsSurveyForSupervisor
+                        use_as_survey_for_supervisor: useAsSurveyForSupervisor,
+                        badge_id: badgeId
                     }
                 };
             } else {
@@ -1026,7 +1039,8 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                         course_outline_description: '',
                         course_outline_button_title: '',
                         after_finish_return_to_course_outline: returnToCourseOutline,
-                        use_as_survey_for_supervisor: useAsSurveyForSupervisor
+                        use_as_survey_for_supervisor: useAsSurveyForSupervisor,
+                        badge_id: badgeId
                     }
                 };
             }

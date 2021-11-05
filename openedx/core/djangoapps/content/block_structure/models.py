@@ -429,6 +429,39 @@ class ApiBlockInfo(models.Model):
         unique_together = (('course_id', 'block_id'),)
 
 
+class BlockCache(models.Model):
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    block_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    field_name = models.CharField(max_length=255, null=False, blank=False)
+    field_value = models.CharField(max_length=255, null=False, blank=False)
+
+    class Meta:
+        db_table = 'api_block_cache'
+        index_together = (('field_name', 'field_value'),)
+        unique_together = (('block_id', 'field_name'),)
+
+    @classmethod
+    def update_cache(cls, course_id, block_id, field_name, field_value=None):
+        if field_value == '':
+            field_value = None
+
+        obj = BlockCache.objects.filter(block_id=block_id, field_name=field_name).first()
+        if obj and field_value is None:
+            obj.delete()
+        elif obj and field_value != obj.field_value:
+            obj.field_value = field_value
+            obj.save()
+        elif not obj and field_value is not None:
+            obj = BlockCache(
+                course_id=course_id,
+                block_id=block_id,
+                field_name=field_name,
+                field_value=field_value
+            )
+            obj.save()
+        return obj
+
+
 class BlockToSequential(models.Model):
     block_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
     sequential_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)

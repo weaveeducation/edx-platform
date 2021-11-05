@@ -893,6 +893,12 @@ urlpatterns += [
     url(r'^supervisor/', include('lms.djangoapps.supervisor_evaluation.urls')),
 ]
 
+# Badges
+urlpatterns += [
+    url(r'^badges/', include('common.djangoapps.badgr_integration.urls')),
+]
+
+
 if settings.FEATURES.get('ENABLE_OAUTH2_PROVIDER'):
     urlpatterns += [
         # These URLs dispatch to django-oauth-toolkit or django-oauth2-provider as appropriate.
