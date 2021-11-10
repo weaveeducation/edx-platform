@@ -790,6 +790,7 @@ class TrackingLog(models.Model):
     question_hash = models.CharField(max_length=80, null=True)
     is_ora_block = models.BooleanField(default=False)
     is_ora_empty_rubrics = models.BooleanField(default=False)
+    ora_status = models.CharField(max_length=80, default=None, null=True)
     ora_criterion_name = models.CharField(max_length=255, null=True, blank=True)
     grade = models.FloatField(null=True)
     max_grade = models.FloatField(null=True)
