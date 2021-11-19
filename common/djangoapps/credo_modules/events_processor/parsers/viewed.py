@@ -36,6 +36,12 @@ class ViewedParser(AbstractEventParser):
                 return True
         return False
 
+    def get_ora_status(self, event, *args, **kwargs):
+        if self._is_ora(event):
+            return 'not_submitted'
+        else:
+            return None
+
     def custom_event_condition(self, event, *args, **kwargs):
         return True
 
