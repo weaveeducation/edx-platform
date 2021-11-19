@@ -22,7 +22,6 @@ class EventProcessor:
             'xblock.freetextresponse.submit': lambda: FreeTextResponseParser()
         }.get(event_type, lambda: None)()
 
-        print(f'>>>>>>>>>>>>>>>> ---------- {event_type} - {parser}')
         if not parser:
             return None
 

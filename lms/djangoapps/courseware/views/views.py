@@ -95,6 +95,7 @@ from lms.djangoapps.grades.api import CourseGradeFactory
 from lms.djangoapps.instructor.enrollment import uses_shib
 from lms.djangoapps.instructor.views.api import require_global_staff
 from lms.djangoapps.verify_student.services import IDVerificationService
+from lms.djangoapps.branding import api as branding_api
 from openedx.core.djangoapps.catalog.utils import get_programs, get_programs_with_type
 from openedx.core.djangoapps.certificates import api as auto_certs_api
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
@@ -1900,8 +1901,12 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookma
         student_view_context['lms_url_to_email_grades'] = reverse('email_student_progress',
                                                                   kwargs={'course_id': str(course_key),
                                                                           'usage_id': str(usage_key_string)})
+        student_view_context['lms_url_to_issue_badge'] = reverse('badgr_integration_issue_badge',
+                                                                 kwargs={'course_id': str(course_key),
+                                                                         'usage_id': str(usage_key_string)})
         student_view_context['show_summary_info_after_quiz'] = course.show_summary_info_after_quiz
         student_view_context['summary_info_imgs'] = get_student_progress_images()
+        student_view_context['logo_url'] = get_logo_url(request.is_secure())
 
         try:
             org = Organization.objects.get(org=course.org)
@@ -2419,6 +2424,10 @@ def get_student_progress_images():
         'unanswered_icon': settings.STATIC_URL + 'images/credo/question_unanswered.png',
         'assessment_done_img': settings.STATIC_URL + 'images/credo/assessment_done.png'
     }
+
+
+def get_logo_url(is_secure):
+    return branding_api.get_logo_url(is_secure)
 
 
 def get_student_progress_email_html(course_id, usage_id, request=None, student_progress=None):

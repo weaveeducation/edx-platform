@@ -3089,6 +3089,7 @@ INSTALLED_APPS = [
     'openedx.core.djangoapps.schedules',
     'rest_framework_jwt',
 
+    'common.djangoapps.badgr_integration.apps.BadgrIntegrationAppConfig',
     'common.djangoapps.credo_modules.apps.CredoAppConfig',
     'common.djangoapps.turnitin_integration.apps.TurnitinIntegrationAppConfig',
     'common.djangoapps.myskills.apps.MySkillsAppConfig',

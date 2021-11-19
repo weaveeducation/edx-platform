@@ -67,8 +67,10 @@
             this.showCompletion = this.el.data('show-completion');
 
             this.graded = parseInt(this.el.data('graded')) === 1;
+            this.badgeId = parseInt(this.el.data('badge-id')) === 1;
             this.showSummaryInfoAfterQuiz = parseInt(this.el.data('show-summary-info-after-quiz')) === 1;
             this.lmsUrlToGetGrades = this.el.data('lms-url-to-get-grades');
+            this.lmsUrlToIssueBadge = this.el.data('lms-url-to-issue-badge');
             this.lmsUrlToEmailGrades = this.el.data('lms-url-to-email-grades');
             this.scores = null;
 
@@ -94,6 +96,14 @@
             this.widthElem = 170;
             this.carouselAllItemsLength = this.num_contents * this.widthElem;
             this.bind();
+
+            if (this.badgeId) {
+              $(document).ajaxSuccess(function(event, jqXHR, ajaxOptions, data) {
+                if (jQuery.isPlainObject(data) && ('badge_ready' in data)) {
+                  self.issueBadge();
+                }
+              });
+            }
 
             var position = 0;
             var foundBlockId = false;
@@ -238,6 +248,34 @@
         Sequence.prototype.unlockSendEmailBtn = function() {
             this.$('.send-email-btn').removeAttr('disabled');
             this.$('.send-email-btn').text('Send email');
+        };
+
+        Sequence.prototype.issueBadge = function() {
+          var self = this;
+
+          this.$('.badge-info-block').hide();
+          this.$('.badge-loading').show();
+
+          $('<a href="#get-badge-modal" class="get-badge-modal" style="display: none;">Get Badge</a>').leanModal({
+            closeButton: '.close-modal',
+            top: 50
+          }).trigger('click');
+
+          $.postWithPrefix(this.lmsUrlToIssueBadge, {}, function(resp) {
+            if (!resp.error) {
+              var item = resp.data;
+              self.$('.badge-loading').hide();
+              self.$('.badge-info-block').show();
+              self.$('.badge-img').html('<img src="' + item.badge_image_url + '" />');
+              self.$('.badge-title').html(item.badge_title);
+              self.$('.badge-description').html(item.badge_description);
+              self.$('.badge-issued-by-link').attr('href', item.badgr_issuer_url).html('<img src="' + item.badgr_issuer_image + '" />');
+              self.$('.badge-notification-link').attr('href', item.badge_external_url);
+              self.$('.badge-go-to-badgr').attr('href', item.badgr_login_page);
+            } else {
+              self.$('.badge-loading').text("Can't issue badge: " + resp.error);
+            }
+          });
         };
 
         Sequence.prototype.displayResults = function(data) {

@@ -49,8 +49,9 @@ def supervisor_survey_check_finish_task(self, invitation_id, skills_mfe_url, ema
                 survey_sequential_block = get_course_block_with_survey(course_key, supervisor_evaluation_xblock)
                 sequential_id = str(survey_sequential_block.location)
 
+                supervisor_user = User.objects.get(id=invitation.supervisor_user_id)
                 res, block_keys = check_sequential_block_is_completed(
-                    course_key, sequential_id, invitation.supervisor_user_id)
+                    course_key, sequential_id, user=supervisor_user)
                 if res and block_keys:
                     invitation.survey_finished = True
                     invitation.save()

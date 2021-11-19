@@ -416,6 +416,7 @@ class OrganizationType(models.Model):
     enable_extended_progress_page = models.BooleanField(default=False, verbose_name='Enable Extended Progress Page')
 
     enable_item_analysis_reports = models.BooleanField(default=False, verbose_name='Enable Item Analysis Reports')
+    enable_badgr_integration = models.BooleanField(default=False, verbose_name='Badgr Integration')
 
     available_roles = models.ManyToManyField('CustomUserRole', blank=True)
     default_lti_staff_role = models.ForeignKey(CustomUserRole, on_delete=models.SET_NULL, null=True, blank=True,
@@ -539,6 +540,13 @@ class Organization(models.Model):
     def is_carousel_view(self):
         if self.org_type is not None:
             return self.org_type.enable_new_carousel_view
+        else:
+            return False
+
+    @property
+    def is_badgr_enabled(self):
+        if self.org_type is not None:
+            return self.org_type.enable_badgr_integration
         else:
             return False
 
@@ -790,6 +798,7 @@ class TrackingLog(models.Model):
     question_hash = models.CharField(max_length=80, null=True)
     is_ora_block = models.BooleanField(default=False)
     is_ora_empty_rubrics = models.BooleanField(default=False)
+    ora_status = models.CharField(max_length=80, default=None, null=True)
     ora_criterion_name = models.CharField(max_length=255, null=True, blank=True)
     grade = models.FloatField(null=True)
     max_grade = models.FloatField(null=True)
