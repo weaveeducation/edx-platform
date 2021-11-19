@@ -108,5 +108,7 @@ class Assertion(models.Model):
     external_id = models.CharField(max_length=255, verbose_name='External id')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     badge = models.ForeignKey(Badge, on_delete=models.CASCADE)
+    url = models.CharField(max_length=255, verbose_name='External URL')
+    image_url = models.CharField(max_length=255, verbose_name='Image URL')
     course_id = models.CharField(max_length=255, null=False, db_index=True)
     block_id = models.CharField(max_length=255, null=False, db_index=True)

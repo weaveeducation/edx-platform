@@ -120,11 +120,11 @@ def check_badge_is_ready_to_issue(user, course_key, block):
     config = Configuration.get_config()
     issuer_entity_id = config.get_issuer_entity_id()
     if not issuer_entity_id:
-        return BadgeCheckResult(error='Issuer is not found')
+        return BadgeCheckResult(error='Badge issuer is not found')
 
     issuer = Issuer.objects.filter(is_active=True, external_id=issuer_entity_id).first()
     if not issuer:
-        return BadgeCheckResult(error='Issuer is not found')
+        return BadgeCheckResult(error='Badge issuer is not found')
 
     if block.category == 'sequential':
         seq_block = block
@@ -201,6 +201,8 @@ def issue_badge_assertion(user, course_key, block):
                     external_id=result['entityId'],
                     user=user,
                     badge=badge_res.badge,
+                    url=result['openBadgeId'],
+                    image_url=result['image'],
                     course_id=str(course_key),
                     block_id=str(block.location)
                 )
