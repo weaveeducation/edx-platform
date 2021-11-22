@@ -23,7 +23,7 @@ class OraSubmissionParser(AbstractEventParser):
                     criterion_name = part.get('label', None)
                     if criterion_name:
                         criterion_name = criterion_name.replace(":", " ")
-                        item = self.process(event_data, rubric=part, criterion_name=criterion_name)
+                        item = self.process(event_data, answer=part, criterion_name=criterion_name)
                         items.append(item)
         return items
 
@@ -46,16 +46,23 @@ class OraSubmissionParser(AbstractEventParser):
         return True
 
     def get_possible_points(self, event, *args, **kwargs):
-        return None
+        if self._is_ora_empty_rubrics(event):
+            return None
+        else:
+            answer = kwargs['answer']
+            return int(answer.get('criterion', {}).get('points_possible', 0))
 
     def get_problem_id(self, event, *args, **kwargs):
         return event.get('context').get('module', {}).get('usage_key')
 
     def get_correctness(self, event_data, *args, **kwargs):
-        return CorrectData(True, 1, 1, 'correct')
+        if self._is_ora_empty_rubrics(event_data):
+            return CorrectData(True, 1, 1, 'correct')
+        else:
+            return CorrectData(False, 0, 1, None)
 
     def get_grade(self, correctness, *args, **kwargs):
-        return 1
+        return correctness.earned_grade
 
     def get_answers(self, event, correctness, timestamp, *args, **kwargs):
         return 'n/a'
