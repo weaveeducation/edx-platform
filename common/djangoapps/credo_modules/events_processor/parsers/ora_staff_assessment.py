@@ -56,7 +56,7 @@ class OraStaffAssessmentParser(AbstractEventParser):
             correctness
         )
 
-    def get_grade(self, correctness, *args, **kwargs):
+    def get_grade(self, event_data, correctness, *args, **kwargs):
         if correctness.max_grade != 0:
             grade = correctness.earned_grade / correctness.max_grade
         else:
