@@ -39,7 +39,7 @@ class AbstractEventParser:
             return None
 
         correct_data = self.get_correctness(event_data, *args, **kwargs)
-        grade = self.get_grade(event_data, correct_data, *args, **kwargs)
+        grade = self.get_grade(correct_data, *args, **kwargs)
         max_grade = correct_data.max_grade if correct_data else 0
         saved_tags = self.convert_tags(self.get_saved_tags(event, **kwargs))
         display_name = self.get_display_name(event, *args, **kwargs)
@@ -68,10 +68,9 @@ class AbstractEventParser:
         is_ora_block = self.is_ora_block(event, *args, **kwargs)
         is_ora_empty_rubrics = self.is_ora_empty_rubrics(event, *args, **kwargs)
         ora_user_answer = self.get_ora_user_answer(event)
-        ora_status = None
+        ora_status = self.get_ora_status(event, *args, **kwargs)
 
         if is_ora_block and not is_ora_empty_rubrics:
-            ora_status = self.get_ora_status(event, *args, **kwargs)
             answer_id = answer_id + '-' + criterion_name
         answer_id = self._get_md5(answer_id)
 
@@ -273,7 +272,7 @@ class AbstractEventParser:
     def get_correctness(self, event_data, *args, **kwargs):
         raise NotImplementedError()
 
-    def get_grade(self, event_data, correctness, *args, **kwargs):
+    def get_grade(self, correctness, *args, **kwargs):
         raise NotImplementedError()
 
     def get_answers(self, event, correctness, timestamp, *args, **kwargs):

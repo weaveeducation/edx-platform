@@ -19,6 +19,9 @@ class ProblemParser(AbstractEventParser):
     def is_ora_empty_rubrics(self, event, *args, **kwargs):
         return False
 
+    def get_ora_status(self, event, *args, **kwargs):
+        return None
+
     def get_possible_points(self, event, *args, **kwargs):
         return None
 
@@ -36,7 +39,7 @@ class ProblemParser(AbstractEventParser):
             event_data['success']
         )
 
-    def get_grade(self, event_data, correctness, *args, **kwargs):
+    def get_grade(self, correctness, *args, **kwargs):
         if correctness.max_grade != 0:
             grade = correctness.earned_grade / correctness.max_grade
         else:

@@ -4,16 +4,9 @@ from ..utils import EventCategory, CorrectData, ora_is_graded
 
 class OraSubmissionParser(AbstractEventParser):
 
-    def _is_ora_empty_rubrics(self, event):
-        event_data = event.get('event', {})
-        if 'rubric_count' not in event_data:
-            return False
-        rubric_count = event_data.get('rubric_count')
-        return rubric_count == 0
-
     def parse(self, event_data):
         items = []
-        if self._is_ora_empty_rubrics(event_data):
+        if self.is_ora_empty_rubrics(event_data):
             item = self.process(event_data)
             items.append(item)
         else:
@@ -28,44 +21,46 @@ class OraSubmissionParser(AbstractEventParser):
         return items
 
     def get_category(self, event):
-        if self._is_ora_empty_rubrics(event):
+        if self.is_ora_empty_rubrics(event):
             return EventCategory.ora_empty_rubrics
-        else:
-            return EventCategory.ora
+        return EventCategory.ora
 
     def is_ora_block(self, event, *args, **kwargs):
         return True
 
     def is_ora_empty_rubrics(self, event, *args, **kwargs):
-        return self._is_ora_empty_rubrics(event)
+        event_data = event.get('event', {})
+        if 'rubric_count' not in event_data:
+            return False
+        rubric_count = event_data.get('rubric_count')
+        return rubric_count == 0
 
     def get_ora_status(self, event, *args, **kwargs):
-        return 'submitted'
+        if not self.is_ora_empty_rubrics(event):
+            return 'submitted'
+        return None
 
     def custom_event_condition(self, event, *args, **kwargs):
         return True
 
     def get_possible_points(self, event, *args, **kwargs):
-        if self._is_ora_empty_rubrics(event):
-            return None
-        else:
+        if not self.is_ora_empty_rubrics(event):
             answer = kwargs['answer']
             return int(answer.get('criterion', {}).get('points_possible', 0))
+        return None
 
     def get_problem_id(self, event, *args, **kwargs):
         return event.get('context').get('module', {}).get('usage_key')
 
     def get_correctness(self, event_data, *args, **kwargs):
-        if self._is_ora_empty_rubrics(event_data):
+        if self.is_ora_empty_rubrics(event_data):
             return CorrectData(True, 1, 1, 'correct')
-        else:
-            return CorrectData(False, 0, 1, None)
+        return CorrectData(False, 0, 1, None)
 
-    def get_grade(self, event_data, correctness, *args, **kwargs):
-        if self._is_ora_empty_rubrics(event_data):
-            return 1
-        else:
-            return 0
+    def get_grade(self, correctness, *args, **kwargs):
+        # correctness.earned_grade == 1 - in case of ORA without rubrics
+        # correctness.earned_grade == 0 - in case of ORA with rubrics
+        return correctness.earned_grade
 
     def get_answers(self, event, correctness, timestamp, *args, **kwargs):
         return 'n/a'

@@ -16,6 +16,9 @@ class ImageExplorerParser(AbstractEventParser):
     def is_ora_empty_rubrics(self, event, *args, **kwargs):
         return False
 
+    def get_ora_status(self, event, *args, **kwargs):
+        return None
+
     def custom_event_condition(self, event, *args, **kwargs):
         return True
 
@@ -45,7 +48,7 @@ class ImageExplorerParser(AbstractEventParser):
     def get_question_name(self, event, *args, **kwargs):
         return self.get_display_name(event, *args, **kwargs)
 
-    def get_grade(self, event_data, correctness, *args, **kwargs):
+    def get_grade(self, correctness, *args, **kwargs):
         if correctness.max_grade != 0:
             grade = correctness.earned_grade / correctness.max_grade
         else:

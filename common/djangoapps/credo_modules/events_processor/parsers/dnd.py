@@ -17,6 +17,9 @@ class DndParser(AbstractEventParser):
     def is_ora_empty_rubrics(self, event, *args, **kwargs):
         return False
 
+    def get_ora_status(self, event, *args, **kwargs):
+        return None
+
     def custom_event_condition(self, event, *args, **kwargs):
         return True
 
@@ -40,7 +43,7 @@ class DndParser(AbstractEventParser):
             correctness = 'correct'
         return CorrectData(correct, earned_grade, max_grade, correctness)
 
-    def get_grade(self, event_data, correctness, *args, **kwargs):
+    def get_grade(self, correctness, *args, **kwargs):
         if correctness.max_grade != 0:
             grade = correctness.earned_grade / correctness.max_grade
         else:
