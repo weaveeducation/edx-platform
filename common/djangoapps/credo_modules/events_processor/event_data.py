@@ -7,7 +7,7 @@ class EventData:
                  timestamp, dtime, dtime_ts, saved_tags, student_properties,
                  grade, max_grade, user_id, display_name, question_name, question_text, question_text_hash,
                  answers, submit_info=None, is_ora_empty_rubrics=False, is_block_view=False, possible_points=None,
-                 ora_block=False, is_new_attempt=False, block_seq=None, criterion_name=None,
+                 ora_block=False, ora_status=None, is_new_attempt=False, block_seq=None, criterion_name=None,
                  correctness=None, is_correct=False, term=None, answer_id=None,
                  prop_user_name=None, prop_user_email=None, ora_user_answer=None, graded=None):
         self.category = category
@@ -44,6 +44,7 @@ class EventData:
         self.is_block_view = is_block_view
         self.possible_points = possible_points
         self.ora_block = ora_block
+        self.ora_status = ora_status
         self.is_new_attempt = is_new_attempt
         self.block_seq = block_seq
         self.is_staff = False

@@ -68,8 +68,10 @@ class AbstractEventParser:
         is_ora_block = self.is_ora_block(event, *args, **kwargs)
         is_ora_empty_rubrics = self.is_ora_empty_rubrics(event, *args, **kwargs)
         ora_user_answer = self.get_ora_user_answer(event)
+        ora_status = None
 
         if is_ora_block and not is_ora_empty_rubrics:
+            ora_status = self.get_ora_status(event, *args, **kwargs)
             answer_id = answer_id + '-' + criterion_name
         answer_id = self._get_md5(answer_id)
 
@@ -100,6 +102,7 @@ class AbstractEventParser:
             is_block_view=self.is_block_view(event, *args, **kwargs),
             possible_points=self.get_possible_points(event, *args, **kwargs),
             ora_block=is_ora_block,
+            ora_status=ora_status,
             is_new_attempt=self.is_new_attempt(event, *args, **kwargs),
             criterion_name=criterion_name,
             correctness=correctness,
@@ -253,6 +256,9 @@ class AbstractEventParser:
         raise NotImplementedError()
 
     def is_ora_empty_rubrics(self, event, *args, **kwargs):
+        raise NotImplementedError()
+
+    def get_ora_status(self, event, *args, **kwargs):
         raise NotImplementedError()
 
     def get_possible_points(self, event, *args, **kwargs):

@@ -138,7 +138,7 @@ class Command(BaseCommand):
         tr_log.is_ora_block = e.ora_block
         tr_log.ora_criterion_name = e.criterion_name
         tr_log.is_ora_empty_rubrics = e.is_ora_empty_rubrics
-        tr_log.ora_status = None
+        tr_log.ora_status = e.ora_status
         tr_log.ora_answer = e.ora_user_answer
         tr_log.grade = e.grade
         tr_log.max_grade = e.max_grade
