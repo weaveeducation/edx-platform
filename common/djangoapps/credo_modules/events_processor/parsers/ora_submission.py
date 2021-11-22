@@ -53,9 +53,10 @@ class OraSubmissionParser(AbstractEventParser):
         return event.get('context').get('module', {}).get('usage_key')
 
     def get_correctness(self, event_data, *args, **kwargs):
-        if self.is_ora_empty_rubrics(event_data):
-            return CorrectData(True, 1, 1, 'correct')
-        return CorrectData(False, 0, 1, None)
+        criterion_name = kwargs.get('criterion_name')
+        if criterion_name:
+            return CorrectData(False, 0, 1, None)
+        return CorrectData(True, 1, 1, 'correct')
 
     def get_grade(self, correctness, *args, **kwargs):
         # correctness.earned_grade == 1 - in case of ORA without rubrics
