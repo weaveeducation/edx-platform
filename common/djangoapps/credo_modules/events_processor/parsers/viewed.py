@@ -57,7 +57,7 @@ class ViewedParser(AbstractEventParser):
     def get_correctness(self, event_data, *args, **kwargs):
         return CorrectData(False, 0, 1, None)
 
-    def get_grade(self, correctness, *args, **kwargs):
+    def get_grade(self, event_data, correctness, *args, **kwargs):
         return 0
 
     def get_answers(self, event, correctness, timestamp, *args, **kwargs):

@@ -40,7 +40,7 @@ class FreeTextResponseParser(AbstractEventParser):
     def get_question_name(self, event, *args, **kwargs):
         return self.get_display_name(event, *args, **kwargs)
 
-    def get_grade(self, correctness, *args, **kwargs):
+    def get_grade(self, event_data, correctness, *args, **kwargs):
         return correctness.max_grade
 
     def get_possible_points(self, event, *args, **kwargs):
