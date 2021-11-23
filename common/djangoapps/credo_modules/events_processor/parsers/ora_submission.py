@@ -55,7 +55,9 @@ class OraSubmissionParser(AbstractEventParser):
     def get_correctness(self, event_data, *args, **kwargs):
         criterion_name = kwargs.get('criterion_name')
         if criterion_name:
-            return CorrectData(False, 0, 1, None)
+            answer = kwargs['answer']
+            points_possible = int(answer.get('criterion', {}).get('points_possible', 0))
+            return CorrectData(False, 0, float(points_possible), None)
         return CorrectData(True, 1, 1, 'correct')
 
     def get_grade(self, correctness, *args, **kwargs):
