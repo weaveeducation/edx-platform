@@ -66,6 +66,7 @@ class Migration(migrations.Migration):
                 ('block_id', models.CharField(db_index=True, max_length=255)),
                 ('badge', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='badgr_integration.Badge')),
                 ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
             ],
         ),
     ]

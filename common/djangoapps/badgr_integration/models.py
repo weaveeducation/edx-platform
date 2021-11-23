@@ -112,3 +112,4 @@ class Assertion(models.Model):
     image_url = models.CharField(max_length=255, verbose_name='Image URL')
     course_id = models.CharField(max_length=255, null=False, db_index=True)
     block_id = models.CharField(max_length=255, null=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
