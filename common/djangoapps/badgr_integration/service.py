@@ -1,11 +1,12 @@
 from django.db import transaction
 from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
 from lms.djangoapps.courseware.completion_check import check_sequential_block_is_completed
-from common.djangoapps.badgr_integration.models import Assertion, Badge, Configuration, Issuer
-from common.djangoapps.badgr_integration.api_client import BadgrApi
 from openedx.core.djangoapps.content.block_structure.models import BlockCache
 from opaque_keys.edx.keys import UsageKey
 from xmodule.modulestore.django import modulestore
+from .models import Assertion, Badge, Configuration, Issuer
+from .api_client import BadgrApi
+from .utils import org_badgr_enabled
 
 
 def badges_sync():
@@ -116,6 +117,10 @@ def check_badge_is_ready_to_issue(user, course_key, block):
 
     num_attempt = 0
     max_attempts = 10
+
+    badgr_enabled = org_badgr_enabled(course_key.org)
+    if not badgr_enabled:
+        return BadgeCheckResult(error='Issuing badges is disabled for this org')
 
     config = Configuration.get_config()
     issuer_entity_id = config.get_issuer_entity_id()
