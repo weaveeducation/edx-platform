@@ -8,6 +8,12 @@ from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys import InvalidKeyError
 from django.http import Http404, JsonResponse
 from django.views.decorators.http import require_POST
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import permissions
+from edx_rest_framework_extensions.auth.jwt.authentication import JwtAuthentication
+from edx_rest_framework_extensions.auth.session.authentication import SessionAuthenticationAllowInactiveUser
+from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiveUser
 from xmodule.modulestore.django import modulestore
 
 
@@ -46,3 +52,59 @@ def open_badge(request, assertion_id):
         return redirect(badge_data['openBadgeId'])
     else:
         raise Http404
+
+
+class BadgesView(APIView):
+    authentication_classes = (
+        JwtAuthentication,
+        BearerAuthenticationAllowInactiveUser,
+        SessionAuthenticationAllowInactiveUser,
+    )
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request, course_id):
+        result = []
+
+        assertions = Assertion.objects.filter(
+            user=request.user, course_id=course_id).select_related('badge').order_by('-created_at')
+        for a in assertions:
+            result.append({
+                'assertion_external_id': a.external_id,
+                'assertion_image_url': a.image_url,
+                'assertion_url': a.url,
+                'badge_title': a.badge.title,
+                'badge_description': a.badge.description,
+                'badge_url': a.badge.url,
+                'created': str(a.created_at) if a.created_at else None
+            })
+
+        return Response(result)
+
+
+class CoursesView(APIView):
+    authentication_classes = (
+        JwtAuthentication,
+        BearerAuthenticationAllowInactiveUser,
+        SessionAuthenticationAllowInactiveUser,
+    )
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request):
+        org = request.GET.get('org')
+        courses = []
+        result = []
+
+        assertions = Assertion.objects.filter(user=request.user).order_by('-created_at')
+        if len(assertions) > 0:
+            for a in assertions:
+                if a.course_id not in courses:
+                    course_key = CourseKey.from_string(a.course_id)
+                    if not org or org == course_key.org:
+                        courses.append(a.course_id)
+                        result.append({
+                            'course_id': a.course_id,
+                            'org': course_key.org,
+                            'course': course_key.course,
+                            'run': course_key.run
+                        })
+        return Response(result)

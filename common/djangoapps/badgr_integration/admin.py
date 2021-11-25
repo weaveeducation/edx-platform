@@ -16,7 +16,7 @@ class ReadOnlyMixin:
 
 
 class AssertionForm(ReadOnlyMixin, admin.ModelAdmin):
-    list_display = ('id', 'external_id', 'user', 'badge')
+    list_display = ('id', 'external_id', 'user', 'badge', 'created_at')
 
 
 class BadgeForm(ReadOnlyMixin, admin.ModelAdmin):
