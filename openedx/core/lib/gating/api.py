@@ -463,7 +463,9 @@ def get_subsection_completion_percentage(subsection_usage_key, user):
         subsection_structure = get_course_blocks(user, subsection_usage_key)
         if any(subsection_structure):
             completable_blocks = []
+            all_blocks = []
             for block in subsection_structure:
+                all_blocks.append(block)
                 completion_mode = subsection_structure.get_xblock_field(
                     block, 'completion_mode'
                 )
@@ -475,6 +477,13 @@ def get_subsection_completion_percentage(subsection_usage_key, user):
                     completable_blocks.append(block)
 
             if not completable_blocks:
+                if all_blocks:
+                    cnt = BlockCompletion.objects.filter(
+                        context_key=subsection_usage_key.course_key, user=user,
+                        block_key__in=all_blocks,
+                        completion=1.0
+                    ).count()
+                    return 100 if cnt > 0 else 0
                 return 100
             subsection_completion_total = 0
             course_key = subsection_usage_key.course_key
