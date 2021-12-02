@@ -159,12 +159,15 @@ def get_prerequisites(course_key):
         milestones_by_block_id[block_id] = milestone
 
     result = []
-    for block in modulestore().get_items(course_key, qualifiers={'name': block_ids}):
-        milestone = milestones_by_block_id.get(block.location.block_id)
-        if milestone:
-            milestone['block_display_name'] = block.display_name
-            milestone['block_usage_key'] = str(block.location)
-            result.append(milestone)
+    with modulestore().bulk_operations(course_key):
+        course = modulestore().get_course(course_key)
+        for chapter in course.get_children():
+            for block in chapter.get_children():
+                milestone = milestones_by_block_id.get(block.location.block_id)
+                if milestone:
+                    milestone['block_display_name'] = block.display_name
+                    milestone['block_usage_key'] = str(block.location)
+                    result.append(milestone)
 
     return result
 
