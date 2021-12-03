@@ -3,7 +3,7 @@ This module is essentially a broker to xmodule/tabs.py -- it was originally intr
 perform some LMS-specific tab display gymnastics for the Entrance Exams feature
 """
 
-
+from functools import partial
 from django.conf import settings
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_noop
@@ -113,12 +113,17 @@ class ProgressTab(EnrolledTab):
     is_default = False
 
     def __init__(self, tab_dict):
-        def link_func(course, reverse_func):
+        def link_func(course, reverse_func, user=None):
             if course_home_mfe_progress_tab_is_active(course.id):
                 return get_learning_mfe_home_url(course_key=course.id, view_name=self.view_name)
             else:
+                student_id = None
+                if user:
+                    real_user = getattr(user, 'real_user', None)
+                    if real_user and user.id != real_user.id:
+                        student_id = user.id
                 progress_url = reverse_func(self.view_name, args=[str(course.id)])
-                return get_progress_page_url(course.id, default_progress_url=progress_url)
+                return get_progress_page_url(course.id, student_id=student_id, default_progress_url=progress_url)
 
         tab_dict['link_func'] = link_func
         super(ProgressTab, self).__init__(tab_dict)  # pylint: disable=super-with-arguments
@@ -378,6 +383,7 @@ def get_course_tab_list(user, course):
                 pass
             if enable_extended_progress_page:
                 tab.name = _("My Skills")
+                tab.tab_dict['link_func'] = partial(tab.tab_dict['link_func'], user=user)
         if must_complete_ee:
             # Hide all of the tabs except for 'Courseware'
             # Rename 'Courseware' tab to 'Entrance Exam'
