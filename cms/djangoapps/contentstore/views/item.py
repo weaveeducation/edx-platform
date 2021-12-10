@@ -85,7 +85,8 @@ from .helpers import (
 )
 from .preview import get_preview_fragment
 from .api_block_info import update_api_blocks_before_publish, update_sibling_block_after_publish,\
-    create_api_block_info, sync_api_blocks_before_remove, copy_api_block_info, update_api_block_info, SyncApiBlockInfo
+    sync_api_blocks_before_move, sync_api_blocks_before_remove, create_api_block_info, copy_api_block_info,\
+    update_api_block_info, SyncApiBlockInfo
 
 __all__ = [
     'orphan_handler', 'xblock_handler', 'xblock_view_handler', 'xblock_outline_handler', 'xblock_container_handler'
@@ -669,6 +670,7 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
                 old_parent_location = store.get_parent_location(new_child)
                 if old_parent_location:
                     old_parent = store.get_item(old_parent_location)
+                    sync_api_blocks_before_move(new_child, user)
                     old_parent.children.remove(new_child)
                     old_parent = _update_with_callback(old_parent, user)
                 else:
@@ -955,6 +957,8 @@ def _move_item(source_usage_key, target_parent_usage_key, user, target_index=Non
 
         # When target_index is provided, insert xblock at target_index position, otherwise insert at the end.
         insert_at = target_index if target_index is not None else len(target_parent.children)
+
+        sync_api_blocks_before_move(source_usage_key, user)
 
         store.update_item_parent(
             item_location=source_item.location,
