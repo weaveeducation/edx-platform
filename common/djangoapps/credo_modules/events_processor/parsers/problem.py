@@ -19,6 +19,9 @@ class ProblemParser(AbstractEventParser):
     def is_ora_empty_rubrics(self, event, *args, **kwargs):
         return False
 
+    def get_ora_status(self, event, *args, **kwargs):
+        return None
+
     def get_possible_points(self, event, *args, **kwargs):
         return None
 

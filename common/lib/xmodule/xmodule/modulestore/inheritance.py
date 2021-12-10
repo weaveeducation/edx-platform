@@ -358,6 +358,9 @@ class InheritingFieldData(KvsFieldData):
                 return super().default(block, name)
 
             while ancestor is not None:
+                if name == 'max_attempts' and ancestor.location.block_type != 'course':
+                    ancestor = ancestor.get_parent()
+                    continue
                 if field.is_set_on(ancestor):
                     return field.read_json(ancestor)
                 else:

@@ -2,7 +2,7 @@ from .abstract import AbstractEventParser
 from ..utils import EventCategory, CorrectData, ora_is_graded
 
 
-class OraParser(AbstractEventParser):
+class OraStaffAssessmentParser(AbstractEventParser):
 
     def parse(self, event_data):
         items = []
@@ -24,6 +24,9 @@ class OraParser(AbstractEventParser):
 
     def is_ora_empty_rubrics(self, event, *args, **kwargs):
         return False
+
+    def get_ora_status(self, event, *args, **kwargs):
+        return 'staff_graded'
 
     def get_possible_points(self, event, *args, **kwargs):
         answer = kwargs['answer']

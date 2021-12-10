@@ -17,6 +17,9 @@ class DndParser(AbstractEventParser):
     def is_ora_empty_rubrics(self, event, *args, **kwargs):
         return False
 
+    def get_ora_status(self, event, *args, **kwargs):
+        return None
+
     def custom_event_condition(self, event, *args, **kwargs):
         return True
 
