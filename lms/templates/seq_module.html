@@ -11,8 +11,10 @@
      data-course-id="${course_id}"
      data-lms-url-to-get-grades="${lms_url_to_get_grades}"
      data-lms-url-to-email-grades="${lms_url_to_email_grades}"
+     data-lms-url-to-issue-badge="${lms_url_to_issue_badge}"
      data-graded=${"1" if graded else "0"}
      data-show-summary-info-after-quiz=${"1" if show_summary_info_after_quiz else "0"}
+     data-badge-id=${"1" if badge_id else "0"}
      data-correct-icon="${summary_info_imgs['correct_icon']}"
      data-incorrect-icon="${summary_info_imgs['incorrect_icon']}"
      data-unanswered-icon="${summary_info_imgs['unanswered_icon']}"
@@ -80,6 +82,39 @@
     </div>
   </div>
   % endif
+
+  % if badge_id:
+  <div id="get-badge-modal" class="modal badge-modal" tabindex="-1" role="dialog">
+    <div class="inner-wrapper">
+        <button class="close-modal">
+        <span class="icon fa fa-remove" aria-hidden="true"></span>
+        <span class="sr">${_("Close")}</span>
+        </button>
+        <div class="badge-block" id="badge-block">
+            <div class="badge-main-block">
+              <div class="badge-loading">Please wait while we grab your badge!</div>
+              <div class="badge-info-block" style="display: none;">
+                  <div class="badge-issuer-logo"><img src="${logo_url}" style="height: 40px;" /></div>
+                  <div class="badge-congrat">Congratulations, you earned a badge!</div>
+                  <div class="badge-img"></div>
+                  <div class="badge-title"></div>
+                  <div class="badge-description"></div>
+                  <hr />
+                  <div class="badge-issuer-info">
+                      <div class="badge-issued-by-txt">Issued by:</div>
+                      <div class="badge-issued-by-logo"><a href="#" target="_blank" class="badge-issued-by-link"></a></div>
+                  </div>
+                  <div class="badge-buttons">
+                      <a class="btn btn-primary badge-go-to-badgr" href="#" target="_blank">Go To Badgr Account</a>
+                  </div>
+                  <div class="badge-notification"><a href="#" class="badge-notification-link" target="_blank">View your badge on Badgr for sharing options.</a></div>
+              </div>
+            </div>
+        </div>
+    </div>
+  </div>
+  % endif
+
 
   % if not exclude_units:
 

@@ -211,6 +211,64 @@
       }
     }
 
+    /* badges block */
+    .badge-block {
+      padding: 25px 15px 25px 15px;
+
+      .badge-main-block {
+        width: 100%;
+      }
+
+      .badge-issuer-logo {
+        text-align: center;
+        height: 40px;
+      }
+
+      .badge-congrat {
+        text-align: center;
+        font-size: 36px;
+      }
+
+      .badge-title {
+        font-weight: 600;
+        font-size: 18px;
+      }
+
+      .badge-title,
+      .badge-img {
+        text-align: center;
+      }
+
+      .badge-issued-by-txt {
+        font-weight: 600;
+        padding-bottom: 15px;
+      }
+
+      .badge-issuer-logo,
+      .badge-congrat,
+      .badge-img,
+      .badge-title,
+      .badge-description,
+      .badge-issuer-info,
+      .badge-buttons,
+      .badge-notification {
+        padding-top: 15px;
+        padding-bottom: 15px;
+      }
+
+      .badge-loading {
+        display: none;
+        font-size: 18px;
+        height: 400px;
+      }
+
+      .badge-btn-go-to-account:hover {
+        background-color: #065683;
+        background-image: none;
+        box-shadow: none;
+      }
+    }
+
     /* block with grades (after assessment was completed) */
 
     .seq-grade-block {
@@ -219,7 +277,7 @@
       .seq-main-block {
         width: 100%;
 
-        .seq-left-panel, .seq-right-panel  {
+        .seq-left-panel, .seq-right-panel {
           display: inline-block;
           vertical-align: top;
         }

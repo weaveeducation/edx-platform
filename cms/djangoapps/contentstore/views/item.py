@@ -40,8 +40,10 @@ from common.djangoapps.student.auth import has_studio_read_access, has_studio_wr
 from common.djangoapps.util.date_utils import get_default_time_display
 from common.djangoapps.util.json_request import JsonResponse, expect_json
 from common.djangoapps.xblock_django.user_service import DjangoXBlockUserService
-from common.djangoapps.credo_modules.models import CopyBlockTask
-from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo
+from common.djangoapps.badgr_integration.models import Badge, Configuration
+from common.djangoapps.badgr_integration.utils import org_badgr_enabled
+from common.djangoapps.credo_modules.models import CopyBlockTask, Organization
+from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo, BlockCache
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.bookmarks import api as bookmarks_api
 from openedx.core.lib.gating import api as gating_api
@@ -639,6 +641,8 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
 
         if xblock.location.block_type == 'sequential' and metadata:
             metadata['supervisor_evaluation_hash'] = old_metadata.get('supervisor_evaluation_hash', str(uuid4()))
+            badge_id = metadata.get('badge_id', None)
+            BlockCache.update_cache(str(xblock.location.course_key), str(xblock.location), 'badge_id', badge_id)
 
         old_content = xblock.get_explicitly_set_fields_by_scope(Scope.content)
 
@@ -1294,9 +1298,20 @@ def _get_gating_info(course, xblock):
     return info
 
 
+def get_badges_info(course):
+    badgr_enabled = org_badgr_enabled(course.org)
+    badges = []
+    if badgr_enabled:
+        config = Configuration.get_config()
+        issuer_entity_id = config.get_issuer_entity_id()
+        badges = Badge.get_all(issuer_entity_id)
+
+    return course.org, badgr_enabled, badges
+
+
 def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=False, include_child_info=False,  # lint-amnesty, pylint: disable=too-many-statements
                        course_outline=False, include_children_predicate=NEVER, parent_xblock=None, graders=None,
-                       user=None, course=None, is_concise=False):
+                       user=None, course=None, is_concise=False, org=None, badges=None):
     """
     Creates the information needed for client-side XBlockInfo.
 
@@ -1334,6 +1349,10 @@ def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=F
     if course is None:
         course = modulestore().get_course(xblock.location.course_key)
 
+    org, badgr_enabled, badges = None, None, None
+    if xblock.category in ('course', 'sequential'):
+        org, badgr_enabled, badges = get_badges_info(course)
+
     # Compute the child info first so it can be included in aggregate information for the parent
     should_visit_children = include_child_info and (course_outline and not is_xblock_unit or not course_outline)
     if should_visit_children and xblock.has_children:
@@ -1344,7 +1363,9 @@ def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=F
             include_children_predicate=include_children_predicate,
             user=user,
             course=course,
-            is_concise=is_concise
+            is_concise=is_concise,
+            org=org,
+            badges=badges
         )
     else:
         child_info = None
@@ -1423,6 +1444,9 @@ def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=F
                 'hide_after_due': xblock.hide_after_due,
                 'after_finish_return_to_course_outline': xblock.after_finish_return_to_course_outline,
                 'use_as_survey_for_supervisor': xblock.use_as_survey_for_supervisor,
+                'badgr_enabled': badgr_enabled,
+                'badges': badges,
+                'badge_id': xblock.badge_id,
                 'supervisor_evaluation_hash': xblock.supervisor_evaluation_hash,
                 'top_of_course_outline': xblock.top_of_course_outline,
                 'course_outline_description': xblock.course_outline_description,
@@ -1683,7 +1707,7 @@ def _create_xblock_ancestor_info(xblock, course_outline=False, include_child_inf
 
 
 def _create_xblock_child_info(xblock, course_outline, graders, include_children_predicate=NEVER, user=None,
-                              course=None, is_concise=False):
+                              course=None, is_concise=False, org=None, badges=None):
     """
     Returns information about the children of an xblock, as well as about the primary category
     of xblock expected as children.
@@ -1704,7 +1728,9 @@ def _create_xblock_child_info(xblock, course_outline, graders, include_children_
                 graders=graders,
                 user=user,
                 course=course,
-                is_concise=is_concise
+                is_concise=is_concise,
+                org=org,
+                badges=badges
             ) for child in xblock.get_children()
         ]
     return child_info

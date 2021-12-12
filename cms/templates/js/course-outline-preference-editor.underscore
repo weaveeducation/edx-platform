@@ -44,6 +44,21 @@
             </div>
         </div>
     </div>
+
+    <% if (isBadgrEnabled) { %>
+    <br />
+    <h3 class="modal-section-title"><%- gettext('Issue a Badge') %></h3>
+    <div class="modal-section-content has-actions">
+        <p>Select the badge learners can earn upon reaching the minimum grade requirement for the graded assessments in this subsection</p>
+        <select name="badge_id">
+        <option value="" <% if (badgeId == '') { %>selected<% } %>>No Badge</option>
+        <% _.each(badges, function(badge) { %>
+        <option value="<%- badge.id %>" <% if (badgeId == badge.id) { %>selected<% } %>><%- badge.title %></option>
+        <% }) %>
+        </select>
+    </div>
+    <% } %>
+
     <br />
     <h3 class="modal-section-title"><%- gettext('Course Outline settings') %></h3>
     <div class="modal-section-content has-actions">
