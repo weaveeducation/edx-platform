@@ -32,8 +32,20 @@ class BadgrApi:
         }, headers=headers)
 
         if not r.ok:
-            msg = 'HTTP response [%s]: %s - %s' % (r.url, str(r.status_code), r.text)
-            raise Exception("Can't refresh Badgr API token. %s" % msg)
+            username = self._config.get_account_login()
+            password = self._config.get_account_password()
+
+            if username and password:
+                r = requests.post(url, data={
+                    'username': username,
+                    'password': password
+                })
+                if not r.ok:
+                    msg = 'HTTP response [%s]: %s - %s' % (r.url, str(r.status_code), r.text)
+                    raise Exception("Can't create new Badgr API token. %s" % msg)
+            else:
+                msg = 'HTTP response [%s]: %s - %s' % (r.url, str(r.status_code), r.text)
+                raise Exception("Can't refresh Badgr API token. %s" % msg)
 
         resp_data = r.json()
         self._config.data['access_token'] = resp_data['access_token']
