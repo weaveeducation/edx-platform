@@ -1,4 +1,5 @@
 import logging
+import time
 from uuid import uuid4
 from collections import OrderedDict
 
@@ -352,9 +353,11 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
                     block_id=str(module.location), course_id=course_id, deleted=False).first()
                 if src_block_info:
                     dst_block_info_data = ApiBlockInfo.objects.filter(
-                        hash_id=src_block_info.hash_id, course_id=dst_course_id, deleted=False)
+                        hash_id=src_block_info.hash_id, course_id=dst_course_id)
                     if len(dst_block_info_data):
                         for dst_block_info in dst_block_info_data:
+                            if dst_block_info.deleted:
+                                continue
                             if dst_block_info.reverted_to_previous_version:
                                 dst_block_info.reverted_to_previous_version = False
                                 dst_block_info.save(update_fields=['reverted_to_previous_version'])
@@ -526,17 +529,43 @@ def get_courses_with_duplicates(usage_key_string, user):
     return result
 
 
-def sync_api_blocks_before_remove(usage_key, user):
+def _sync_api_blocks_remove(xblock, user):
     block_info_update_lst = []
-    deleted_module = modulestore().get_item(usage_key)
-    if deleted_module.has_children:
-        for module in yield_dynamic_descriptor_descendants(deleted_module, user.id):
+    usage_id = str(xblock.location)
+    if xblock.has_children:
+        for module in yield_dynamic_descriptor_descendants(xblock, user.id):
             block_info_update_lst.append(str(module.location))
     else:
-        block_info_update_lst.append(str(usage_key))
+        block_info_update_lst.append(usage_id)
     if block_info_update_lst:
         ApiBlockInfo.objects.filter(block_id__in=block_info_update_lst).update(
             deleted=True, updated_time=timezone.now(), updated_by=user.id)
+
+
+def sync_api_blocks_before_remove(usage_key, user):
+    deleted_module = modulestore().get_item(usage_key)
+    _sync_api_blocks_remove(deleted_module, user)
+
+
+def sync_api_blocks_before_move(usage_key, user):
+    api_blocks_to_insert = []
+    course_key = usage_key.course_key
+    xblock = modulestore().get_item(usage_key)
+    if xblock.has_children:
+        for module in yield_dynamic_descriptor_descendants(xblock, user.id):
+            api_block = ApiBlockInfo.objects.filter(
+                course_id=str(course_key), block_id=str(module.location), deleted=False).first()
+            if api_block:
+                api_block.block_id = api_block.block_id + '-del-' + str(int(time.time()))
+                api_block.updated_time = timezone.now()
+                api_block.updated_by = user.id
+                api_block.deleted = True
+                api_block.save()
+                api_blocks_to_insert.append(
+                    create_api_block_info(module.location, user, auto_save=False)
+                )
+    if api_blocks_to_insert:
+        ApiBlockInfo.objects.bulk_create(api_blocks_to_insert, 1000)
 
 
 def update_api_block_info(usage_id, reverted_to_previous_version=False):
