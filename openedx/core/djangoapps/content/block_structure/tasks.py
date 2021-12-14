@@ -105,8 +105,8 @@ def update_course_structure(self, **kwargs):
     course_id = kwargs.get('course_id')
     published_on = kwargs.get('published_on')
     if course_id and course_id.startswith('course-v1'):
-        lock = ApiCourseStructureLock.create(course_id)
-        if not lock:
+        lock_result = ApiCourseStructureLock.create(course_id, published_on=published_on, task_id=self.request.id)
+        if not lock_result.is_locked:
             if self.request.retries < settings.BLOCK_STRUCTURES_SETTINGS['TASK_MAX_RETRIES']:
                 raise self.retry(kwargs=kwargs, countdown=120)  # retry in 2 minutes
             return

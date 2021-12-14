@@ -368,30 +368,42 @@ class ApiCourseStructureUpdateTime(models.Model):
         db_table = 'api_course_structure_update_time'
 
 
+class ApiCourseStructureLockResult:
+
+    def __init__(self, is_locked=False, is_new=False, lock=None):
+        self.is_locked = is_locked
+        self.is_new = is_new
+        self.lock = lock
+
+
 class ApiCourseStructureLock(models.Model):
     course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False, unique=True)
     created = models.DateTimeField()
+    task_id = models.CharField(max_length=255, null=True)
+    published_on = models.CharField(max_length=255, null=True)
 
     class Meta:
         db_table = 'api_course_structure_lock'
 
     @classmethod
-    def create(cls, course_id):
+    def create(cls, course_id, published_on=None, task_id=None):
+        lock = None
         try:
             with transaction.atomic():
-                lock = ApiCourseStructureLock(course_id=course_id, created=timezone.now())
+                lock = ApiCourseStructureLock(course_id=course_id, task_id=task_id,
+                                              published_on=published_on, created=timezone.now())
                 lock.save()
-                return lock
+                return ApiCourseStructureLockResult(is_locked=False, is_new=True, lock=lock)
         except IntegrityError:
             try:
                 lock = ApiCourseStructureLock.objects.get(course_id=course_id)
                 if lock:
                     time_diff = timezone.now() - lock.created
-                    if time_diff.total_seconds() > 600:  # 10 min
-                        return lock
+                    if time_diff.total_seconds() > 120:  # 2 min
+                        return ApiCourseStructureLockResult(is_locked=False, is_new=False, lock=lock)
             except ApiCourseStructureLock.DoesNotExist:
                 pass
-            return False
+            return ApiCourseStructureLockResult(is_locked=True, is_new=False, lock=lock)
 
     @classmethod
     def remove(cls, course_id):
