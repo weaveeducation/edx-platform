@@ -215,7 +215,7 @@ def update_structure_of_all_courses(self):
             locks_info[lock.course_id]['created'] = lock.created
             locks_info[lock.course_id]['published_on'] = lock.published_on
 
-    for course_id, lock_data in locks_info:
+    for course_id, lock_data in locks_info.items():
         update_course_structure(course_id, lock_data['published_on'])
     ApiCourseStructureLock.objects.filter(id__in=lock_ids).delete()
 
