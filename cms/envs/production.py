@@ -642,8 +642,6 @@ EXPLICIT_QUEUES = {
         'queue': POLICY_CHANGE_GRADES_ROUTING_KEY},
     'cms.djangoapps.contentstore.tasks.update_search_index': {
         'queue': UPDATE_SEARCH_INDEX_JOB_QUEUE},
-    'openedx.core.djangoapps.content.block_structure.tasks.update_structure_of_all_courses': {
-        'queue': DEFAULT_PRIORITY_QUEUE},
 }
 
 LOGO_IMAGE_EXTRA_TEXT = ENV_TOKENS.get('LOGO_IMAGE_EXTRA_TEXT', '')

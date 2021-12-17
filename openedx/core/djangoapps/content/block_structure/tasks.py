@@ -201,8 +201,10 @@ def _call_and_retry_if_needed(self, api_method, **kwargs):
 
 @block_structure_task()
 def update_structure_of_all_courses(self):
+    logs_data = []
     lock_ids = []
     locks_info = OrderedDict()
+
     locks = ApiCourseStructureLock.objects.all().order_by('created')
     for lock in locks:
         lock_ids.append(lock.id)
@@ -216,16 +218,20 @@ def update_structure_of_all_courses(self):
             locks_info[lock.course_id]['published_on'] = lock.published_on
 
     for course_id, lock_data in locks_info.items():
-        update_course_structure(course_id, lock_data['published_on'])
+        update_course_structure(course_id, lock_data['published_on'], logs_data=logs_data)
+
     ApiCourseStructureLock.objects.filter(id__in=lock_ids).delete()
+    return "\n".join(logs_data) if logs_data else None
 
 
-def update_course_structure(course_id, published_on):
+def update_course_structure(course_id, published_on, logs_data=None):
     allowed_categories = ['chapter', 'sequential', 'vertical', 'library_content', 'problem',
                           'openassessment', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse',
                           'html', 'video', 'survey']
     course_key = CourseKey.from_string(course_id)
     t1 = time.time()
+    if logs_data is None:
+        logs_data = []
 
     auto_update_seq_block_in_vertica = int(TrackingLogConfig.get_setting('auto_update_sequential_block_in_vertica', 0))
 
@@ -239,8 +245,10 @@ def update_course_structure(course_id, published_on):
                     published_on = published_on.split('.')[0]
                 current_published_on = str(course.published_on).split('.')[0]
                 if published_on is not None and current_published_on != published_on:
-                    log.info("Skip outdated task for course %s. Course.published_on %s != passed published_on %s"
-                             % (str(course_id), current_published_on, published_on))
+                    log_entry = "Skip outdated task for course %s. Course.published_on %s != passed published_on %s"\
+                                % (str(course_id), current_published_on, published_on)
+                    logs_data.append(log_entry)
+                    log.info(log_entry)
                     return
                 CourseFieldsCache.refresh_cache(course_id, course=course)
                 data = modulestore().get_items(course_key)
@@ -550,14 +558,17 @@ def update_course_structure(course_id, published_on):
         time_to_get_mysql_structure = t3 - t2
         time_to_update_data_in_mysql = t4 - t3
 
-        log.info("Update %s structure results: added %s items, updated %s items, removed %s items, "
-                 "added %s tags, removed %s tags, added %s b2s, updated %s b2s, removed %s b2s. "
-                 "Time to get data from mongo: %s. Time to get data from Mysql: %s. Time to update data in Mysql: %s. "
-                 "Total time: %s"
-                 % (str(course_id), str(len(items_to_insert)), str(items_updated), str(len(items_to_remove)),
-                    str(len(tags_to_insert)), str(len(tags_to_remove)), str(len(b2s_to_insert)),
-                    str(b2s_updated), str(len(b2s_to_remove)), str(time_to_get_structure_from_mongo),
-                    str(time_to_get_mysql_structure), str(time_to_update_data_in_mysql), str(time_total)))
+        log_entry = "Update %s structure results: added %s items, updated %s items, removed %s items, "\
+                    "added %s tags, removed %s tags, added %s b2s, updated %s b2s, removed %s b2s. "\
+                    "Time to get data from mongo: %s. Time to get data from Mysql: %s. Time to update data in Mysql: %s. "\
+                    "Total time: %s"\
+                    % (str(course_id), str(len(items_to_insert)), str(items_updated), str(len(items_to_remove)),
+                       str(len(tags_to_insert)), str(len(tags_to_remove)), str(len(b2s_to_insert)),
+                       str(b2s_updated), str(len(b2s_to_remove)), str(time_to_get_structure_from_mongo),
+                       str(time_to_get_mysql_structure), str(time_to_update_data_in_mysql), str(time_total))
+        logs_data.append(log_entry)
+        log.info(log_entry)
+        return logs_data
 
 
 def _get_section_path(block, structure_dict):
