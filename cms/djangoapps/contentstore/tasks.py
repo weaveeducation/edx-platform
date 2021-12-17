@@ -109,6 +109,7 @@ def copy_api_block_info_after_course_copy(store, source_course_key, destination_
     ApiBlockInfo.objects.filter(course_id=destination_course_id).delete()
 
     api_blocks_to_insert = []
+    api_block_keys = []
     with store.bulk_operations(source_course_key):
         course_src = store.get_course(source_course_key)
         chapters = course_src.get_children()
@@ -124,13 +125,20 @@ def copy_api_block_info_after_course_copy(store, source_course_key, destination_
                 else:
                     source_block_info = create_api_block_info(module.location, user, auto_save=False)
                     source_block_hash = source_block_info.hash_id
-                    api_blocks_to_insert.append(source_block_info)
+                    source_block_key = source_block_info.course_id + '|' + source_block_info.block_id
+                    if source_block_key not in api_block_keys:
+                        api_blocks_to_insert.append(source_block_info)
+                        api_block_keys.append(source_block_key)
 
                 dst_location = module.location.map_into_course(destination_course_key)
                 dst_block_info = create_api_block_info(
                     dst_location, user, block_hash_id=source_block_hash, created_as_copy=True,
                     published_after_copy=published_after_copy, auto_save=False)
-                api_blocks_to_insert.append(dst_block_info)
+                dst_block_key = dst_block_info.course_id + '|' + dst_block_info.block_id
+                if dst_block_key not in api_block_keys:
+                    api_blocks_to_insert.append(dst_block_info)
+                    api_block_keys.append(dst_block_key)
+
     ApiBlockInfo.objects.bulk_create(api_blocks_to_insert, 1000)
 
 

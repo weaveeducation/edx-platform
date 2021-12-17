@@ -6,6 +6,7 @@ import logging
 import time
 import json
 import vertica_python
+from collections import OrderedDict
 
 from celery import shared_task
 from django.conf import settings
@@ -22,8 +23,8 @@ from openedx.core.djangoapps.content.block_structure.config import enable_storag
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore import ModuleStoreEnum
-from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure, ApiCourseStructureTags,\
-    ApiCourseStructureLock, BlockToSequential, CourseFieldsCache, OraBlockStructure
+from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure, ApiCourseStructureLock,\
+    ApiCourseStructureTags, BlockToSequential, CourseFieldsCache, OraBlockStructure
 from common.djangoapps.credo_modules.events_processor.utils import prepare_text_for_column_db
 from common.djangoapps.credo_modules.models import TrackingLogConfig
 from common.djangoapps.credo_modules.vertica import update_data_in_vertica, get_vertica_dsn
@@ -98,26 +99,6 @@ def get_course_in_cache(self, course_id):
     Gets the course blocks for the specified course, updating the cache if needed.
     """
     _get_course_in_cache(self, course_id=course_id)
-
-
-@block_structure_task()
-def update_course_structure(self, **kwargs):
-    course_id = kwargs.get('course_id')
-    published_on = kwargs.get('published_on')
-    if course_id and course_id.startswith('course-v1'):
-        lock_result = ApiCourseStructureLock.create(course_id, published_on=published_on, task_id=self.request.id)
-        if not lock_result.is_locked:
-            if self.request.retries < settings.BLOCK_STRUCTURES_SETTINGS['TASK_MAX_RETRIES']:
-                raise self.retry(kwargs=kwargs, countdown=120)  # retry in 2 minutes
-            return
-
-        try:
-            _update_course_structure(course_id, published_on)
-        except Exception as exc:
-            log.exception('Error during update course %s structure: %s' % (str(course_id), str(exc)))
-            raise self.retry(kwargs=kwargs, exc=exc)
-        finally:
-            ApiCourseStructureLock.remove(course_id)
 
 
 @block_structure_task()
@@ -218,9 +199,31 @@ def _call_and_retry_if_needed(self, api_method, **kwargs):
         raise self.retry(kwargs=kwargs, exc=exc)
 
 
-def _update_course_structure(course_id, published_on):
+@block_structure_task()
+def update_structure_of_all_courses(self):
+    lock_ids = []
+    locks_info = OrderedDict()
+    locks = ApiCourseStructureLock.objects.all().order_by('created')
+    for lock in locks:
+        lock_ids.append(lock.id)
+        if lock.course_id not in locks_info:
+            locks_info[lock.course_id] = {
+                'created': lock.created,
+                'published_on': lock.published_on
+            }
+        elif locks_info[lock.course_id]['created'] < lock.created:
+            locks_info[lock.course_id]['created'] = lock.created
+            locks_info[lock.course_id]['published_on'] = lock.published_on
+
+    for course_id, lock_data in locks_info:
+        update_course_structure(course_id, lock_data['published_on'])
+    ApiCourseStructureLock.objects.filter(id__in=lock_ids).delete()
+
+
+def update_course_structure(course_id, published_on):
     allowed_categories = ['chapter', 'sequential', 'vertical', 'library_content', 'problem',
-                          'openassessment', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse', 'html', 'video', 'survey']
+                          'openassessment', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse',
+                          'html', 'video', 'survey']
     course_key = CourseKey.from_string(course_id)
     t1 = time.time()
 

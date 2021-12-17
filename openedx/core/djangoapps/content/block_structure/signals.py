@@ -6,6 +6,7 @@ import logging
 
 from django.conf import settings
 from django.dispatch.dispatcher import receiver
+from django.utils import timezone
 from opaque_keys.edx.locator import LibraryLocator
 
 from xmodule.modulestore.django import SignalHandler, modulestore
@@ -14,7 +15,7 @@ from xmodule.modulestore.exceptions import ItemNotFoundError
 
 from . import config
 from .api import clear_course_from_cache
-from .models import BlockStructureNotFound
+from .models import ApiCourseStructureLock, BlockStructureNotFound
 from .tasks import update_course_in_cache_v2, update_course_structure
 
 log = logging.getLogger(__name__)
@@ -47,10 +48,18 @@ def update_block_structure_on_course_publish(sender, course_key, **kwargs):  # p
     with modulestore().branch_setting(ModuleStoreEnum.Branch.published_only):
         try:
             course = modulestore().get_course(course_key)
-            update_course_structure.apply_async(
-                kwargs=dict(course_id=str(course_key), published_on=str(course.published_on)),
-                countdown=settings.BLOCK_STRUCTURES_SETTINGS['COURSE_PUBLISH_TASK_DELAY'],
-            )
+            course_id = str(course_key)
+            if course_id and course_id.startswith('course-v1'):
+                if settings.DEBUG:
+                    update_course_structure(course_id, str(course.published_on))
+                else:
+                    lock_result = ApiCourseStructureLock(
+                        course_id=course_id,
+                        created=timezone.now(),
+                        task_id=None,
+                        published_on=str(course.published_on)
+                    )
+                    lock_result.save()
         except ItemNotFoundError:
             pass
 

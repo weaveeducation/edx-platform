@@ -136,7 +136,4 @@ class Command(BaseCommand):
                 if cached_version:
                     print('remove cache for: ', str(version_obj['_id']))
                     cache.delete(str(version_obj['_id']))
-                update_course_structure.apply_async(
-                    kwargs=dict(course_id=str(course_key), published_on=None),
-                    countdown=10,
-                )
+                update_course_structure(str(course_key), None)
