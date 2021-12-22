@@ -1887,11 +1887,19 @@ def get_versions_list(request, usage_key_string):
 @require_http_methods(["POST"])
 def restore_block_version(request, usage_key_string):
     version_guid = request.POST.get('versionId')
+    current_version_guid = request.POST.get('currentVersionId')
+    if version_guid == current_version_guid:
+        return JsonResponse({"error": 'Invalid version'}, status=400)
     usage_key = UsageKey.from_string(usage_key_string)
     item = modulestore().get_item(usage_key)
     with SyncApiBlockInfo(item, request.user):
         modulestore().revert_to_published(usage_key, request.user.id, version_guid)
-        update_api_block_info(usage_key_string, reverted_to_previous_version=True)
+        update_api_block_info(
+            item,
+            request.user,
+            reverted_to_previous_version=True,
+            current_version=current_version_guid,
+            previous_version=version_guid)
     return JsonResponse({'success': True})
 
 
