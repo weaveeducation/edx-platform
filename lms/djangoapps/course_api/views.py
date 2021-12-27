@@ -15,7 +15,7 @@ from common.djangoapps.credo_modules.models import Organization, OrganizationTyp
 from common.djangoapps.credo_modules.course_access_handler import CourseAccessHandler
 
 from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin, view_auth_classes
-from openedx.core.djangoapps.content.block_structure.tasks import _update_course_structure,\
+from openedx.core.djangoapps.content.block_structure.tasks import update_course_structure,\
     _update_sequential_block_in_vertica
 from opaque_keys.edx.keys import CourseKey
 from common.djangoapps.util.disable_rate_limit import can_disable_rate_limit
@@ -633,7 +633,7 @@ class UpdateCourseStructureView(APIView):
         if not course_id:
             return Response({'success': False, 'error': "course_id is not set"})
 
-        _update_course_structure(course_id, None)
+        update_course_structure(course_id, None)
         return Response({'success': True})
 
 

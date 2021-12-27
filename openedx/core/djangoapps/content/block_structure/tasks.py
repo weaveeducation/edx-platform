@@ -6,6 +6,7 @@ import logging
 import time
 import json
 import vertica_python
+from collections import OrderedDict
 
 from celery import shared_task
 from django.conf import settings
@@ -22,8 +23,8 @@ from openedx.core.djangoapps.content.block_structure.config import enable_storag
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore import ModuleStoreEnum
-from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure, ApiCourseStructureTags,\
-    ApiCourseStructureLock, BlockToSequential, CourseFieldsCache, OraBlockStructure
+from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure, ApiCourseStructureLock,\
+    ApiCourseStructureTags, BlockToSequential, CourseFieldsCache, OraBlockStructure
 from common.djangoapps.credo_modules.events_processor.utils import prepare_text_for_column_db
 from common.djangoapps.credo_modules.models import TrackingLogConfig
 from common.djangoapps.credo_modules.vertica import update_data_in_vertica, get_vertica_dsn
@@ -98,26 +99,6 @@ def get_course_in_cache(self, course_id):
     Gets the course blocks for the specified course, updating the cache if needed.
     """
     _get_course_in_cache(self, course_id=course_id)
-
-
-@block_structure_task()
-def update_course_structure(self, **kwargs):
-    course_id = kwargs.get('course_id')
-    published_on = kwargs.get('published_on')
-    if course_id and course_id.startswith('course-v1'):
-        lock = ApiCourseStructureLock.create(course_id)
-        if not lock:
-            if self.request.retries < settings.BLOCK_STRUCTURES_SETTINGS['TASK_MAX_RETRIES']:
-                raise self.retry(kwargs=kwargs, countdown=120)  # retry in 2 minutes
-            return
-
-        try:
-            _update_course_structure(course_id, published_on)
-        except Exception as exc:
-            log.exception('Error during update course %s structure: %s' % (str(course_id), str(exc)))
-            raise self.retry(kwargs=kwargs, exc=exc)
-        finally:
-            ApiCourseStructureLock.remove(course_id)
 
 
 @block_structure_task()
@@ -218,11 +199,39 @@ def _call_and_retry_if_needed(self, api_method, **kwargs):
         raise self.retry(kwargs=kwargs, exc=exc)
 
 
-def _update_course_structure(course_id, published_on):
+@block_structure_task()
+def update_structure_of_all_courses(self):
+    logs_data = []
+    lock_ids = []
+    locks_info = OrderedDict()
+
+    locks = ApiCourseStructureLock.objects.all().order_by('created')
+    for lock in locks:
+        lock_ids.append(lock.id)
+        if lock.course_id not in locks_info:
+            locks_info[lock.course_id] = {
+                'created': lock.created,
+                'published_on': lock.published_on
+            }
+        elif locks_info[lock.course_id]['created'] < lock.created:
+            locks_info[lock.course_id]['created'] = lock.created
+            locks_info[lock.course_id]['published_on'] = lock.published_on
+
+    for course_id, lock_data in locks_info.items():
+        update_course_structure(course_id, lock_data['published_on'], logs_data=logs_data)
+
+    ApiCourseStructureLock.objects.filter(id__in=lock_ids).delete()
+    return "\n".join(logs_data) if logs_data else None
+
+
+def update_course_structure(course_id, published_on, logs_data=None):
     allowed_categories = ['chapter', 'sequential', 'vertical', 'library_content', 'problem',
-                          'openassessment', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse', 'html', 'video', 'survey']
+                          'openassessment', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse',
+                          'html', 'video', 'survey']
     course_key = CourseKey.from_string(course_id)
     t1 = time.time()
+    if logs_data is None:
+        logs_data = []
 
     auto_update_seq_block_in_vertica = int(TrackingLogConfig.get_setting('auto_update_sequential_block_in_vertica', 0))
 
@@ -236,8 +245,10 @@ def _update_course_structure(course_id, published_on):
                     published_on = published_on.split('.')[0]
                 current_published_on = str(course.published_on).split('.')[0]
                 if published_on is not None and current_published_on != published_on:
-                    log.info("Skip outdated task for course %s. Course.published_on %s != passed published_on %s"
-                             % (str(course_id), current_published_on, published_on))
+                    log_entry = "Skip outdated task for course %s. Course.published_on %s != passed published_on %s"\
+                                % (str(course_id), current_published_on, published_on)
+                    logs_data.append(log_entry)
+                    log.info(log_entry)
                     return
                 CourseFieldsCache.refresh_cache(course_id, course=course)
                 data = modulestore().get_items(course_key)
@@ -547,14 +558,17 @@ def _update_course_structure(course_id, published_on):
         time_to_get_mysql_structure = t3 - t2
         time_to_update_data_in_mysql = t4 - t3
 
-        log.info("Update %s structure results: added %s items, updated %s items, removed %s items, "
-                 "added %s tags, removed %s tags, added %s b2s, updated %s b2s, removed %s b2s. "
-                 "Time to get data from mongo: %s. Time to get data from Mysql: %s. Time to update data in Mysql: %s. "
-                 "Total time: %s"
-                 % (str(course_id), str(len(items_to_insert)), str(items_updated), str(len(items_to_remove)),
-                    str(len(tags_to_insert)), str(len(tags_to_remove)), str(len(b2s_to_insert)),
-                    str(b2s_updated), str(len(b2s_to_remove)), str(time_to_get_structure_from_mongo),
-                    str(time_to_get_mysql_structure), str(time_to_update_data_in_mysql), str(time_total)))
+        log_entry = "Update %s structure results: added %s items, updated %s items, removed %s items, "\
+                    "added %s tags, removed %s tags, added %s b2s, updated %s b2s, removed %s b2s. "\
+                    "Time to get data from mongo: %s. Time to get data from Mysql: %s. Time to update data in Mysql: %s. "\
+                    "Total time: %s"\
+                    % (str(course_id), str(len(items_to_insert)), str(items_updated), str(len(items_to_remove)),
+                       str(len(tags_to_insert)), str(len(tags_to_remove)), str(len(b2s_to_insert)),
+                       str(b2s_updated), str(len(b2s_to_remove)), str(time_to_get_structure_from_mongo),
+                       str(time_to_get_mysql_structure), str(time_to_update_data_in_mysql), str(time_total))
+        logs_data.append(log_entry)
+        log.info(log_entry)
+        return logs_data
 
 
 def _get_section_path(block, structure_dict):

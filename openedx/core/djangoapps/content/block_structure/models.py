@@ -368,34 +368,22 @@ class ApiCourseStructureUpdateTime(models.Model):
         db_table = 'api_course_structure_update_time'
 
 
+class ApiCourseStructureLockResult:
+
+    def __init__(self, is_locked=False, is_new=False, lock=None):
+        self.is_locked = is_locked
+        self.is_new = is_new
+        self.lock = lock
+
+
 class ApiCourseStructureLock(models.Model):
-    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False, unique=True)
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
     created = models.DateTimeField()
+    task_id = models.CharField(max_length=255, null=True)
+    published_on = models.CharField(max_length=255, null=True)
 
     class Meta:
         db_table = 'api_course_structure_lock'
-
-    @classmethod
-    def create(cls, course_id):
-        try:
-            with transaction.atomic():
-                lock = ApiCourseStructureLock(course_id=course_id, created=timezone.now())
-                lock.save()
-                return lock
-        except IntegrityError:
-            try:
-                lock = ApiCourseStructureLock.objects.get(course_id=course_id)
-                if lock:
-                    time_diff = timezone.now() - lock.created
-                    if time_diff.total_seconds() > 600:  # 10 min
-                        return lock
-            except ApiCourseStructureLock.DoesNotExist:
-                pass
-            return False
-
-    @classmethod
-    def remove(cls, course_id):
-        ApiCourseStructureLock.objects.filter(course_id=course_id).delete()
 
 
 class ApiBlockInfo(models.Model):
@@ -411,6 +399,8 @@ class ApiBlockInfo(models.Model):
     created_as_copy = models.BooleanField(default=False)
     published_after_copy = models.BooleanField(default=False)
     reverted_to_previous_version = models.BooleanField(default=False)
+    current_version = models.CharField(max_length=255, null=True, blank=False)
+    previous_version = models.CharField(max_length=255, null=True, blank=False)
 
     CATEGORY_HAS_CHILDREN = ('chapter', 'sequential', 'vertical')
 
@@ -427,6 +417,16 @@ class ApiBlockInfo(models.Model):
     class Meta:
         db_table = 'api_block_info'
         unique_together = (('course_id', 'block_id'),)
+
+
+class ApiBlockInfoVersionsHistory(models.Model):
+    course_id = models.CharField(max_length=255, null=False, db_index=True)
+    block_id = models.CharField(max_length=255, null=False, db_index=True)
+    version_id = models.CharField(max_length=255)
+    siblings_hash_id = models.CharField(max_length=255, null=False)
+
+    class Meta:
+        db_table = 'api_block_info_versions_history'
 
 
 class BlockCache(models.Model):

@@ -633,7 +633,7 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
         if publish == "discard_changes":
             with SyncApiBlockInfo(xblock, user):
                 store.revert_to_published(xblock.location, user.id)
-                update_api_block_info(str(xblock.location), reverted_to_previous_version=False)
+                update_api_block_info(xblock, user, reverted_to_previous_version=False)
             # Returning the same sort of result that we do for other save operations. In the future,
             # we may want to return the full XBlockInfo.
             return JsonResponse({'id': str(xblock.location)})
@@ -795,11 +795,10 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
             with transaction.atomic():
                 xblock_is_published = update_api_blocks_before_publish(xblock, user)
                 modulestore().publish(xblock.location, user.id)
-                if related_courses:
-                    task_uuid = update_sibling_block_after_publish(
-                        related_courses, xblock, xblock_is_published, user)
-                    if task_uuid:
-                        result['update_related_courses_task_id'] = task_uuid
+                task_uuid = update_sibling_block_after_publish(
+                    related_courses, xblock, xblock_is_published, user)
+                if task_uuid:
+                    result['update_related_courses_task_id'] = task_uuid
 
         # Note that children aren't being returned until we have a use case.
         return JsonResponse(result, encoder=EdxJSONEncoder)
