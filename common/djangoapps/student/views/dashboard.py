@@ -485,7 +485,14 @@ def get_dashboard_course_limit():
 @login_required
 @ensure_csrf_cookie
 @add_maintenance_banner
-def student_dashboard(request):  # lint-amnesty, pylint: disable=too-many-statements
+def student_dashboard_archive(request):
+    return student_dashboard(request, display_archive=True)
+
+
+@login_required
+@ensure_csrf_cookie
+@add_maintenance_banner
+def student_dashboard(request, display_archive=False):  # lint-amnesty, pylint: disable=too-many-statements
     """
     Provides the LMS dashboard view
 
@@ -802,6 +809,7 @@ def student_dashboard(request):  # lint-amnesty, pylint: disable=too-many-statem
         'recovery_email_activation_message': recovery_email_activation_message,
         'enterprise_learner_portal_enabled_message': enterprise_learner_portal_enabled_message,
         'show_load_all_courses_link': show_load_all_courses_link(user, course_limit, course_enrollments),
+        'display_archive': display_archive,
         # TODO START: clean up as part of REVEM-199 (START)
         'course_info': get_dashboard_course_info(user, course_enrollments),
         # TODO START: clean up as part of REVEM-199 (END)

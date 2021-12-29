@@ -107,6 +107,7 @@ urlpatterns = [
     url(r'', include('common.djangoapps.student.urls')),
     # TODO: Move lms specific student views out of common code
     url(r'^dashboard/?$', student_views.student_dashboard, name='dashboard'),
+    url(r'^archive/?$', student_views.student_dashboard_archive, name='dashboard_archive'),
     url(r'^change_enrollment$', student_views.change_enrollment, name='change_enrollment'),
 
     url(r'^myskills/api-get-global-tag-data/?$', api_get_global_tag_data,
