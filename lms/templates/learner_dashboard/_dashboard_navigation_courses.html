@@ -1,8 +1,12 @@
-<%page expression_filter="h"/>
+<%page args="display_archive" expression_filter="h"/>
 <%!
 from django.utils.translation import ugettext as _
 %>
 
 <header class="wrapper-header-courses">
+  % if display_archive:
+  <h2 class="header-courses">${_("Archive")}</h2>
+  % else:
   <h2 class="header-courses">${_("My Courses")}</h2>
+  % endif
 </header>

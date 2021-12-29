@@ -614,6 +614,8 @@ def _copy_course_to_other_course(source_course_key_string, destination_course_ke
         for chapter_xblock in course.get_children():
             _duplicate_item(dst_course.location, chapter_xblock.location, user, chapter_xblock.display_name,
                             course_key=dst_course_key)
+    cs = contentstore()
+    cs.copy_all_course_assets(source_course_key, dst_course_key)
 
 
 def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, nullout=None,  # lint-amnesty, pylint: disable=too-many-statements
