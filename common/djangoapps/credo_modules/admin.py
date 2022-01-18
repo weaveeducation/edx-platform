@@ -13,7 +13,7 @@ from django.utils.safestring import mark_safe
 from .models import RegistrationPropertiesPerOrg, EnrollmentPropertiesPerCourse,\
     Organization, OrganizationType, CourseExcludeInsights, CustomUserRole, TagDescription, EdxApiToken,\
     RutgersCampusMapping, Feature, FeatureBetaTester, CredoModulesUserProfile, CredoStudentProperties, SendScores,\
-    TrackingLogConfig, PropertiesInfo, SiblingBlockUpdateTask, SiblingBlockNotUpdated, DelayedTask,\
+    TrackingLogConfig, PropertiesInfo, SiblingBlockUpdateTask, DelayedTask,\
     LoginRedirectAllowedHost
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
@@ -253,82 +253,6 @@ class IgnoredFilter(admin.SimpleListFilter):
             }
 
 
-class SiblingBlockNotUpdatedForm(ReadOnlyMixin, ExportCsvMixin, admin.ModelAdmin):
-    list_display = ('id', 'source_course_id', 'source_block_name', 'source_block_parents_path', 'source_block_id',
-                    'sibling_course_id', 'sibling_block_id',
-                    'source_version_published_date', 'source_version_publisher',
-                    'sibling_version_published_date', 'sibling_version_publisher',
-                    'ignore')
-    search_fields = ['source_course_id', 'source_block_id', 'sibling_course_id', 'sibling_block_id']
-    actions = ('set_ignored', 'export_as_csv',)
-    list_filter = (IgnoredFilter,)
-    users_cache = {}
-    csv_name = 'cousin_content_block'
-
-    def set_ignored(self, request, queryset):
-        queryset.update(ignore=True)
-
-    set_ignored.short_description = "Ignore Selected Rows"
-
-    def get_export_csv_queryset(self, request):
-        display = str(request.GET.get('display', 0))
-        if display == '0':
-            queryset = SiblingBlockNotUpdated.objects.filter(ignore=False)
-        else:
-            queryset = SiblingBlockNotUpdated.objects.all()
-        return queryset
-
-    def _get_user_id(self, user_id):
-        if user_id:
-            if user_id in self.users_cache:
-                return self.users_cache.get(user_id)
-
-            try:
-                user = User.objects.get(id=user_id)
-                self.users_cache[user_id] = user.username
-                return user.username
-            except User.DoesNotExist:
-                pass
-        return '-'
-
-    def source_version_publisher(self, obj):
-        return self._get_user_id(obj.source_version_publisher_user_id)
-
-    def sibling_version_publisher(self, obj):
-        return self._get_user_id(obj.sibling_version_publisher_user_id)
-
-    def get_csv_title(self, request, field_name):
-        res = super().get_csv_title(request, field_name)
-        if field_name in ('source_version_published_date', 'sibling_version_published_date'):
-            res = res + ' (UTC)'
-        return res
-
-    def get_csv_value(self, request, field_name, obj):
-        if not hasattr(request, 'users_cache'):
-            setattr(request, 'users_cache', {})
-        if field_name in ('source_version_publisher', 'sibling_version_publisher'):
-            value = None
-            if field_name == 'source_version_publisher':
-                value = obj.source_version_publisher_user_id
-            elif field_name == 'sibling_version_publisher':
-                value = obj.sibling_version_publisher_user_id
-
-            if not value:
-                return None
-
-            if value in request.users_cache:
-                return request.users_cache[value].username
-
-            try:
-                user = User.objects.get(id=value)
-                request.users_cache[value] = user
-                return user.username
-            except User.DoesNotExist:
-                pass
-        else:
-            return super().get_csv_value(request, field_name, obj)
-
-
 admin.site.register(RegistrationPropertiesPerOrg, RegistrationPropertiesPerOrgForm)
 admin.site.register(EnrollmentPropertiesPerCourse, EnrollmentPropertiesPerCourseForm)
 admin.site.register(Organization, OrganizationForm)
@@ -347,5 +271,4 @@ admin.site.register(SendScores, SendScoresForm)
 admin.site.register(TrackingLogConfig, TrackingLogConfigForm)
 admin.site.register(PropertiesInfo, PropertiesInfoForm)
 admin.site.register(SiblingBlockUpdateTask, SiblingBlockUpdateTaskForm)
-admin.site.register(SiblingBlockNotUpdated, SiblingBlockNotUpdatedForm)
 admin.site.register(LoginRedirectAllowedHost, LoginRedirectAllowedHostForm)

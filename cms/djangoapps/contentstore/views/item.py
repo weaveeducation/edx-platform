@@ -43,6 +43,7 @@ from common.djangoapps.xblock_django.user_service import DjangoXBlockUserService
 from common.djangoapps.badgr_integration.models import Badge, Configuration
 from common.djangoapps.badgr_integration.utils import org_badgr_enabled
 from common.djangoapps.credo_modules.models import CopyBlockTask, Organization
+from common.djangoapps.credo_modules.mongo import get_last_published_course_version
 from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo, BlockCache
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.bookmarks import api as bookmarks_api
@@ -88,7 +89,7 @@ from .helpers import (
 from .preview import get_preview_fragment
 from .api_block_info import update_api_blocks_before_publish, update_sibling_block_after_publish,\
     sync_api_blocks_before_move, sync_api_blocks_before_remove, create_api_block_info, copy_api_block_info,\
-    update_api_block_info, SyncApiBlockInfo
+    update_api_block_info, get_vertical_blocks_with_changes, SyncApiBlockInfo
 
 __all__ = [
     'orphan_handler', 'xblock_handler', 'xblock_view_handler', 'xblock_outline_handler', 'xblock_container_handler'
@@ -796,9 +797,11 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
         if publish == 'make_public':
             with transaction.atomic():
                 xblock_is_published = update_api_blocks_before_publish(xblock, user)
+                vertical_ids_with_changes = get_vertical_blocks_with_changes(str(xblock.location), user)
+                course_version = get_last_published_course_version(xblock.location.course_key)
                 modulestore().publish(xblock.location, user.id)
                 task_uuid = update_sibling_block_after_publish(
-                    related_courses, xblock, xblock_is_published, user)
+                    related_courses, xblock, xblock_is_published, user, vertical_ids_with_changes, course_version)
                 if task_uuid:
                     result['update_related_courses_task_id'] = task_uuid
 
