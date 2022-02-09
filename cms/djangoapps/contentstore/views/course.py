@@ -1897,9 +1897,7 @@ def restore_block_version(request, usage_key_string):
         update_api_block_info(
             item,
             request.user,
-            reverted_to_previous_version=True,
-            current_version=current_version_guid,
-            previous_version=version_guid)
+            reverted_to_previous_version=True)
     return JsonResponse({'success': True})
 
 

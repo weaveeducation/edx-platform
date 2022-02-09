@@ -397,10 +397,10 @@ class ApiBlockInfo(models.Model):
     updated_by = models.IntegerField(null=True, default=None)
     updated_time = models.DateTimeField(null=True, default=None)
     created_as_copy = models.BooleanField(default=False)
+    created_as_copy_from_course_id = models.CharField(max_length=255, null=True, blank=True)
     published_after_copy = models.BooleanField(default=False)
+    published_content_version = models.CharField(max_length=255, null=True, blank=False, db_index=True)
     reverted_to_previous_version = models.BooleanField(default=False)
-    current_version = models.CharField(max_length=255, null=True, blank=False)
-    previous_version = models.CharField(max_length=255, null=True, blank=False)
 
     CATEGORY_HAS_CHILDREN = ('chapter', 'sequential', 'vertical')
 
@@ -422,8 +422,6 @@ class ApiBlockInfo(models.Model):
 class ApiBlockInfoNotSiblings(models.Model):
     source_block_id = models.CharField(max_length=255, null=False, db_index=True)
     dst_block_id = models.CharField(max_length=255, null=False, db_index=True)
-    source_block_version = models.CharField(max_length=255, null=True, blank=False)
-    dst_block_version = models.CharField(max_length=255, null=True, blank=False)
     user_id = models.IntegerField(null=True, default=None)
     created = models.DateTimeField(null=True, blank=True, auto_now_add=True)
     updated = models.DateTimeField(null=True, blank=True, auto_now=True)

@@ -798,10 +798,9 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
             with transaction.atomic():
                 xblock_is_published = update_api_blocks_before_publish(xblock, user)
                 vertical_ids_with_changes = get_vertical_blocks_with_changes(str(xblock.location), user)
-                course_version = get_last_published_course_version(xblock.location.course_key)
                 modulestore().publish(xblock.location, user.id)
                 task_uuid = update_sibling_block_after_publish(
-                    related_courses, xblock, xblock_is_published, user, vertical_ids_with_changes, course_version)
+                    related_courses, xblock, xblock_is_published, user, vertical_ids_with_changes)
                 if task_uuid:
                     result['update_related_courses_task_id'] = task_uuid
 

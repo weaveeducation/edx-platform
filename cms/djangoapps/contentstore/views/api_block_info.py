@@ -1,3 +1,5 @@
+import json
+import hashlib
 import logging
 import time
 from uuid import uuid4
@@ -13,12 +15,14 @@ from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo,
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from common.djangoapps.credo_modules.mongo import get_last_published_course_version,\
-    get_versions_for_blocks, get_unit_block_versions
+    get_versions_for_blocks
 from common.djangoapps.credo_modules.models import SiblingBlockUpdateTask
 from common.djangoapps.student.auth import has_studio_write_access
+from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.library_tools import LibraryToolsService
+from xmodule.modulestore.inheritance import own_metadata
 from xblock.fields import Scope
 
 
@@ -57,7 +61,8 @@ class CopyInfoEntry:
 
 
 def create_api_block_info(usage_key, user, block_hash_id=None, created_as_copy=False,
-                          published_after_copy=False, auto_save=True):
+                          created_as_copy_from_course_id=None, published_after_copy=False, auto_save=True,
+                          published_content_version=None):
     if not block_hash_id:
         block_hash_id = str(uuid4())
 
@@ -70,7 +75,9 @@ def create_api_block_info(usage_key, user, block_hash_id=None, created_as_copy=F
         updated_by=user.id,
         updated_time=timezone.now(),
         created_as_copy=created_as_copy,
-        published_after_copy=published_after_copy
+        created_as_copy_from_course_id=created_as_copy_from_course_id,
+        published_after_copy=published_after_copy,
+        published_content_version=published_content_version,
     )
     api_block_info.set_has_children()
     if auto_save:
@@ -83,6 +90,11 @@ def copy_api_block_info(source_item, dest_module, user, level=0, auto_save=True,
     src_course_id = str(source_item.location.course_key)
     dst_course_id = str(dest_module.location.course_key)
 
+    published_content_version = None
+
+    if source_item.category == 'vertical' and published_after_copy:
+        published_content_version = get_content_version(source_item)
+
     if ((level == 0 and source_item.category not in ApiBlockInfo.CATEGORY_HAS_CHILDREN)
       or src_course_id == dst_course_id) and not force:
         source_block_hash = str(uuid4())
@@ -94,30 +106,55 @@ def copy_api_block_info(source_item, dest_module, user, level=0, auto_save=True,
                 if source_block_info:
                     source_block_hash = source_block_info.hash_id
                 else:
-                    source_block_info = create_api_block_info(source_item.location, user)
+                    source_block_info = create_api_block_info(
+                        source_item.location, user, published_content_version=published_content_version
+                    )
                     source_block_hash = source_block_info.hash_id
         except IntegrityError:
             source_block_info = ApiBlockInfo.objects.filter(block_id=str(source_item.location)).first()
             if source_block_info:
                 source_block_hash = source_block_info.hash_id
 
-    return create_api_block_info(dest_module.location, user, block_hash_id=source_block_hash,
-                                 created_as_copy=True, published_after_copy=published_after_copy, auto_save=auto_save)
+    if source_item.category == 'vertical':
+        not_siblings = ApiBlockInfoNotSiblings.objects.filter(
+            Q(source_block_id=str(source_item.location)) | Q(dst_block_id=str(source_item.location)))
+        for not_sibling in not_siblings:
+            other_block_id = not_sibling.source_block_id if not_sibling.dst_block_id == str(source_item.location) else not_sibling.dst_block_id
+            ApiBlockInfoNotSiblings(
+                source_block_id=other_block_id,
+                dst_block_id=str(dest_module.location),
+                user_id=user.id
+            ).save()
+
+    return create_api_block_info(dest_module.location, user,
+                                 block_hash_id=source_block_hash,
+                                 created_as_copy=True,
+                                 created_as_copy_from_course_id=src_course_id,
+                                 published_after_copy=published_after_copy,
+                                 auto_save=auto_save,
+                                 published_content_version=published_content_version)
 
 
 def update_api_blocks_before_publish(xblock, user):
     block_id = str(xblock.location)
     course_id = str(xblock.location.course_key)
     api_block_info = ApiBlockInfo.objects.filter(
-        course_id=course_id, block_id=block_id,
-        created_as_copy=True, published_after_copy=False, deleted=False).first()
+        course_id=course_id, block_id=block_id, deleted=False).first()
 
     if api_block_info:
         if api_block_info.has_children:
-            block_ids = [str(module.location) for module in yield_dynamic_descriptor_descendants(xblock, user.id)]
+            block_ids = []
+            vertical_blocks = []
+            for module in yield_dynamic_descriptor_descendants(xblock, user.id):
+                block_ids.append(str(module.location))
+                if module.category == 'vertical':
+                    vertical_blocks.append(module)
+            if vertical_blocks:
+                check_connection_between_siblings(user, course_id, vertical_blocks)
             ApiBlockInfo.objects.filter(course_id=course_id, block_id__in=block_ids, deleted=False)\
-                .update(published_after_copy=True)
+                .update(published_after_copy=True, created_as_copy_from_course_id=None)
         else:
+            api_block_info.created_as_copy_from_course_id = None
             api_block_info.published_after_copy = True
             api_block_info.save()
 
@@ -134,18 +171,48 @@ def update_api_blocks_before_publish(xblock, user):
     return True
 
 
+def check_and_restore_sibling_conection(block_id, block_hash_id, content_version):
+    not_sibling_blocks = ApiBlockInfoNotSiblings.objects.filter(Q(source_block_id=block_id) | Q(dst_block_id=block_id))
+    for block in not_sibling_blocks:
+        related_block_id = block.source_block_id if block.dst_block_id == block_id else block.dst_block_id
+        not_sibling_block = ApiBlockInfo.objects.filter(
+            hash_id=block_hash_id, block_id=related_block_id, published_content_version=content_version).first()
+        if not_sibling_block:
+            ApiBlockInfoNotSiblings.objects.filter(
+                Q(source_block_id=block_id, dst_block_id=related_block_id)
+                | Q(source_block_id=related_block_id, dst_block_id=block_id)).delete()
+
+
 def update_sibling_block_after_publish(related_courses, xblock, xblock_is_published, user,
-                                       vertical_ids_with_changes, course_version):
+                                       vertical_ids_with_changes):
     task_uuid = str(uuid4())
     course_ids_without_changes = []
     course_id = str(xblock.location.course_key)
-    reverted_versions = {}
 
+    for module in yield_dynamic_descriptor_descendants(xblock, user.id):
+        if module.category == 'vertical':
+            content_version = get_content_version(module)
+            block_id = str(module.location)
+            src_api_blocks_info = ApiBlockInfo.objects.filter(
+                block_id=block_id, deleted=False).first()
+            if src_api_blocks_info:
+                print('------------------ ', content_version, content_version)
+                src_api_blocks_info.published_content_version = content_version
+                src_api_blocks_info.save()
+
+                # restore connection between siblings
+                if src_api_blocks_info.reverted_to_previous_version:
+                    src_api_blocks_info.reverted_to_previous_version = False
+                    src_api_blocks_info.save()
+                check_and_restore_sibling_conection(block_id, src_api_blocks_info.hash_id, content_version)
+
+    course_ids_updated = [course_id]
     if xblock.category in ApiBlockInfo.CATEGORY_HAS_CHILDREN:
         update_res = []
         if related_courses:
             for related_course_id, course_action in related_courses.items():
                 if course_action in ('publish', 'draft'):
+                    course_ids_updated.append(related_course_id)
                     if has_studio_write_access(user, CourseKey.from_string(related_course_id)):
                         with transaction.atomic():
                             sibling_block_update_task = SiblingBlockUpdateTask(
@@ -161,23 +228,18 @@ def update_sibling_block_after_publish(related_courses, xblock, xblock_is_publis
                 elif xblock_is_published:
                     course_ids_without_changes.append(related_course_id)
 
-        block_ids = [str(module.location) for module in yield_dynamic_descriptor_descendants(xblock, user.id)]
-        src_api_blocks_info = ApiBlockInfo.objects.filter(
-            block_id__in=block_ids, reverted_to_previous_version=True, deleted=False)
-
-        if src_api_blocks_info:
-            reverted_versions = {s.block_id: [s.previous_version, s.current_version] for s in src_api_blocks_info}
-            ApiBlockInfo.objects.filter(block_id__in=block_ids, reverted_to_previous_version=True, deleted=False)\
-                .update(reverted_to_previous_version=False, current_version=None, previous_version=None)
-
+        # break connection between siblings
         if course_ids_without_changes:
             not_siblings_list = []
 
-            src_blocks = ApiBlockInfo.objects.filter(
-                course_id=course_id, block_id__in=vertical_ids_with_changes, deleted=False)
-            for dst_course_id in course_ids_without_changes:
-                for src_item in src_blocks:
-                    dst_block = ApiBlockInfo.objects.filter(course_id=dst_course_id, hash_id=src_item.hash_id,
+            src_blocks_tmp = ApiBlockInfo.objects.filter(
+                block_id__in=vertical_ids_with_changes, deleted=False)
+            hashes_tmp = [src_block.hash_id for src_block in src_blocks_tmp]
+            src_related_blocks = ApiBlockInfo.objects.filter(
+                hash_id__in=hashes_tmp, course_id__in=course_ids_updated, deleted=False)
+            for src_item in src_related_blocks:
+                for course_id_without_changes in course_ids_without_changes:
+                    dst_block = ApiBlockInfo.objects.filter(course_id=course_id_without_changes, hash_id=src_item.hash_id,
                                                             deleted=False).first()
                     if not dst_block:
                         continue
@@ -200,9 +262,6 @@ def update_sibling_block_after_publish(related_courses, xblock, xblock_is_publis
                 ApiBlockInfoNotSiblings.objects.bulk_create(not_siblings_list, 1000)
 
         def process_on_commit():
-            update_siblings_task.delay(str(xblock.location), str(xblock.location.course_key),
-                                       course_ids_without_changes, reverted_versions, vertical_ids_with_changes,
-                                       course_version)
             if update_res:
                 for task_id, rel_course_id, rel_course_action in update_res:
                     update_sibling_block_in_related_course.delay(
@@ -219,6 +278,10 @@ def _copy_fields_from_one_xblock_to_other(store, source_block, dst_block_id, use
 
     source_block_info = CopyInfoEntry(source_block)
     dst_block_info = CopyInfoEntry(dst_item)
+
+    # Don't update chapter/sequential blocks
+    if source_block.location.block_type in ('chapter', 'sequential'):
+        return
 
     update_library_content = False
     if lib_tools and source_block.location.block_type == 'library_content'\
@@ -251,42 +314,6 @@ def get_versions_info_data(course_id, block_ids, course_version=None):
             if not var_item['can_restore']:
                 res[usage_id] = var_item['id']
     return res
-
-
-@task()
-def update_siblings_task(usage_id, course_id, course_ids_without_changes, reverted_versions,
-                         vertical_ids_with_changes, course_version):
-    if course_ids_without_changes:
-        versions_info = get_versions_info_data(course_id, vertical_ids_with_changes, course_version)
-
-        break_connection_between_siblings(
-            course_id, versions_info, course_ids_without_changes)
-
-    # restore siblings connection
-    if reverted_versions:
-        for block_id, ver_item in reverted_versions.items():
-            previous_version, current_version = ver_item[0], ver_item[1]
-            block_not_sibling = ApiBlockInfoNotSiblings.objects.filter(
-                Q(source_block_id=block_id, source_block_version=previous_version) |
-                Q(dst_block_id=block_id, dst_block_version=previous_version))
-            block_not_sibling_to_remove = []
-            for block_info in block_not_sibling:
-                if block_info.source_block_id == block_id:
-                    other_block_id = block_info.dst_block_id
-                    other_block_version = block_info.dst_block_version
-                else:
-                    other_block_id = block_info.source_block_id
-                    other_block_version = block_info.source_block_version
-                other_block_versions = get_unit_block_versions(other_block_id)
-                other_block_real_version = None
-                for ver in other_block_versions:
-                    if not ver['can_restore']:
-                        other_block_real_version = ver['id']
-                # restore connection
-                if other_block_real_version == other_block_version:
-                    block_not_sibling_to_remove.append(block_info.id)
-            if block_not_sibling_to_remove:
-                ApiBlockInfoNotSiblings.objects.filter(id__in=block_not_sibling_to_remove).delete()
 
 
 def _update_sibling_block_add_new_items(items_to_add, allowed_categories, src_block_to_dst_block, dst_course_key,
@@ -415,10 +442,7 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
 
                             if dst_block_info.reverted_to_previous_version:
                                 dst_block_info.reverted_to_previous_version = False
-                                dst_block_info.current_version = None
-                                dst_block_info.previous_version = None
-                                dst_block_info.save(update_fields=[
-                                    'reverted_to_previous_version', 'current_version', 'previous_version'])
+                                dst_block_info.save(update_fields=['reverted_to_previous_version'])
                             items_to_update[dst_block_info.block_id] = module
                             src_block_to_dst_block[src_block_info.block_id] = dst_block_info.block_id
                             dst_block_ids.append(dst_block_info.block_id)
@@ -438,7 +462,8 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
                 ApiBlockInfo.objects.filter(
                     course_id=dst_course_id, block_id__in=list(items_to_update.keys()), deleted=False
                 ).update(
-                    created_as_copy=True, published_after_copy=False
+                    created_as_copy=True, created_as_copy_from_course_id=course_id,
+                    published_after_copy=False
                 )
 
             dst_block_remove_check = []
@@ -565,43 +590,58 @@ def get_courses_with_duplicates(usage_key_string, user):
     usage_key = UsageKey.from_string(usage_key_string)
     result_course_keys = []
     result = []
+    hash_ids = []
 
     src_block_info = ApiBlockInfo.objects.filter(block_id=usage_key_string, has_children=True, deleted=False).first()
 
     if src_block_info and (not src_block_info.created_as_copy
                            or (src_block_info.created_as_copy and src_block_info.published_after_copy)):
-        vertical_block_ids = get_vertical_blocks_with_changes(usage_key_string, user)
+        non_published_vertical_block_ids = get_non_published_vertical_blocks(usage_key_string, user)
 
-        hash_ids = []
-        vertical_blocks = ApiBlockInfo.objects.filter(
-            block_id__in=vertical_block_ids, has_children=True, deleted=False)
-        for v_block in vertical_blocks:
-            hash_ids.append(v_block.hash_id)
+        if non_published_vertical_block_ids and usage_key.block_type in ('chapter', 'sequential'):
 
-        block_ids_to_exclude = []
+            courses = ApiBlockInfo.objects.filter(hash_id=src_block_info.hash_id, deleted=False) \
+                .exclude(course_id=str(usage_key.course_key)).values('course_id').distinct()
+            for course in courses:
+                tmp_course_key = CourseKey.from_string(course['course_id'])
+                if has_studio_write_access(user, tmp_course_key):
+                    result_course_keys.append(tmp_course_key)
 
-        blocks_no_siblings1 = ApiBlockInfoNotSiblings.objects.filter(source_block_id__in=vertical_block_ids)
-        for b in blocks_no_siblings1:
-            if b.dst_block_id not in block_ids_to_exclude:
-                block_ids_to_exclude.append(b.dst_block_id)
+        else:
+            vertical_block_ids = get_vertical_blocks_with_changes(usage_key_string, user)
 
-        blocks_no_siblings2 = ApiBlockInfoNotSiblings.objects.filter(dst_block_id__in=vertical_block_ids)
-        for b in blocks_no_siblings2:
-            if b.source_block_id not in block_ids_to_exclude:
-                block_ids_to_exclude.append(b.source_block_id)
+            block_ids_to_exclude = []
 
-        exclude_expr = Q(course_id=str(usage_key.course_key))
-        if block_ids_to_exclude:
-            exclude_expr = Q(course_id=str(usage_key.course_key)) | Q(block_id__in=block_ids_to_exclude)
+            if vertical_block_ids:
+                vertical_blocks = ApiBlockInfo.objects.filter(
+                    block_id__in=vertical_block_ids, has_children=True, deleted=False)
+                for v_block in vertical_blocks:
+                    if not v_block.created_as_copy or (v_block.created_as_copy and v_block.published_after_copy):
+                        hash_ids.append(v_block.hash_id)
 
-        courses = ApiBlockInfo.objects.filter(hash_id__in=hash_ids, deleted=False) \
-            .exclude(exclude_expr).values('course_id')\
-            .distinct()
+                blocks_no_siblings1 = ApiBlockInfoNotSiblings.objects.filter(source_block_id__in=vertical_block_ids)
+                for b in blocks_no_siblings1:
+                    if b.dst_block_id not in block_ids_to_exclude:
+                        block_ids_to_exclude.append(b.dst_block_id)
 
-        for course in courses:
-            tmp_course_key = CourseKey.from_string(course['course_id'])
-            if has_studio_write_access(user, tmp_course_key):
-                result_course_keys.append(tmp_course_key)
+                blocks_no_siblings2 = ApiBlockInfoNotSiblings.objects.filter(dst_block_id__in=vertical_block_ids)
+                for b in blocks_no_siblings2:
+                    if b.source_block_id not in block_ids_to_exclude:
+                        block_ids_to_exclude.append(b.source_block_id)
+
+            exclude_expr = Q(course_id=str(usage_key.course_key))
+            if block_ids_to_exclude:
+                exclude_expr = Q(course_id=str(usage_key.course_key)) | Q(block_id__in=block_ids_to_exclude)
+
+            if hash_ids:
+                courses = ApiBlockInfo.objects.filter(hash_id__in=hash_ids, deleted=False) \
+                    .exclude(exclude_expr).values('course_id')\
+                    .distinct()
+
+                for course in courses:
+                    tmp_course_key = CourseKey.from_string(course['course_id'])
+                    if has_studio_write_access(user, tmp_course_key):
+                        result_course_keys.append(tmp_course_key)
 
     if result_course_keys:
         co_data = CourseOverview.objects.filter(id__in=result_course_keys).order_by('display_name')
@@ -613,39 +653,6 @@ def get_courses_with_duplicates(usage_key_string, user):
                 'course': co_item.id.course,
                 'run': co_item.id.run
             })
-    return result
-
-
-def break_connection_between_siblings(src_course_id, vertical_blocks, course_ids_without_change):
-    """
-    vertical_blocks: dict vertical_block_id => previous_published_version
-    """
-    result = []
-    src_blocks = ApiBlockInfo.objects.filter(
-        course_id=src_course_id, block_id__in=list(vertical_blocks.keys()), deleted=False)
-    hash_ids = [s.hash_id for s in src_blocks]
-    for dst_course_id in course_ids_without_change:
-        dst_blocks = ApiBlockInfo.objects.filter(
-            course_id=dst_course_id, hash_id__in=hash_ids, deleted=False)
-        dst_blocks_ids = [d.block_id for d in dst_blocks]
-        dst_ver_info = get_versions_info_data(dst_course_id, dst_blocks_ids)
-        for src_item in src_blocks:
-            dst_block = ApiBlockInfo.objects.filter(course_id=dst_course_id, hash_id=src_item.hash_id, deleted=False).first()
-            if not dst_block:
-                continue
-            bl_not_siblings = ApiBlockInfoNotSiblings.objects.filter(
-                source_block_id=src_item.block_id, dst_block_id=dst_block.block_id).first()
-            if not bl_not_siblings:
-                bl_not_siblings = ApiBlockInfoNotSiblings.objects.filter(source_block_id=dst_block.block_id,
-                                                                         dst_block_id=src_item.block_id).first()
-                if not bl_not_siblings:
-                    bl_not_siblings = ApiBlockInfoNotSiblings(
-                        source_block_id=src_item.block_id,
-                        dst_block_id=dst_block.block_id,
-                    )
-            bl_not_siblings.source_block_version = vertical_blocks.get(src_item.block_id)
-            bl_not_siblings.dst_block_version = dst_ver_info.get(dst_block.block_id)
-            bl_not_siblings.save()
     return result
 
 
@@ -688,14 +695,11 @@ def sync_api_blocks_before_move(usage_key, user):
         ApiBlockInfo.objects.bulk_create(api_blocks_to_insert, 1000)
 
 
-def update_api_block_info(xblock, user, reverted_to_previous_version=False,
-                          current_version=None, previous_version=None):
+def update_api_block_info(xblock, user, reverted_to_previous_version=False):
     api_block_info = ApiBlockInfo.objects.filter(block_id=str(xblock.location), deleted=False).first()
     if api_block_info:
         api_block_info.reverted_to_previous_version = reverted_to_previous_version
-        api_block_info.current_version = current_version
-        api_block_info.previous_version = previous_version
-        api_block_info.save(update_fields=['reverted_to_previous_version', 'current_version', 'previous_version'])
+        api_block_info.save(update_fields=['reverted_to_previous_version'])
 
 
 def get_vertical_blocks_with_changes(usage_id, user):
@@ -706,6 +710,90 @@ def get_vertical_blocks_with_changes(usage_id, user):
         if module.category == 'vertical' and modulestore().has_changes(module):
             result.append(str(module.location))
     return result
+
+
+def get_non_published_vertical_blocks(usage_id, user):
+    xblock = modulestore().get_item(UsageKey.from_string(usage_id))
+    result = []
+
+    for module in yield_dynamic_descriptor_descendants(xblock, user.id):
+        if module.category == 'vertical' and not modulestore().has_published_version(module):
+            result.append(str(module.location))
+    return result
+
+
+def check_connection_between_siblings(user, course_id, vertical_xblocks):
+    for vertical_xblock in vertical_xblocks:
+        src_block_id = str(vertical_xblock.location)
+        api_block_info = ApiBlockInfo.objects.filter(course_id=course_id, block_id=src_block_id, deleted=False).first()
+        if not api_block_info or (not api_block_info.created_as_copy
+                                  or (api_block_info.created_as_copy and api_block_info.published_after_copy)):
+            return
+
+        xblock_content_version = get_content_version(vertical_xblock)
+        api_block_info.published_content_version = xblock_content_version
+        api_block_info.save()
+
+        if api_block_info.created_as_copy_from_course_id:
+            related_block_info = ApiBlockInfo.objects.filter(
+                course_id=api_block_info.created_as_copy_from_course_id,
+                hash_id=api_block_info.hash_id
+            ).first()
+        else:
+            # fallback
+            related_block_info = ApiBlockInfo.objects.filter(
+                hash_id=api_block_info.hash_id, published_after_copy=False, deleted=False)\
+                .exclude(block_id=src_block_id).first()
+
+        if related_block_info:
+            not_siblings = ApiBlockInfoNotSiblings.objects.filter(
+                Q(source_block_id=src_block_id, dst_block_id=related_block_info.block_id)
+                |
+                Q(dst_block_id=src_block_id, source_block_id=related_block_info.block_id)
+            ).first()
+            if not_siblings:
+                return
+
+            if related_block_info.published_content_version:
+                related_block_content_version = related_block_info.published_content_version
+            else:
+                with modulestore().branch_setting(ModuleStoreEnum.Branch.published_only):
+                    xblock_item = modulestore().get_item(UsageKey.from_string(related_block_info.block_id))
+                    related_block_content_version = get_content_version(xblock_item)
+
+            if xblock_content_version != related_block_content_version:
+                # break connection with ALL related blocks (not only "created_as_copy_from_course_id")
+                related_blocks = ApiBlockInfo.objects.filter(
+                    hash_id=related_block_info.hash_id
+                ).exclude(course_id=course_id)
+                for rel_block in related_blocks:
+                    not_siblings = ApiBlockInfoNotSiblings.objects.filter(
+                        Q(source_block_id=src_block_id, dst_block_id=rel_block.block_id)
+                        |
+                        Q(dst_block_id=src_block_id, source_block_id=rel_block.block_id)
+                    ).first()
+                    if not not_siblings:
+                        not_siblings = ApiBlockInfoNotSiblings(
+                            source_block_id=src_block_id,
+                            dst_block_id=rel_block.block_id,
+                            user_id=user.id
+                        )
+                        not_siblings.save()
+
+
+def get_content_version(vertical_xblock):
+    hashes_lst = []
+    if vertical_xblock.category == 'vertical':
+        for child_xblock in vertical_xblock.get_children():
+            metadata = own_metadata(child_xblock)
+            fields = child_xblock.get_explicitly_set_fields_by_scope(Scope.content)
+            metadata_str = json.dumps(metadata, sort_keys=True)
+            fields_str = json.dumps(fields, sort_keys=True)
+            data = metadata_str + '_' + fields_str
+            hashes_lst.append(data)
+        big_hash = '_'.join(hashes_lst)
+        return hashlib.md5(big_hash.encode('utf-8')).hexdigest()
+    return None
 
 
 class SyncApiBlockInfo:
