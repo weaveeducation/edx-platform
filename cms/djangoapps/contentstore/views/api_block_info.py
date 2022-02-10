@@ -22,7 +22,7 @@ from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.library_tools import LibraryToolsService
-from xmodule.modulestore.inheritance import own_metadata
+from xmodule.modulestore.inheritance import own_metadata, get_settings_data
 from xblock.fields import Scope
 
 
@@ -540,7 +540,7 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
             if need_publish:
                 for vert_block in vertical_blocks:
                     ApiBlockInfo.objects.filter(
-                        course_id=dst_course_id, hash_id=vert_block['hash_id']).update(
+                        course_id=dst_course_id, hash_id=vert_block['hash_id'], deleted=False).update(
                         published_after_copy=True,
                         published_content_version=vert_block['published_content_version']
                     )
@@ -808,11 +808,16 @@ def get_content_version(vertical_xblock):
     hashes_lst = []
     if vertical_xblock.category == 'vertical':
         for child_xblock in vertical_xblock.get_children():
-            metadata = own_metadata(child_xblock)
+            metadata = get_settings_data(child_xblock)
             fields = child_xblock.get_explicitly_set_fields_by_scope(Scope.content)
-            metadata_str = json.dumps(metadata, sort_keys=True)
-            fields_str = json.dumps(fields, sort_keys=True)
-            data = metadata_str + '_' + fields_str
+            metadata_str = json.dumps(metadata, sort_keys=True, default=str)
+            fields_str = json.dumps(fields, sort_keys=True, default=str)
+            tags_str = ""
+            for aside in child_xblock.runtime.get_asides(child_xblock):
+                if aside.scope_ids.block_type in ('tagging_aside', 'tagging_ora_aside') and aside.saved_tags:
+                    tags_str = "_" + json.dumps(aside.saved_tags, sort_keys=True, default=str)
+
+            data = metadata_str + '_' + fields_str + tags_str
             hashes_lst.append(data)
         big_hash = '_'.join(hashes_lst)
         return hashlib.md5(big_hash.encode('utf-8')).hexdigest()
