@@ -796,11 +796,11 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
         # Used by Bok Choy tests and by republishing of staff locks.
         if publish == 'make_public':
             with transaction.atomic():
-                xblock_is_published = update_api_blocks_before_publish(xblock, user)
+                update_api_blocks_before_publish(xblock, user)
                 vertical_ids_with_changes = get_vertical_blocks_with_changes(str(xblock.location), user)
                 modulestore().publish(xblock.location, user.id)
                 task_uuid = update_sibling_block_after_publish(
-                    related_courses, xblock, xblock_is_published, user, vertical_ids_with_changes)
+                    related_courses, xblock, user, vertical_ids_with_changes)
                 if task_uuid:
                     result['update_related_courses_task_id'] = task_uuid
 

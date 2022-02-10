@@ -167,9 +167,6 @@ def update_api_blocks_before_publish(xblock, user):
             if api_block_info_same_level_cnt == 0:
                 update_api_blocks_before_publish(xblock_parent, user)
 
-        return False
-    return True
-
 
 def check_and_restore_sibling_conection(block_id, block_hash_id, content_version):
     not_sibling_blocks = ApiBlockInfoNotSiblings.objects.filter(Q(source_block_id=block_id) | Q(dst_block_id=block_id))
@@ -183,8 +180,7 @@ def check_and_restore_sibling_conection(block_id, block_hash_id, content_version
                 | Q(source_block_id=related_block_id, dst_block_id=block_id)).delete()
 
 
-def update_sibling_block_after_publish(related_courses, xblock, xblock_is_published, user,
-                                       vertical_ids_with_changes):
+def update_sibling_block_after_publish(related_courses, xblock, user, vertical_ids_with_changes):
     task_uuid = str(uuid4())
     course_ids_without_changes = []
     course_id = str(xblock.location.course_key)
@@ -196,7 +192,6 @@ def update_sibling_block_after_publish(related_courses, xblock, xblock_is_publis
             src_api_blocks_info = ApiBlockInfo.objects.filter(
                 block_id=block_id, deleted=False).first()
             if src_api_blocks_info:
-                print('------------------ ', content_version, content_version)
                 src_api_blocks_info.published_content_version = content_version
                 src_api_blocks_info.save()
 
@@ -225,7 +220,7 @@ def update_sibling_block_after_publish(related_courses, xblock, xblock_is_publis
                             )
                             sibling_block_update_task.save()
                             update_res.append((sibling_block_update_task.id, related_course_id, course_action))
-                elif xblock_is_published:
+                else:
                     course_ids_without_changes.append(related_course_id)
 
         # break connection between siblings
@@ -422,6 +417,8 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
         sibling_update_task.sibling_block_prev_version = last_published_version
         sibling_update_task.save()
 
+        vertical_blocks = []
+
         with store.bulk_operations(source_course_key):
             source_item = modulestore().get_item(source_usage_key)
             sibling_src_not_connected = _get_sibling_not_connected(source_item, course_id, dst_course_id, user)
@@ -432,6 +429,12 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
                     continue
                 src_block_info = ApiBlockInfo.objects.filter(
                     block_id=str(module.location), course_id=course_id, deleted=False).first()
+                if module.category == 'vertical' and src_block_info.published_content_version:
+                    vertical_blocks.append({
+                        "block_id": str(module.location),
+                        "published_content_version": src_block_info.published_content_version,
+                        "hash_id": src_block_info.hash_id
+                    })
                 if src_block_info:
                     dst_block_info_data = ApiBlockInfo.objects.filter(
                         hash_id=src_block_info.hash_id, course_id=dst_course_id)
@@ -443,6 +446,10 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
                             if dst_block_info.reverted_to_previous_version:
                                 dst_block_info.reverted_to_previous_version = False
                                 dst_block_info.save(update_fields=['reverted_to_previous_version'])
+                            if need_publish and src_block_info.published_content_version:
+                                dst_block_info.published_content_version = src_block_info.published_content_version
+                                dst_block_info.save(update_fields=['published_content_version'])
+
                             items_to_update[dst_block_info.block_id] = module
                             src_block_to_dst_block[src_block_info.block_id] = dst_block_info.block_id
                             dst_block_ids.append(dst_block_info.block_id)
@@ -458,13 +465,21 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
             for block_id, src_block in items_to_update.items():
                 _copy_fields_from_one_xblock_to_other(store, src_block, block_id, user, save_xblock_fn,
                                                       lib_tools=lib_tools)
-            if not need_publish and items_to_update:
-                ApiBlockInfo.objects.filter(
-                    course_id=dst_course_id, block_id__in=list(items_to_update.keys()), deleted=False
-                ).update(
-                    created_as_copy=True, created_as_copy_from_course_id=course_id,
-                    published_after_copy=False
-                )
+            if items_to_update:
+                if need_publish:
+                    ApiBlockInfo.objects.filter(
+                        course_id=dst_course_id, block_id__in=list(items_to_update.keys()), deleted=False
+                    ).update(
+                        created_as_copy=True, created_as_copy_from_course_id=course_id,
+                        published_after_copy=True
+                    )
+                else:
+                    ApiBlockInfo.objects.filter(
+                        course_id=dst_course_id, block_id__in=list(items_to_update.keys()), deleted=False
+                    ).update(
+                        created_as_copy=True, created_as_copy_from_course_id=course_id,
+                        published_after_copy=False
+                    )
 
             dst_block_remove_check = []
             dst_item = modulestore().get_item(UsageKey.from_string(dst_main_block_id))
@@ -521,6 +536,14 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
                 _update_sibling_block_add_new_items(
                     items_to_add, ['sequential'], src_block_to_dst_block, dst_course_key, user,
                     published_after_copy=False, duplicate_xblock_fn=duplicate_xblock_fn)
+
+            if need_publish:
+                for vert_block in vertical_blocks:
+                    ApiBlockInfo.objects.filter(
+                        course_id=dst_course_id, hash_id=vert_block['hash_id']).update(
+                        published_after_copy=True,
+                        published_content_version=vert_block['published_content_version']
+                    )
 
         sibling_update_task.set_finished()
         sibling_update_task.save()
