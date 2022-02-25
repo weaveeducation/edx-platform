@@ -1,6 +1,6 @@
 from django.conf.urls import url
 from django.conf import settings
-from .views import issue_badge, open_badge, BadgesView, CoursesView
+from .views import open_badge, BadgesView, BadgesIssueView, CoursesView
 
 urlpatterns = [
     url(
@@ -8,7 +8,7 @@ urlpatterns = [
             course_key=settings.COURSE_ID_PATTERN,
             usage_key=settings.USAGE_ID_PATTERN,
         ),
-        issue_badge,
+        BadgesIssueView.as_view(),
         name="badgr_integration_issue_badge"),
     url(
         r'^open/assertion/(?P<assertion_id>[\w-]+)',

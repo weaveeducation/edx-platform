@@ -4,10 +4,10 @@ from .api_client import BadgrApi
 from .models import Assertion
 from .service import issue_badge_assertion
 from lms.djangoapps.courseware.module_render import get_module_by_usage_id
+from lms.djangoapps.branding import api as branding_api
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys import InvalidKeyError
-from django.http import Http404, JsonResponse
-from django.views.decorators.http import require_POST
+from django.http import Http404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions
@@ -17,30 +17,38 @@ from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiv
 from xmodule.modulestore.django import modulestore
 
 
-@require_POST
-@login_required
-def issue_badge(request, course_id, usage_id):
-    try:
-        course_key = CourseKey.from_string(course_id)
-    except InvalidKeyError:
-        raise Http404
+class BadgesIssueView(APIView):
+    authentication_classes = (
+        JwtAuthentication,
+        BearerAuthenticationAllowInactiveUser,
+        SessionAuthenticationAllowInactiveUser,
+    )
+    permission_classes = (permissions.IsAuthenticated,)
 
-    with modulestore().bulk_operations(course_key):
+    def post(self, request, course_id, usage_id):
         try:
-            usage_key = UsageKey.from_string(usage_id)
+            course_key = CourseKey.from_string(course_id)
         except InvalidKeyError:
             raise Http404
 
-        instance, tracking_context = get_module_by_usage_id(
-            request, course_id, str(usage_key)
-        )
+        with modulestore().bulk_operations(course_key):
+            try:
+                usage_key = UsageKey.from_string(usage_id)
+            except InvalidKeyError:
+                raise Http404
 
-        result, badge_data, error = issue_badge_assertion(request.user, course_key, instance)
-        return JsonResponse({
-            'result': result,
-            'data': badge_data,
-            'error': error
-        })
+            instance, tracking_context = get_module_by_usage_id(
+                request, course_id, str(usage_key)
+            )
+
+            result, badge_data, error = issue_badge_assertion(request.user, course_key, instance)
+            badge_data['platform_logo_url'] = branding_api.get_logo_url(request.is_secure())
+
+            return Response({
+                'result': result,
+                'data': badge_data,
+                'error': error
+            })
 
 
 @login_required
