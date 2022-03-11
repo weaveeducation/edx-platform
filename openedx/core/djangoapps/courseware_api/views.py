@@ -18,6 +18,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from common.djangoapps.credo_modules.models import user_must_fill_additional_profile_fields
 from common.djangoapps.course_modes.models import CourseMode
 from common.djangoapps.credo_modules.models import Organization
 from common.djangoapps.util.views import expose_header
@@ -539,7 +540,13 @@ class SequenceMetadata(DeveloperErrorViewMixin, APIView):
         if request.user.is_anonymous:
             view = PUBLIC_VIEW
 
-        return Response(json.loads(sequence.handle_ajax('metadata', None, view=view)))
+        res = json.loads(sequence.handle_ajax('metadata', None, view=view))
+        course = get_course_by_id(usage_key.course_key)
+        res['user_must_fill_additional_profile_fields'] = user_must_fill_additional_profile_fields(
+            course, request.user, sequence)
+        res['profile_fields_url'] = reverse('credo_modules_profile', kwargs={'course_id': str(course.id)})
+
+        return Response(res)
 
 
 class Resume(DeveloperErrorViewMixin, APIView):
