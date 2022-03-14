@@ -27,7 +27,7 @@ from lms.djangoapps.courseware.module_render import (
 from lms.djangoapps.courseware.views import views as courseware_views
 from lms.djangoapps.courseware.views.index import CoursewareIndex
 from lms.djangoapps.courseware.views.views import CourseTabView, EnrollStaffView, StaticCourseTabView, \
-    cookie_check, launch_new_tab, email_student_progress, block_student_progress, check_credo_access, \
+    cookie_check, launch_new_tab, EmailStudentProgressView, BlockStudentProgressView, check_credo_access, \
     render_xblock_course
 from lms.djangoapps.courseware.global_progress import global_skills_page, api_get_global_tag_data,\
     api_get_global_tag_section_data
@@ -325,7 +325,7 @@ urlpatterns += [
             course_key=settings.COURSE_ID_PATTERN,
             usage_key=settings.USAGE_ID_PATTERN,
         ),
-        block_student_progress,
+        BlockStudentProgressView.as_view(),
         name='block_student_progress',
     ),
 
@@ -334,7 +334,7 @@ urlpatterns += [
             course_key=settings.COURSE_ID_PATTERN,
             usage_key=settings.USAGE_ID_PATTERN,
         ),
-        email_student_progress,
+        EmailStudentProgressView.as_view(),
         name='email_student_progress',
     ),
 

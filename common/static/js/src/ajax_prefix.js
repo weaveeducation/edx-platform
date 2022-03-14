@@ -16,6 +16,9 @@
           if (inIframe() && jQuery.isPlainObject(respData) && ('badge_ready' in respData) && respData.badge_ready) {
             window.parent.postMessage('badgeReady', "*");
           }
+          if (inIframe() && jQuery.isPlainObject(respData) && ('problem_answered' in respData) && respData.problem_answered) {
+            window.parent.postMessage('problemAnswered', "*");
+          }
           callback(respData, textStatus, jqXHR);
         }, type);
       };

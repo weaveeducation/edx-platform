@@ -1222,9 +1222,13 @@ def _invoke_xblock_handler(request, course_id, usage_id, handler, suffix, course
             raise
 
         if request.user.known and suffix in ('problem_check', 'submit', 'drop_item'):
+            data_to_append = {
+                'problem_answered': True
+            }
             badge_res = check_badge_is_ready_to_issue(request.user, course_key, instance)
             if badge_res.is_ready:
-                resp = append_data_to_webob_response(resp, {'badge_ready': True})
+                data_to_append['badge_ready'] = True
+            resp = append_data_to_webob_response(resp, {'badge_ready': True})
 
     return webob_to_django_response(resp)
 
