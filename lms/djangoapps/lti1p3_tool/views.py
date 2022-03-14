@@ -88,14 +88,17 @@ def get_course_tree(course):
             item = {
                 'id': str(chapter.location),
                 'display_name': chapter.display_name,
-                'children': []
+                'children': [],
+                'graded': False
             }
             for sequential in chapter.get_children():
                 if len(sequential.get_children()) > 0 and sequential.graded:
+                    graded_txt = "Graded" if sequential.graded else "Not Graded"
                     item['children'].append({
                         'id': str(sequential.location),
-                        'display_name': str(sequential.display_name),
-                        'children': []
+                        'display_name': str(sequential.display_name) + f" [{graded_txt}]",
+                        'children': [],
+                        'graded': sequential.graded
                     })
             if len(item['children']) > 0:
                 course_tree.append(item)
