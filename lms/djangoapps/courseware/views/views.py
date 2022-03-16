@@ -2514,15 +2514,26 @@ class EmailStudentProgressView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request, course_id, usage_id):
+        data_type = request.GET.get('data_type')
+        if data_type == 'json':
+            try:
+                json_data = json.loads(request.body)
+                timezone_offset = json_data.get('timezone_offset', 0)
+                emails = json_data.get('emails', '')
+            except ValueError:
+                return JsonResponse({'success': False, 'error': "invalid data"})
+        else:
+            timezone_offset = request.POST.get('timezone_offset', 0)
+            emails = request.POST.get('emails', '')
+
         try:
-            timezone_offset = int(request.POST.get('timezone_offset', 0))
+            timezone_offset = int(timezone_offset)
         except ValueError:
             timezone_offset = 0
 
         course_key = CourseKey.from_string(course_id)
         resp = get_block_student_progress(request, course_id, usage_id, timezone_offset)
 
-        emails = request.POST.get('emails', '')
         emails = emails.split(',')
         emails_result = []
 

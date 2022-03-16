@@ -1228,7 +1228,7 @@ def _invoke_xblock_handler(request, course_id, usage_id, handler, suffix, course
             badge_res = check_badge_is_ready_to_issue(request.user, course_key, instance)
             if badge_res.is_ready:
                 data_to_append['badge_ready'] = True
-            resp = append_data_to_webob_response(resp, {'badge_ready': True})
+            resp = append_data_to_webob_response(resp, data_to_append)
 
     return webob_to_django_response(resp)
 

@@ -42,7 +42,8 @@ class BadgesIssueView(APIView):
             )
 
             result, badge_data, error = issue_badge_assertion(request.user, course_key, instance)
-            badge_data['platform_logo_url'] = branding_api.get_logo_url(request.is_secure())
+            if badge_data:
+                badge_data['platform_logo_url'] = branding_api.get_logo_url(request.is_secure())
 
             return Response({
                 'result': result,
