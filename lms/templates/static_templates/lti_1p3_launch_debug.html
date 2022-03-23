@@ -1,0 +1,87 @@
+<%! from django.utils.translation import ugettext as _ %>
+<%inherit file="../main.html" />
+
+<%block name="pagetitle">${_("LTI1.3 LOGIN test page")}</%block>
+
+<%block name="headextra">
+    <style>
+        .lti-debug {
+            padding: 8px;
+        }
+
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</%block>
+
+<main id="main" aria-label="Content" tabindex="-1">
+<table>
+<tr><td>${request_method}</td><td>${request_path}</td></tr>
+% if error:
+<tr><td class="error">ERROR HTTP ${http_error_code}</td><td class="error">${error}</td></tr>
+% else:
+<tr><td class="success"></td><td class="success">NO ERRORS</td></tr>
+% endif
+<tr><td>LTI TOOL</td><td>
+% if lti_tool:
+    ${lti_tool.title} [ID: ${lti_tool.id}], is active: ${lti_tool.is_active}, issuer: ${lti_tool.issuer}, client_id: ${lti_tool.client_id}
+% else:
+    ---
+% endif
+</td></tr>
+</table><br /><hr />
+<div class="lti-debug">HEADERS:</div><br />
+<table>
+    % for header_key, header_value in headers_data.items():
+    <tr><td>${header_key}</td><td>${header_value}</td></tr>
+    % endfor
+</table><br /><hr />
+% if get_data:
+<div class="lti-debug">GET params:</div><br />
+<table>
+    % for get_key, get_value in get_data.items():
+    <tr><td>${get_key}</td><td>${get_value}</td></tr>
+    % endfor
+</table>
+<br /><hr />
+% endif
+% if post_data:
+<div class="lti-debug">POST params:</div><br />
+<table>
+    % for post_key, post_value in post_data.items():
+    <tr><td>${post_key}</td><td>${post_value}</td></tr>
+    % endfor
+</table>
+<br /><hr />
+% endif
+% if jwt_header:
+<div class="lti-debug"><strong>JWT HEADERS:</strong></div>
+<div><pre>${jwt_header}</pre></div>
+% endif
+<hr />
+% if jwt_body:
+<div class="lti-debug"><strong>JWT BODY:</strong></div>
+<div><pre>${jwt_body}</pre></div>
+% endif
+</main>

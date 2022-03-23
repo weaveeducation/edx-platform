@@ -4,7 +4,8 @@ import hashlib
 import time
 import platform
 import datetime
-from urllib.parse import urlparse, unquote, quote
+from collections import OrderedDict
+from urllib.parse import urlparse, unquote, quote, quote_plus
 
 from django.conf import settings
 from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound,\
@@ -53,7 +54,8 @@ log_json = logging.getLogger("credo_json")
 
 MY_SKILLS_PAGE = 'myskills'
 COURSE_PROGRESS_PAGE = 'progress'
-ALLOWED_PAGES = [MY_SKILLS_PAGE]
+DEBUG_PAGE = 'debug'
+ALLOWED_PAGES = [MY_SKILLS_PAGE, DEBUG_PAGE]
 
 
 def get_block_by_id(block_id):
@@ -118,6 +120,108 @@ def get_course_sequential_blocks(course):
     return items
 
 
+def _get_request_header(request):
+    headers = OrderedDict()
+    if 'CONTENT_LENGTH' in request.META:
+        headers['Content-Length'] = str(request.META['CONTENT_LENGTH'])
+    if 'CONTENT_TYPE' in request.META:
+        headers['Content-Type'] = str(request.META['CONTENT_TYPE'])
+    for header, value in request.META.items():
+        if not header.startswith('HTTP'):
+            continue
+        header = '-'.join([h.capitalize() for h in header[5:].lower().split('_')])
+        headers[header] = str(value)
+    return headers
+
+
+def _render_login_debug_page(request, request_params=None, lti_tool=None, error=None, http_error_code=None,
+                             login_redirect=None):
+    headers = _get_request_header(request)
+    get_data = OrderedDict()
+    post_data = OrderedDict()
+    for k, v in request.GET.items():
+        get_data[k] = v
+    for k, v in request.POST.items():
+        post_data[k] = v
+
+    login_params = None
+    login_url = None
+    if login_redirect:
+        login_params_lst = ['iss', 'login_hint', 'target_link_uri', 'lti_message_hint',
+                            'lti_deployment_id', 'client_id']
+
+        login_params = {
+            'skip_debug': '1'
+        }
+        for param_key in login_params_lst:
+            if request.method == 'GET':
+                param_value = request.GET.get(param_key)
+            else:
+                param_value = request.POST.get(param_key)
+            if param_value:
+                login_params[param_key] = param_value
+
+        login_url = '/lti1p3_tool/login/?' + '&'.join([f"{k}={quote_plus(v)}" for k, v in login_params.items()])
+
+    template = Template(render_to_string('static_templates/lti_1p3_login_debug.html', {
+        'disable_accordion': True,
+        'allow_iframing': True,
+        'disable_header': True,
+        'disable_footer': True,
+        'disable_window_wrap': True,
+        'request_path': request.path,
+        'request_method': request.method,
+        'headers_data': headers,
+        'request_params': request_params,
+        'get_data': get_data,
+        'post_data': post_data,
+        'lti_tool': lti_tool,
+        'error': error,
+        'http_error_code': http_error_code,
+        'login_redirect': login_redirect,
+        'login_url': login_url,
+        'login_params': login_params,
+    }))
+    return HttpResponse(template.render())
+
+
+def _render_launch_debug_page(request, lti_tool=None, jwt_data=None,
+                              error=None, http_error_code=None):
+    headers = _get_request_header(request)
+    get_data = OrderedDict()
+    post_data = OrderedDict()
+    for k, v in request.GET.items():
+        get_data[k] = v
+    for k, v in request.POST.items():
+        post_data[k] = v
+
+    jwt_header = None
+    jwt_body = None
+
+    if jwt_data:
+        jwt_header = json.dumps(jwt_data.get('header', {}), indent=4, sort_keys=True)
+        jwt_body = json.dumps(jwt_data.get('body', {}), indent=4, sort_keys=True)
+
+    template = Template(render_to_string('static_templates/lti_1p3_launch_debug.html', {
+        'disable_accordion': True,
+        'allow_iframing': True,
+        'disable_header': True,
+        'disable_footer': True,
+        'disable_window_wrap': True,
+        'request_path': request.path,
+        'request_method': request.method,
+        'headers_data': headers,
+        'get_data': get_data,
+        'post_data': post_data,
+        'lti_tool': lti_tool,
+        'jwt_header': jwt_header,
+        'jwt_body': jwt_body,
+        'error': error,
+        'http_error_code': http_error_code,
+    }))
+    return HttpResponse(template.render())
+
+
 @csrf_exempt
 @add_p3p_header
 @xframe_options_exempt
@@ -125,6 +229,7 @@ def login(request):
     if not settings.FEATURES['ENABLE_LTI_PROVIDER']:
         return HttpResponseForbidden()
 
+    skip_debug = request.GET.get('skip_debug') == '1'
     request_params, is_cached = get_params(request)
 
     target_link_uri = request_params.get('target_link_uri', request.GET.get('target_link_uri'))
@@ -186,7 +291,7 @@ def login(request):
     if block:
         is_time_exam = getattr(block, 'is_proctored_exam', False) or getattr(block, 'is_time_limited', False)
 
-    if not is_cached:
+    if not is_cached and (page != DEBUG_PAGE or skip_debug):
         cache = caches['default']
         json_params = json.dumps(request.POST)
         params_hash = hashlib.md5(json_params.encode('utf-8')).hexdigest()
@@ -209,10 +314,18 @@ def login(request):
                    page_name=page)
 
     try:
-        return oidc_login.redirect(target_link_uri)
+        ret = oidc_login.redirect(target_link_uri)
+        if page == DEBUG_PAGE and not skip_debug:
+            return _render_login_debug_page(request, request_params, lti_tool, login_redirect=ret.url)
+        else:
+            return ret
     except OIDCException as e:
+        if page == DEBUG_PAGE and not skip_debug:
+            return _render_login_debug_page(request, request_params, lti_tool, error=str(e), http_error_code=403)
         return render_lti_error(str(e), 403)
     except LtiException as e:
+        if page == DEBUG_PAGE and not skip_debug:
+            return _render_login_debug_page(request, request_params, lti_tool, error=str(e), http_error_code=403)
         return render_lti_error(str(e), 403)
 
 
@@ -257,11 +370,22 @@ def myskills(request):
     return _launch(request, page=MY_SKILLS_PAGE)
 
 
+@csrf_exempt
+@add_p3p_header
+@xframe_options_exempt
+def debug_page(request):
+    return _launch(request, page=DEBUG_PAGE)
+
+
 def _launch(request, block=None, course_id=None, page=None):
     tool_conf = ToolConfDb()
+    jwt_data = None
     try:
         message_launch = DjangoMessageLaunch(request, tool_conf)
         message_launch.set_public_key_caching(DjangoCacheDataStorage(), cache_lifetime=7200)
+        if page == DEBUG_PAGE:
+            message_launch.validate_jwt_format()
+            jwt_data = message_launch._jwt
         message_launch_data = message_launch.get_launch_data()
 
         state_params = message_launch.get_params_from_login()
@@ -270,6 +394,8 @@ def _launch(request, block=None, course_id=None, page=None):
         client_id = message_launch.get_client_id()
         lti_tool = tool_conf.get_lti_tool(iss, client_id)
     except LtiException as e:
+        if page == DEBUG_PAGE:
+            return _render_launch_debug_page(request, jwt_data=jwt_data, error=str(e), http_error_code=403)
         return render_lti_error(str(e), 403)
 
     course_key = None
@@ -287,6 +413,11 @@ def _launch(request, block=None, course_id=None, page=None):
         context_label = context_label.strip()
     external_user_id = message_launch_data.get('sub')
     message_launch_custom_data = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/custom', {})
+
+    if page == DEBUG_PAGE:
+        return _render_launch_debug_page(
+            request, lti_tool=lti_tool, jwt_data=jwt_data,
+        )
 
     lti_params = {}
     lti_email = message_launch_data.get('email', message_launch_custom_data.get('email'))
