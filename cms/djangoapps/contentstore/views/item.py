@@ -89,7 +89,7 @@ from .helpers import (
 from .preview import get_preview_fragment
 from .api_block_info import update_api_blocks_before_publish, update_sibling_block_after_publish,\
     sync_api_blocks_before_move, sync_api_blocks_before_remove, create_api_block_info, copy_api_block_info,\
-    update_api_block_info, get_vertical_blocks_with_changes, SyncApiBlockInfo
+    update_api_block_info, get_vertical_blocks_with_changes, copy_milestones, SyncApiBlockInfo
 
 __all__ = [
     'orphan_handler', 'xblock_handler', 'xblock_view_handler', 'xblock_outline_handler', 'xblock_container_handler'
@@ -615,6 +615,7 @@ def _copy_course_to_other_course(source_course_key_string, destination_course_ke
         for chapter_xblock in course.get_children():
             _duplicate_item(dst_course.location, chapter_xblock.location, user, chapter_xblock.display_name,
                             course_key=dst_course_key)
+    copy_milestones(str(source_course_key), str(dst_course_key))
     cs = contentstore()
     cs.copy_all_course_assets(source_course_key, dst_course_key)
 

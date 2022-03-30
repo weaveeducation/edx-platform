@@ -22,8 +22,9 @@ from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.library_tools import LibraryToolsService
-from xmodule.modulestore.inheritance import own_metadata, get_settings_data
+from xmodule.modulestore.inheritance import get_settings_data
 from xblock.fields import Scope
+from milestones.models import Milestone, CourseContentMilestone
 
 
 User = get_user_model()
@@ -822,6 +823,65 @@ def get_content_version(vertical_xblock):
         big_hash = '_'.join(hashes_lst)
         return hashlib.md5(big_hash.encode('utf-8')).hexdigest()
     return None
+
+
+def copy_milestones(src_course_id, dst_course_id):
+    src_course_key = CourseKey.from_string(src_course_id)
+    str_token = f'{src_course_key.org}+{src_course_key.course}+{src_course_key.run}'
+    milestones = Milestone.objects.filter(namespace__icontains=str_token)
+    milestone_dict = {}
+    for milestone in milestones:
+        block_id = milestone.namespace.split('.')[0]
+        ending = milestone.namespace.split('.')[1]
+        src_block = ApiBlockInfo.objects.filter(course_id=src_course_id, block_id=block_id).first()
+        if not src_block:
+            continue
+        dst_block = ApiBlockInfo.objects.filter(course_id=dst_course_id, hash_id=src_block.hash_id,
+                                                deleted=False).first()
+        if not dst_block:
+            continue
+        dst_milestone_namespace = dst_block.block_id + '.' + ending
+        dst_milestone_name = milestone.name.replace(block_id, dst_block.block_id)
+
+        dst_milestone = Milestone.objects.filter(namespace=dst_milestone_namespace, name=dst_milestone_name).first()
+        if not dst_milestone:
+            dst_milestone = Milestone(
+                namespace=dst_milestone_namespace,
+                name=dst_milestone_name,
+                display_name=milestone.display_name,
+                description=milestone.description,
+                active=milestone.active
+            )
+            dst_milestone.save()
+        milestone_dict[milestone.id] = dst_milestone.id
+
+    dst_content_milestone_lst = []
+    content_milestones = CourseContentMilestone.objects.filter(course_id=src_course_id)
+    for content_milestone in content_milestones:
+        src_block = ApiBlockInfo.objects.filter(course_id=src_course_id, block_id=content_milestone.content_id).first()
+        if not src_block:
+            continue
+        dst_block = ApiBlockInfo.objects.filter(course_id=dst_course_id, hash_id=src_block.hash_id, deleted=False).first()
+        if not dst_block:
+            continue
+
+        dst_milestone_id = milestone_dict.get(content_milestone.milestone_id)
+        dst_content_milestone = CourseContentMilestone.objects.filter(
+            course_id=dst_course_id, content_id=dst_block.block_id).first()
+        if not dst_content_milestone and dst_milestone_id:
+            dst_content_milestone_lst.append(
+                CourseContentMilestone(
+                    course_id=dst_course_id,
+                    content_id=dst_block.block_id,
+                    milestone_id=dst_milestone_id,
+                    milestone_relationship_type_id=content_milestone.milestone_relationship_type_id,
+                    requirements=content_milestone.requirements,
+                    active=content_milestone.active
+                )
+            )
+
+    if dst_content_milestone_lst:
+        CourseContentMilestone.objects.bulk_create(dst_content_milestone_lst)
 
 
 class SyncApiBlockInfo:
