@@ -16,6 +16,7 @@ from opaque_keys.edx.keys import CourseKey, UsageKey
 from six.moves.urllib.parse import urlencode
 
 from lms.djangoapps.courseware.toggles import courseware_mfe_is_active
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.search import navigation_index, path_to_location
 
@@ -177,7 +178,8 @@ def make_learning_mfe_courseware_url(
     `course_key`, `sequence_key`, and `unit_key` can be either OpaqueKeys or
     strings. They're only ever used to concatenate a URL string.
     """
-    mfe_link = '{}/course/{}'.format(settings.LEARNING_MICROFRONTEND_URL, course_key)
+    mfe_url = configuration_helpers.get_value('LEARNING_MICROFRONTEND_URL', settings.LEARNING_MICROFRONTEND_URL)
+    mfe_link = '{}/course/{}'.format(mfe_url, course_key)
 
     if sequence_key:
         mfe_link += '/{}'.format(sequence_key)
@@ -201,7 +203,8 @@ def get_learning_mfe_home_url(
     `course_key` can be either an OpaqueKey or a string.
     `view_name` is an optional string.
     """
-    mfe_link = f'{settings.LEARNING_MICROFRONTEND_URL}/course/{course_key}'
+    mfe_url = configuration_helpers.get_value('LEARNING_MICROFRONTEND_URL', settings.LEARNING_MICROFRONTEND_URL)
+    mfe_link = f'{mfe_url}/course/{course_key}'
 
     if view_name:
         mfe_link += f'/{view_name}'
@@ -216,7 +219,8 @@ def is_request_from_learning_mfe(request: HttpRequest):
     http_referer = request.META.get('HTTP_REFERER', '')
     if http_referer is None:
         http_referer = ''
+    mfe_url = configuration_helpers.get_value('LEARNING_MICROFRONTEND_URL', settings.LEARNING_MICROFRONTEND_URL)
     return (
-        settings.LEARNING_MICROFRONTEND_URL and
-        http_referer.startswith(settings.LEARNING_MICROFRONTEND_URL)
+        mfe_url and
+        http_referer.startswith(mfe_url)
     )
