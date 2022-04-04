@@ -73,6 +73,7 @@ urlpatterns = [
     url(r'^enable_certificate_generation$', api.enable_certificate_generation, name='enable_certificate_generation'),
     url(r'^start_certificate_generation', api.start_certificate_generation, name='start_certificate_generation'),
     url(r'^start_certificate_regeneration', api.start_certificate_regeneration, name='start_certificate_regeneration'),
+    url(r'^generate_missing_certificates', api.generate_missing_certificates, name='generate_missing_certificates'),
     url(r'^certificate_exception_view/$', api.certificate_exception_view, name='certificate_exception_view'),
     url(r'^generate_certificate_exceptions/(?P<generate_for>[^/]*)', api.generate_certificate_exceptions,
         name='generate_certificate_exceptions'),

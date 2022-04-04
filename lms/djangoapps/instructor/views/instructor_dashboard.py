@@ -399,6 +399,10 @@ def _section_certificates(course):
                 'start_certificate_regeneration',
                 kwargs={'course_id': course.id}
             ),
+            'generate_missing_certificates': reverse(
+                'generate_missing_certificates',
+                kwargs={'course_id': course.id}
+            ),
             'list_instructor_tasks_url': reverse(
                 'list_instructor_tasks',
                 kwargs={'course_id': course.id}

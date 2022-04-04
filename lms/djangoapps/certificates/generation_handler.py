@@ -223,9 +223,9 @@ def _can_generate_certificate_common(user, course_key):
                  f'certificate. Certificate cannot be generated.')
         return False
 
-    if not IDVerificationService.user_is_verified(user):
-        log.info(f'{user.id} does not have a verified id. Certificate cannot be generated for {course_key}.')
-        return False
+    #if not IDVerificationService.user_is_verified(user):
+    #    log.info(f'{user.id} does not have a verified id. Certificate cannot be generated for {course_key}.')
+    #    return False
 
     if not _can_generate_certificate_for_status(user, course_key):
         return False

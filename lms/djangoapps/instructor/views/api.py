@@ -2684,6 +2684,23 @@ def start_certificate_regeneration(request, course_id):
 @ensure_csrf_cookie
 @cache_control(no_cache=True, no_store=True, must_revalidate=True)
 @require_global_staff
+@require_POST
+@common_exceptions_400
+def generate_missing_certificates(request, course_id):
+    course_key = CourseKey.from_string(course_id)
+    task_api.generate_missing_certificates(request, course_key)
+    response_payload = {
+        'message': _('Certificate generations task has been started. '
+                     'You can view the status of the generation task in the "Pending Tasks" section.'),
+        'success': True
+    }
+    return JsonResponse(response_payload)
+
+
+@transaction.non_atomic_requests
+@ensure_csrf_cookie
+@cache_control(no_cache=True, no_store=True, must_revalidate=True)
+@require_global_staff
 @require_http_methods(['POST', 'DELETE'])
 def certificate_exception_view(request, course_id):
     """

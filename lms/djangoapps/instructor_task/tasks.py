@@ -29,7 +29,7 @@ from edx_django_utils.monitoring import set_code_owner_attribute
 
 from lms.djangoapps.bulk_email.tasks import perform_delegate_email_batches
 from lms.djangoapps.instructor_task.tasks_base import BaseInstructorTask
-from lms.djangoapps.instructor_task.tasks_helper.certs import generate_students_certificates
+from lms.djangoapps.instructor_task.tasks_helper.certs import generate_students_certificates, generate_missing_students_certificates
 from lms.djangoapps.instructor_task.tasks_helper.enrollments import upload_may_enroll_csv, upload_students_csv
 from lms.djangoapps.instructor_task.tasks_helper.grades import CourseGradeReport, ProblemGradeReport, ProblemResponses
 from lms.djangoapps.instructor_task.tasks_helper.misc import (
@@ -290,6 +290,14 @@ def generate_certificates(entry_id, xmodule_instance_args):
     )
 
     task_fn = partial(generate_students_certificates, xmodule_instance_args)
+    return run_main_task(entry_id, task_fn, action_name)
+
+
+@shared_task(base=BaseInstructorTask)
+@set_code_owner_attribute
+def generate_missing_certificates_task(entry_id, xmodule_instance_args):
+    action_name = ugettext_noop('certificates generated')
+    task_fn = partial(generate_missing_students_certificates, xmodule_instance_args)
     return run_main_task(entry_id, task_fn, action_name)
 
 

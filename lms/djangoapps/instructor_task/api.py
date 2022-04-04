@@ -38,6 +38,7 @@ from lms.djangoapps.instructor_task.tasks import (
     export_ora2_submission_files,
     export_ora2_summary,
     generate_certificates,
+    generate_missing_certificates_task,
     override_problem_score,
     proctored_exam_results_csv,
     rescore_problem,
@@ -568,6 +569,17 @@ def regenerate_certificates(request, course_key, statuses_to_regenerate):
         is_regeneration=True
     )
 
+    return instructor_task
+
+
+def generate_missing_certificates(request, course_key):
+    task_type = 'generate_missing_certificates'
+    task_input = {}
+
+    task_class = generate_missing_certificates_task
+    task_key = ""
+
+    instructor_task = submit_task(request, task_type, task_class, course_key, task_input, task_key)
     return instructor_task
 
 

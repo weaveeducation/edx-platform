@@ -6,6 +6,7 @@ import logging
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from xlocal import xlocal  # type: ignore
 
 from common.djangoapps.course_modes import api as modes_api
 from common.djangoapps.course_modes.models import CourseMode
@@ -35,6 +36,7 @@ from openedx.core.djangoapps.signals.signals import (
 )
 
 log = logging.getLogger(__name__)
+cert_status = xlocal()
 
 
 @receiver(COURSE_PACING_CHANGED, dispatch_uid="update_cert_settings_on_pacing_change")
@@ -78,19 +80,24 @@ def listen_for_passing_grade(sender, user, course_id, **kwargs):  # pylint: disa
     Listen for a learner passing a course, send cert generation task,
     downstream signal from COURSE_GRADE_CHANGED
     """
+    cert_is_generating = getattr(cert_status, 'is_generating', False)
+    if cert_is_generating:
+        return
+
     if not auto_certificate_generation_enabled():
         return
 
-    if can_generate_certificate_task(user, course_id):
-        log.info(f'{course_id} is using V2 certificates. Attempt will be made to generate a V2 certificate for '
-                 f'{user.id} as a passing grade was received.')
-        return generate_certificate_task(user, course_id)
+    with cert_status(is_generating=True):
+        if can_generate_certificate_task(user, course_id):
+            log.info(f'{course_id} is using V2 certificates. Attempt will be made to generate a V2 certificate for '
+                     f'{user.id} as a passing grade was received.')
+            return generate_certificate_task(user, course_id)
 
-    if _fire_ungenerated_certificate_task(user, course_id):
-        log.info('Certificate generation task initiated for {user} : {course} via passing grade'.format(
-            user=user.id,
-            course=course_id
-        ))
+        if _fire_ungenerated_certificate_task(user, course_id):
+            log.info('Certificate generation task initiated for {user} : {course} via passing grade'.format(
+                user=user.id,
+                course=course_id
+            ))
 
 
 @receiver(COURSE_GRADE_NOW_FAILED, dispatch_uid="new_failing_learner")
