@@ -4,7 +4,23 @@
   this.AjaxPrefix = {
     addAjaxPrefix: function(jQuery, prefix) {
       jQuery.postWithPrefix = function(url, data, callback, type) {
-        return $.post("" + (prefix()) + url, data, callback, type);
+        function inIframe() {
+          try {
+            return window.self !== window.top;
+          } catch (e) {
+            return true;
+          }
+        }
+
+        return $.post("" + (prefix()) + url, data, function(respData, textStatus, jqXHR) {
+          if (inIframe() && jQuery.isPlainObject(respData) && ('badge_ready' in respData) && respData.badge_ready) {
+            window.parent.postMessage('badgeReady', "*");
+          }
+          if (inIframe() && jQuery.isPlainObject(respData) && ('problem_answered' in respData) && respData.problem_answered) {
+            window.parent.postMessage('problemAnswered', "*");
+          }
+          callback(respData, textStatus, jqXHR);
+        }, type);
       };
       jQuery.getWithPrefix = function(url, data, callback, type) {
         return $.get("" + (prefix()) + url, data, callback, type);

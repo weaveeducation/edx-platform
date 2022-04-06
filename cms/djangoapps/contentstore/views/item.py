@@ -43,6 +43,7 @@ from common.djangoapps.xblock_django.user_service import DjangoXBlockUserService
 from common.djangoapps.badgr_integration.models import Badge, Configuration
 from common.djangoapps.badgr_integration.utils import org_badgr_enabled
 from common.djangoapps.credo_modules.models import CopyBlockTask, Organization
+from common.djangoapps.credo_modules.mongo import get_last_published_course_version
 from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo, BlockCache
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.bookmarks import api as bookmarks_api
@@ -88,7 +89,7 @@ from .helpers import (
 from .preview import get_preview_fragment
 from .api_block_info import update_api_blocks_before_publish, update_sibling_block_after_publish,\
     sync_api_blocks_before_move, sync_api_blocks_before_remove, create_api_block_info, copy_api_block_info,\
-    update_api_block_info, SyncApiBlockInfo
+    update_api_block_info, get_vertical_blocks_with_changes, copy_milestones, SyncApiBlockInfo
 
 __all__ = [
     'orphan_handler', 'xblock_handler', 'xblock_view_handler', 'xblock_outline_handler', 'xblock_container_handler'
@@ -614,6 +615,7 @@ def _copy_course_to_other_course(source_course_key_string, destination_course_ke
         for chapter_xblock in course.get_children():
             _duplicate_item(dst_course.location, chapter_xblock.location, user, chapter_xblock.display_name,
                             course_key=dst_course_key)
+    copy_milestones(str(source_course_key), str(dst_course_key))
     cs = contentstore()
     cs.copy_all_course_assets(source_course_key, dst_course_key)
 
@@ -635,7 +637,7 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
         if publish == "discard_changes":
             with SyncApiBlockInfo(xblock, user):
                 store.revert_to_published(xblock.location, user.id)
-                update_api_block_info(str(xblock.location), reverted_to_previous_version=False)
+                update_api_block_info(xblock, user, reverted_to_previous_version=False)
             # Returning the same sort of result that we do for other save operations. In the future,
             # we may want to return the full XBlockInfo.
             return JsonResponse({'id': str(xblock.location)})
@@ -795,13 +797,13 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
         # Used by Bok Choy tests and by republishing of staff locks.
         if publish == 'make_public':
             with transaction.atomic():
-                xblock_is_published = update_api_blocks_before_publish(xblock, user)
+                update_api_blocks_before_publish(xblock, user)
+                vertical_ids_with_changes = get_vertical_blocks_with_changes(str(xblock.location), user)
                 modulestore().publish(xblock.location, user.id)
-                if related_courses:
-                    task_uuid = update_sibling_block_after_publish(
-                        related_courses, xblock, xblock_is_published, user)
-                    if task_uuid:
-                        result['update_related_courses_task_id'] = task_uuid
+                task_uuid = update_sibling_block_after_publish(
+                    related_courses, xblock, user, vertical_ids_with_changes)
+                if task_uuid:
+                    result['update_related_courses_task_id'] = task_uuid
 
         # Note that children aren't being returned until we have a use case.
         return JsonResponse(result, encoder=EdxJSONEncoder)

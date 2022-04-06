@@ -159,6 +159,7 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
                 this.versionsListProgress = false;
                 this.versionsRestoreInProgress = false;
                 this.versionsData = {};
+                this.currentVersion = null;
             },
 
             onSync: function(model) {
@@ -316,6 +317,9 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
                             var versionsHtml = '';
                             $.each(data.versions, function(idx, val) {
                                 self.versionsData[val.id] = val;
+                                if (!val.can_restore) {
+                                    self.currentVersion = val.id;
+                                }
                                 versionsHtml += '<div class="version-to-restore">' +
                                   '<div>' + val.datetime + '</div>' +
                                   '<div>by ' + val.user + ' | <a href="javascript: void(0);" class="version-to-restore-link ' + (val.can_restore ? 'can-restore' : 'cant-restore') + '" data-version-id="' + val.id + '">' + (val.can_restore ? 'Restore' : 'Current Version') + '</a></div>' +
@@ -343,7 +347,7 @@ define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/compo
                             return $.ajax({
                                 url: '/restore_block_version/' + self.model.get('id'),
                                 type: 'POST',
-                                data: {versionId: versionId},
+                                data: {'versionId': versionId, 'currentVersionId': self.currentVersion},
                                 dataType: 'json',
                                 success: function(data) {
                                     if (data.success) {

@@ -161,6 +161,13 @@ from django.core import mail
 from openedx.core.lib.url_utils import unquote_slashes
 from django.core.validators import validate_email
 from django.core.exceptions import PermissionDenied, ValidationError
+
+from edx_rest_framework_extensions.auth.jwt.authentication import JwtAuthentication
+from edx_rest_framework_extensions.auth.session.authentication import SessionAuthenticationAllowInactiveUser
+from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiveUser
+from rest_framework.views import APIView
+from rest_framework import permissions
+
 try:
     from premailer import transform
 except ImportError:
@@ -2477,88 +2484,105 @@ def get_student_progress_email_html(course_id, usage_id, request=None, student_p
     return html_email, context
 
 
-@transaction.non_atomic_requests
-@login_required
-@ensure_valid_course_key
-@data_sharing_consent_required
-def block_student_progress(request, course_id, usage_id):
-    if request.method == 'GET':
+class BlockStudentProgressView(APIView):
+    authentication_classes = (
+        JwtAuthentication,
+        BearerAuthenticationAllowInactiveUser,
+        SessionAuthenticationAllowInactiveUser,
+    )
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request, course_id, usage_id):
         email_test = request.GET.get('email-test', None)
         if email_test == 'y':
             html_email, context = get_student_progress_email_html(course_id, usage_id, request)
             return HttpResponse(html_email)
         else:
             return HttpResponseBadRequest()
-    elif request.method == 'POST':
+
+    def post(self, request, course_id, usage_id):
         resp = get_block_student_progress(request, course_id, usage_id)
         return JsonResponse(resp)
-    return HttpResponseNotAllowed(['GET', 'POST'])
 
 
-@transaction.non_atomic_requests
-@login_required
-@require_http_methods(["POST"])
-@ensure_valid_course_key
-@data_sharing_consent_required
-def email_student_progress(request, course_id, usage_id):
-    try:
-        timezone_offset = int(request.POST.get('timezone_offset', 0))
-    except ValueError:
-        timezone_offset = 0
+class EmailStudentProgressView(APIView):
+    authentication_classes = (
+        JwtAuthentication,
+        BearerAuthenticationAllowInactiveUser,
+        SessionAuthenticationAllowInactiveUser,
+    )
+    permission_classes = (permissions.IsAuthenticated,)
 
-    course_key = CourseKey.from_string(course_id)
-    resp = get_block_student_progress(request, course_id, usage_id, timezone_offset)
+    def post(self, request, course_id, usage_id):
+        data_type = request.GET.get('data_type')
+        if data_type == 'json':
+            try:
+                json_data = json.loads(request.body)
+                timezone_offset = json_data.get('timezone_offset', 0)
+                emails = json_data.get('emails', '')
+            except ValueError:
+                return JsonResponse({'success': False, 'error': "invalid data"})
+        else:
+            timezone_offset = request.POST.get('timezone_offset', 0)
+            emails = request.POST.get('emails', '')
 
-    emails = request.POST.get('emails', '')
-    emails = emails.split(',')
-    emails_result = []
-
-    for e in emails:
         try:
-            email = e.strip()
-            validate_email(email)
-            if email not in emails_result:
-                emails_result.append(email)
-        except ValidationError:
-            pass
+            timezone_offset = int(timezone_offset)
+        except ValueError:
+            timezone_offset = 0
 
-    if len(emails_result) > 10:
-        return JsonResponse({'success': False, 'error': "Too much emails. Please don't use more than 10 emails"})
-    elif len(emails_result) == 0:
-        return JsonResponse({'success': False, 'error': "There are no valid emails"})
+        course_key = CourseKey.from_string(course_id)
+        resp = get_block_student_progress(request, course_id, usage_id, timezone_offset)
 
-    if not resp['error']:
-        try:
-            send_scores = SendScores.objects.get(user=request.user, course_id=course_key, block_id=usage_id)
-            time_diff = timezone.now() - send_scores.last_send_time
-            if time_diff.total_seconds() < 300:  # 5 min
-                return JsonResponse({'success': False, 'error': 'You have already sent email not so long ago. '
-                                                                'Please try again later in 5 minutes'})
-        except SendScores.DoesNotExist:
-            send_scores = SendScores(
-                user=request.user,
-                course_id=course_key,
-                block_id=usage_id)
-        send_scores.last_send_time = timezone.now()
-        send_scores.save()
+        emails = emails.split(',')
+        emails_result = []
 
-        with transaction.atomic():
-            mailing = SendScoresMailing(
-                email_scores=send_scores,
-                data=json.dumps(resp, cls=DjangoJSONEncoder),
-                last_send_time=timezone.now()
-            )
-            mailing.save()
+        for e in emails:
+            try:
+                email = e.strip()
+                validate_email(email)
+                if email not in emails_result:
+                    emails_result.append(email)
+            except ValidationError:
+                pass
 
-        send_email_with_scores.delay(course_id, usage_id, mailing.id, emails_result)
+        if len(emails_result) > 10:
+            return JsonResponse({'success': False, 'error': "Too much emails. Please don't use more than 10 emails"})
+        elif len(emails_result) == 0:
+            return JsonResponse({'success': False, 'error': "There are no valid emails"})
 
-        log.info("Task to send scores was added for user_id: %s, course_id: %s, block_id: %s. "
-                 "Emails: %s. Mailing id: %s",
-                 str(request.user.id), str(course_key), str(usage_id), str(emails_result), str(mailing.id))
+        if not resp['error']:
+            try:
+                send_scores = SendScores.objects.get(user=request.user, course_id=course_key, block_id=usage_id)
+                time_diff = timezone.now() - send_scores.last_send_time
+                if time_diff.total_seconds() < 300:  # 5 min
+                    return JsonResponse({'success': False, 'error': 'You have already sent email not so long ago. '
+                                                                    'Please try again later in 5 minutes'})
+            except SendScores.DoesNotExist:
+                send_scores = SendScores(
+                    user=request.user,
+                    course_id=course_key,
+                    block_id=usage_id)
+            send_scores.last_send_time = timezone.now()
+            send_scores.save()
 
-        return JsonResponse({'success': True, 'error': False})
-    else:
-        return JsonResponse({'success': False, 'error': 'Error. Please refresh the page'})
+            with transaction.atomic():
+                mailing = SendScoresMailing(
+                    email_scores=send_scores,
+                    data=json.dumps(resp, cls=DjangoJSONEncoder),
+                    last_send_time=timezone.now()
+                )
+                mailing.save()
+
+            send_email_with_scores.delay(course_id, usage_id, mailing.id, emails_result)
+
+            log.info("Task to send scores was added for user_id: %s, course_id: %s, block_id: %s. "
+                     "Emails: %s. Mailing id: %s",
+                     str(request.user.id), str(course_key), str(usage_id), str(emails_result), str(mailing.id))
+
+            return Response({'success': True, 'error': False})
+        else:
+            return Response({'success': False, 'error': 'Error. Please refresh the page'})
 
 
 @CELERY_APP.task

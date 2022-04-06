@@ -50,7 +50,7 @@ from cms.djangoapps.contentstore.storage import course_import_export_storage
 from cms.djangoapps.contentstore.utils import initialize_permissions, reverse_usage_url, translation_language
 from cms.djangoapps.models.settings.course_metadata import CourseMetadata
 from cms.djangoapps.contentstore.qti_converter import convert_to_olx
-from cms.djangoapps.contentstore.views.api_block_info import create_api_block_info
+from cms.djangoapps.contentstore.views.api_block_info import create_api_block_info, get_content_version, copy_milestones
 from common.djangoapps.course_action_state.models import CourseRerunState
 from common.djangoapps.student.auth import has_course_author_access
 from common.djangoapps.util.monitoring import monitor_import_failure
@@ -130,10 +130,12 @@ def copy_api_block_info_after_course_copy(store, source_course_key, destination_
                         api_blocks_to_insert.append(source_block_info)
                         api_block_keys.append(source_block_key)
 
+                content_version = get_content_version(module)
                 dst_location = module.location.map_into_course(destination_course_key)
                 dst_block_info = create_api_block_info(
                     dst_location, user, block_hash_id=source_block_hash, created_as_copy=True,
-                    published_after_copy=published_after_copy, auto_save=False)
+                    created_as_copy_from_course_id=str(source_course_key), published_after_copy=published_after_copy,
+                    published_content_version=content_version, auto_save=False)
                 dst_block_key = dst_block_info.course_id + '|' + dst_block_info.block_id
                 if dst_block_key not in api_block_keys:
                     api_blocks_to_insert.append(dst_block_info)
@@ -164,6 +166,7 @@ def rerun_course(source_course_key_string, destination_course_key_string, user_i
             store.clone_course(source_course_key, destination_course_key, user_id, fields=fields)
 
         copy_api_block_info_after_course_copy(store, source_course_key, destination_course_key, user_id)
+        copy_milestones(str(source_course_key), str(destination_course_key))
 
         # set initial permissions for the user to access the course.
         initialize_permissions(destination_course_key, User.objects.get(id=user_id))

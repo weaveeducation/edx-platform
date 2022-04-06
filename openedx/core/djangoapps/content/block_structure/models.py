@@ -397,7 +397,9 @@ class ApiBlockInfo(models.Model):
     updated_by = models.IntegerField(null=True, default=None)
     updated_time = models.DateTimeField(null=True, default=None)
     created_as_copy = models.BooleanField(default=False)
+    created_as_copy_from_course_id = models.CharField(max_length=255, null=True, blank=True)
     published_after_copy = models.BooleanField(default=False)
+    published_content_version = models.CharField(max_length=255, null=True, blank=False, db_index=True)
     reverted_to_previous_version = models.BooleanField(default=False)
 
     CATEGORY_HAS_CHILDREN = ('chapter', 'sequential', 'vertical')
@@ -415,6 +417,27 @@ class ApiBlockInfo(models.Model):
     class Meta:
         db_table = 'api_block_info'
         unique_together = (('course_id', 'block_id'),)
+
+
+class ApiBlockInfoNotSiblings(models.Model):
+    source_block_id = models.CharField(max_length=255, null=False, db_index=True)
+    dst_block_id = models.CharField(max_length=255, null=False, db_index=True)
+    user_id = models.IntegerField(null=True, default=None)
+    created = models.DateTimeField(null=True, blank=True, auto_now_add=True)
+    updated = models.DateTimeField(null=True, blank=True, auto_now=True)
+
+    class Meta:
+        db_table = 'api_block_info_not_siblings'
+
+
+class ApiBlockInfoVersionsHistory(models.Model):
+    course_id = models.CharField(max_length=255, null=False, db_index=True)
+    block_id = models.CharField(max_length=255, null=False, db_index=True)
+    version_id = models.CharField(max_length=255)
+    siblings_hash_id = models.CharField(max_length=255, null=False)
+
+    class Meta:
+        db_table = 'api_block_info_versions_history'
 
 
 class BlockCache(models.Model):
