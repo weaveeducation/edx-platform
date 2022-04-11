@@ -47,6 +47,7 @@ from openedx.features.course_experience import DISPLAY_COURSE_SOCK_FLAG
 from openedx.features.content_type_gating.models import ContentTypeGatingConfig
 from openedx.features.course_duration_limits.access import get_access_expiration_data
 from openedx.features.discounts.utils import generate_offer_data
+from common.djangoapps.credo_modules.models import CourseUsageHelper, get_student_properties
 from common.djangoapps.student.models import (
     CourseEnrollment,
     CourseEnrollmentCelebration,
@@ -542,6 +543,10 @@ class SequenceMetadata(DeveloperErrorViewMixin, APIView):
 
         res = json.loads(sequence.handle_ajax('metadata', None, view=view))
         course = get_course_by_id(usage_key.course_key)
+
+        student_properties = get_student_properties(request, usage_key.course_key, sequence)
+        CourseUsageHelper.update_block_usage(request, usage_key.course_key, sequence.location, student_properties)
+        CourseUsageHelper.update_block_usage(request, usage_key.course_key, sequence.parent, student_properties)
 
         is_time_exam = getattr(sequence, 'is_proctored_exam', False) or getattr(sequence, 'is_time_limited', False)
         res['show_summary_info_after_quiz'] = course.show_summary_info_after_quiz and sequence.graded and not is_time_exam
