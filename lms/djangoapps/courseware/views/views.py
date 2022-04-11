@@ -2552,29 +2552,28 @@ class EmailStudentProgressView(APIView):
             return JsonResponse({'success': False, 'error': "There are no valid emails"})
 
         if not resp['error']:
-            try:
-                send_scores = SendScores.objects.get(user=request.user, course_id=course_key, block_id=usage_id)
-                time_diff = timezone.now() - send_scores.last_send_time
-                if time_diff.total_seconds() < 300:  # 5 min
-                    return JsonResponse({'success': False, 'error': 'You have already sent email not so long ago. '
-                                                                    'Please try again later in 5 minutes'})
-            except SendScores.DoesNotExist:
-                send_scores = SendScores(
-                    user=request.user,
-                    course_id=course_key,
-                    block_id=usage_id)
-            send_scores.last_send_time = timezone.now()
-            send_scores.save()
-
             with transaction.atomic():
+                try:
+                    send_scores = SendScores.objects.get(user=request.user, course_id=course_key, block_id=usage_id)
+                    time_diff = timezone.now() - send_scores.last_send_time
+                    if time_diff.total_seconds() < 300:  # 5 min
+                        return JsonResponse({'success': False, 'error': 'You have already sent email not so long ago. '
+                                                                        'Please try again later in 5 minutes'})
+                except SendScores.DoesNotExist:
+                    send_scores = SendScores(
+                        user=request.user,
+                        course_id=course_key,
+                        block_id=usage_id)
+                send_scores.last_send_time = timezone.now()
+                send_scores.save()
+
                 mailing = SendScoresMailing(
                     email_scores=send_scores,
                     data=json.dumps(resp, cls=DjangoJSONEncoder),
                     last_send_time=timezone.now()
                 )
                 mailing.save()
-
-            send_email_with_scores.delay(course_id, usage_id, mailing.id, emails_result)
+                transaction.on_commit(lambda: send_email_with_scores.delay(course_id, usage_id, mailing.id, emails_result))
 
             log.info("Task to send scores was added for user_id: %s, course_id: %s, block_id: %s. "
                      "Emails: %s. Mailing id: %s",
