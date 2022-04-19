@@ -807,9 +807,13 @@ def check_connection_between_siblings(user, course_id, vertical_xblocks):
 
 def get_content_version(vertical_xblock):
     hashes_lst = []
+    exclude_metadata_keys = ['graceperiod', 'xml_attributes', 'xqa_key', 'start', 'due']
     if vertical_xblock.category == 'vertical':
         for child_xblock in vertical_xblock.get_children():
             metadata = get_settings_data(child_xblock)
+            for k in exclude_metadata_keys:
+                if k in metadata:
+                    metadata.pop(k, None)
             fields = child_xblock.get_explicitly_set_fields_by_scope(Scope.content)
             metadata_str = json.dumps(metadata, sort_keys=True, default=str)
             fields_str = json.dumps(fields, sort_keys=True, default=str)
