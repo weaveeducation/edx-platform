@@ -1,13 +1,25 @@
 import datetime
+import logging
 import json
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from django.db import transaction
 from lms import CELERY_APP
+from lms.djangoapps.lti_provider.models import LtiContextId
 from lms.djangoapps.lti_provider.tasks import ScoresHandler, LTI_TASKS_MAX_RETRIES
 from lms.djangoapps.lti_provider.outcomes import OutcomeServiceSendScoreError
+from lms.djangoapps.lti_provider.views import enroll_user_to_course
+from lms.djangoapps.lti1p3_tool.models import LtiUser
+from common.djangoapps.student.role_helpers import has_staff_roles
+from common.djangoapps.student.models import CourseEnrollment
 from common.djangoapps.credo_modules.task_repeater import TaskRepeater
-from .models import GradedAssignment
+from common.djangoapps.credo_modules.models import check_and_save_enrollment_attributes
+from opaque_keys.edx.keys import CourseKey
+from .models import GradedAssignment, LtiUserEnrollment, LtiExternalCourse
 from .tool_conf import ToolConfDb
+from .users import Lti1p3UserService
 
 try:
     from pylti1p3.contrib.django import DjangoMessageLaunch
@@ -15,6 +27,10 @@ try:
     from pylti1p3.exception import LtiException
 except ImportError:
     pass
+
+
+User = get_user_model()
+log = logging.getLogger("lti1p3_tool.tasks")
 
 
 @CELERY_APP.task(name='lms.djangoapps.lti1p3_tool.tasks.lti1p3_send_composite_outcome', bind=True)
@@ -124,3 +140,135 @@ class Lti1p3ScoresHandler(ScoresHandler):
             }
         except LtiException as e:
             raise OutcomeServiceSendScoreError(str(e), lis_outcome_service_url=assignment.lti_lineitem)
+
+
+@CELERY_APP.task(bind=True)
+def lti1p3_sync_course_enrollments(self, ext_course_id):
+    ext_course = LtiExternalCourse.objects.filter(pk=ext_course_id).first()
+    if not ext_course or not ext_course.context_memberships_url:
+        return
+
+    edx_course_id = ext_course.edx_course_id
+    external_course_id = ext_course.external_course_id
+    course_key = CourseKey.from_string(edx_course_id)
+
+    ext_course.users_last_sync_date = timezone.now()
+    ext_course.save(update_fields=["users_last_sync_date"])
+
+    lti_tool = ext_course.lti_tool
+
+    launch_data = {
+        'iss': lti_tool.issuer,
+        'aud': lti_tool.client_id,
+        'https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice': {
+            'context_memberships_url': ext_course.context_memberships_url,
+            "service_versions": [
+                "2.0"
+            ],
+        }
+    }
+    tool_conf = ToolConfDb()
+    message_launch = DjangoMessageLaunch(None, tool_conf)
+    message_launch.set_auto_validation(enable=False) \
+        .set_jwt({'body': launch_data}) \
+        .set_restored() \
+        .validate_registration()
+
+    nrps = message_launch.get_nrps()
+    context = nrps.get_context()
+    context_label = context.get('label')
+    if context_label:
+        context_label = context_label.strip()
+    context_title = context.get('title')
+    if context_title:
+        context_title = context_title.strip()
+
+    members = nrps.get_members()
+    us = Lti1p3UserService()
+    processed_users = []
+    processed_edx_users = []
+    external_users_dict = {}
+
+    # check members to automatically enroll them
+    for member in members:
+        log.info("Process LTI member %s", member)
+
+        lti_status = member.get('status')
+        if lti_status:
+            lti_status = lti_status.strip().lower()
+        if lti_status != 'active':
+            continue
+
+        with transaction.atomic():
+            lti_user_id = member.get('user_id')
+            lti_user = us.get_lti_user(lti_user_id, lti_tool, member)
+            us.update_external_enrollment(lti_user, ext_course, context_label=context_label, context_title=context_title)
+
+            user = lti_user.edx_user
+            processed_users.append(lti_user_id)
+            processed_edx_users.append(lti_user.edx_user_id)
+            external_users_dict[user.id] = lti_user_id
+
+            roles = []
+            lti_roles = member.get('roles', [])
+            for role in lti_roles:
+                roles_lst = role.split('#')
+                if len(roles_lst) > 1:
+                    roles.append(roles_lst[1])
+
+            enroll_result = enroll_user_to_course(user, course_key, roles)
+            if enroll_result:
+                log.info("New user %s was enrolled to course %s", user.id, edx_course_id)
+
+                enrollment_attributes = {}
+                if context_label:
+                    enrollment_attributes['context_label'] = context_label
+                check_and_save_enrollment_attributes(enrollment_attributes, user, course_key)
+
+    # check members to automatically unenroll them
+    if lti_tool.automatically_unenroll_users:
+        edx_enrollments = CourseEnrollment.objects.users_enrolled_in(course_key)
+        for user in edx_enrollments:
+            if user.id in processed_edx_users or user.is_staff or user.is_superuser or has_staff_roles(user, course_key):
+                continue
+
+            lti_users = LtiUser.objects.filter(
+                edx_user=user,
+                lti_tool=lti_tool
+            )
+
+            # skip non-LTI users
+            if len(lti_users) == 0:
+                continue
+
+            # try to find other enrollments in the same edx course
+            other_enrollments_exists = LtiUserEnrollment.objects.filter(
+                lti_user__edx_user=user,
+                external_course__edx_course_id=edx_course_id
+            ).exclude(external_course__external_course_id=external_course_id).exists()
+
+            # and skip such users
+            if other_enrollments_exists:
+                continue
+
+            contexts = LtiContextId.objects.filter(user=user, course_key=course_key)
+            contexts_list_uniq = []
+            for context in contexts:
+                if context.value.strip() not in contexts_list_uniq:
+                    contexts_list_uniq.append(context.value.strip())
+
+            if len(contexts_list_uniq) > 1\
+              or (len(contexts_list_uniq) == 1 and contexts_list_uniq[0] != external_course_id):
+                continue
+
+            log.info("Try to unenroll user: %s", user.id)
+
+            with transaction.atomic():
+                # remove LTI enrollment objects
+                lti_user_ids = [l.id for l in lti_users if l.lti_jwt_sub not in processed_users]
+                if len(lti_user_ids) > 0:
+                    LtiUserEnrollment.objects.filter(
+                        lti_user_id__in=lti_user_ids,
+                        external_course=ext_course).delete()
+
+                CourseEnrollment.unenroll(user, course_key)

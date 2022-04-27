@@ -8,6 +8,7 @@ from collections import OrderedDict
 from urllib.parse import urlparse, unquote, quote, quote_plus
 
 from django.conf import settings
+from django.db import transaction
 from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound,\
     HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -35,6 +36,7 @@ from lms.djangoapps.courseware.views.views import render_progress_page_frame
 from lms.djangoapps.courseware.utils import get_lti_context_session_key
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
+from .ext_courses import process_external_course
 from .tool_conf import ToolConfDb
 from .models import GradedAssignment, LtiToolKey
 from .users import Lti1p3UserService
@@ -341,17 +343,20 @@ def launch(request, usage_id=None):
 
         if not usage_id and course_id:
             if page == COURSE_PROGRESS_PAGE:
-                return _launch(request, course_id=course_id, page=page)
+                with transaction.atomic():
+                    return _launch(request, course_id=course_id, page=page)
             else:
                 return _deep_link_launch(request, course_id)
         elif not usage_id and not course_id and page:
-            return _launch(request, page=page)
+            with transaction.atomic():
+                return _launch(request, page=page)
 
     block, err_tpl = get_block_by_id(usage_id)
     if not block:
         return err_tpl
 
-    return _launch(request, block)
+    with transaction.atomic():
+        return _launch(request, block)
 
 
 @csrf_exempt
@@ -359,7 +364,8 @@ def launch(request, usage_id=None):
 @xframe_options_exempt
 @require_POST
 def progress(request, course_id):
-    return _launch(request, course_id=course_id, page=COURSE_PROGRESS_PAGE)
+    with transaction.atomic():
+        return _launch(request, course_id=course_id, page=COURSE_PROGRESS_PAGE)
 
 
 @csrf_exempt
@@ -367,7 +373,8 @@ def progress(request, course_id):
 @xframe_options_exempt
 @require_POST
 def myskills(request):
-    return _launch(request, page=MY_SKILLS_PAGE)
+    with transaction.atomic():
+        return _launch(request, page=MY_SKILLS_PAGE)
 
 
 @csrf_exempt
@@ -408,9 +415,14 @@ def _launch(request, block=None, course_id=None, page=None):
 
     is_iframe = state_params.get('is_iframe') if state_params else True
     context_id = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/context', {}).get('id')
+    if context_id:
+        context_id = context_id.strip()
     context_label = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/context', {}).get('label')
     if context_label:
         context_label = context_label.strip()
+    context_title = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/context', {}).get('label')
+    if context_title:
+        context_title = context_title.strip()
     external_user_id = message_launch_data.get('sub')
     message_launch_custom_data = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/custom', {})
 
@@ -450,14 +462,15 @@ def _launch(request, block=None, course_id=None, page=None):
                     lti_params['last_name'] = member_family_name
 
     us = Lti1p3UserService()
-    us.authenticate_lti_user(request, external_user_id, lti_tool, lti_params)
+    lti_user = us.authenticate_lti_user(request, external_user_id, lti_tool, lti_params)
 
     request_params = message_launch_data.copy()
     request_params.update(message_launch_custom_data)
 
     enrollment_attributes = None
     if course_key:
-        enrollment_attributes = get_enrollment_attributes(request_params, course_key, context_label=context_label)
+        enrollment_attributes = get_enrollment_attributes(request_params, course_key,
+                                                          context_label=context_label)
 
     if request.user.is_authenticated:
         roles = None
@@ -481,6 +494,9 @@ def _launch(request, block=None, course_id=None, page=None):
     log_user_id = request.user.id if request.user.is_authenticated else None
     log_lti_launch(request, 'launch', msg, iss, client_id, block_id=str(usage_key), user_id=log_user_id,
                    course_id=str(course_key), tool_id=lti_tool.id, page_name=page)
+
+    ext_course = process_external_course(message_launch, str(course_key), context_id, lti_tool)
+    us.update_external_enrollment(lti_user, ext_course, context_label=context_label, context_title=context_title)
 
     if block:
         if message_launch.has_ags():

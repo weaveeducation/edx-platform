@@ -1,7 +1,8 @@
+from django.db import IntegrityError, transaction
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
 from lms.djangoapps.lti_provider.users import UserService
-from .models import LtiUser
+from .models import LtiUser, LtiUserEnrollment
 
 
 User = get_user_model()
@@ -42,6 +43,27 @@ class Lti1p3UserService(UserService):
             lti_jwt_sub=lti_user.lti_jwt_sub,
             lti_tool=lti_tool
         )
+
+    def update_external_enrollment(self, lti_user, external_course, context_label, context_title):
+        ext_enrollment = LtiUserEnrollment.objects.filter(
+            lti_user=lti_user, external_course=external_course).first()
+
+        properties = {
+            'context_label': context_label,
+            'context_title': context_title
+        }
+
+        if not ext_enrollment:
+            try:
+                with transaction.atomic():
+                    ext_enrollment = LtiUserEnrollment(
+                        lti_user=lti_user,
+                        external_course=external_course,
+                    )
+                    ext_enrollment.set_properties(properties)
+                    ext_enrollment.save()
+            except IntegrityError:
+                pass
 
 
 class Lti1p3Backend(object):

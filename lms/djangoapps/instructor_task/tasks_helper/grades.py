@@ -35,6 +35,7 @@ from lms.djangoapps.instructor_task.config.waffle import (
     problem_grade_report_verified_only
 )
 from lms.djangoapps.teams.models import CourseTeamMembership
+from lms.djangoapps.lti1p3_tool.models import LtiExternalCourse, LtiUserEnrollment
 from lms.djangoapps.verify_student.services import IDVerificationService
 from openedx.core.djangoapps.content.block_structure.api import get_course_in_cache
 from openedx.core.djangoapps.course_groups.cohorts import bulk_cache_cohorts, get_cohort, is_course_cohorted
@@ -85,6 +86,28 @@ def _get_enrollments_params(context):
         timestamp_to = int(timestamp_to) + (int(browser_tz_offset) * 60)
         res['courseenrollment__created__lt'] = datetime.fromtimestamp(timestamp_to).replace(tzinfo=UTC)
     return res
+
+
+def get_lti_fields_data(course_id, user):
+    lti_context_label_lst = []
+    lti_context_title_lst = []
+    lti_enrollments = LtiUserEnrollment.objects.filter(
+        external_course__edx_course_id=str(course_id),
+        lti_user__edx_user=user
+    )
+    for lti_enrollment in lti_enrollments:
+        lti_props = lti_enrollment.get_properties()
+        lti_context_label = lti_props.get('context_label')
+        if lti_context_label:
+            lti_context_label_lst.append(lti_context_label)
+        lti_context_title = lti_props.get('context_title')
+        if lti_context_title:
+            lti_context_title_lst.append(lti_context_title)
+    lti_fields = [
+        '; '.join(lti_context_label_lst) if lti_context_label_lst else '',
+        '; '.join(lti_context_title_lst) if lti_context_title_lst else '',
+    ]
+    return lti_fields
 
 
 class GradeReportBase:
@@ -440,6 +463,7 @@ class CourseGradeReport:
         self.additional_profile_fields = []
         self.additional_profile_fields_title = []
         self.users_with_additional_profile = {}
+        self.lti_fields = []
 
     @classmethod
     def generate(cls, _xmodule_instance_args, _entry_id, course_id, _task_input, action_name):
@@ -465,6 +489,10 @@ class CourseGradeReport:
             self.users_with_additional_profile = CredoModulesUserProfile.users_with_additional_profile(
                 context.course_id)
 
+        lti_external_course = LtiExternalCourse.objects.filter(edx_course_id=str(course.id)).first()
+        if lti_external_course:
+            self.lti_fields = ['LTI 1.3 Context Label', 'LTI 1.3 Context Title']
+
         success_headers = self._success_headers(context)
         error_headers = self._error_headers()
         batched_rows = self._batched_rows(context)
@@ -484,6 +512,7 @@ class CourseGradeReport:
         return (
             ["Student ID", "Email", "Username"] +
             self.additional_profile_fields_title +
+            self.lti_fields +
             self._grades_header(context) +
             (['Cohort Name'] if context.cohorts_enabled else []) +
             [f'Experiment Group ({partition.name})' for partition in context.course_experiments] +
@@ -774,12 +803,16 @@ class CourseGradeReport:
                     for field in self.additional_profile_fields:
                         row_additional_profile.append(additional_student_fields.get(field, ''))
 
+                lti_fields = []
+                if self.lti_fields:
+                    lti_fields = get_lti_fields_data(context.course_id, user)
+
                 if not course_grade:
                     # An empty gradeset means we failed to grade a student.
                     error_rows.append([user.id, user.username, str(error)])
                 else:
                     success_rows.append(
-                        [user.id, user.email, user.username] + row_additional_profile +
+                        [user.id, user.email, user.username] + row_additional_profile + lti_fields +
                         self._user_grades(course_grade, context) +
                         self._user_cohort_group_names(user, context) +
                         self._user_experiment_group_names(user, context) +
@@ -835,6 +868,9 @@ class ProblemGradeReport(GradeReportBase):
             list: combined header and scorable blocks
         """
         header_row = list(self._problem_grades_header().values())
+        lti_external_course = LtiExternalCourse.objects.filter(edx_course_id=str(context.course.id)).first()
+        if lti_external_course:
+            header_row += ['LTI 1.3 Context Label', 'LTI 1.3 Context Title']
 
         # additional profile fields from credo modules
         additional_profile_fields = OrderedDict()
@@ -866,6 +902,8 @@ class ProblemGradeReport(GradeReportBase):
             users_with_additional_profile_dict = CredoModulesUserProfile.users_with_additional_profile(
                 context.course_id)
             additional_profile_fields = StudentProfileField.init_from_course(context.course)
+
+        lti_external_course = LtiExternalCourse.objects.filter(edx_course_id=str(context.course.id)).first()
 
         success_rows, error_rows = [], []
         for student, course_grade, error in CourseGradeFactory().iter(
@@ -908,6 +946,11 @@ class ProblemGradeReport(GradeReportBase):
                 for field, field_item in additional_profile_fields.items():
                     if not field_item.info:
                         res.append(additional_student_fields.get(field, ''))
+
+            if lti_external_course:
+                lti_fields = get_lti_fields_data(context.course.id, student)
+                res += lti_fields
+
             res += [enrollment_status, course_grade.percent]
             res += _flatten(earned_possible_values)
             success_rows.append(res)

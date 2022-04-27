@@ -28,7 +28,7 @@ LAST_NAME_DB_FIELD_SIZE = 30
 EMAIL_DB_FIELD_SIZE = 254
 
 
-class UserService(object):
+class UserService:
 
     def get_lti_user_by_external_id(self, lti_user_id, lti_consumer):
         try:
@@ -63,6 +63,13 @@ class UserService(object):
             lti_consumer=lti_consumer
         )
 
+    def get_lti_user(self, lti_user_id, lti_consumer, lti_params=None):
+        lti_user = self.get_lti_user_by_external_id(lti_user_id, lti_consumer)
+        if not lti_user:
+            # This is the first time that the user has been here. Create an account.
+            lti_user = self.create_lti_user(lti_user_id, lti_consumer, lti_params)
+        return lti_user
+
     def authenticate_lti_user(self, request, lti_user_id, lti_consumer, lti_params=None):
         """
         Determine whether the user specified by the LTI launch has an existing
@@ -72,10 +79,7 @@ class UserService(object):
         If the currently logged-in user does not match the user specified by the LTI
         launch, log out the old user and log in the LTI identity.
         """
-        lti_user = self.get_lti_user_by_external_id(lti_user_id, lti_consumer)
-        if not lti_user:
-            # This is the first time that the user has been here. Create an account.
-            lti_user = self.create_lti_user(lti_user_id, lti_consumer, lti_params)
+        lti_user = self.get_lti_user(lti_user_id, lti_consumer, lti_params=lti_params)
 
         if not (request.user.is_authenticated and
                 request.user == lti_user.edx_user):
@@ -84,6 +88,7 @@ class UserService(object):
             self.switch_user(request, lti_user, lti_consumer)
 
         request._user_logged_in = True
+        return lti_user
 
     def create_lti_user(self, lti_user_id, lti_consumer, lti_params=None):
         """

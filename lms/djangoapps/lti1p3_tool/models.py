@@ -1,3 +1,4 @@
+import json
 from django.contrib.auth import get_user_model
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
@@ -97,6 +98,13 @@ class LtiTool(models.Model):
                                                               "of performance reasons, may be needed for LTI 1.3 "
                                                               "certification)"))
 
+    automatically_enroll_users = models.BooleanField(default=False,
+                                                     help_text=_("Automatically enroll users using information "
+                                                                 "from the Names and Role Provisioning service."))
+    automatically_unenroll_users = models.BooleanField(default=False,
+                                                       help_text=_("Automatically unenroll users using information "
+                                                                   "from the Names and Role Provisioning service."))
+
     def clean(self):
         if not self.key_set_url and not self.key_set:
             raise ValidationError({'key_set_url': _('Even one of "key_set_url" or "key_set" should be set')})
@@ -116,7 +124,10 @@ class LtiTool(models.Model):
         }
         return data
 
-    class Meta(object):
+    def __str__(self):
+        return '<LtiTool id=%d, title=%s>' % (self.id, self.title)
+
+    class Meta:
         unique_together = ('issuer', 'client_id')
 
 
@@ -133,7 +144,7 @@ class GradedAssignment(models.Model):
     version_number = models.IntegerField(default=0)
     disabled = models.BooleanField(default=False)
 
-    class Meta(object):
+    class Meta:
         index_together = (('lti_jwt_sub', 'lti_lineitem_tag'),)
         unique_together = (('lti_lineitem', 'lti_jwt_sub'),)
 
@@ -143,5 +154,40 @@ class LtiUser(models.Model):
     lti_jwt_sub = models.CharField(max_length=255)
     edx_user = models.OneToOneField(User, related_name="lti1p3_users", on_delete=models.CASCADE)
 
-    class Meta(object):
+    class Meta:
         unique_together = (('lti_tool', 'lti_jwt_sub'),)
+
+    def __str__(self):
+        return f"<LtiUser lti_jwt_sub={self.lti_jwt_sub} edx_user={self.edx_user.email if self.edx_user else None}>"
+
+
+class LtiExternalCourse(models.Model):
+    external_course_id = models.CharField(max_length=255, db_index=True)
+    edx_course_id = models.CharField(max_length=255, db_index=True)
+    lti_tool = models.ForeignKey(LtiTool, on_delete=models.CASCADE)
+    context_memberships_url = models.TextField(null=True, blank=True)
+    users_last_sync_date = models.DateTimeField(null=True, editable=False)
+
+    class Meta:
+        unique_together = (('external_course_id', 'edx_course_id'),)
+
+    def __str__(self):
+        return f"<LtiExternalCourse external_course_id={self.external_course_id} edx_course_id={self.edx_course_id}>"
+
+
+class LtiUserEnrollment(models.Model):
+    lti_user = models.ForeignKey(LtiUser, on_delete=models.CASCADE)
+    external_course = models.ForeignKey(LtiExternalCourse, on_delete=models.CASCADE)
+    properties = models.TextField(null=True, blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = (('lti_user', 'external_course'),)
+
+    def set_properties(self, value):
+        self.properties = json.dumps(value)
+
+    def get_properties(self):
+        if self.properties:
+            return json.loads(self.properties)
+        return {}

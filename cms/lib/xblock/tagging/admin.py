@@ -12,7 +12,7 @@ from common.djangoapps.credo_modules.admin import ExportCsvMixin
 class TagCategoriesForm(forms.ModelForm):
     """Form for add/edit tag category."""
 
-    class Meta(object):
+    class Meta:
         model = TagCategories
         fields = '__all__'
 

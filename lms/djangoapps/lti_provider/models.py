@@ -153,7 +153,7 @@ class GradedAssignment(models.Model):
     version_number = models.IntegerField(default=0)
     disabled = models.BooleanField(default=False)
 
-    class Meta(object):
+    class Meta:
         unique_together = ('outcome_service', 'lis_result_sourcedid')
 
 
@@ -168,7 +168,7 @@ class LtiUser(models.Model):
     lti_user_id = models.CharField(max_length=255)
     edx_user = models.OneToOneField(User, on_delete=models.CASCADE)
 
-    class Meta(object):
+    class Meta:
         unique_together = ('lti_consumer', 'lti_user_id')
 
 
@@ -177,7 +177,7 @@ class GradedAssignmentLock(models.Model):
     created = models.DateTimeField()
     lti_version = models.CharField(max_length=10, choices=LTI_VERSIONS, default=LTI1p1)
 
-    class Meta(object):
+    class Meta:
         unique_together = ('graded_assignment_id', 'lti_version')
 
     @classmethod
@@ -232,11 +232,11 @@ class LtiContextId(models.Model):
             return json.loads(self.properties)
         return {}
 
-    class Meta(object):
+    class Meta:
         unique_together = ('course_key', 'usage_key', 'user', 'lti_version')
 
 
-class SendScoresLock(object):
+class SendScoresLock:
 
     def __init__(self, graded_assignment_id, lti_version=None):
         self.graded_assignment_id = graded_assignment_id

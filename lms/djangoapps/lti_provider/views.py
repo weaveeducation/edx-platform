@@ -110,9 +110,14 @@ def _lti_launch(request, course_id=None, usage_id=None, page_name=None):
 
     return_url = request_params.get('launch_presentation_return_url', None)
     context_id = request_params.get('context_id', None)
+    if context_id:
+        context_id = context_id.strip()
     context_label = request_params.get('context_label', None)
     if context_label:
         context_label = context_label.strip()
+    #context_title = request_params.get('context_title', None)
+    #if context_title:
+    #    context_title = context_title.strip()
     lis_course_offier_sourcedid = request_params.get('lis_course_offier_sourcedid', None)
     if lis_course_offier_sourcedid:
         lis_course_offier_sourcedid = lis_course_offier_sourcedid.strip()
@@ -217,6 +222,8 @@ def _lti_launch(request, course_id=None, usage_id=None, page_name=None):
     enroll_kwargs = {}
     if context_label:
         enroll_kwargs['context_label'] = context_label
+    #if context_title:
+    #    enroll_kwargs['context_title'] = context_title
     if lis_course_offier_sourcedid:
         enroll_kwargs['lis_course_offier_sourcedid'] = lis_course_offier_sourcedid
 

@@ -21,7 +21,7 @@ class TagCategories(models.Model):
 
     _org_types = []
 
-    class Meta(object):
+    class Meta:
         app_label = "tagging"
         ordering = ('title',)
         verbose_name = "tag category"
@@ -76,7 +76,7 @@ class TagAvailableValues(models.Model):
     org = models.CharField(max_length=255, db_index=True, null=True, blank=True)
     value = models.CharField(max_length=255, help_text="Limited to 255 symbols")
 
-    class Meta(object):
+    class Meta:
         app_label = "tagging"
         ordering = ('id',)
         verbose_name = "available tag value"
