@@ -189,6 +189,11 @@ def lti1p3_sync_course_enrollments(self, ext_course_id):
     processed_edx_users = []
     external_users_dict = {}
 
+    existing_enrollments = LtiUserEnrollment.objects.filter(external_course=ext_course).select_related('lti_user')
+    existing_enrollments_dict = {}
+    for enr in existing_enrollments:
+        existing_enrollments_dict[enr.lti_user.lti_jwt_sub] = enr.lti_user
+
     # check members to automatically enroll them
     for member in members:
         log.info("Process LTI member %s", member)
@@ -227,6 +232,12 @@ def lti1p3_sync_course_enrollments(self, ext_course_id):
 
     # check members to automatically unenroll them
     if lti_tool.automatically_unenroll_users:
+
+        # remove LtiUserEnrollment objects for absent users
+        for edx_user_id, lti_user in existing_enrollments_dict.items():
+            if edx_user_id not in processed_users:
+                LtiUserEnrollment.objects.filter(lti_user=lti_user, external_course=ext_course).delete()
+
         edx_enrollments = CourseEnrollment.objects.users_enrolled_in(course_key)
         for user in edx_enrollments:
             if user.id in processed_edx_users or user.is_staff or user.is_superuser or has_staff_roles(user, course_key):
