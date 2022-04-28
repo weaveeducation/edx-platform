@@ -422,12 +422,17 @@ class ApiBlockInfo(models.Model):
 class ApiBlockInfoNotSiblings(models.Model):
     source_block_id = models.CharField(max_length=255, null=False, db_index=True)
     dst_block_id = models.CharField(max_length=255, null=False, db_index=True)
+    source_course_id = models.CharField(max_length=255, null=True, db_index=True)
+    dst_course_id = models.CharField(max_length=255, null=True, db_index=True)
+
     user_id = models.IntegerField(null=True, default=None)
     created = models.DateTimeField(null=True, blank=True, auto_now_add=True)
     updated = models.DateTimeField(null=True, blank=True, auto_now=True)
 
     class Meta:
         db_table = 'api_block_info_not_siblings'
+        verbose_name = "Cousin Content Block"
+        verbose_name_plural = "Cousin Content Blocks"
 
 
 class ApiBlockInfoVersionsHistory(models.Model):

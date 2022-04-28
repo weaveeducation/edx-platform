@@ -122,8 +122,10 @@ def copy_api_block_info(source_item, dest_module, user, level=0, auto_save=True,
         for not_sibling in not_siblings:
             other_block_id = not_sibling.source_block_id if not_sibling.dst_block_id == str(source_item.location) else not_sibling.dst_block_id
             ApiBlockInfoNotSiblings(
+                source_course_id=str(UsageKey.from_string(other_block_id).course_key),
                 source_block_id=other_block_id,
                 dst_block_id=str(dest_module.location),
+                dst_course_id=str(UsageKey.from_string(str(dest_module.location)).course_key),
                 user_id=user.id
             ).save()
 
@@ -250,7 +252,9 @@ def update_sibling_block_after_publish(related_courses, xblock, user, vertical_i
 
                     not_siblings_list.append(ApiBlockInfoNotSiblings(
                         source_block_id=src_item.block_id,
+                        source_course_id=str(UsageKey.from_string(src_item.block_id).course_key),
                         dst_block_id=dst_block.block_id,
+                        dst_course_id=str(UsageKey.from_string(dst_block.block_id).course_key),
                         user_id=user.id
                     ))
 
@@ -798,7 +802,9 @@ def check_connection_between_siblings(user, course_id, vertical_xblocks):
                     ).first()
                     if not not_siblings:
                         not_siblings = ApiBlockInfoNotSiblings(
+                            source_course_id=str(UsageKey.from_string(src_block_id).course_key),
                             source_block_id=src_block_id,
+                            dst_course_id=str(UsageKey.from_string(rel_block.block_id).course_key),
                             dst_block_id=rel_block.block_id,
                             user_id=user.id
                         )

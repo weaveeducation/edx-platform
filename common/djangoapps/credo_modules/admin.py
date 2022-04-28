@@ -15,6 +15,7 @@ from .models import RegistrationPropertiesPerOrg, EnrollmentPropertiesPerCourse,
     RutgersCampusMapping, Feature, FeatureBetaTester, CredoModulesUserProfile, CredoStudentProperties, SendScores,\
     TrackingLogConfig, PropertiesInfo, SiblingBlockUpdateTask, DelayedTask,\
     LoginRedirectAllowedHost
+from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure, ApiBlockInfoNotSiblings
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 
@@ -224,6 +225,26 @@ class LoginRedirectAllowedHostForm(admin.ModelAdmin):
     list_display = ('id', 'created', 'host', 'is_active')
 
 
+class ApiBlockInfoNotSiblingsForm(ReadOnlyMixin, admin.ModelAdmin):
+    list_display = ('id', 'source_course_id', 'source_block_id', 'get_source_block_path',
+                    'dst_course_id', 'dst_block_id', 'get_dst_block_path', 'created')
+    search_fields = ['source_course_id', 'source_block_id', 'dst_course_id', 'dst_block_id']
+
+    def get_source_block_path(self, obj):
+        block = ApiCourseStructure.objects.filter(block_id=obj.source_block_id).first()
+        if block:
+            return block.section_path.replace('|', ' > ')
+
+    get_source_block_path.short_description = 'Source Block Path'
+
+    def get_dst_block_path(self, obj):
+        block = ApiCourseStructure.objects.filter(block_id=obj.dst_block_id).first()
+        if block:
+            return block.section_path.replace('|', ' > ')
+
+    get_dst_block_path.short_description = 'Dst Block Path'
+
+
 class IgnoredFilter(admin.SimpleListFilter):
 
     title = 'Display'
@@ -272,3 +293,4 @@ admin.site.register(TrackingLogConfig, TrackingLogConfigForm)
 admin.site.register(PropertiesInfo, PropertiesInfoForm)
 admin.site.register(SiblingBlockUpdateTask, SiblingBlockUpdateTaskForm)
 admin.site.register(LoginRedirectAllowedHost, LoginRedirectAllowedHostForm)
+admin.site.register(ApiBlockInfoNotSiblings, ApiBlockInfoNotSiblingsForm)
