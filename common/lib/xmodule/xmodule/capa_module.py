@@ -329,7 +329,7 @@ class ProblemBlock(
 
         possible_options = []
         reg_options = r'<choice\s[\=\w\"\'\s]*>([\w\"\'\s]*)<\/choice>|<option[\=\w\"\'\s]*>([\w\"\'\s]*)<\/option>'
-        capa_content_possible_options = re.findall(re.compile(reg_options,re.DOTALL | re.VERBOSE), capa_content)
+        capa_content_possible_options = re.findall(re.compile(reg_options, re.DOTALL | re.VERBOSE), capa_content)
         for possible_option_tpl in capa_content_possible_options:
             possible_option = None
             try:
@@ -343,8 +343,6 @@ class ProblemBlock(
                 possible_option_str = possible_option.strip().lower().title()
                 if possible_option_str not in possible_options:
                     possible_options.append(possible_option_str)
-        if possible_options:
-            possible_options = sorted(possible_options)
 
         capa_content_lst_tmp = re.split(
             re.compile(
