@@ -226,9 +226,14 @@ class LoginRedirectAllowedHostForm(admin.ModelAdmin):
 
 
 class ApiBlockInfoNotSiblingsForm(ReadOnlyMixin, admin.ModelAdmin):
+    list_filter = [
+        "source_course_id",
+        "dst_course_id",
+    ]
     list_display = ('id', 'source_course_id', 'source_block_id', 'get_source_block_path',
                     'dst_course_id', 'dst_block_id', 'get_dst_block_path', 'created')
     search_fields = ['source_course_id', 'source_block_id', 'dst_course_id', 'dst_block_id']
+    ordering = ['source_course_id', 'dst_course_id']
 
     def get_source_block_path(self, obj):
         block = ApiCourseStructure.objects.filter(block_id=obj.source_block_id).first()
