@@ -813,7 +813,7 @@ def check_connection_between_siblings(user, course_id, vertical_xblocks):
 
 def get_content_version(vertical_xblock):
     hashes_lst = []
-    exclude_metadata_keys = ['graceperiod', 'xml_attributes', 'xqa_key', 'start', 'due']
+    exclude_metadata_keys = ['graceperiod', 'xml_attributes', 'xqa_key', 'start', 'due', 'user_partitions']
     if vertical_xblock.category == 'vertical':
         for child_xblock in vertical_xblock.get_children():
             metadata = get_settings_data(child_xblock)
