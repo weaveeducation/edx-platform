@@ -8,8 +8,12 @@ from opaque_keys.edx.keys import CourseKey
 from xblock.reference.user_service import UserService, XBlockUser
 
 from openedx.core.djangoapps.external_user_ids.models import ExternalId
+from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous
 from openedx.core.djangoapps.user_api.preferences.api import get_user_preferences
 from common.djangoapps.student.models import anonymous_id_for_user, get_user_by_username_or_email, user_by_anonymous_id
+from common.djangoapps.student.roles import CourseStaffRole, CourseInstructorRole
+from common.djangoapps.credo_modules.models import get_custom_user_role, get_extended_role_default_permissions
+
 
 from .constants import (
     ATTR_KEY_ANONYMOUS_USER_ID,
@@ -18,8 +22,10 @@ from .constants import (
     ATTR_KEY_USER_ID,
     ATTR_KEY_USERNAME,
     ATTR_KEY_USER_IS_STAFF,
+    ATTR_KEY_USER_IS_SUPERUSER,
     ATTR_KEY_USER_PREFERENCES,
     ATTR_KEY_USER_ROLE,
+    ATTR_KEY_USER_IS_CREDO_ANONYMOUS,
 )
 
 
@@ -42,6 +48,8 @@ class DjangoXBlockUserService(UserService):
         """
         super().__init__(**kwargs)
         self._django_user = django_user
+        if self._django_user:
+            self._django_user.user_is_staff = kwargs.get('user_is_staff', False)
         self._user_is_staff = kwargs.get('user_is_staff', False)
         self._user_role = kwargs.get('user_role', 'student')
         self._anonymous_user_id = kwargs.get('anonymous_user_id', None)
@@ -96,6 +104,32 @@ class DjangoXBlockUserService(UserService):
         """
         return user_by_anonymous_id(uid or self._anonymous_user_id)
 
+    def is_staff_user(self, course_id):
+        if self._django_user:
+            return CourseStaffRole(course_id).has_user(self._django_user)
+        else:
+            return False
+
+    def is_instructor_user(self, course_id):
+        if self._django_user:
+            return CourseInstructorRole(course_id).has_user(self._django_user)
+        else:
+            return False
+
+    def is_superadmin_user(self):
+        return self._django_user.is_superuser
+
+    def get_user_id(self):
+        return self._django_user.id
+
+    def staff_feature_is_available(self, course_id, feature):
+        role = get_custom_user_role(course_id, self._django_user, check_enrollment=False)
+        if role:
+            return getattr(role, feature)
+        else:
+            default_role = get_extended_role_default_permissions()
+            return default_role.get(feature, False)
+
     def _convert_django_user_to_xblock_user(self, django_user):
         """
         A function that returns an XBlockUser from the current Django request.user
@@ -116,7 +150,9 @@ class DjangoXBlockUserService(UserService):
             xblock_user.opt_attrs[ATTR_KEY_USER_ID] = django_user.id
             xblock_user.opt_attrs[ATTR_KEY_USERNAME] = django_user.username
             xblock_user.opt_attrs[ATTR_KEY_USER_IS_STAFF] = self._user_is_staff
+            xblock_user.opt_attrs[ATTR_KEY_USER_IS_SUPERUSER] = django_user.is_superuser
             xblock_user.opt_attrs[ATTR_KEY_USER_ROLE] = self._user_role
+            xblock_user.opt_attrs[ATTR_KEY_USER_IS_CREDO_ANONYMOUS] = is_user_credo_anonymous(django_user)
             user_preferences = get_user_preferences(django_user)
             xblock_user.opt_attrs[ATTR_KEY_USER_PREFERENCES] = {
                 pref: user_preferences.get(pref)

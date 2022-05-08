@@ -18,6 +18,7 @@ from common.djangoapps.student.models import AccountRecovery, Registration, get_
 from openedx.core.djangolib.oauth2_retirement_utils import retire_dot_oauth2_models
 from openedx.core.djangoapps.site_configuration.models import SiteConfiguration
 from openedx.core.djangoapps.theming.helpers import get_config_value_from_site_or_settings, get_current_site
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.modulestore.exceptions import ItemNotFoundError  # lint-amnesty, pylint: disable=wrong-import-order
 
@@ -109,7 +110,7 @@ def _is_valid_social_username(value):
     return '/' not in value
 
 
-def retrieve_last_sitewide_block_completed(user):
+def retrieve_last_sitewide_block_completed(user, absolute_path=True):
     """
     Completion utility
     From a given User object retrieve
@@ -176,11 +177,17 @@ def retrieve_last_sitewide_block_completed(user):
     if not (lms_root and item):
         return
 
-    return "{lms_root}/courses/{course_key}/jump_to/{location}".format(
-        lms_root=lms_root,
-        course_key=str(item.location.course_key),
-        location=str(item.location),
-    )
+    if absolute_path:
+        return "{lms_root}/courses/{course_key}/jump_to/{location}".format(
+            lms_root=lms_root,
+            course_key=str(item.location.course_key),
+            location=str(item.location),
+        )
+    else:
+        return "/courses/{course_key}/jump_to/{location}".format(
+            course_key=str(item.location.course_key),
+            location=str(item.location),
+        )
 
 
 def is_secondary_email_feature_enabled():
@@ -231,3 +238,23 @@ def username_suffix_generator(suffix_length=4):
         else:
             output += random.choice(string.digits)
     return output
+
+
+def is_user_credo_anonymous(user):
+    if user.email.endswith('@credomodules.com'):
+        return True
+    return False
+
+
+def get_hide_profile_setting():
+    return configuration_helpers.get_value('HIDE_PROFILE', settings.HIDE_PROFILE)
+
+
+def can_display_studio_link(user, course):
+    show_studio_link = user.instructor_dashboard_tabs.show_studio_link \
+        if hasattr(user, 'instructor_dashboard_tabs') else True
+    if not user.is_superuser and show_studio_link and user.coursestaffextended_set.filter(
+            role__course_studio_access=False,
+            course_id=course.id).exists():
+        return False
+    return show_studio_link

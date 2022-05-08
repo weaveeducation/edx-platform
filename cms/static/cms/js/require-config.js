@@ -110,6 +110,7 @@
             'jquery.iframe-transport': 'js/vendor/jQuery-File-Upload/js/jquery.iframe-transport',
             'jquery.inputnumber': 'js/vendor/html5-input-polyfills/number-polyfill',
             'jquery.immediateDescendents': 'js/src/jquery.immediateDescendents',
+            'jquery.multiselect': 'cms/js/jquery.multiselect-2.4.12',
             'datepair': 'js/vendor/timepicker/datepair',
             'date': 'js/vendor/date',
             moment: 'common/js/vendor/moment-with-locales',
@@ -213,6 +214,10 @@
             'jquery.tinymce': {
                 deps: ['jquery', 'tinymce'],
                 exports: 'jQuery.fn.tinymce'
+            },
+            'jquery.multiselect': {
+                deps: ['jquery'],
+                exports: 'jQuery.fn.multiselect'
             },
             'datepair': {
                 deps: ['jquery.ui', 'jquery.timepicker']

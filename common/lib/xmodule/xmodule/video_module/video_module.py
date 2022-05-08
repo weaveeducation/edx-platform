@@ -128,6 +128,7 @@ class VideoBlock(
     """
     has_custom_completion = True
     completion_mode = XBlockCompletionMode.COMPLETABLE
+    has_author_view = True
 
     video_time = 0
     icon_class = 'video'

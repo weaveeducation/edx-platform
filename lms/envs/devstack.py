@@ -57,11 +57,11 @@ for log_name, log_level in LOG_OVERRIDES:
     logging.getLogger(log_name).setLevel(log_level)
 
 # Docker does not support the syslog socket at /dev/log. Rely on the console.
-LOGGING['handlers']['local'] = LOGGING['handlers']['tracking'] = {
+LOGGING['handlers']['local'] = LOGGING['handlers']['tracking'] = LOGGING['handlers']['credo_json'] = {
     'class': 'logging.NullHandler',
 }
 
-LOGGING['loggers']['tracking']['handlers'] = ['console']
+LOGGING['loggers']['tracking']['handlers'] = ['console', 'log_db']
 
 ################################ EMAIL ########################################
 
@@ -164,7 +164,7 @@ FEATURES['LICENSING'] = True
 
 ########################## Courseware Search #######################
 FEATURES['ENABLE_COURSEWARE_SEARCH'] = False
-FEATURES['ENABLE_COURSEWARE_SEARCH_FOR_COURSE_STAFF'] = True
+FEATURES['ENABLE_COURSEWARE_SEARCH_FOR_COURSE_STAFF'] = False
 SEARCH_ENGINE = 'search.elastic.ElasticSearchEngine'
 
 
@@ -233,7 +233,7 @@ ECOMMERCE_PUBLIC_URL_ROOT = 'http://localhost:18130'
 ECOMMERCE_API_URL = 'http://edx.devstack.ecommerce:18130/api/v2'
 
 ############## Comments CONFIGURATION SETTINGS ###############
-COMMENTS_SERVICE_URL = 'http://edx.devstack.forum:4567'
+#COMMENTS_SERVICE_URL = 'http://edx.devstack.forum:4567'
 
 ############## Credentials CONFIGURATION SETTINGS ###############
 CREDENTIALS_INTERNAL_SERVICE_URL = 'http://edx.devstack.credentials:18150'
@@ -349,15 +349,15 @@ DISCUSSIONS_MFE_FEEDBACK_URL = None
 ############## Docker based devstack settings #######################
 
 FEATURES.update({
-    'AUTOMATIC_AUTH_FOR_TESTING': True,
-    'ENABLE_DISCUSSION_SERVICE': True,
-    'SHOW_HEADER_LANGUAGE_SELECTOR': True,
+    'AUTOMATIC_AUTH_FOR_TESTING': False,
+    'ENABLE_DISCUSSION_SERVICE': False,
+    'SHOW_HEADER_LANGUAGE_SELECTOR': False,
 
     # Enable enterprise integration by default.
     # See https://github.com/edx/edx-enterprise/blob/master/docs/development.rst for
     # more background on edx-enterprise.
     # Toggle this off if you don't want anything to do with enterprise in devstack.
-    'ENABLE_ENTERPRISE_INTEGRATION': True,
+    'ENABLE_ENTERPRISE_INTEGRATION': False,
 })
 
 ENABLE_MKTG_SITE = os.environ.get('ENABLE_MARKETING_SITE', False)
@@ -408,8 +408,13 @@ if FEATURES.get('ENABLE_ENTERPRISE_INTEGRATION'):
 
 #####################################################################
 
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SAMESITE = None
+SESSION_COOKIE_SAMESITE = None
+
 # django-session-cookie middleware
-DCS_SESSION_COOKIE_SAMESITE = 'Lax'
+DCS_SESSION_COOKIE_SAMESITE = None
 DCS_SESSION_COOKIE_SAMESITE_FORCE_ALL = True
 
 ########################## THEMING  #######################
@@ -449,6 +454,10 @@ WEBPACK_LOADER['DEFAULT']['TIMEOUT'] = 5
 #################### Network configuration ####################
 # Devstack is directly exposed to the caller
 CLOSEST_CLIENT_IP_FROM_HEADERS = []
+
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+X_FRAME_OPTIONS = 'ALLOW'
 
 ################# New settings must go ABOVE this line #################
 ########################################################################

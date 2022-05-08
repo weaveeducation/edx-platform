@@ -3,6 +3,7 @@ Models used by the block structure framework.
 """
 
 
+import json
 import errno
 from contextlib import contextmanager
 from datetime import datetime
@@ -11,12 +12,15 @@ from logging import getLogger
 from django.conf import settings
 from django.core.exceptions import SuspiciousOperation
 from django.core.files.base import ContentFile
-from django.db import models, transaction
+from django.db import models, transaction, IntegrityError
+from django.utils import timezone
 
 from model_utils.models import TimeStampedModel
 
 from openedx.core.djangoapps.xmodule_django.models import UsageKeyWithRunField
 from openedx.core.storage import get_storage
+from opaque_keys.edx.keys import CourseKey
+from common.djangoapps.credo_modules.mongo import get_course_structure
 
 from . import config
 from .exceptions import BlockStructureNotFound
@@ -311,3 +315,285 @@ class BlockStructureModel(TimeStampedModel):
             bs_model,
             len(serialized_data),
         )
+
+
+class ApiCourseStructure(models.Model):
+    block_id = models.CharField(max_length=255, null=False, blank=False, db_index=True, unique=True)
+    block_type = models.CharField(max_length=255, null=False, blank=False)
+    parent_id = models.CharField(max_length=255, null=True)
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    display_name = models.TextField(null=True, blank=True)
+    graded = models.SmallIntegerField(null=False)
+    section_path = models.TextField(null=True, blank=True)
+    deleted = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'api_course_structure'
+
+    def to_dict(self):
+        return {
+            'block_id': self.block_id,
+            'block_type': self.block_type,
+            'parent_id': self.parent_id,
+            'course_id': self.course_id,
+            'display_name': self.display_name,
+            'graded': bool(self.graded)
+        }
+
+
+class ApiCourseStructureTags(models.Model):
+    org_id = models.CharField(max_length=80, null=True, db_index=True)
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    block = models.ForeignKey(ApiCourseStructure, on_delete=models.CASCADE, to_field='block_id')
+    block_tag_id = models.CharField(max_length=80, null=True)
+    rubric = models.CharField(max_length=255, null=True, blank=False,
+                              help_text="Should be filled in only for ORA blocks")
+    tag_name = models.CharField(max_length=255, null=False, blank=False)
+    tag_value = models.CharField(max_length=255, null=False, blank=False, db_index=True)
+    root_tag_value_hash = models.CharField(max_length=80, null=True, blank=False)
+    is_parent = models.SmallIntegerField(default=0)
+    ts = models.IntegerField(null=True, db_index=True)
+
+    class Meta:
+        managed = False
+        db_table = 'api_course_structure_tags'
+
+
+class ApiCourseStructureUpdateTime(models.Model):
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    processed = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'api_course_structure_update_time'
+
+
+class ApiCourseStructureLockResult:
+
+    def __init__(self, is_locked=False, is_new=False, lock=None):
+        self.is_locked = is_locked
+        self.is_new = is_new
+        self.lock = lock
+
+
+class ApiCourseStructureLock(models.Model):
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    created = models.DateTimeField()
+    task_id = models.CharField(max_length=255, null=True)
+    published_on = models.CharField(max_length=255, null=True)
+
+    class Meta:
+        db_table = 'api_course_structure_lock'
+
+
+class ApiBlockInfo(models.Model):
+    course_id = models.CharField(max_length=255, null=False, db_index=True)
+    block_id = models.CharField(max_length=255, null=False, db_index=True)
+    hash_id = models.CharField(max_length=255, null=False, db_index=True)
+    deleted = models.BooleanField(default=False)
+    has_children = models.BooleanField(default=False)
+    created_by = models.IntegerField(null=True, default=None)
+    created_time = models.DateTimeField(null=True, default=None)
+    updated_by = models.IntegerField(null=True, default=None)
+    updated_time = models.DateTimeField(null=True, default=None)
+    created_as_copy = models.BooleanField(default=False)
+    created_as_copy_from_course_id = models.CharField(max_length=255, null=True, blank=True)
+    published_after_copy = models.BooleanField(default=False)
+    published_content_version = models.CharField(max_length=255, null=True, blank=False, db_index=True)
+    reverted_to_previous_version = models.BooleanField(default=False)
+
+    CATEGORY_HAS_CHILDREN = ('chapter', 'sequential', 'vertical')
+
+    def set_has_children(self):
+        if self.block_id:
+            category = self.block_id.split('@')[1].split('+')[0]
+            if category in self.CATEGORY_HAS_CHILDREN:
+                self.has_children = True
+            else:
+                self.has_children = False
+        else:
+            self.has_children = False
+
+    class Meta:
+        db_table = 'api_block_info'
+        unique_together = (('course_id', 'block_id'),)
+
+
+class ApiBlockInfoNotSiblings(models.Model):
+    source_block_id = models.CharField(max_length=255, null=False, db_index=True)
+    dst_block_id = models.CharField(max_length=255, null=False, db_index=True)
+    source_course_id = models.CharField(max_length=255, null=True, db_index=True)
+    dst_course_id = models.CharField(max_length=255, null=True, db_index=True)
+
+    user_id = models.IntegerField(null=True, default=None)
+    created = models.DateTimeField(null=True, blank=True, auto_now_add=True)
+    updated = models.DateTimeField(null=True, blank=True, auto_now=True)
+
+    class Meta:
+        db_table = 'api_block_info_not_siblings'
+        verbose_name = "Cousin Content Block"
+        verbose_name_plural = "Cousin Content Blocks"
+
+
+class ApiBlockInfoVersionsHistory(models.Model):
+    course_id = models.CharField(max_length=255, null=False, db_index=True)
+    block_id = models.CharField(max_length=255, null=False, db_index=True)
+    version_id = models.CharField(max_length=255)
+    siblings_hash_id = models.CharField(max_length=255, null=False)
+
+    class Meta:
+        db_table = 'api_block_info_versions_history'
+
+
+class BlockCache(models.Model):
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    block_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    field_name = models.CharField(max_length=255, null=False, blank=False)
+    field_value = models.CharField(max_length=255, null=False, blank=False)
+
+    class Meta:
+        db_table = 'api_block_cache'
+        index_together = (('field_name', 'field_value'),)
+        unique_together = (('block_id', 'field_name'),)
+
+    @classmethod
+    def update_cache(cls, course_id, block_id, field_name, field_value=None):
+        if field_value == '':
+            field_value = None
+
+        obj = BlockCache.objects.filter(block_id=block_id, field_name=field_name).first()
+        if obj and field_value is None:
+            obj.delete()
+        elif obj and field_value != obj.field_value:
+            obj.field_value = field_value
+            obj.save()
+        elif not obj and field_value is not None:
+            obj = BlockCache(
+                course_id=course_id,
+                block_id=block_id,
+                field_name=field_name,
+                field_value=field_value
+            )
+            obj.save()
+        return obj
+
+
+class BlockToSequential(models.Model):
+    block_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    sequential_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    sequential_name = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    course_id = models.CharField(max_length=255, db_index=True, null=False, blank=False)
+    graded = models.SmallIntegerField(null=False)
+    deleted = models.BooleanField(default=False)
+    visible_to_staff_only = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'block_to_sequential'
+
+
+class CourseAuthProfileFieldsCache(models.Model):
+    course_id = models.CharField(max_length=255, unique=True)
+    data = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'course_auth_profile_fields_cache'
+
+    def get_fields(self):
+        if self.data:
+            return json.loads(self.data)
+        return None
+
+
+class CourseFieldsCache(models.Model):
+    course_id = models.CharField(max_length=255, unique=True)
+    additional_profile_fields = models.TextField(null=True, blank=True)
+    enable_subsection_gating = models.BooleanField(null=True)
+
+    @classmethod
+    def get_cache(cls, course_id, course=None, force_refresh=False, check_attr_to_refresh=None):
+        course_key = CourseKey.from_string(course_id)
+        obj_exists = True
+        try:
+            obj = cls.objects.get(course_id=course_id)
+        except cls.DoesNotExist:
+            obj = CourseFieldsCache(course_id=course_id)
+            obj_exists = False
+
+        if not obj_exists or force_refresh or\
+          (check_attr_to_refresh and (getattr(obj, check_attr_to_refresh, None) is None)):
+            additional_profile_fields_keys = set()
+            additional_profile_fields = {}
+            enable_subsection_gating = False
+            need_update = False
+
+            if course:
+                if course.credo_additional_profile_fields:
+                    additional_profile_fields = json.dumps(course.credo_additional_profile_fields)
+                    additional_profile_fields_keys = set(course.credo_additional_profile_fields.keys())
+                enable_subsection_gating = course.enable_subsection_gating
+            else:
+                fields_data = {}
+                course_structure = get_course_structure(course_key)
+                if course_structure:
+                    for st in course_structure['blocks']:
+                        if st['block_type'] == 'course':
+                            fields_data = st.get('fields', {})
+                            break
+                if fields_data:
+                    if 'credo_additional_profile_fields' in fields_data and fields_data['credo_additional_profile_fields']:
+                        additional_profile_fields = json.dumps(fields_data['credo_additional_profile_fields'])
+                        additional_profile_fields_keys = set(fields_data['credo_additional_profile_fields'].keys())
+                    if 'enable_subsection_gating' in fields_data:
+                        enable_subsection_gating = fields_data['enable_subsection_gating']
+
+            additional_profile_fields_keys_current = None
+            additional_profile_fields_current = obj.get_additional_profile_fields()
+            if additional_profile_fields_current:
+                additional_profile_fields_keys_current = set(additional_profile_fields_current.keys())
+
+            if additional_profile_fields_keys != additional_profile_fields_keys_current:
+                obj.additional_profile_fields = additional_profile_fields
+                need_update = True
+
+            if enable_subsection_gating != obj.enable_subsection_gating:
+                obj.enable_subsection_gating = enable_subsection_gating
+                need_update = True
+
+            if need_update:
+                obj.save()
+
+        return obj
+
+    @classmethod
+    def refresh_cache(cls, course_id, course=None):
+        cls.get_cache(course_id, course=course, force_refresh=True)
+
+    class Meta:
+        db_table = 'course_fields_cache'
+
+    def get_additional_profile_fields(self):
+        if self.additional_profile_fields:
+            return json.loads(self.additional_profile_fields)
+        return None
+
+
+class OraBlockStructure(models.Model):
+    course_id = models.CharField(max_length=255, null=False, db_index=True)
+    org_id = models.CharField(max_length=80, null=False, db_index=True)
+    block_id = models.CharField(max_length=255, null=False, db_index=True)
+    is_ora_empty_rubrics = models.BooleanField(default=False)
+    support_multiple_rubrics = models.BooleanField(default=False)
+    is_additional_rubric = models.BooleanField(default=False)
+    prompt = models.TextField(null=True)
+    rubric_criteria = models.TextField(null=True)
+    display_rubric_step_to_students = models.BooleanField(default=False)
+    steps = models.TextField(null=True)
+    ungraded = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'ora_block_structure'
+
+    def get_rubric_criteria(self):
+        return json.loads(self.rubric_criteria)
+
+    def get_steps(self):
+        return json.loads(self.steps)
