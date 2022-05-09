@@ -81,9 +81,9 @@ CELERY_ALWAYS_EAGER = True
 
 ################################ DEBUG TOOLBAR ################################
 
-INSTALLED_APPS += ['debug_toolbar']
+#INSTALLED_APPS += ['debug_toolbar']
 
-MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
+#MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
 INTERNAL_IPS = ('127.0.0.1',)
 
 DEBUG_TOOLBAR_PANELS = (
