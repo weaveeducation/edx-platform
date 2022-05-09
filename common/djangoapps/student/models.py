@@ -33,7 +33,7 @@ from django.contrib.sites.models import Site
 from django.core.cache import cache
 from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from django.core.validators import FileExtensionValidator, RegexValidator
-from django.db import IntegrityError, models
+from django.db import IntegrityError, models, transaction
 from django.db.models import Count, Index, Q
 from django.db.models.signals import post_save, pre_save
 from django.db.utils import ProgrammingError
@@ -239,12 +239,13 @@ def anonymous_id_for_user(user, course_id, save='DEPRECATED'):
         anonymous_user_id = hasher.hexdigest(16)  # pylint: disable=too-many-function-args
 
         try:
-            AnonymousUserId.objects.create(
-                user=user,
-                course_id=course_id,
-                anonymous_user_id=anonymous_user_id,
-            )
-            monitoring.increment('temp_anon_uid_v2.stored')
+            with transaction.atomic():
+                AnonymousUserId.objects.create(
+                    user=user,
+                    course_id=course_id,
+                    anonymous_user_id=anonymous_user_id,
+                )
+                monitoring.increment('temp_anon_uid_v2.stored')
         except IntegrityError:
             # Another thread has already created this entry, so
             # continue
@@ -1184,7 +1185,7 @@ class CourseEnrollmentManager(models.Manager):
 
         return is_course_full
 
-    def users_enrolled_in(self, course_id, include_inactive=False, verified_only=False):
+    def users_enrolled_in(self, course_id, include_inactive=False, verified_only=False, query_kwargs=None):
         """
         Return a queryset of User for every user enrolled in the course.
 
@@ -1203,6 +1204,8 @@ class CourseEnrollmentManager(models.Manager):
             filter_kwargs['courseenrollment__is_active'] = True
         if verified_only:
             filter_kwargs['courseenrollment__mode'] = CourseMode.VERIFIED
+        if query_kwargs:
+            filter_kwargs.update(query_kwargs)
         return User.objects.filter(**filter_kwargs)
 
     def enrollment_counts(self, course_id):
@@ -3537,3 +3540,6 @@ class UserPasswordToggleHistory(TimeStampedModel):
 
     def __str__(self):
         return self.comment
+
+
+User._meta.get_field('email')._unique = True
