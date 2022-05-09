@@ -2,6 +2,7 @@
 General view for the Course Home that contains metadata every page needs.
 """
 
+from django.conf import settings
 from opaque_keys.edx.keys import CourseKey
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.response import Response
@@ -118,6 +119,8 @@ class CourseHomeMetadataView(RetrieveAPIView):
         # Record course goals user activity for (web) learning mfe course tabs
         UserActivity.record_user_activity(request.user, course_key)
 
+        user = request.user
+
         data = {
             'course_id': course.id,
             'username': username,
@@ -134,6 +137,8 @@ class CourseHomeMetadataView(RetrieveAPIView):
             'can_load_courseware': can_load_courseware,
             'celebrations': celebrations,
             'user_timezone': user_timezone,
+            'user_must_be_active': settings.FEATURES.get('ENROLL_ACTIVE_USERS_ONLY', False)
+                                   and user.is_authenticated and not user.is_active
         }
         context = self.get_serializer_context()
         context['course'] = course

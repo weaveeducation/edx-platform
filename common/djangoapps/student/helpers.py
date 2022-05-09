@@ -50,6 +50,7 @@ from lms.djangoapps.instructor import access
 from lms.djangoapps.verify_student.models import VerificationDeadline
 from lms.djangoapps.verify_student.services import IDVerificationService
 from lms.djangoapps.verify_student.utils import is_verification_expiring_soon, verification_for_datetime
+from common.djangoapps.credo_modules.models import LoginRedirectAllowedHost
 from openedx.core.djangoapps.content.block_structure.exceptions import UsageKeyNotInBlockStructure
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.theming.helpers import get_themes
@@ -361,6 +362,7 @@ def _get_redirect_to(request_host, request_headers, request_params, request_is_h
             request_host=request_host,
             dot_client_id=request_params.get('client_id'),
             require_https=request_is_https,
+            login_redirect_whitelist_dict=LoginRedirectAllowedHost.get_all()
         )
         if not safe_redirect:
             log.warning(
