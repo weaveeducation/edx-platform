@@ -3,7 +3,7 @@ Admin registration for tags models
 """
 from django import forms
 from django.contrib import admin
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from .models import TagCategories, TagOrgTypes, TagAvailableValues
 from common.djangoapps.student.roles import CourseStaffRole, CourseInstructorRole
 from common.djangoapps.credo_modules.admin import ExportCsvMixin
