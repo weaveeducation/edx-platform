@@ -507,10 +507,10 @@ def render_cert_by_uuid(request, certificate_uuid):
         raise Http404 from e
 
 
-@handle_500(
-    template_path="certificates/server-error.html",
-    test_func=lambda request: request.GET.get('preview', None)
-)
+#@handle_500(
+#    template_path="certificates/server-error.html",
+#    test_func=lambda request: request.GET.get('preview', None)
+#)
 @pluggable_override('OVERRIDE_RENDER_CERTIFICATE_VIEW')
 def render_html_view(request, course_id, certificate=None):  # pylint: disable=too-many-statements
     """
