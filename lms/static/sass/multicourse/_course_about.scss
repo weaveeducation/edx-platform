@@ -52,7 +52,7 @@
         @include clearfix();
 
         display: table-cell;
-        vertical-align: middle;
+        vertical-align: top;
         padding: $baseline;
         position: relative;
         width: flex-grid(8) + flex-gutter();
