@@ -83,13 +83,14 @@ class LtiTool(models.Model):
                                                 help_text=_("Forcibly post grades if Platform's assignments grades "
                                                             "service is available but lineitem wasn't passed during "
                                                             "LTI communication"))
-    allow_to_add_instructors_via_lti = models.NullBooleanField(blank=True, help_text="Automatically adds "
-                                                                                     "instructor role to the user "
-                                                                                     "who came through the LTI if "
-                                                                                     "some of these parameters: "
-                                                                                     "'Administrator', 'Instructor', "
-                                                                                     "'Staff' was passed. Choose 'Yes' "
-                                                                                     "to enable this feature. ")
+    allow_to_add_instructors_via_lti = models.BooleanField(blank=True, null=True,
+                                                           help_text="Automatically adds "
+                                                                     "instructor role to the user "
+                                                                     "who came through the LTI if "
+                                                                     "some of these parameters: "
+                                                                     "'Administrator', 'Instructor', "
+                                                                     "'Staff' was passed. Choose 'Yes' "
+                                                                     "to enable this feature. ")
     use_names_and_role_provisioning_service = models.BooleanField(
                                                   default=False,
                                                   help_text=_("Use LTI 1.3 advantage names and role provisioning "

@@ -53,17 +53,18 @@ class LtiConsumer(models.Model):
     consumer_key = models.CharField(max_length=32, unique=True, db_index=True, default=short_token)
     consumer_secret = models.CharField(max_length=32, unique=True, default=short_token)
     instance_guid = CharNullField(max_length=255, blank=True, null=True, unique=True)
-    lti_strict_mode = models.NullBooleanField(blank=True, help_text="More strict validation rules "
-                                                                    "for requests from the consumer LMS "
-                                                                    "(according to the LTI standard) ."
-                                                                    "Choose 'Yes' to enable strict mode.")
-    allow_to_add_instructors_via_lti = models.NullBooleanField(blank=True, help_text="Automatically adds "
-                                                                                     "instructor role to the user "
-                                                                                     "who came through the LTI if "
-                                                                                     "some of these parameters: "
-                                                                                     "'Administrator', 'Instructor', "
-                                                                                     "'Staff' was passed. Choose 'Yes' "
-                                                                                     "to enable this feature. ")
+    lti_strict_mode = models.BooleanField(null=True, blank=True, help_text="More strict validation rules "
+                                                                           "for requests from the consumer LMS "
+                                                                           "(according to the LTI standard) ."
+                                                                           "Choose 'Yes' to enable strict mode.")
+    allow_to_add_instructors_via_lti = models.BooleanField(null=True, blank=True,
+                                                           help_text="Automatically adds "
+                                                                     "instructor role to the user "
+                                                                     "who came through the LTI if "
+                                                                     "some of these parameters: "
+                                                                     "'Administrator', 'Instructor', "
+                                                                     "'Staff' was passed. Choose 'Yes' "
+                                                                     "to enable this feature. ")
 
     @staticmethod
     def get_or_supplement(instance_guid, consumer_key):
