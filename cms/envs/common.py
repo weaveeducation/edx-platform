@@ -708,7 +708,7 @@ EDX_ROOT_URL = ''
 
 # use the ratelimit backend to prevent brute force attacks
 AUTHENTICATION_BACKENDS = [
-    'auth_backends.backends.EdXOAuth2',
+    'common.djangoapps.credo_modules.auth.EdXOpenIdCustomConnent',
     'rules.permissions.ObjectPermissionBackend',
     'openedx.core.djangoapps.content_libraries.auth.LtiAuthenticationBackend',
     'django.contrib.auth.backends.AllowAllUsersModelBackend',
