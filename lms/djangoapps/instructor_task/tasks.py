@@ -29,7 +29,8 @@ from edx_django_utils.monitoring import set_code_owner_attribute
 
 from lms.djangoapps.bulk_email.tasks import perform_delegate_email_batches
 from lms.djangoapps.instructor_task.tasks_base import BaseInstructorTask
-from lms.djangoapps.instructor_task.tasks_helper.certs import generate_students_certificates
+from lms.djangoapps.instructor_task.tasks_helper.certs import generate_students_certificates,\
+    generate_missing_students_certificates
 from lms.djangoapps.instructor_task.tasks_helper.enrollments import upload_may_enroll_csv, upload_students_csv
 from lms.djangoapps.instructor_task.tasks_helper.grades import CourseGradeReport, ProblemGradeReport, ProblemResponses
 from lms.djangoapps.instructor_task.tasks_helper.misc import (
@@ -47,7 +48,8 @@ from lms.djangoapps.instructor_task.tasks_helper.module_state import (
     override_score_module_state,
     perform_module_state_update,
     rescore_problem_module_state,
-    reset_attempts_module_state
+    reset_attempts_module_state,
+    reset_progress_student
 )
 from lms.djangoapps.instructor_task.tasks_helper.runner import run_main_task
 
@@ -94,6 +96,14 @@ def override_problem_score(entry_id, xmodule_instance_args):
 
     visit_fcn = partial(perform_module_state_update, update_fcn, None)
     return run_main_task(entry_id, visit_fcn, action_name)
+
+
+@shared_task(base=BaseInstructorTask)
+@set_code_owner_attribute
+def reset_progress_for_student_credo(entry_id, xmodule_instance_args):
+    action_name = gettext_noop('reset')
+    task_fn = partial(reset_progress_student, xmodule_instance_args)
+    return run_main_task(entry_id, task_fn, action_name)
 
 
 @shared_task(base=BaseInstructorTask)
@@ -281,6 +291,14 @@ def generate_certificates(entry_id, xmodule_instance_args):
     )
 
     task_fn = partial(generate_students_certificates, xmodule_instance_args)
+    return run_main_task(entry_id, task_fn, action_name)
+
+
+@shared_task(base=BaseInstructorTask)
+@set_code_owner_attribute
+def generate_missing_certificates_task(entry_id, xmodule_instance_args):
+    action_name = gettext_noop('certificates generated')
+    task_fn = partial(generate_missing_students_certificates, xmodule_instance_args)
     return run_main_task(entry_id, task_fn, action_name)
 
 

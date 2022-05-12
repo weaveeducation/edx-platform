@@ -23,9 +23,9 @@ from cms.djangoapps.contentstore.utils import get_pages_and_resources_url
 <script type="text/javascript">
 window.CMS = window.CMS || {};
 CMS.URL = CMS.URL || {};
-CMS.URL.UPLOAD_ASSET = "${upload_asset_url | n, js_escaped_string}"
-CMS.URL.TEXTBOOKS = "${textbook_url | n, js_escaped_string}"
-CMS.URL.LMS_BASE = "${settings.LMS_BASE | n, js_escaped_string}"
+CMS.URL.UPLOAD_ASSET = "${upload_asset_url | n, js_escaped_string}";
+CMS.URL.TEXTBOOKS = "${textbook_url | n, js_escaped_string}";
+CMS.URL.LMS_BASE = "${lms_base | n, js_escaped_string}";
 </script>
 </%block>
 

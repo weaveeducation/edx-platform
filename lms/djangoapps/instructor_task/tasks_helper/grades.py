@@ -34,6 +34,7 @@ from lms.djangoapps.instructor_task.config.waffle import (
     problem_grade_report_verified_only
 )
 from lms.djangoapps.teams.models import CourseTeamMembership
+from lms.djangoapps.lti1p3_tool.models import LtiExternalCourse, LtiUserEnrollment
 from lms.djangoapps.verify_student.services import IDVerificationService
 from openedx.core.djangoapps.content.block_structure.api import get_course_in_cache
 from openedx.core.djangoapps.course_groups.cohorts import bulk_cache_cohorts, get_cohort, is_course_cohorted
@@ -43,6 +44,8 @@ from openedx.core.lib.courses import get_course_by_id
 from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.partitions.partitions_service import PartitionService  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.split_test_module import get_split_user_partitions  # lint-amnesty, pylint: disable=wrong-import-order
+from common.djangoapps.credo_modules.models import CredoModulesUserProfile
+from common.djangoapps.credo_modules.views import StudentProfileField
 
 from .runner import TaskProgress
 from .utils import upload_csv_to_report_store
@@ -69,6 +72,44 @@ def _flatten(iterable):
     return list(chain.from_iterable(iterable))
 
 
+def _get_enrollments_params(context):
+    res = {}
+    if not context:
+        context = {}
+    timestamp_from = context.get('timestamp_from')
+    timestamp_to = context.get('timestamp_to')
+    browser_tz_offset = context.get('browser_tz_offset')
+    if timestamp_from and browser_tz_offset:
+        timestamp_from = int(timestamp_from) + (int(browser_tz_offset) * 60)
+        res['courseenrollment__created__gte'] = datetime.fromtimestamp(timestamp_from).replace(tzinfo=UTC)
+    if timestamp_to and browser_tz_offset:
+        timestamp_to = int(timestamp_to) + (int(browser_tz_offset) * 60)
+        res['courseenrollment__created__lt'] = datetime.fromtimestamp(timestamp_to).replace(tzinfo=UTC)
+    return res
+
+
+def get_lti_fields_data(course_id, user):
+    lti_context_label_lst = []
+    lti_context_title_lst = []
+    lti_enrollments = LtiUserEnrollment.objects.filter(
+        external_course__edx_course_id=str(course_id),
+        lti_user__edx_user=user
+    )
+    for lti_enrollment in lti_enrollments:
+        lti_props = lti_enrollment.get_properties()
+        lti_context_label = lti_props.get('context_label')
+        if lti_context_label:
+            lti_context_label_lst.append(lti_context_label)
+        lti_context_title = lti_props.get('context_title')
+        if lti_context_title:
+            lti_context_title_lst.append(lti_context_title)
+    lti_fields = [
+        '; '.join(lti_context_label_lst) if lti_context_label_lst else '',
+        '; '.join(lti_context_title_lst) if lti_context_title_lst else '',
+    ]
+    return lti_fields
+
+
 class GradeReportBase:
     """
     Base class for grade reports (ProblemGradeReport and CourseGradeReport).
@@ -78,10 +119,12 @@ class GradeReportBase:
         """
         Returns count of number of learner enrolled in course.
         """
+        enroll_params = _get_enrollments_params(context.task_input)
         return CourseEnrollment.objects.users_enrolled_in(
             course_id=context.course_id,
             include_inactive=True,
             verified_only=context.report_for_verified_only,
+            query_kwargs=enroll_params
         ).count()
 
     def log_task_info(self, context, message):
@@ -127,7 +170,7 @@ class GradeReportBase:
             args = [iter(iterable)] * chunk_size
             return zip_longest(*args, fillvalue=fillvalue)
 
-        def get_enrolled_learners_for_course(course_id, verified_only=False):
+        def get_enrolled_learners_for_course(course_id, verified_only=False, task_input=None):
             """
             Get all the enrolled users in a course chunk by chunk.
             This generator method fetches & loads the enrolled user objects on demand which in chunk
@@ -141,6 +184,9 @@ class GradeReportBase:
             filter_kwargs = {
                 'courseenrollment__course_id': course_id,
             }
+            enroll_params = _get_enrollments_params(task_input)
+            filter_kwargs.update(enroll_params)
+
             if verified_only:
                 filter_kwargs['courseenrollment__mode'] = CourseMode.VERIFIED
 
@@ -160,7 +206,8 @@ class GradeReportBase:
                 yield users
 
         course_id = context.course_id
-        return get_enrolled_learners_for_course(course_id=course_id, verified_only=context.report_for_verified_only)
+        return get_enrolled_learners_for_course(course_id=course_id, verified_only=context.report_for_verified_only,
+                                                task_input=context.task_input)
 
     def _compile(self, context, batched_rows):
         """
@@ -168,9 +215,14 @@ class GradeReportBase:
         the given batched_rows and context.
         """
         # partition and chain successes and errors
-        success_rows, error_rows = zip(*batched_rows)
-        success_rows = list(chain(*success_rows))
-        error_rows = list(chain(*error_rows))
+        batched_rows_res = [v for v in batched_rows]
+        if batched_rows_res:
+            success_rows, error_rows = zip(*batched_rows_res)
+            success_rows = list(chain(*success_rows))
+            error_rows = list(chain(*error_rows))
+        else:
+            success_rows = []
+            error_rows = []
 
         # update metrics on task status
         context.task_progress.succeeded = len(success_rows)
@@ -421,6 +473,12 @@ class CourseGradeReport:
     # Batch size for chunking the list of enrollees in the course.
     USER_BATCH_SIZE = 100
 
+    def __init__(self):
+        self.additional_profile_fields = []
+        self.additional_profile_fields_title = []
+        self.users_with_additional_profile = {}
+        self.lti_fields = []
+
     @classmethod
     def generate(cls, _xmodule_instance_args, _entry_id, course_id, _task_input, action_name):
         """
@@ -435,6 +493,20 @@ class CourseGradeReport:
         Internal method for generating a grade report for the given context.
         """
         context.update_status('Starting grades')
+
+        # additional profile fields from credo modules
+        course = context.course
+        if course.credo_additional_profile_fields:
+            for k, v in StudentProfileField.init_from_course(course).items():
+                self.additional_profile_fields.append(v.alias)
+                self.additional_profile_fields_title.append(v.title)
+            self.users_with_additional_profile = CredoModulesUserProfile.users_with_additional_profile(
+                context.course_id)
+
+        lti_external_course = LtiExternalCourse.objects.filter(edx_course_id=str(course.id)).first()
+        if lti_external_course:
+            self.lti_fields = ['LTI 1.3 Context Label', 'LTI 1.3 Context Title']
+
         success_headers = self._success_headers(context)
         error_headers = self._error_headers()
         batched_rows = self._batched_rows(context)
@@ -453,6 +525,8 @@ class CourseGradeReport:
         """
         return (
             ["Student ID", "Email", "Username"] +
+            self.additional_profile_fields_title +
+            self.lti_fields +
             self._grades_header(context) +
             (['Cohort Name'] if context.cohorts_enabled else []) +
             [f'Experiment Group ({partition.name})' for partition in context.course_experiments] +
@@ -482,9 +556,14 @@ class CourseGradeReport:
         the given batched_rows and context.
         """
         # partition and chain successes and errors
-        success_rows, error_rows = zip(*batched_rows)
-        success_rows = list(chain(*success_rows))
-        error_rows = list(chain(*error_rows))
+        batched_rows_res = [v for v in batched_rows]
+        if batched_rows_res:
+            success_rows, error_rows = zip(*batched_rows_res)
+            success_rows = list(chain(*success_rows))
+            error_rows = list(chain(*error_rows))
+        else:
+            success_rows = []
+            error_rows = []
 
         # update metrics on task status
         context.task_progress.succeeded = len(success_rows)
@@ -522,8 +601,12 @@ class CourseGradeReport:
         grades_header = ["Grade"]
         for assignment_info in graded_assignments.values():
             if assignment_info['separate_subsection_avg_headers']:
-                grades_header.extend(assignment_info['subsection_headers'].values())
+                for subsection_block_id, subsection_headers in assignment_info['subsection_headers'].items():
+                    grades_header.append(subsection_headers)
+                    grades_header.append('%s Timestamp (UTC)' % subsection_headers)
             grades_header.append(assignment_info['average_header'])
+            if not assignment_info['separate_subsection_avg_headers']:
+                grades_header.append('%s Timestamp (UTC)' % assignment_info['average_header'])
         return grades_header
 
     def _batch_users(self, context):
@@ -535,7 +618,7 @@ class CourseGradeReport:
             args = [iter(iterable)] * chunk_size
             return zip_longest(*args, fillvalue=fillvalue)
 
-        def get_enrolled_learners_for_course(course_id, verified_only=False):
+        def get_enrolled_learners_for_course(course_id, verified_only=False, task_input=None):
             """
             Get enrolled learners in a course.
             Arguments:
@@ -544,27 +627,29 @@ class CourseGradeReport:
             """
             if optimize_get_learners_switch_enabled():
                 TASK_LOG.info('%s, Creating Course Grade with optimization', task_log_message)
-                return users_for_course_v2(course_id, verified_only=verified_only)
+                return users_for_course_v2(course_id, verified_only=verified_only, task_input=task_input)
 
             TASK_LOG.info('%s, Creating Course Grade without optimization', task_log_message)
-            return users_for_course(course_id, verified_only=verified_only)
+            return users_for_course(course_id, verified_only=verified_only, task_input=task_input)
 
-        def users_for_course(course_id, verified_only=False):
+        def users_for_course(course_id, verified_only=False, task_input=None):
             """
             Get all the enrolled users in a course.
             This method fetches & loads the enrolled user objects at once which may cause
             out-of-memory errors in large courses. This method will be removed when
             `OPTIMIZE_GET_LEARNERS_FOR_COURSE` waffle flag is removed.
             """
+            enroll_params = _get_enrollments_params(task_input)
             users = CourseEnrollment.objects.users_enrolled_in(
                 course_id,
                 include_inactive=True,
                 verified_only=verified_only,
+                query_kwargs=enroll_params
             )
             users = users.select_related('profile')
             return grouper(users)
 
-        def users_for_course_v2(course_id, verified_only=False):
+        def users_for_course_v2(course_id, verified_only=False, task_input=None):
             """
             Get all the enrolled users in a course chunk by chunk.
             This generator method fetches & loads the enrolled user objects on demand which in chunk
@@ -575,6 +660,8 @@ class CourseGradeReport:
             }
             if verified_only:
                 filter_kwargs['courseenrollment__mode'] = CourseMode.VERIFIED
+            enroll_params = _get_enrollments_params(task_input)
+            filter_kwargs.update(enroll_params)
 
             user_ids_list = get_user_model().objects.filter(**filter_kwargs).values_list('id', flat=True).order_by('id')
             user_chunks = grouper(user_ids_list)
@@ -590,7 +677,8 @@ class CourseGradeReport:
                 yield users
         course_id = context.course_id
         task_log_message = f'{context.task_info_string}, Task type: {context.action_name}'
-        return get_enrolled_learners_for_course(course_id=course_id, verified_only=context.report_for_verified_only)
+        return get_enrolled_learners_for_course(course_id=course_id, verified_only=context.report_for_verified_only,
+                                                task_input=context.task_input)
 
     def _user_grades(self, course_grade, context):
         """
@@ -605,7 +693,8 @@ class CourseGradeReport:
             )
             grade_results.extend(subsection_grades_results)
 
-            assignment_average = self._user_assignment_average(course_grade, subsection_grades, assignment_info)
+            assignment_average, last_answer_timestamp = self._user_assignment_average(course_grade, subsection_grades,
+                                                                                      assignment_info)
             if assignment_average is not None:
                 grade_results.append([assignment_average])
 
@@ -622,9 +711,13 @@ class CourseGradeReport:
             subsection_grade = course_grade.subsection_grade(subsection_location)
             if subsection_grade.attempted_graded or subsection_grade.override:
                 grade_result = subsection_grade.percent_graded
+                grade_last_timestamp = subsection_grade.last_answer_timestamp
+                last_answer_timestamp_str = grade_last_timestamp.strftime("%Y-%m-%d %H:%M:%S") \
+                    if grade_last_timestamp else ''
             else:
                 grade_result = 'Not Attempted'
-            grade_results.append([grade_result])
+                last_answer_timestamp_str = 'Not Attempted'
+            grade_results.append([grade_result, last_answer_timestamp_str])
             subsection_grades.append(subsection_grade)
         return subsection_grades, grade_results
 
@@ -633,13 +726,21 @@ class CourseGradeReport:
             if assignment_info['grader']:
                 if course_grade.attempted:
                     subsection_breakdown = [
-                        {'percent': subsection_grade.percent_graded}
+                        {
+                            'percent': subsection_grade.percent_graded,
+                            'last_answer_timestamp': subsection_grade.last_answer_timestamp
+                        }
                         for subsection_grade in subsection_grades
                     ]
                     assignment_average, _ = assignment_info['grader'].total_with_drops(subsection_breakdown)
+                    last_answer_timestamp = assignment_info['grader'].max_last_answer_timestamp(subsection_breakdown)
+                    last_answer_timestamp_str = last_answer_timestamp.strftime("%Y-%m-%d %H:%M:%S") \
+                        if last_answer_timestamp else ''
                 else:
                     assignment_average = 0.0
-                return assignment_average
+                    last_answer_timestamp_str = 'Not Attempted'
+                return assignment_average, last_answer_timestamp_str
+        return None, None
 
     def _user_cohort_group_names(self, user, context):
         """
@@ -713,12 +814,23 @@ class CourseGradeReport:
                 collected_block_structure=context.course_structure,
                 course_key=context.course_id,
             ):
+                # additional profile fields from credo modules
+                row_additional_profile = []
+                if context.course.credo_additional_profile_fields:
+                    additional_student_fields = self.users_with_additional_profile.get(user.id, {})
+                    for field in self.additional_profile_fields:
+                        row_additional_profile.append(additional_student_fields.get(field, ''))
+
+                lti_fields = []
+                if self.lti_fields:
+                    lti_fields = get_lti_fields_data(context.course_id, user)
+
                 if not course_grade:
                     # An empty gradeset means we failed to grade a student.
                     error_rows.append([user.id, user.username, str(error)])
                 else:
                     success_rows.append(
-                        [user.id, user.email, user.username] +
+                        [user.id, user.email, user.username] + row_additional_profile + lti_fields +
                         self._user_grades(course_grade, context) +
                         self._user_cohort_group_names(user, context) +
                         self._user_experiment_group_names(user, context) +
@@ -773,8 +885,20 @@ class ProblemGradeReport(GradeReportBase):
         Returns:
             list: combined header and scorable blocks
         """
-        header_row = list(self._problem_grades_header().values()) + ['Enrollment Status', 'Grade']
-        return header_row + _flatten(list(context.graded_scorable_blocks_header.values()))
+        header_row = list(self._problem_grades_header().values())
+        lti_external_course = LtiExternalCourse.objects.filter(edx_course_id=str(context.course.id)).first()
+        if lti_external_course:
+            header_row += ['LTI 1.3 Context Label', 'LTI 1.3 Context Title']
+
+        # additional profile fields from credo modules
+        additional_profile_fields = OrderedDict()
+        if context.course.credo_additional_profile_fields:
+            additional_profile_fields = StudentProfileField.init_from_course(context.course)
+
+        if additional_profile_fields:
+            header_row += [v.title for k, v in additional_profile_fields.items() if not v.info]
+        header_row += ['Enrollment Status', 'Grade'] + _flatten(list(context.graded_scorable_blocks_header.values()))
+        return header_row
 
     def _error_headers(self):
         """
@@ -789,6 +913,16 @@ class ProblemGradeReport(GradeReportBase):
         Returns a list of rows for the given users for this report.
         """
         self.log_additional_info_for_testing(context, 'ProblemGradeReport: Starting to process new user batch.')
+
+        additional_profile_fields = OrderedDict()
+        users_with_additional_profile_dict = {}
+        if context.course.credo_additional_profile_fields:
+            users_with_additional_profile_dict = CredoModulesUserProfile.users_with_additional_profile(
+                context.course_id)
+            additional_profile_fields = StudentProfileField.init_from_course(context.course)
+
+        lti_external_course = LtiExternalCourse.objects.filter(edx_course_id=str(context.course.id)).first()
+
         success_rows, error_rows = [], []
         for student, course_grade, error in CourseGradeFactory().iter(
             users,
@@ -823,11 +957,21 @@ class ProblemGradeReport(GradeReportBase):
 
             context.task_progress.succeeded += 1
             enrollment_status = _user_enrollment_status(student, context.course_id)
-            success_rows.append(
-                [student.id, student.email, student.username] +
-                [enrollment_status, course_grade.percent] +
-                _flatten(earned_possible_values)
-            )
+            res = [student.id, student.email, student.username]
+            # additional profile fields from credo modules
+            if additional_profile_fields:
+                additional_student_fields = users_with_additional_profile_dict.get(student.id, {})
+                for field, field_item in additional_profile_fields.items():
+                    if not field_item.info:
+                        res.append(additional_student_fields.get(field, ''))
+
+            if lti_external_course:
+                lti_fields = get_lti_fields_data(context.course.id, student)
+                res += lti_fields
+
+            res += [enrollment_status, course_grade.percent]
+            res += _flatten(earned_possible_values)
+            success_rows.append(res)
 
         return success_rows, error_rows
 

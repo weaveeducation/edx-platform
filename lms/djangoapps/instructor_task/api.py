@@ -43,7 +43,9 @@ from lms.djangoapps.instructor_task.tasks import (
     rescore_problem,
     reset_problem_attempts,
     send_bulk_course_email,
-    generate_anonymous_ids_for_course
+    generate_anonymous_ids_for_course,
+    reset_progress_for_student_credo,
+    generate_missing_certificates_task
 )
 from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disable=wrong-import-order
 
@@ -213,6 +215,14 @@ def submit_reset_problem_attempts_for_all_students(request, usage_key):  # pylin
     return submit_task(request, task_type, task_class, usage_key.course_key, task_input, task_key)
 
 
+def submit_reset_progress_for_student(request, course_key, student_id):  # pylint: disable=invalid-name
+    task_type = 'reset_progress_for_student_credo'
+    task_class = reset_progress_for_student_credo
+    task_input = {'course_id': str(course_key), 'student': student_id}
+    task_key = ""
+    return submit_task(request, task_type, task_class, course_key, task_input, task_key)
+
+
 def submit_reset_problem_attempts_in_entrance_exam(request, usage_key, student):  # pylint: disable=invalid-name
     """
     Request to have attempts reset for a entrance exam as a background task.
@@ -351,7 +361,13 @@ def submit_calculate_grades_csv(request, course_key, **task_kwargs):
     """
     task_type = 'grade_course'
     task_class = calculate_grades_csv
-    task_input = task_kwargs
+    task_input = {
+        'browser_tz_offset': request.POST.get('browser_tz_offset'),
+        'timestamp_from': request.POST.get('timestamp_from'),
+        'timestamp_to': request.POST.get('timestamp_to'),
+    }
+    if task_kwargs:
+        task_input.update(task_kwargs)
     task_key = ""
 
     return submit_task(request, task_type, task_class, course_key, task_input, task_key)
@@ -364,7 +380,13 @@ def submit_problem_grade_report(request, course_key, **task_kwargs):
     """
     task_type = 'grade_problems'
     task_class = calculate_problem_grade_report
-    task_input = task_kwargs
+    task_input = {
+        'browser_tz_offset': request.POST.get('browser_tz_offset'),
+        'timestamp_from': request.POST.get('timestamp_from'),
+        'timestamp_to': request.POST.get('timestamp_to'),
+    }
+    if task_kwargs:
+        task_input.update(task_kwargs)
     task_key = ""
     return submit_task(request, task_type, task_class, course_key, task_input, task_key)
 
@@ -446,7 +468,11 @@ def submit_export_ora2_data(request, course_key):
     """
     task_type = 'export_ora2_data'
     task_class = export_ora2_data
-    task_input = {}
+    task_input = {
+        'browser_tz_offset': request.POST.get('browser_tz_offset'),
+        'timestamp_from': request.POST.get('timestamp_from'),
+        'timestamp_to': request.POST.get('timestamp_to'),
+    }
     task_key = ''
 
     return submit_task(request, task_type, task_class, course_key, task_input, task_key)
@@ -547,6 +573,17 @@ def regenerate_certificates(request, course_key, statuses_to_regenerate):
         is_regeneration=True
     )
 
+    return instructor_task
+
+
+def generate_missing_certificates(request, course_key):
+    task_type = 'generate_missing_certificates'
+    task_input = {}
+
+    task_class = generate_missing_certificates_task
+    task_key = ""
+
+    instructor_task = submit_task(request, task_type, task_class, course_key, task_input, task_key)
     return instructor_task
 
 

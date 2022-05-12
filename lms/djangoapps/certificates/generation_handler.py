@@ -425,4 +425,16 @@ def _required_verification_missing(user):
     """
     Return true if IDV is required for this course and the user does not have it
     """
-    return not settings.FEATURES.get('ENABLE_INTEGRITY_SIGNATURE') and not IDVerificationService.user_is_verified(user)
+    return False
+
+
+def generate_regular_certificate_task(user, course_key, generation_mode=None):
+    """
+    Create a task to generate a regular (non-allowlist) certificate for this user in this course run, if the user is
+    eligible and a certificate can be generated.
+    """
+    if not _can_generate_regular_certificate(user, course_key):
+        log.info(f'Cannot generate a v2 course certificate for {user.id} : {course_key}')
+        return False
+
+    return _generate_certificate_task(user, course_key, generation_mode)
