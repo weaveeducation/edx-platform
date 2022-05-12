@@ -628,16 +628,20 @@ def activate_account(request, key):
     redirect_url = None
     if request.GET.get('next'):
         redirect_to, root_login_url = get_next_url_for_login_page(request, include_host=True)
+        mfe_url = configuration_helpers.get_value('LEARNING_MICROFRONTEND_URL', settings.LEARNING_MICROFRONTEND_URL)
+        if redirect_to.startswith(mfe_url):
+            redirect_url = redirect_to
+        else:
+            # Don't automatically redirect authenticated users to the redirect_url
+            # if the `next` value is either:
+            # 1. "/dashboard" or
+            # 2. "https://{LMS_ROOT_URL}/dashboard" (which we might provide as a value from the AuthN MFE)
 
-        # Don't automatically redirect authenticated users to the redirect_url
-        # if the `next` value is either:
-        # 1. "/dashboard" or
-        # 2. "https://{LMS_ROOT_URL}/dashboard" (which we might provide as a value from the AuthN MFE)
-        if redirect_to not in (
-            root_login_url + reverse('dashboard'),
-            reverse('dashboard')
-        ):
-            redirect_url = get_redirect_url_with_host(root_login_url, redirect_to)
+            if redirect_to not in (
+                root_login_url + reverse('dashboard'),
+                reverse('dashboard')
+            ):
+                redirect_url = get_redirect_url_with_host(root_login_url, redirect_to)
 
     if should_redirect_to_authn_microfrontend() and not request.user.is_authenticated:
         params = {'account_activation_status': activation_message_type}
@@ -646,7 +650,7 @@ def activate_account(request, key):
         url_path = '/login?{}'.format(urllib.parse.urlencode(params))
         return redirect(settings.AUTHN_MICROFRONTEND_URL + url_path)
 
-    response = redirect(redirect_url) if redirect_url and is_enterprise_learner(request.user) else redirect('dashboard')
+    response = redirect(redirect_url) if redirect_url else redirect('dashboard')
     if show_account_activation_popup:
         response.delete_cookie(
             settings.SHOW_ACTIVATE_CTA_POPUP_COOKIE_NAME,
