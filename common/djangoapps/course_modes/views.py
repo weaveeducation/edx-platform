@@ -41,7 +41,7 @@ from openedx.features.course_duration_limits.models import CourseDurationLimitCo
 from openedx.features.course_duration_limits.access import get_user_course_duration, get_user_course_expiration_date
 from openedx.features.course_experience import course_home_url
 from openedx.features.enterprise_support.api import enterprise_customer_for_request
-from common.djangoapps.student.models import CourseEnrollment
+from common.djangoapps.student.models import CourseEnrollment, CourseEnrollmentAllowed
 from common.djangoapps.util.db import outer_atomic
 from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disable=wrong-import-order
 
@@ -324,11 +324,19 @@ class ChooseModeView(View):
             # been configured.  However, alternative enrollment workflows have been introduced into the
             # system, such as third-party discovery.  These workflows result in learners arriving
             # directly at this screen, and they will not necessarily be pre-enrolled in the audit mode.
-            CourseEnrollment.enroll(request.user, course_key, CourseMode.AUDIT)
+            if settings.FEATURES.get('ENROLL_ACTIVE_USERS_ONLY', False) and not request.user.is_active:
+                CourseEnrollmentAllowed.objects.get_or_create(course_id=course_key, email=request.user.email,
+                                                              auto_enroll=True)
+            else:
+                CourseEnrollment.enroll(request.user, course_key, CourseMode.AUDIT)
             return self._redirect_to_course_or_dashboard(course, course_key, user)
 
         if requested_mode == 'honor':
-            CourseEnrollment.enroll(user, course_key, mode=requested_mode)
+            if settings.FEATURES.get('ENROLL_ACTIVE_USERS_ONLY', False) and not request.user.is_active:
+                CourseEnrollmentAllowed.objects.get_or_create(course_id=course_key, email=request.user.email,
+                                                              auto_enroll=True)
+            else:
+                CourseEnrollment.enroll(user, course_key, mode=requested_mode)
             return self._redirect_to_course_or_dashboard(course, course_key, user)
 
         mode_info = allowed_modes[requested_mode]
