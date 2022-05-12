@@ -30,7 +30,7 @@ from openedx.core.djangoapps.discussions.models import DiscussionsConfiguration
 from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.modulestore.exceptions import ItemNotFoundError  # lint-amnesty, pylint: disable=wrong-import-order
 
-from ..utils import get_lms_link_for_item, get_sibling_urls, reverse_course_url
+from ..utils import get_lms_link_for_item, get_sibling_urls, reverse_course_url, get_role_features
 from .helpers import get_parent_xblock, is_unit, xblock_type_display_name
 from .item import StudioEditModuleRuntime, add_container_page_publishing_info, create_xblock_info
 

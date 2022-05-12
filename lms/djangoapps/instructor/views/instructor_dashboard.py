@@ -417,6 +417,10 @@ def _section_certificates(course):
                 'start_certificate_regeneration',
                 kwargs={'course_id': course.id}
             ),
+            'generate_missing_certificates': reverse(
+                'generate_missing_certificates',
+                kwargs={'course_id': course.id}
+            ),
             'list_instructor_tasks_url': reverse(
                 'list_instructor_tasks',
                 kwargs={'course_id': course.id}
@@ -706,6 +710,7 @@ def _section_data_download(course, access, user=None):
         'export_ora2_submission_files_url': reverse(
             'export_ora2_submission_files', kwargs={'course_id': str(course_key)}
         ),
+        'reports_datapicker': Feature.is_published(Feature.INSTRUCTOR_DASHBOARD_REPORTS_DATAPICKER, user),
         'export_ora2_summary_url': reverse('export_ora2_summary', kwargs={'course_id': str(course_key)}),
     }
     if not access.get('data_researcher'):

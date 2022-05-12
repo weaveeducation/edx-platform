@@ -12,7 +12,7 @@ from lms.djangoapps.courseware.access import has_access
 from lms.djangoapps.courseware.entrance_exams import user_can_skip_entrance_exam
 from lms.djangoapps.course_home_api.toggles import course_home_legacy_is_active, course_home_mfe_progress_tab_is_active
 from openedx.core.lib.course_tabs import CourseTabPluginManager
-from openedx.features.course_experience import DISABLE_UNIFIED_COURSE_TAB_FLAG, default_course_url_name
+from openedx.features.course_experience import DISABLE_UNIFIED_COURSE_TAB_FLAG, DISABLE_DATES_TAB_FLAG, default_course_url_name
 from openedx.features.course_experience.url_helpers import get_learning_mfe_home_url
 from common.djangoapps.student.models import CourseEnrollment
 from xmodule.tabs import CourseTab, CourseTabList, course_reverse_func_from_name_func, key_checker  # lint-amnesty, pylint: disable=wrong-import-order
@@ -342,6 +342,15 @@ class DatesTab(EnrolledTab):
 
         tab_dict['link_func'] = link_func
         super().__init__(tab_dict)
+
+    @classmethod
+    def is_enabled(cls, course, user=None):
+        """
+        Returns true if this tab is enabled.
+        """
+        if DISABLE_DATES_TAB_FLAG.is_enabled(course.id):
+            return False
+        return super().is_enabled(course, user)
 
 
 def get_course_tab_list(user, course):

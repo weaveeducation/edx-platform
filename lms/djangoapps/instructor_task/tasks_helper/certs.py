@@ -92,7 +92,7 @@ def generate_missing_students_certificates(_xmodule_instance_args, _entry_id, co
             gen_cert = GeneratedCertificate.objects.filter(
                 user=enroll.user, course_id=course_id, mode=CourseMode.HONOR).first()
             if not gen_cert:
-                generate_regular_certificate_task(enroll.user, course_id)
+                generate_regular_certificate_task(enroll.user, course_id, CourseMode.HONOR)
 
 
 def students_require_certificate(course_id, enrolled_students, statuses_to_regenerate=None):

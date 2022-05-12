@@ -25,6 +25,10 @@ DISABLE_UNIFIED_COURSE_TAB_FLAG = CourseWaffleFlag(  # lint-amnesty, pylint: dis
     COURSE_EXPERIENCE_WAFFLE_FLAG_NAMESPACE, 'disable_unified_course_tab', __name__
 )
 
+DISABLE_DATES_TAB_FLAG = CourseWaffleFlag(
+    COURSE_EXPERIENCE_WAFFLE_FLAG_NAMESPACE, 'disable_dates_tab', __name__
+)
+
 # Waffle flag to enable the sock on the footer of the home and courseware pages.
 DISPLAY_COURSE_SOCK_FLAG = CourseWaffleFlag(WAFFLE_FLAG_NAMESPACE, 'display_course_sock', __name__)  # lint-amnesty, pylint: disable=toggle-missing-annotation
 

@@ -24,6 +24,7 @@ from lms.djangoapps.grades.api import CourseGradeFactory
 from lms.djangoapps.instructor.access import is_beta_tester
 from lms.djangoapps.verify_student.services import IDVerificationService
 from openedx.core.djangoapps.content.course_overviews.api import get_course_overview_or_none
+from xmodule.modulestore.django import modulestore
 
 log = logging.getLogger(__name__)
 
@@ -314,6 +315,21 @@ def _can_set_cert_status_common(user, course_key, enrollment_mode):
     return True
 
 
+def _has_passing_grade(user, course):
+    """
+    Check if the user has a passing grade in this course run
+    """
+    course_grade = CourseGradeFactory().read(user, course)
+    return course_grade.passed
+
+
+def _get_course(course_key):
+    """
+    Get the course from the course key
+    """
+    return modulestore().get_course(course_key, depth=0)
+
+
 def is_on_certificate_allowlist(user, course_key):
     """
     Check if the user is on the allowlist, and is enabled for the allowlist, for this course run
@@ -433,7 +449,10 @@ def generate_regular_certificate_task(user, course_key, generation_mode=None):
     Create a task to generate a regular (non-allowlist) certificate for this user in this course run, if the user is
     eligible and a certificate can be generated.
     """
-    if not _can_generate_regular_certificate(user, course_key):
+    course = _get_course(course_key)
+    course_grade = CourseGradeFactory().read(user, course)
+
+    if not _can_generate_regular_certificate(user, course_key, generation_mode, course_grade):
         log.info(f'Cannot generate a v2 course certificate for {user.id} : {course_key}')
         return False
 
