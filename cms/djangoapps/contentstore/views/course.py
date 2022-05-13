@@ -81,6 +81,8 @@ from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disa
 from xmodule.modulestore.exceptions import DuplicateCourseError, ItemNotFoundError  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.partitions.partitions import UserPartition  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.tabs import CourseTab, CourseTabList, InvalidTabsException  # lint-amnesty, pylint: disable=wrong-import-order
+from common.djangoapps.credo_modules.models import CopyBlockTask, SiblingBlockUpdateTask, CourseStaffExtended, get_inactive_orgs
+from common.djangoapps.credo_modules.mongo import get_unit_block_versions
 
 from ..course_group_config import (
     COHORT_SCHEME,
@@ -147,6 +149,8 @@ def get_course_and_check_access(course_key, user, depth=0):
     for the view functions in this file.
     """
     if not has_studio_read_access(user, course_key):
+        raise PermissionDenied()
+    if CourseStaffExtended.objects.filter(role__course_studio_access=False, user=user, course_id=course_key).exists():
         raise PermissionDenied()
     course_module = modulestore().get_course(course_key, depth=depth)
     return course_module
