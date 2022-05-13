@@ -50,3 +50,4 @@ class CourseHomeMetadataSerializer(VerifiedModeSerializer):
     title = serializers.CharField()
     username = serializers.CharField()
     user_timezone = serializers.CharField()
+    profile_image_url = serializers.CharField()
