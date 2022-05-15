@@ -94,6 +94,8 @@ define([
                     tolerance: 'pointer'
 
                 });
+
+                Backbone.trigger('ready:onXBlockReady');
             },
 
             updateChildren: function(targetParent, successCallback) {

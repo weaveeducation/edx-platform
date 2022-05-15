@@ -472,6 +472,10 @@
           .proctoring-configuration-button {
             @extend %ui-btn-flat-outline;
           }
+
+          .action-button.is-disabled {
+            color: #bbb8b8;
+          }
         }
       }
 
@@ -523,6 +527,19 @@
       // header
       .unit-header {
         @extend %outline-item-header;
+
+        .unit-header-checkbox {
+          @include float(left);
+
+          margin-right: 6px;
+          margin-top: 7px;
+
+          input {
+            width: 15px;
+            height: 15px;
+            z-index: 1;
+          }
+        }
       }
 
       .unit-header-details {
@@ -840,4 +857,8 @@
       margin-bottom: 0;
     }
   }
+}
+
+.SFE-wrapper > .no-gutters > div:nth-of-type(3) {
+  display: none !important;
 }

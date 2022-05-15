@@ -54,7 +54,7 @@ CONTAINER_TEMPLATES = [
     "add-xblock-component", "add-xblock-component-button", "add-xblock-component-menu",
     "add-xblock-component-support-legend", "add-xblock-component-support-level", "add-xblock-component-menu-problem",
     "xblock-string-field-editor", "xblock-access-editor", "publish-xblock", "publish-history",
-    "unit-outline", "container-message", "container-access", "license-selector", "copy-clipboard-button",
+    "unit-outline", "container-message", "container-actions", "container-access", "license-selector", "copy-clipboard-button",
     "edit-title-button",
 ]
 
@@ -126,9 +126,9 @@ def container_handler(request, usage_key_string):
 
             features = get_role_features(course.id, request.user)
             for tpl in component_templates_tmp:
-                if (tpl['type'] == 'advanced' and features['unit_add_advanced_component']) \
-                    or (tpl['type'] == 'discussion' and features['unit_add_discussion_component']) \
-                    or (tpl['type'] not in ('advanced', 'discussion')):
+                if (tpl['type'] == 'advanced' and features['unit_add_advanced_component'])\
+                        or (tpl['type'] == 'discussion' and features['unit_add_discussion_component'])\
+                        or (tpl['type'] not in ('advanced', 'discussion')):
                     component_templates.append(tpl)
 
             ancestor_xblocks = []
