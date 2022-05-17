@@ -423,7 +423,7 @@ edx-celeryutils==1.2.1
     #   -r requirements/edx/base.in
     #   edx-name-affirmation
     #   super-csv
-edx-completion==4.2.0
+git+https://github.com/CredoEducation/completion.git@integration-nutmeg#egg=edx-completion==4.2.1
     # via -r requirements/edx/base.in
 edx-django-release-util==1.2.0
     # via -r requirements/edx/base.in
@@ -443,7 +443,7 @@ edx-django-utils==4.6.0
     #   event-tracking
     #   ora2
     #   super-csv
-edx-drf-extensions==8.0.1
+git+https://github.com/CredoEducation/edx-drf-extensions.git@integration-nutmeg#egg=edx-drf-extensions==8.0.2
     # via
     #   -r requirements/edx/base.in
     #   edx-completion
@@ -483,7 +483,7 @@ edx-opaque-keys[django]==2.3.0
     #   xmodule
 edx-organizations==6.11.1
     # via -r requirements/edx/base.in
-edx-proctoring==4.10.2
+git+https://github.com/CredoEducation/edx-proctoring.git@integration-nutmeg#egg=edx-proctoring==4.10.3
     # via
     #   -r requirements/edx/base.in
     #   edx-proctoring-proctortrack
@@ -1092,7 +1092,7 @@ xblock==1.6.1
     #   xblock-google-drive
     #   xblock-poll
     #   xblock-utils
-xblock-drag-and-drop-v2 @ git+https://github.com/edx-solutions/xblock-drag-and-drop-v2@v2.3.5
+xblock-drag-and-drop-v2 @ git+https://github.com/CredoEducation/xblock-drag-and-drop-v2@integration-nutmeg#egg=xblock-drag-and-drop-v2==2.3.6
     # via -r requirements/edx/github.in
 xblock-poll @ git+https://github.com/open-craft/xblock-poll@v1.12.0
     # via -r requirements/edx/github.in
