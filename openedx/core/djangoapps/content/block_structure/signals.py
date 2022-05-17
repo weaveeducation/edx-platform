@@ -51,7 +51,7 @@ def update_block_structure_on_course_publish(sender, course_key, **kwargs):  # p
             course_id = str(course_key)
             if course_id and course_id.startswith('course-v1'):
                 if settings.DEBUG:
-                    update_course_structure(course_id, str(course.published_on))
+                    update_course_structure(course_id)
                 else:
                     lock_result = ApiCourseStructureLock(
                         course_id=course_id,

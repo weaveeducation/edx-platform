@@ -633,7 +633,7 @@ class UpdateCourseStructureView(APIView):
         if not course_id:
             return Response({'success': False, 'error': "course_id is not set"})
 
-        update_course_structure(course_id, None)
+        update_course_structure(course_id)
         return Response({'success': True})
 
 

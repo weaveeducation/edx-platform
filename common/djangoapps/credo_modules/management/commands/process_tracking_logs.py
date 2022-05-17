@@ -17,6 +17,7 @@ from common.djangoapps.credo_modules.events_processor.utils import prepare_text_
 from common.djangoapps.credo_modules.models import DBLogEntry, TrackingLog, TrackingLogFile, TrackingLogConfig,\
     SequentialBlockAttempt
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
+from openedx.core.djangoapps.content.block_structure.tasks import update_course_structure
 from common.djangoapps.student.models import CourseAccessRole
 from opaque_keys.edx.keys import CourseKey
 
@@ -264,6 +265,13 @@ class Command(BaseCommand):
             sequential_id, sequential_name, sequential_graded, visible_to_staff_only = None, None, False, False
             if e.block_id in b2s_cache[course_id]:
                 sequential_id, sequential_name, sequential_graded, visible_to_staff_only = b2s_cache[course_id][e.block_id]
+            else:
+                update_course_structure(course_id)
+                self._update_b2s_cache(course_id, b2s_cache)
+                if e.block_id in b2s_cache[course_id]:
+                    sequential_id, sequential_name, sequential_graded, visible_to_staff_only = b2s_cache[course_id][e.block_id]
+                else:
+                    raise Exception("Can't find block_id in b2s cache")
 
             e.sequential_name = sequential_name
             e.sequential_id = sequential_id
