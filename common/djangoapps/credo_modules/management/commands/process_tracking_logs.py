@@ -2,6 +2,7 @@ import boto
 import datetime
 import json
 import hashlib
+import logging
 import tempfile
 import time
 import subprocess
@@ -23,6 +24,7 @@ from opaque_keys.edx.keys import CourseKey
 
 
 User = get_user_model()
+log = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -271,7 +273,8 @@ class Command(BaseCommand):
                 if e.block_id in b2s_cache[course_id]:
                     sequential_id, sequential_name, sequential_graded, visible_to_staff_only = b2s_cache[course_id][e.block_id]
                 else:
-                    raise Exception("Can't find block_id in b2s cache")
+                    print(f"Can't find info for {e.block_id}")
+                    log.exception(f"Can't find {e.block_id} in b2s cache")
 
             e.sequential_name = sequential_name
             e.sequential_id = sequential_id
