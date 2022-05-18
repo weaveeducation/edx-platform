@@ -97,6 +97,7 @@ from edx_toggles.toggles import SettingToggle
 from common.djangoapps.util.log_sensitive import encrypt_for_log
 from openedx.core.djangoapps.user_authn.cookies import delete_logged_in_cookies
 from openedx.core.lib.mobile_utils import is_request_from_mobile_app
+from openedx.core.djangoapps.site_configuration.helpers import get_value
 
 # .. toggle_name: LOG_REQUEST_USER_CHANGES
 # .. toggle_implementation: SettingToggle
@@ -829,7 +830,7 @@ def _delete_cookie(request, response):
     response.delete_cookie(
         settings.SESSION_COOKIE_NAME,
         path='/',
-        domain=settings.SESSION_COOKIE_DOMAIN,
+        domain=get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN),
     )
     # Keep JWT cookies and others in sync with session cookie
     # (meaning, in this case, delete them too).
