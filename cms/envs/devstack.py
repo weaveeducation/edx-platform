@@ -31,7 +31,7 @@ for pkg_name in ['common.djangoapps.track.contexts', 'common.djangoapps.track.mi
     logging.getLogger(pkg_name).setLevel(logging.CRITICAL)
 
 # Docker does not support the syslog socket at /dev/log. Rely on the console.
-LOGGING['handlers']['local'] = LOGGING['handlers']['tracking'] = {
+LOGGING['handlers']['local'] = LOGGING['handlers']['tracking'] = LOGGING['handlers']['credo_json'] = {
     'class': 'logging.NullHandler',
 }
 
