@@ -27,7 +27,7 @@
       </li>
       % endif
       <li class="nav-item nav-account-signout">
-        <a class="action action-signout" href="${settings.FRONTEND_LOGOUT_URL}">${_("Sign Out")}</a>
+        <a class="action action-signout" href="${reverse('logout_redirect_to_lms')}">${_("Sign Out")}</a>
       </li>
     </ul>
   </div>

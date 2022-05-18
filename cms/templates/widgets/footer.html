@@ -15,7 +15,7 @@ from openedx.core.djangolib.markup import HTML, Text
 
     <div class="footer-content-primary">
       <div class="colophon">
-        <p>&copy; ${datetime.now(pytz.timezone(settings.TIME_ZONE)).year} <a href="${marketing_link('ROOT')}" rel="external">${settings.PLATFORM_NAME}</a>.</p>
+        <p>&copy; ${datetime.now(pytz.timezone(settings.TIME_ZONE)).year} <a href="${lms_root_url}" rel="external">${platform_name}</a>.</p>
       </div>
 
         <nav class="nav-peripheral" aria-label="${_("Policies")}">
@@ -36,7 +36,7 @@ from openedx.core.djangolib.markup import HTML, Text
               </li>
             %endif
             <li class="nav-item">
-              <a id="lms-link" href="${settings.LMS_ROOT_URL}">${_("LMS")}</a>
+              <a id="lms-link" href="${lms_root_url}">${_("LMS")}</a>
             </li>
           </ol>
         </nav>
