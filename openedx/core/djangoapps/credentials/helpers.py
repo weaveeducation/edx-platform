@@ -16,7 +16,7 @@ from openedx.core.djangoapps.site_configuration import helpers as config_helpers
 # .. toggle_use_cases: open_edx
 # .. toggle_creation_date: 2020-10-01
 ENABLE_LEARNER_RECORDS = SettingDictToggle(
-    "FEATURES", "ENABLE_LEARNER_RECORDS", default=True, module_name=__name__
+    "FEATURES", "ENABLE_LEARNER_RECORDS", default=False, module_name=__name__
 )
 
 
