@@ -17,6 +17,8 @@ class BlockCompletionTransformer(BlockStructureTransformer):
     WRITE_VERSION = 1
     COMPLETION = 'completion'
     COMPLETE = 'complete'
+    COMPLETE_PERCENT = 'complete_percent'
+    COMPLETE_STATUS = 'complete_status'
     RESUME_BLOCK = 'resume_block'
 
     @classmethod
@@ -79,6 +81,22 @@ class BlockCompletionTransformer(BlockStructureTransformer):
 
             if all_children_complete:
                 block_structure.override_xblock_field(block_key, self.COMPLETE, True)
+
+            children_num_all = len(children)
+            children_num_completed = sum([1 for child_key in children
+                                          if not self._is_block_excluded(block_structure, child_key)
+                                          and block_structure.get_xblock_field(child_key, self.COMPLETE)
+                                          ])
+            complete_percent = round(float(children_num_completed) / children_num_all, 2) if children_num_all > 0 else 0
+            complete_percent = int(complete_percent * 100)
+            if complete_percent == 100:
+                complete_status = 'finished'
+            elif complete_percent == 0:
+                complete_status = 'not_started'
+            else:
+                complete_status = 'in_progress'
+            block_structure.override_xblock_field(block_key, self.COMPLETE_PERCENT, complete_percent)
+            block_structure.override_xblock_field(block_key, self.COMPLETE_STATUS, complete_status)
 
             if any(block_structure.get_xblock_field(child_key, self.RESUME_BLOCK) for child_key in children):
                 block_structure.override_xblock_field(block_key, self.RESUME_BLOCK, True)

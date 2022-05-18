@@ -61,13 +61,7 @@ from xmodule.x_module import STUDENT_VIEW
 
 from common.djangoapps.course_modes.models import CourseMode, get_course_prices
 from common.djangoapps.edxmako.shortcuts import marketing_link, render_to_response, render_to_string
-from common.djangoapps.student.models import CourseEnrollment, UserTestGroup
-from common.djangoapps.util.cache import cache, cache_if_anonymous
 from common.djangoapps.util.course import course_location_from_key
-from common.djangoapps.util.db import outer_atomic
-from common.djangoapps.util.milestones_helpers import get_prerequisite_courses_display
-from common.djangoapps.util.views import ensure_valid_course_key, ensure_valid_usage_key
-from common.djangoapps.myskills.services import MySkillsService, get_block_student_progress
 from lms.djangoapps.ccx.custom_exception import CCXLocatorValidationException
 from lms.djangoapps.certificates import api as certs_api
 from lms.djangoapps.certificates.data import CertificateStatuses
@@ -147,6 +141,18 @@ from openedx.features.course_experience.views.course_dates import CourseDatesFra
 from openedx.features.course_experience.waffle import ENABLE_COURSE_ABOUT_SIDEBAR_HTML
 from openedx.features.course_experience.waffle import waffle as course_experience_waffle
 from openedx.features.enterprise_support.api import data_sharing_consent_required
+from common.djangoapps.student.models import CourseEnrollment, UserTestGroup
+from common.djangoapps.track import segment
+from common.djangoapps.util.cache import cache, cache_if_anonymous
+from common.djangoapps.util.db import outer_atomic
+from common.djangoapps.util.milestones_helpers import get_prerequisite_courses_display
+from common.djangoapps.util.views import ensure_valid_course_key, ensure_valid_usage_key
+from common.djangoapps.myskills.services import MySkillsService, get_block_student_progress
+from xmodule.course_module import COURSE_VISIBILITY_PUBLIC, COURSE_VISIBILITY_PUBLIC_OUTLINE
+from xmodule.modulestore.django import modulestore
+from xmodule.modulestore.exceptions import ItemNotFoundError, NoPathToItem
+from xmodule.tabs import CourseTabList
+from xmodule.x_module import STUDENT_VIEW
 
 from ..context_processor import user_timezone_locale_prefs
 from ..entrance_exams import user_can_skip_entrance_exam

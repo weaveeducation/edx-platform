@@ -171,6 +171,10 @@ class NonZeroSubsectionGrade(SubsectionGradeBase, metaclass=ABCMeta):
         return compute_percent(self.graded_total.earned, self.graded_total.possible)
 
     @property
+    def percent_info(self):
+        return {'earned': self.graded_total.earned, 'possible': self.graded_total.possible}
+
+    @property
     def last_answer_timestamp(self):
         return self.graded_total.last_answer_timestamp
 

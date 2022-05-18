@@ -1,0 +1,15 @@
+<%page expression_filter="h"/>
+<%namespace file='./extended_progress_skills.html' import="tag_section_block"/>
+
+% if tag:
+    % for course_label, course_data in tag['courses'].items():
+        <div class="progress-tags-assessments-item-subheader">
+            <div class="progress-assessments-cell skill">${course_label}</div>
+            <div class="progress-assessments-cell answers-submitted"></div>
+            <div class="progress-assessments-cell average-performance"></div>
+        </div>
+        % for section in course_data['sections']:
+            ${tag_section_block(section, display_problems=False, tag_value=tag['tag'])}
+        % endfor
+    % endfor
+% endif

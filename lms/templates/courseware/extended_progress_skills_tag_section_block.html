@@ -1,0 +1,36 @@
+<%page expression_filter="h"/>
+<%namespace name='static' file='/static_content.html'/>
+
+% for problem in items:
+<div class="progress-tags-assessments-item-assessment-question">
+    <table class="seq-grade-details-item-table">
+    <tbody>
+        <tr>
+            <td class="seq-grade-details-item-block-icon">
+            % if problem['correctness'] == 'Not Answered':
+            <img src="${static.url('images/credo/question_unanswered.png')}" width="24" height="24"
+                 alt="${problem['correctness']}" title="${problem['correctness']}">
+            % elif problem['correctness'] == 'Incorrect':
+            <img src="${static.url('images/credo/question_incorrect.png')}" width="25" height="25"
+                 alt="${problem['correctness']}" title="${problem['correctness']}">
+            % else:
+            <img src="${static.url('images/credo/question_correct.png')}" width="25" height="25"
+                 alt="${problem['correctness']}" title="${problem['correctness']}">
+            % endif
+            </td>
+            <td class="seq-grade-details-item-block-content">
+                <div class="seq-grade-details-item-block-content-header">${problem['display_name']}</div>
+                % if problem['question_text']:
+                <div class="seq-grade-details-item-block-content-text">${problem['question_text'] | n}</div>
+                % endif
+                <div class="seq-grade-details-item-block-content-header">Answer: ${problem['correctness']}</div>
+                % if problem['answer']:
+                <div class="seq-grade-details-item-block-content-text">${problem['answer']}</div>
+                % endif
+            </td>
+            <td class="seq-grade-details-item-block-points">${problem['earned']}/${problem['possible']}</td>
+        </tr>
+    </tbody>
+    </table>
+</div>
+% endfor

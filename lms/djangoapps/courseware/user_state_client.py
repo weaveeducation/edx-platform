@@ -89,7 +89,7 @@ class DjangoXBlockUserStateClient(XBlockUserStateClient):
         """
         course_key_func = attrgetter('course_key')
         by_course = itertools.groupby(
-            sorted(block_keys, key=course_key_func),
+            sorted([bk.for_branch(None) for bk in block_keys], key=course_key_func),
             course_key_func,
         )
 

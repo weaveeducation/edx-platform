@@ -37,6 +37,7 @@ masquerading_as_student = is_masquerading_as_student(request.user, course.id)
     % endfor
     <div class="proctored_exam_status"></div>
 % endif
+<div class="scores-panel is-hidden"></div>
 
 % if disable_tabs is UNDEFINED or not disable_tabs:
     <%
