@@ -1958,6 +1958,11 @@ ADVANCED_PROBLEM_TYPES = [
     {
         'component': 'staffgradedxblock',
         'boilerplate_name': None
+    },
+    {
+        'component': 'supervisor-evaluation',
+        'boilerplate_name': None,
+        'component_display_name': 'Supervisor Evaluation'
     }
 ]
 
