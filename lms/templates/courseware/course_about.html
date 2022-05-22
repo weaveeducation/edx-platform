@@ -43,9 +43,7 @@ from six import string_types
         // redirect unauthenticated user to the login page
         location.replace("${reverse('signin_user') | n, js_escaped_string}?next=" + encodeURIComponent("${request.path | n, js_escaped_string}"));
       } else {
-        $('#register_error').text(
-            (xhr.responseText ? xhr.responseText : "${_("An error occurred. Please try again later.") | n, js_escaped_string}")
-        ).css("display", "block");
+        location.href = "${reverse('register_user') | n, decode.utf8  }?course_id=${course.id | n, decode.utf8 }&enrollment_action=enroll";
       }
     });
 
