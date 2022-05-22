@@ -35,6 +35,7 @@ from openedx.features.enterprise_support.utils import update_account_settings_co
 from common.djangoapps.student.models import UserProfile
 from common.djangoapps.third_party_auth import pipeline
 from common.djangoapps.util.date_utils import strftime_localized
+from common.djangoapps.credo_modules.models import check_my_skills_access
 
 log = logging.getLogger(__name__)
 
@@ -136,6 +137,7 @@ def account_settings_context(request):
         'user_preferences_api_url': reverse('preferences_api', kwargs={'username': user.username}),
         'disable_courseware_js': True,
         'show_program_listing': ProgramsApiConfig.is_enabled(),
+        'show_my_skills': check_my_skills_access(user),
         'show_dashboard_tabs': True,
         'order_history': user_orders,
         'disable_order_history_tab': should_redirect_to_order_history_microfrontend(),

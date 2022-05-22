@@ -22,6 +22,7 @@ from openedx.core.djangoapps.user_api.preferences.api import get_user_preference
 from openedx.features.learner_profile.toggles import should_redirect_to_profile_microfrontend
 from openedx.features.learner_profile.views.learner_achievements import LearnerAchievementsFragmentView
 from common.djangoapps.student.models import User
+from common.djangoapps.credo_modules.models import check_my_skills_access
 
 
 @login_required
@@ -115,6 +116,7 @@ def learner_profile_context(request, profile_username, user_is_staff):
         },
         'show_program_listing': ProgramsApiConfig.is_enabled(),
         'show_dashboard_tabs': True,
+        'show_my_skills': check_my_skills_access(request.user),
         'disable_courseware_js': True,
         'nav_hidden': True,
         'records_url': get_credentials_records_url(),

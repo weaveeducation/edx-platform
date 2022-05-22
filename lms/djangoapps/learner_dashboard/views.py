@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from lms.djangoapps.learner_dashboard.utils import masters_program_tab_view_is_enabled, is_enrolled_or_staff
 from common.djangoapps.edxmako.shortcuts import render_to_response
+from common.djangoapps.credo_modules.models import check_my_skills_access
 from lms.djangoapps.learner_dashboard.programs import (
     ProgramDetailsFragmentView,
     ProgramDiscussionLTI,
@@ -33,6 +34,7 @@ def program_listing(request):
         'show_dashboard_tabs': True,
         'show_program_listing': programs_config.enabled,
         'uses_bootstrap': True,
+        'show_my_skills': check_my_skills_access(request.user)
     }
 
     return render_to_response('learner_dashboard/programs.html', context)
@@ -54,6 +56,7 @@ def program_details(request, program_uuid):
         'nav_hidden': True,
         'disable_courseware_js': True,
         'uses_bootstrap': True,
+        'show_my_skills': check_my_skills_access(request.user)
     }
 
     return render_to_response('learner_dashboard/program_details.html', context)
