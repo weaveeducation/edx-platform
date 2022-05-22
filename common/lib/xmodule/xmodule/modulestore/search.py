@@ -179,6 +179,9 @@ def navigation_index(position):
     if position is None:
         return None
 
+    if position == '':
+        return 1
+
     try:
         navigation_position = int(position.split('_', 1)[0])
     except (ValueError, TypeError):
