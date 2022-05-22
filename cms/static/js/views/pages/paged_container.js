@@ -14,6 +14,9 @@ define(['jquery', 'underscore', 'gettext', 'js/views/pages/container', 'js/views
             components_on_init: false,
 
             initialize: function(options) {
+                this.tagSelectors = {};
+                this.selectedTags = {};
+                this.tagsSelected = false;
                 this.page_size = options.page_size || 10;
                 this.showChildrenPreviews = options.showChildrenPreviews || true;
                 XBlockContainerPage.prototype.initialize.call(this, options);
@@ -47,7 +50,75 @@ define(['jquery', 'underscore', 'gettext', 'js/views/pages/container', 'js/views
 
                 this.$('.preview-text', $button).text(text);
                 this.$('.toggle-preview-button').removeClass('is-hidden');
+            },
+
+            renderFilters: function() {
+                var self = this;
+                this.$('.tag-filter').each(function() {
+                    var tagName = $(this).attr('name');
+                    var ms = $(this).magicSuggest({
+                        data: $(this).data('values'),
+                        width: 700,
+                        allowFreeEntries: false,
+                        maxSelection: 1000,
+                        inputCfg: {"aria-label": tagName}
+                    });
+                    self.tagSelectors[tagName] = ms;
+                    $(ms).on('selectionchange', function(e, m) {
+                        var tagValues = this.getValue();
+                        if (tagValues.length > 0) {
+                            self.selectedTags[tagName] = this.getValue();
+                            self.tagsSelected = true;
+                        } else if (tagName in self.selectedTags) {
+                            delete self.selectedTags[tagName];
+                            if ($.isEmptyObject(self.selectedTags)) {
+                                self.tagsSelected = false;
+                            }
+                        }
+                        self.updatePageOnFilterChange();
+                    });
+                });
+                this.$('.tags_clear_all').click(function() {
+                    if (!self.tagsSelected) {
+                        return;
+                    }
+                    $.each(self.tagSelectors, function(tagName) {
+                        self.tagSelectors[tagName].clear();
+                    });
+                    self.selectedTags = {};
+                    self.tagsSelected = false;
+                    self.updatePageOnFilterChange();
+                });
+            },
+
+            updatePageOnFilterChange: function() {
+                var self = this;
+                var loadingElement = this.$('.ui-loading'),
+                    contentPrimary = this.$('.library-main-listing'),
+                    hiddenCss = 'is-hidden';
+
+                contentPrimary.addClass(hiddenCss);
+                loadingElement.removeClass(hiddenCss);
+
+                this.xblockView.renderPage({
+                    page_number: 0,
+                    tags: this.selectedTags,
+                    done: function() {
+                        contentPrimary.removeClass(hiddenCss);
+                        loadingElement.addClass(hiddenCss);
+                        if (self.tagsSelected) {
+                            self.xblockView.pagingHeader.hide();
+                            self.xblockView.pagingFooter.hide();
+                            self.$el.find('.add-xblock-component-button').attr('disabled', 'disabled');
+                        } else {
+                            self.xblockView.pagingHeader.show();
+                            self.xblockView.pagingFooter.show();
+                            self.$el.find('.add-xblock-component-button').removeAttr('disabled');
+                        }
+                    }
+                });
             }
+
         });
         return PagedXBlockContainerPage;
     });
