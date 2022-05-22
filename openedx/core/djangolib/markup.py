@@ -68,7 +68,7 @@ def clean_dangerous_html(html):
         %>
         ${course_details.overview | n, clean_dangerous_html}
     """
-    if not html:
+    if not html or not html.strip():
         return html
     cleaner = Cleaner(style=True, inline_style=False, safe_attrs_only=False)
     html = cleaner.clean_html(html)
