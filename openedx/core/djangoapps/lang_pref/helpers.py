@@ -18,14 +18,16 @@ def set_language_cookie(request, response, value):
     """
     Set the language cookie in the response object.
     """
-    response.set_cookie(
-        settings.LANGUAGE_COOKIE_NAME,
-        value=value,
-        domain=get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN),
-        max_age=COOKIE_DURATION,
-        secure=request.is_secure(),
-        samesite="None" if request.is_secure() else "Lax",
-    )
+    domain = get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN)
+    if domain:
+        response.set_cookie(
+            settings.LANGUAGE_COOKIE_NAME,
+            value=value,
+            domain=domain,
+            max_age=COOKIE_DURATION,
+            secure=request.is_secure(),
+            samesite="None" if request.is_secure() else "Lax",
+        )
 
 
 def unset_language_cookie(response):
