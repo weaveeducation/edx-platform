@@ -15,6 +15,7 @@ from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.utils.encoding import force_str
 from django.utils.functional import Promise
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 LOGGER = logging.getLogger(__name__)
 
@@ -137,7 +138,7 @@ class FormDescription:
             self, name, label="", field_type="text", default="",
             placeholder="", instructions="", exposed=None, required=True, restrictions=None,
             options=None, include_default_option=False, error_messages=None,
-            supplementalLink="", supplementalText=""
+            supplementalLink="", supplementalText="", autocomplete=None
     ):
         """Add a field to the form description.
 
@@ -215,6 +216,8 @@ class FormDescription:
             "supplementalLink": supplementalLink,
             "supplementalText": supplementalText,
             "loginIssueSupportLink": settings.LOGIN_ISSUE_SUPPORT_LINK,
+            "disableRegisterLink": configuration_helpers.get_value('DISABLE_REGISTER_BUTTON', settings.FEATURES['DISABLE_REGISTER_BUTTON']),
+            "autocomplete": autocomplete
         }
 
         field_override = self._field_overrides.get(name, {})
