@@ -712,6 +712,7 @@ def _section_data_download(course, access, user=None):
         ),
         'reports_datapicker': Feature.is_published(Feature.INSTRUCTOR_DASHBOARD_REPORTS_DATAPICKER, user),
         'export_ora2_summary_url': reverse('export_ora2_summary', kwargs={'course_id': str(course_key)}),
+        'certificates_tab_available': configuration_helpers.get_value('INSTRUCTOR_DASHBOARD_CERT_TAB', True)
     }
     if not access.get('data_researcher'):
         section_data['is_hidden'] = True
