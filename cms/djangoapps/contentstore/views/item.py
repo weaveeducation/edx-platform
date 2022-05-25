@@ -1496,7 +1496,7 @@ def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=F
                     'highlights_enabled_for_messaging': course.highlights_enabled_for_messaging,
                 })
             xblock_info.update({
-                'highlights_enabled': True,  # used to be controlled by a waffle switch, now just always enabled
+                'highlights_enabled': configuration_helpers.get_value('highlights_enabled', True),  # used to be controlled by a waffle switch, now just always enabled
                 'highlights_preview_only': False,  # used to be controlled by a waffle flag, now just always disabled
                 'highlights_doc_url': HelpUrlExpert.the_one().url_for_token('content_highlights'),
             })
