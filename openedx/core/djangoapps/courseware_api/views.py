@@ -30,6 +30,7 @@ from xmodule.x_module import PUBLIC_VIEW, STUDENT_VIEW
 
 from common.djangoapps.course_modes.models import CourseMode
 from common.djangoapps.util.views import expose_header
+from lms.djangoapps.courseware.tabs import get_course_tab_list
 from lms.djangoapps.edxnotes.helpers import is_feature_enabled
 from lms.djangoapps.certificates.api import get_certificate_url
 from lms.djangoapps.certificates.models import GeneratedCertificate
@@ -154,6 +155,35 @@ class CoursewareMeta:
     @property
     def license(self):
         return self.course.license
+
+    @property
+    def tabs(self):
+        """
+        Return course tab metadata.
+        """
+        tabs = []
+        for priority, tab in enumerate(get_course_tab_list(self.effective_user, self.overview)):
+            title = tab.title or tab.get('name', '')
+            mf_feature = False
+            if tab.type == 'progress' and self.enable_extended_progress_page:
+                title = "My Skills"
+                mf_feature = True
+                url = reverse('progress', kwargs={'course_id': str(self.course_key)})
+            else:
+                url = tab.link_func(self.overview, reverse)
+            url_abs = url
+            if not url.startswith('http'):
+                url_abs = self.request.build_absolute_uri(url)
+            tabs.append({
+                'title': title,  # pylint: disable=translation-of-non-string
+                'slug': tab.tab_id,
+                'priority': priority,
+                'type': tab.type,
+                'url': url,
+                'url_absolute': url_abs,
+                'mf_feature': mf_feature
+            })
+        return tabs
 
     @property
     def notes(self):

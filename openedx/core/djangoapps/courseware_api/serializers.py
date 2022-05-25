@@ -100,6 +100,7 @@ class CourseInfoSerializer(serializers.Serializer):  # pylint: disable=abstract-
     start_display = serializers.CharField()
     start_type = serializers.CharField()
     pacing = serializers.CharField()
+    tabs = serializers.ListField()
     user_timezone = serializers.CharField()
     show_calculator = serializers.BooleanField()
     can_view_legacy_courseware = serializers.BooleanField()
