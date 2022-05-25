@@ -104,6 +104,8 @@ class CourseInfoSerializer(serializers.Serializer):  # pylint: disable=abstract-
     show_calculator = serializers.BooleanField()
     can_view_legacy_courseware = serializers.BooleanField()
     can_access_proctored_exams = serializers.BooleanField()
+    original_user_is_staff = serializers.BooleanField()
+    is_staff = serializers.BooleanField()
     notes = serializers.DictField()
     marketing_url = serializers.CharField()
     celebrations = serializers.DictField()
@@ -115,6 +117,7 @@ class CourseInfoSerializer(serializers.Serializer):  # pylint: disable=abstract-
     linkedin_add_to_profile_url = serializers.URLField()
     is_integrity_signature_enabled = serializers.BooleanField()
     user_needs_integrity_signature = serializers.BooleanField()
+    resume_block = serializers.CharField()
 
     def __init__(self, *args, **kwargs):
         """
