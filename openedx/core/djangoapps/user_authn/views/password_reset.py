@@ -378,7 +378,9 @@ class PasswordResetConfirmWrapper(PasswordResetConfirmView):
         """
         Internal method to get password reset token from session.
         """
-        return request.session[INTERNAL_RESET_SESSION_TOKEN]
+        if INTERNAL_RESET_SESSION_TOKEN in request.session:
+            return request.session[INTERNAL_RESET_SESSION_TOKEN]
+        return None
 
     @staticmethod
     def _get_platform_name():
@@ -535,6 +537,8 @@ class PasswordResetConfirmWrapper(PasswordResetConfirmView):
             # This is needed because django's post process is not called on password reset
             # post request and the correct token needs to be extracted from session.
             self.token = self._get_token_from_session(self.request)
+            if not self.token:
+                return HttpResponseBadRequest(_("Token has expired."))
             return self.post(self.request, *args, **kwargs)
         else:
             response = super().dispatch(
