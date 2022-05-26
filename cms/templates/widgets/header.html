@@ -155,9 +155,6 @@
                   <li class="nav-item nav-course-tools-export">
                     <a href="${export_url}">${_("Export")}</a>
                   </li>
-                  <li class="nav-item nav-course-tools-export-cc">
-                    <a href="${export_url_cc}">${_("Export to Common Cartridge format")}</a>
-                  </li>
                   % if toggles.EXPORT_GIT.is_enabled() and context_course.giturl:
                   <li class="nav-item nav-course-tools-export-git">
                     <a href="${reverse('export_git', kwargs=dict(course_key_string=six.text_type(course_key)))}">${_("Export to Git")}</a>
