@@ -1,0 +1,44 @@
+<%! from django.utils.translation import ugettext as _ %>
+<%inherit file="../main.html" />
+
+<%block name="js_extra">
+  <script type="text/javascript">
+    $(document).ready(function() {
+        var courseId = $('#embedded-course-id').val();
+        var embeddedMfeUrl = $('#embedded-mfe-url').val();
+        var embeddedPageType = $('#embedded-page-type').val();
+        var redirectUrl = null;
+
+        if (embeddedPageType === 'myskills') {
+            redirectUrl = embeddedMfeUrl + '/myskills?headless=true';
+        } else if (embeddedPageType === 'course_progress') {
+            redirectUrl = embeddedMfeUrl + '/courses/' + courseId + '/progress?headless=true';
+        }
+
+        if (redirectUrl) {
+            location.href = redirectUrl;
+        }
+    });
+
+  </script>
+</%block>
+
+<%block name="headextra">
+    <style>
+        .embedded-loading, .embedded-loading h3 {
+            font-family: "Open Sans",Verdana,Geneva,sans-serif,sans-serif !important;
+        }
+        .embedded-loading {
+            margin: 20px;
+        }
+    </style>
+</%block>
+
+<main id="main" aria-label="Content" tabindex="-1">
+    <div class="embedded-loading">
+        <h3>Loading...</h3>
+    </div>
+    <input type="hidden" id="embedded-course-id" value="${course_id}">
+    <input type="hidden" id="embedded-mfe-url" value="${mfe_url}">
+    <input type="hidden" id="embedded-page-type" value="${page_type}">
+</main>
