@@ -660,7 +660,7 @@ class SequenceMetadata(DeveloperErrorViewMixin, APIView):
             view = PUBLIC_VIEW
 
         context = {'specific_masquerade': is_masquerading_as_specific_student(request.user, usage_key.course_key)}
-        res = json.loads(sequence.get_metadata(view=view, context=context))
+        res = sequence.get_metadata(view=view, context=context)
         course = get_course_by_id(usage_key.course_key)
 
         student_properties = get_student_properties(request, usage_key.course_key, sequence)

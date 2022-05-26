@@ -127,11 +127,27 @@ class ProgressTab(EnrolledTab):
         tab_dict['link_func'] = link_func
         super().__init__(tab_dict)  # pylint: disable=super-with-arguments
 
+    def get_progress_title(self, course):
+        course_key = course.id
+        enable_extended_progress_page = False
+        try:
+            org = Organization.objects.get(org=course_key.org)
+            if org.org_type is not None:
+                enable_extended_progress_page = org.org_type.enable_extended_progress_page
+        except Organization.DoesNotExist:
+            pass
+
+        if enable_extended_progress_page:
+            return "My Skills"
+        return "Progress"
+
     @classmethod
     def is_enabled(cls, course, user=None):
         if not super().is_enabled(course, user=user):
             return False
         return not course.hide_progress_tab
+
+
 
 
 class TextbookTabsBase(CourseTab):

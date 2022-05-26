@@ -94,6 +94,7 @@ from common.djangoapps.util import milestones_helpers
 from common.djangoapps.util.json_request import JsonResponse
 from common.djangoapps.edxmako.services import MakoService
 from common.djangoapps.xblock_django.user_service import DjangoXBlockUserService
+from common.djangoapps.badgr_integration.service import check_badge_is_ready_to_issue
 from openedx.core.lib.cache_utils import CacheService
 
 log = logging.getLogger(__name__)
