@@ -70,7 +70,7 @@ class CourseHomeView(CourseTabView):
 
     def render_to_fragment(self, request, course=None, tab=None, **kwargs):  # lint-amnesty, pylint: disable=arguments-differ, unused-argument
         course_id = str(course.id)
-        if course_home_legacy_is_active(course.id) or request.user.is_staff:
+        if course_home_legacy_is_active(course.id) and request.user.is_staff:
             home_fragment_view = CourseHomeFragmentView()
             return home_fragment_view.render_to_fragment(request, course_id=course_id, **kwargs)
         microfrontend_url = get_learning_mfe_home_url(course_key=course_id, url_fragment='home', params=request.GET)
