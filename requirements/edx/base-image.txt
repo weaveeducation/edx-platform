@@ -797,7 +797,7 @@ pyjwt[crypto]==2.3.0
     #   social-auth-core
 pylatexenc==2.10
     # via olxcleaner
-pylti1p3==1.10.0
+pylti1p3==1.11.0
     # via -r requirements/edx/base.in
 pymongo==3.10.1
     # via

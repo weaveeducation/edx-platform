@@ -1134,7 +1134,7 @@ pylint-plugin-utils==0.7
     #   pylint-django
 pylint-pytest==0.3.0
     # via -r requirements/edx/testing.txt
-pylti1p3==1.10.0
+pylti1p3==1.11.0
     # via -r requirements/edx/testing.txt
 pymongo==3.10.1
     # via
