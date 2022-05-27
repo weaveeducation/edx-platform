@@ -493,11 +493,15 @@ def _accessible_courses_list_from_groups(request):
 
     instructor_courses = UserBasedRole(request.user, CourseInstructorRole.ROLE).courses_with_role()
     staff_courses = UserBasedRole(request.user, CourseStaffRole.ROLE).courses_with_role()
+    staff_access_denied = [str(c['course_id']) for c in CourseStaffExtended.objects.filter(
+        user=request.user, role__course_studio_access=False).values('course_id')]
     all_courses = list(filter(filter_ccx, instructor_courses | staff_courses))
     courses_list = []
     course_keys = {}
 
     for course_access in all_courses:
+        if str(course_access.course_id) in staff_access_denied:
+            continue
         if course_access.course_id is None:
             raise AccessListFallback
         course_keys[course_access.course_id] = course_access.course_id
