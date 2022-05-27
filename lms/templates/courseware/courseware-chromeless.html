@@ -67,6 +67,10 @@ if course is not None:
     window.lti_context_id = "${lti_context_id}";
     % endif
     var $$course_id = "${course.id | n, js_escaped_string}";
+    var is_learning_mfe = false;
+    % if is_learning_mfe:
+    is_learning_mfe = true;
+    % endif
     var $$lastSentPostMessageValue = null;
     var link_access_hash = "${link_access_hash if link_access_hash else ''}";
 
@@ -111,17 +115,19 @@ if course is not None:
     }
 
     $(document).ready(function() {
-        var blockType = "${block_type}";
-        if (blockType !== 'sequential') {
-            postMessageResize();
-        }
-        if (link_access_hash !== '') {
-            var intervalId = setInterval(function() {
-                if ($.cookie('supervisor-link-hash') !== link_access_hash) {
-                    clearInterval(intervalId);
-                    $("body").html("Other survey was opened in the separate window");
-                }
-            }, 1000);
+        if (!is_learning_mfe) {
+            var blockType = "${block_type}";
+            if (blockType !== 'sequential') {
+                postMessageResize();
+            }
+            if (link_access_hash !== '') {
+                var intervalId = setInterval(function() {
+                    if ($.cookie('supervisor-link-hash') !== link_access_hash) {
+                        clearInterval(intervalId);
+                        $("body").html("Other survey was opened in the separate window");
+                    }
+                }, 1000);
+            }
         }
     });
 </script>
@@ -145,7 +151,9 @@ ${HTML(fragment.foot_html())}
 
 </%block>
 
+% if not is_learning_mfe:
 <div class="proctored_exam_status"></div>
+% endif
 <div class="scores-panel is-hidden"></div>
 <div class="course-wrapper chromeless">
   % if include_special_exams is not UNDEFINED and include_special_exams:
