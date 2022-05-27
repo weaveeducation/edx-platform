@@ -123,13 +123,16 @@ class CourseHomeMetadataView(RetrieveAPIView):
 
         user = request.user
 
-        studio_staff_access = True
-        if CourseStaffExtended.objects.filter(
-            role__course_studio_access=False,
-            user=user,
-            course_id=course_key
-        ).exists():
-            studio_staff_access = False
+        studio_staff_access = False
+
+        if user.is_authenticated:
+            studio_staff_access = True
+            if CourseStaffExtended.objects.filter(
+                role__course_studio_access=False,
+                user=user,
+                course_id=course_key
+            ).exists():
+                studio_staff_access = False
 
         profile_image_url = get_profile_image_urls_for_user(user)['medium']
 
