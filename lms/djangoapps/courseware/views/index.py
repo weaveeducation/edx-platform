@@ -510,13 +510,6 @@ class CoursewareIndex(View):
             section_context['summary_info_imgs'] = get_student_progress_images()
             section_context['logo_url'] = get_logo_url(request.is_secure())
 
-            try:
-                org = Organization.objects.get(org=self.course.org)
-                if org.org_type is not None:
-                    section_context['enable_new_carousel_view'] = org.org_type.enable_new_carousel_view
-            except Organization.DoesNotExist:
-                pass
-
             courseware_context['fragment'] = self.section.render(self.view, section_context)
 
             if self.section.position and self.section.has_children:

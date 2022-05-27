@@ -409,8 +409,6 @@ class OrganizationType(models.Model):
     insights_engagement = models.BooleanField(default=True, verbose_name='Display Engagement report in Credo Insights')
     instructor_dashboard_credo_insights = models.BooleanField(default=True, verbose_name='Show Credo Insights link'
                                                                                          ' in the Instructor Dashboard')
-    enable_new_carousel_view = models.BooleanField(default=False, verbose_name='Enable new carousel view'
-                                                                               ' (horizontal nav bar)')
     enable_page_level_engagement = models.BooleanField(default=False, verbose_name='Enable Page Level for Engagement '
                                                                                    'Statistic in Insights')
     enable_extended_progress_page = models.BooleanField(default=False, verbose_name='Enable Extended Progress Page')
@@ -535,13 +533,6 @@ class Organization(models.Model):
             'my_skills_page_lti_access': self.get_my_skills_page_lti_access(),
             'exclude_properties': self.get_exclude_properties(),
         }
-
-    @property
-    def is_carousel_view(self):
-        if self.org_type is not None:
-            return self.org_type.enable_new_carousel_view
-        else:
-            return False
 
     @property
     def is_badgr_enabled(self):

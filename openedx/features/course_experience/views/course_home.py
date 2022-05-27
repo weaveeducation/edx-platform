@@ -247,7 +247,7 @@ class CourseHomeFragmentView(EdxFragmentView):
             'upgrade_url': upgrade_url,
             'has_discount': has_discount,
             'show_search': show_search,
-            'enable_new_carousel_view': org and org.is_carousel_view,
+            'enable_new_carousel_view': False,
         }
         html = render_to_string('course_experience/course-home-fragment.html', context)
         return Fragment(html)
