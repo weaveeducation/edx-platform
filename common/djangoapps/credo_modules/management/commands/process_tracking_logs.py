@@ -2,6 +2,7 @@ import boto
 import datetime
 import json
 import hashlib
+import logging
 import tempfile
 import time
 import subprocess
@@ -17,11 +18,13 @@ from common.djangoapps.credo_modules.events_processor.utils import prepare_text_
 from common.djangoapps.credo_modules.models import DBLogEntry, TrackingLog, TrackingLogFile, TrackingLogConfig,\
     SequentialBlockAttempt
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
+from openedx.core.djangoapps.content.block_structure.tasks import update_course_structure
 from common.djangoapps.student.models import CourseAccessRole
 from opaque_keys.edx.keys import CourseKey
 
 
 User = get_user_model()
+log = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -38,6 +41,7 @@ class Command(BaseCommand):
     _updated_user_attempts = None
     _last_attempt_dt = None
     _user_attempts_cache = None
+    _updated_course_structure = None
 
     def _get_attempts_info(self, answer_ts, user_id, sequential_id):
         if not self._last_attempt_dt:
@@ -264,6 +268,18 @@ class Command(BaseCommand):
             sequential_id, sequential_name, sequential_graded, visible_to_staff_only = None, None, False, False
             if e.block_id in b2s_cache[course_id]:
                 sequential_id, sequential_name, sequential_graded, visible_to_staff_only = b2s_cache[course_id][e.block_id]
+            else:
+                if self._updated_course_structure is None:
+                    self._updated_course_structure = []
+                if course_id not in self._updated_course_structure:
+                    update_course_structure(course_id)
+                    self._update_b2s_cache(course_id, b2s_cache)
+                    self._updated_course_structure.append(course_id)
+                if e.block_id in b2s_cache[course_id]:
+                    sequential_id, sequential_name, sequential_graded, visible_to_staff_only = b2s_cache[course_id][e.block_id]
+                else:
+                    print(f"Can't find info for {e.block_id}")
+                    log.exception(f"Can't find {e.block_id} in b2s cache")
 
             e.sequential_name = sequential_name
             e.sequential_id = sequential_id

@@ -218,13 +218,13 @@ def update_structure_of_all_courses(self):
             locks_info[lock.course_id]['published_on'] = lock.published_on
 
     for course_id, lock_data in locks_info.items():
-        update_course_structure(course_id, lock_data['published_on'], logs_data=logs_data)
+        update_course_structure(course_id, logs_data=logs_data)
 
     ApiCourseStructureLock.objects.filter(id__in=lock_ids).delete()
     return "\n".join(logs_data) if logs_data else None
 
 
-def update_course_structure(course_id, published_on, logs_data=None):
+def update_course_structure(course_id, logs_data=None):
     allowed_categories = ['chapter', 'sequential', 'vertical', 'library_content', 'problem',
                           'openassessment', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse',
                           'html', 'video', 'survey']
@@ -240,15 +240,6 @@ def update_course_structure(course_id, published_on, logs_data=None):
             try:
                 course = modulestore().get_course(course_key, depth=0)
                 if not course:
-                    return
-                if published_on:
-                    published_on = published_on.split('.')[0]
-                current_published_on = str(course.published_on).split('.')[0]
-                if published_on is not None and current_published_on != published_on:
-                    log_entry = "Skip outdated task for course %s. Course.published_on %s != passed published_on %s"\
-                                % (str(course_id), current_published_on, published_on)
-                    logs_data.append(log_entry)
-                    log.info(log_entry)
                     return
                 CourseFieldsCache.refresh_cache(course_id, course=course)
                 data = modulestore().get_items(course_key)

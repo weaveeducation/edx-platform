@@ -136,4 +136,4 @@ class Command(BaseCommand):
                 if cached_version:
                     print('remove cache for: ', str(version_obj['_id']))
                     cache.delete(str(version_obj['_id']))
-                update_course_structure(str(course_key), None)
+                update_course_structure(str(course_key))
