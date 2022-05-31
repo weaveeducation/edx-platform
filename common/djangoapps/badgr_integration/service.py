@@ -156,7 +156,7 @@ def check_badge_is_ready_to_issue(user, course_key, block):
 
                 if not assertion:
                     is_completed, blocks_ids = check_sequential_block_is_completed(
-                        course_key, seq_block_id, block=seq_block, user=user)
+                        course_key, seq_block_id, user=user)
 
                     if is_completed:
                         conf = Configuration.get_config()
