@@ -1167,7 +1167,7 @@ def list_course_role_members(request, course_id):
         }
 
     role_users = list(map(extract_user_info, list_with_level(
-        course, rolename
+        course.id, rolename
     )))
 
     if rolename == 'staff':
