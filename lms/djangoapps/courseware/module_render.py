@@ -1057,6 +1057,8 @@ def get_module_by_usage_id(request, course_id, usage_id, disable_staff_debug_inf
 
     Returns (instance, tracking_context)
     """
+    user = request.user
+
     try:
         course_key = CourseKey.from_string(course_id)
         usage_key = _get_usage_key_for_course(course_key, usage_id)

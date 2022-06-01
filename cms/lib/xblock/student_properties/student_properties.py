@@ -8,12 +8,13 @@ import pytz
 from submissions import api as sub_api
 from common.djangoapps.credo_modules.models import SequentialBlockAnswered, SequentialBlockAttempt, OraBlockScore, OraScoreType,\
     get_student_properties_event_data
+from common.djangoapps.xblock_django.constants import ATTR_KEY_USER_ID
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from common.djangoapps.student.models import AnonymousUserId
-from xblock.core import XBlockAside
+from xblock.core import XBlockAside, XBlock
 from openedx.core.djangoapps.content.block_structure.models import BlockToSequential
 from xmodule.modulestore.django import modulestore
 from opaque_keys.edx.keys import UsageKey
@@ -22,6 +23,7 @@ from opaque_keys.edx.keys import UsageKey
 User = get_user_model()
 
 
+@XBlock.needs('user')
 class StudentPropertiesAside(XBlockAside):
 
     def get_event_context(self, event_type, event):  # pylint: disable=unused-argument
@@ -35,6 +37,9 @@ class StudentPropertiesAside(XBlockAside):
         user = None
         is_ora = False
         usage_id = None
+
+        user_service = self.runtime.service(self, 'user')
+        user_id = user_service.get_current_user().opt_attrs.get(ATTR_KEY_USER_ID)
 
         if event_type in event_types_lst and 'submission_uuid' in event:
             course_id = str(self.runtime.course_id)
@@ -85,7 +90,7 @@ class StudentPropertiesAside(XBlockAside):
                         points_possible=crit.get('criterion').get('points_possible'),
                         points_earned=crit.get('option').get('points'),
                         created=timezone.now(),
-                        grader_id=self.runtime.user_id
+                        grader_id=user_id
                     )
                     ora_score.save()
 
@@ -94,7 +99,7 @@ class StudentPropertiesAside(XBlockAside):
                 (event_type == 'openassessmentblock.create_submission' and 'submission_uuid' in event):
             usage_id = str(self.scope_ids.usage_id.usage_key)
             try:
-                user = User.objects.get(pk=self.runtime.user_id)
+                user = User.objects.get(pk=user_id)
             except ObjectDoesNotExist:
                 pass
 

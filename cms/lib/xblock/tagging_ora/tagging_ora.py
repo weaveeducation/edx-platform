@@ -9,6 +9,7 @@ from xblock.core import XBlockAside, XBlock
 from web_fragments.fragment import Fragment
 from xmodule.x_module import AUTHOR_VIEW
 from common.djangoapps.edxmako.shortcuts import render_to_string
+from common.djangoapps.xblock_django.constants import ATTR_KEY_USER_ID, ATTR_KEY_USER_IS_SUPERUSER
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth import get_user_model
 from webob import Response
@@ -42,8 +43,11 @@ class OraStructuredTagsAside(StructuredTagsAside):
             user = None
             has_access_any_tag = False
 
+            user_service = self.runtime.service(self, 'user')
+            user_id = user_service.get_current_user().opt_attrs.get(ATTR_KEY_USER_ID)
+            user_is_superuser = user_service.get_current_user().opt_attrs.get(ATTR_KEY_USER_IS_SUPERUSER)
+
             rubrics = [rubric['label'].strip() for rubric in block.rubric_criteria]
-            user_is_superuser = self.runtime.user_is_superuser
 
             for tag in self._get_available_tags():
                 course_id = None
@@ -81,7 +85,7 @@ class OraStructuredTagsAside(StructuredTagsAside):
                 if tag.role:
                     if not user:
                         try:
-                            user = User.objects.get(pk=self.runtime.user_id)
+                            user = User.objects.get(pk=user_id)
                         except ObjectDoesNotExist:
                             pass
                     has_access_this_tag = self._check_user_access(tag.role, user)

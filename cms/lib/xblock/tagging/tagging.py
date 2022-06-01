@@ -8,6 +8,7 @@ from web_fragments.fragment import Fragment
 from xblock.fields import Scope, Dict
 from xmodule.x_module import AUTHOR_VIEW
 from common.djangoapps.edxmako.shortcuts import render_to_string
+from common.djangoapps.xblock_django.constants import ATTR_KEY_USER_ID, ATTR_KEY_USER_IS_SUPERUSER
 from django.conf import settings
 from django.db import transaction
 from webob import Response
@@ -44,8 +45,11 @@ class StructuredTagsAside(XBlockAside):
 
     def _check_user_access(self, role, user=None):
         from common.djangoapps.credo_modules.tagging import check_user_access
+
+        user_service = self.runtime.service(self, 'user')
+        user_is_superuser = user_service.get_current_user().opt_attrs.get(ATTR_KEY_USER_IS_SUPERUSER)
         return check_user_access(
-            role, self.runtime.course_id, user=user, user_is_superuser=self.runtime.user_is_superuser
+            role, self.runtime.course_id, user=user, user_is_superuser=user_is_superuser
         )
 
     @XBlockAside.aside_for(AUTHOR_VIEW)
@@ -59,10 +63,14 @@ class StructuredTagsAside(XBlockAside):
         if block.category in ['problem', 'html', 'video', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse'] or \
                 (block.category == 'openassessment' and len(block.rubric_criteria) == 0):
 
+            user_service = self.runtime.service(self, 'user')
+            user_id = user_service.get_current_user().opt_attrs.get(ATTR_KEY_USER_ID)
+            user_is_superuser = user_service.get_current_user().opt_attrs.get(ATTR_KEY_USER_IS_SUPERUSER)
+
             tags, has_access_any_tag = get_tags(
-                self.scope_ids.usage_id.course_key, self.scope_ids.usage_id.course_key.org, self.runtime.user_id,
+                self.scope_ids.usage_id.course_key, self.scope_ids.usage_id.course_key.org, user_id,
                 saved_tags=self.saved_tags, tags_history=self.tags_history,
-                user_is_superuser=self.runtime.user_is_superuser
+                user_is_superuser=user_is_superuser
             )
 
             fragment = Fragment(render_to_string('structured_tags_block.html', {'tags': tags,

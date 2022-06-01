@@ -5,6 +5,7 @@ Public views
 
 from django.conf import settings
 from django.shortcuts import redirect
+from django.contrib.auth import logout
 from urllib.parse import quote_plus  # lint-amnesty, pylint: disable=wrong-import-order
 from waffle.decorators import waffle_switch
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
@@ -51,13 +52,14 @@ def login_redirect_to_lms(request):
 
 def logout_redirect_to_lms(request):
     lms_root_url = configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL)
-    login_url = lms_root_url + '/logout'
+    lms_logout_url = lms_root_url + '/logout'
 
-    login_url = '{login_url}{params}'.format(
-        login_url=login_url,
+    lms_logout_url = '{login_url}{params}'.format(
+        login_url=lms_logout_url,
         params=_build_next_param(request),
     )
-    return redirect(login_url)
+    logout(request)
+    return redirect(lms_logout_url)
 
 
 def redirect_to_lms_login_for_admin(request):
