@@ -652,7 +652,7 @@ class StaticCourseTabView(EdxFragmentView):
             raise Http404
 
         # Show warnings if the user has limited access
-        CourseTabView.register_user_access_warning_messages(request, course)
+        #CourseTabView.register_user_access_warning_messages(request, course)
 
         return super().get(request, course=course, tab=tab, **kwargs)
 
@@ -702,7 +702,7 @@ class CourseTabView(EdxFragmentView):
 
             # Show warnings if the user has limited access
             # Must come after masquerading on creation of page context
-            self.register_user_access_warning_messages(request, course)
+            #self.register_user_access_warning_messages(request, course)
 
             set_custom_attributes_for_course_key(course_key)
             return super().get(request, course=course, page_context=page_context, **kwargs)
