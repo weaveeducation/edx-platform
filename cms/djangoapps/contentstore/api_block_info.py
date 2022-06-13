@@ -507,11 +507,15 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
                         if removed_src_block_info.deleted:
                             need_remove = True
                         elif removed_src_block_info.block_id not in src_modules_ids:
-                            need_remove = True
-                            removed_src_block_info.deleted = True
-                            removed_src_block_info.updated_time = timezone.now()
-                            removed_src_block_info.updated_by = user.id
-                            removed_src_block_info.save()
+                            try:
+                                removed_src_block_info_key = UsageKey.from_string(removed_src_block_info.block_id)
+                                modulestore().get_item(removed_src_block_info_key)
+                            except ItemNotFoundError:
+                                need_remove = True
+                                removed_src_block_info.deleted = True
+                                removed_src_block_info.updated_time = timezone.now()
+                                removed_src_block_info.updated_by = user.id
+                                removed_src_block_info.save()
 
                         if need_remove:
                             items_to_remove.append(dst_block.block_id)
