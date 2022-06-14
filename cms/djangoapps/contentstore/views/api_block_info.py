@@ -387,7 +387,8 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
         sibling_update_task.set_started()
         sibling_update_task.save()
 
-        _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need_publish, user)
+        _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need_publish, user,
+                                                sibling_update_task=sibling_update_task)
     except Exception as e:
         log.exception(e)
         sibling_update_task.set_error()
@@ -419,16 +420,18 @@ def _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need
         block_id=str(source_usage_id), course_id=course_id, has_children=True, deleted=False).first()
     if not source_main_block_info:
         log.exception("update_sibling_block: src block not found", str(source_usage_id))
-        sibling_update_task.set_error()
-        sibling_update_task.save()
+        if sibling_update_task:
+            sibling_update_task.set_error()
+            sibling_update_task.save()
         return
 
     dst_main_block_info = ApiBlockInfo.objects.filter(
         hash_id=source_main_block_info.hash_id, course_id=dst_course_id, deleted=False).first()
     if not dst_main_block_info:
         log.exception("update_sibling_block: corresponding block not found", str(source_usage_id))
-        sibling_update_task.set_error()
-        sibling_update_task.save()
+        if sibling_update_task:
+            sibling_update_task.set_error()
+            sibling_update_task.save()
         return
 
     dst_main_block_id = dst_main_block_info.block_id
@@ -556,7 +559,7 @@ def _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need
                 published_after_copy=need_publish, duplicate_xblock_fn=duplicate_xblock_fn)
 
         if need_publish:
-            store.publish(UsageKey.from_string(dst_main_block_id), user_id)
+            store.publish(UsageKey.from_string(dst_main_block_id), user.id)
 
         if items_to_add:
             _update_sibling_block_add_new_items(
