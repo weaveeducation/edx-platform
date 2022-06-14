@@ -387,11 +387,14 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
         sibling_update_task.set_started()
         sibling_update_task.save()
 
-        _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need_publish, user,
-                                                sibling_update_task=sibling_update_task)
-
-        sibling_update_task.set_finished()
-        sibling_update_task.save()
+        res = _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need_publish, user,
+                                                      sibling_update_task=sibling_update_task)
+        if res:
+            sibling_update_task.set_finished()
+            sibling_update_task.save()
+        else:
+            sibling_update_task.set_error()
+            sibling_update_task.save()
     except Exception as e:
         log.exception(e)
         sibling_update_task.set_error()
@@ -423,19 +426,13 @@ def _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need
         block_id=str(source_usage_id), course_id=course_id, has_children=True, deleted=False).first()
     if not source_main_block_info:
         log.exception("update_sibling_block: src block not found", str(source_usage_id))
-        if sibling_update_task:
-            sibling_update_task.set_error()
-            sibling_update_task.save()
-        return
+        return False
 
     dst_main_block_info = ApiBlockInfo.objects.filter(
         hash_id=source_main_block_info.hash_id, course_id=dst_course_id, deleted=False).first()
     if not dst_main_block_info:
         log.exception("update_sibling_block: corresponding block not found", str(source_usage_id))
-        if sibling_update_task:
-            sibling_update_task.set_error()
-            sibling_update_task.save()
-        return
+        return False
 
     dst_main_block_id = dst_main_block_info.block_id
     if sibling_update_task:
@@ -576,6 +573,7 @@ def _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need
                     published_after_copy=True,
                     published_content_version=vert_block['published_content_version']
                 )
+    return True
 
 
 def get_all_descendants_block_ids(xblock, user):
