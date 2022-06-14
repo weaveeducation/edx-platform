@@ -120,7 +120,7 @@ from .library import (
     user_can_create_library,
     should_redirect_to_library_authoring_mfe
 )
-from .api_block_info import get_courses_with_duplicates, update_api_block_info, SyncApiBlockInfo
+from ..api_block_info import get_courses_with_duplicates, update_api_block_info, SyncApiBlockInfo
 
 log = logging.getLogger(__name__)
 User = get_user_model()

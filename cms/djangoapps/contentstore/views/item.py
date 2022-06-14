@@ -90,7 +90,7 @@ from .helpers import (
     xblock_type_display_name
 )
 from .preview import get_preview_fragment
-from .api_block_info import update_api_blocks_before_publish, update_sibling_block_after_publish,\
+from ..api_block_info import update_api_blocks_before_publish, update_sibling_block_after_publish,\
     sync_api_blocks_before_move, sync_api_blocks_before_remove, create_api_block_info, copy_api_block_info,\
     update_api_block_info, get_vertical_blocks_with_changes, copy_milestones, SyncApiBlockInfo
 
