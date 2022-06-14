@@ -389,6 +389,9 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
 
         _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need_publish, user,
                                                 sibling_update_task=sibling_update_task)
+
+        sibling_update_task.set_finished()
+        sibling_update_task.save()
     except Exception as e:
         log.exception(e)
         sibling_update_task.set_error()
