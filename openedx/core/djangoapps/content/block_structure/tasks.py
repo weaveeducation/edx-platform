@@ -286,17 +286,17 @@ def update_course_structure(course_id, logs_data=None):
     course_location = str(course.location)
 
     if course_location not in existing_structure_items_dict:
-        items_to_insert.append(
-            ApiCourseStructure(
-                block_id=course_location,
-                block_type='course',
-                course_id=course_id,
-                display_name=course.display_name.strip().replace('|', ' ').replace('$', ' '),
-                graded=0,
-                parent_id=None,
-                section_path=None
-            )
+        course_item = ApiCourseStructure(
+            block_id=course_location,
+            block_type='course',
+            course_id=course_id,
+            display_name=course.display_name.strip().replace('|', ' ').replace('$', ' '),
+            graded=0,
+            parent_id=None,
+            section_path=None
         )
+        course_item.save()
+        items_to_insert.append(course_item)
 
     with transaction.atomic():
         for item in data:
@@ -313,6 +313,7 @@ def update_course_structure(course_id, logs_data=None):
                         parent_id=str(item.parent),
                         section_path=_get_section_path(item, structure_dict)
                     )
+                    block_item.save()
                     items_to_insert.append(block_item)
                 else:
                     block_item = existing_structure_items_dict[block_id]
@@ -509,9 +510,6 @@ def update_course_structure(course_id, logs_data=None):
                 items_to_remove.append(block_item.id)
         if items_to_remove:
             ApiCourseStructure.objects.filter(id__in=items_to_remove).update(deleted=True)
-
-        if items_to_insert:
-            ApiCourseStructure.objects.bulk_create(items_to_insert)
 
         b2s_to_remove = []
         for b2s_id, b2s_item in block_to_sequential_items_dict.items():
