@@ -62,7 +62,7 @@ def listen_for_course_publish(sender, course_key, **kwargs):  # pylint: disable=
 
     # register special exams asynchronously
     course_key_str = str(course_key)
-    update_special_exams_and_publish.delay(course_key_str)
+    update_special_exams_and_publish.delay(course_key_str, countdown=20)
 
     if key_supports_outlines(course_key):
         # Push the course outline to learning_sequences asynchronously.
