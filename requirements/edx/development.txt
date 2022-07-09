@@ -982,7 +982,7 @@ openedx-events==0.8.1
     # via -r requirements/edx/testing.txt
 openedx-filters==0.6.1
     # via -r requirements/edx/testing.txt
-git+https://github.com/CredoEducation/edx-ora2.git@53e806b7a9d47d2739e177f9e594598c9508a1e1#egg=ora2==4.1.4
+git+https://github.com/CredoEducation/edx-ora2.git@e76edec86e379b44f9b7deb883527e43269ff6b6#egg=ora2==4.1.5
 packaging==21.3
     # via
     #   -r requirements/edx/testing.txt

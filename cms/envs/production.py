@@ -26,7 +26,7 @@ from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
 from .common import *
 
 from openedx.core.lib.derived import derive_settings  # lint-amnesty, pylint: disable=wrong-import-order
-from openedx.core.lib.logsettings import get_logger_config  # lint-amnesty, pylint: disable=wrong-import-order
+from openedx.core.lib.logsettings import get_logger_config, suppress_warning_exception  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.modulestore.modulestore_settings import convert_module_store_setting_if_needed  # lint-amnesty, pylint: disable=wrong-import-order
 
 try:
@@ -36,6 +36,9 @@ try:
     from sentry_sdk.integrations.logging import LoggingIntegration
 except ImportError:
     pass
+
+
+warnings.warn = suppress_warning_exception(warnings.warn)
 
 
 def get_env_setting(setting):

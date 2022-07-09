@@ -123,7 +123,7 @@ class MilestonesAndSpecialExamsTransformer(BlockStructureTransformer):
                 str(block_key)
             )
         except ProctoredExamNotFoundException as ex:
-            log.exception(ex)
+            log.info(ex)
 
         if special_exam_attempt_context:
             # This user has special exam context for this block so add it.

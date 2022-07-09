@@ -62,11 +62,11 @@ def listen_for_course_publish(sender, course_key, **kwargs):  # pylint: disable=
 
     # register special exams asynchronously
     course_key_str = str(course_key)
-    update_special_exams_and_publish.delay(course_key_str, countdown=20)
+    update_special_exams_and_publish.apply_async((course_key_str,), countdown=30)
 
     if key_supports_outlines(course_key):
         # Push the course outline to learning_sequences asynchronously.
-        update_outline_from_modulestore_task.delay(course_key_str)
+        update_outline_from_modulestore_task.apply_async((course_key_str,), countdown=30)
 
     if settings.COURSEGRAPH_DUMP_COURSE_ON_PUBLISH:
         # Push the course out to CourseGraph asynchronously.
@@ -77,7 +77,7 @@ def listen_for_course_publish(sender, course_key, **kwargs):  # pylint: disable=
     if CoursewareSearchIndexer.indexing_is_enabled() and CourseAboutSearchIndexer.indexing_is_enabled():
         update_search_index.delay(course_key_str, datetime.now(UTC).isoformat())
 
-    update_discussions_settings_from_course_task.delay(course_key_str)
+    update_discussions_settings_from_course_task.apply_async((course_key_str,), countdown=30)
 
 
 @receiver(SignalHandler.course_deleted)

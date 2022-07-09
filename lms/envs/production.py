@@ -21,6 +21,7 @@ import copy
 import datetime
 import os
 import logging
+import warnings
 
 import yaml
 from corsheaders.defaults import default_headers as corsheaders_default_headers
@@ -30,7 +31,7 @@ from path import Path as path
 
 from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
 from openedx.core.lib.derived import derive_settings
-from openedx.core.lib.logsettings import get_logger_config
+from openedx.core.lib.logsettings import get_logger_config, suppress_warning_exception
 from xmodule.modulestore.modulestore_settings import convert_module_store_setting_if_needed  # lint-amnesty, pylint: disable=wrong-import-order
 
 from .common import *
@@ -43,6 +44,8 @@ try:
 except ImportError:
     pass
 
+
+warnings.warn = suppress_warning_exception(warnings.warn)
 
 
 def get_env_setting(setting):

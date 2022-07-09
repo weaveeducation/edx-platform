@@ -204,6 +204,15 @@ def get_logger_config(log_dir,  # lint-amnesty, pylint: disable=unused-argument
     return logger_config
 
 
+def suppress_warning_exception(fn):
+    def warn(*args, **kwargs):
+        try:
+            fn(*args, **kwargs)
+        except Exception as e:
+            logging.warning(str(e))
+    return warn
+
+
 def log_python_warnings():
     """
     Stop ignoring DeprecationWarning, ImportWarning, and PendingDeprecationWarning;
