@@ -192,6 +192,11 @@ define([
                 msg.show();
             },
 
+            handleCourseToOtherCourseEvent: function() {
+                var copyToOtherCourseModal = CourseOutlineModals.getCopyCourseToOtherCourseModal(this.model);
+                copyToOtherCourseModal.show();
+            },
+
             onIndexError: function(data) {
                 var msg = new NoteView.Error({
                     title: gettext('There were errors reindexing course.'),
