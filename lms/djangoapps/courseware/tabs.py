@@ -427,7 +427,8 @@ def get_course_tab_list(user, course):
     # We can't switch this function to just use the CourseTabPluginManager without
     # further investigation since CourseTabList.iterate_displayable returns
     # Static Tabs that are not returned by the CourseTabPluginManager.
-    course_tab_list.sort(key=lambda tab: tab.priority or float('inf'))
+    #course_tab_list.sort(key=lambda tab: tab.priority or float('inf'))
+
     return course_tab_list
 
 

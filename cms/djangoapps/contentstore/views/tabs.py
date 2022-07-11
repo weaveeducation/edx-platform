@@ -64,7 +64,7 @@ def tabs_handler(request, course_key_string):
         # get all tabs from the tabs list and select only static tabs (a.k.a. user-created tabs)
         # present in the same order they are displayed in LMS
 
-        tabs_to_render = list(get_course_static_tabs(course_item, request.user))
+        tabs_to_render = list(get_course_static_tabs(course_item, request.user, allow_course_tabs=True))
 
         return render_to_response(
             "edit-tabs.html",
@@ -78,7 +78,7 @@ def tabs_handler(request, course_key_string):
         return HttpResponseNotFound()
 
 
-def get_course_static_tabs(course_item: CourseBlock, user: User) -> Iterable[CourseTab]:
+def get_course_static_tabs(course_item: CourseBlock, user: User, allow_course_tabs=False) -> Iterable[CourseTab]:
     """
     Yields all the static tabs in a course including hidden tabs.
 
@@ -96,6 +96,9 @@ def get_course_static_tabs(course_item: CourseBlock, user: User) -> Iterable[Cou
             # static tab needs its locator information to render itself as an xmodule
             static_tab_loc = course_item.id.make_usage_key("static_tab", tab.url_slug)
             tab.locator = static_tab_loc
+            yield tab
+        elif allow_course_tabs and isinstance(tab, CourseTab):
+            tab.locator = ''
             yield tab
 
 
@@ -152,7 +155,7 @@ def create_new_list(tab_locators, old_tab_list):
         tab = get_tab_by_tab_id_locator(old_tab_list, tab_locator)
         if tab is None:
             raise ValidationError({"error": f"Tab with id_locator '{tab_locator}' does not exist."})
-        if not isinstance(tab, StaticTab):
+        if not isinstance(tab, (StaticTab, CourseTab)):
             raise ValidationError({"error": f"Cannot reorder tabs of type '{tab.type}'"})
         new_tab_list.append(tab)
 
@@ -160,7 +163,7 @@ def create_new_list(tab_locators, old_tab_list):
     # global or course settings.  so add those to the end of the list.
     non_displayed_tabs = set(old_tab_list) - set(new_tab_list)
     new_tab_list.extend(non_displayed_tabs)
-    return sorted(new_tab_list, key=lambda item: item.priority or float('inf'))
+    return new_tab_list
 
 
 def edit_tab_handler(course_item: CourseBlock, tabs_data: Dict, user: User):
