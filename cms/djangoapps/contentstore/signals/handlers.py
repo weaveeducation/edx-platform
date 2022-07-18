@@ -22,6 +22,7 @@ from openedx.core.djangoapps.content.learning_sequences.api import key_supports_
 from openedx.core.djangoapps.discussions.tasks import update_discussions_settings_from_course_task
 from openedx.core.lib.gating import api as gating_api
 from xmodule.modulestore.django import SignalHandler, modulestore  # lint-amnesty, pylint: disable=wrong-import-order
+from xmodule.modulestore.exceptions import ItemNotFoundError
 from .signals import GRADING_POLICY_CHANGED
 
 log = logging.getLogger(__name__)
@@ -121,7 +122,10 @@ def handle_item_deleted(**kwargs):
         # Strip branch info
         usage_key = usage_key.for_branch(None)
         course_key = usage_key.course_key
-        deleted_module = modulestore().get_item(usage_key)
+        try:
+            deleted_module = modulestore().get_item(usage_key)
+        except ItemNotFoundError:
+            return
         for module in yield_dynamic_descriptor_descendants(deleted_module, kwargs.get('user_id')):
             # Remove prerequisite milestone data
             gating_api.remove_prerequisite(module.location)
