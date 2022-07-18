@@ -502,7 +502,7 @@ edx-opaque-keys[django]==2.3.0
     #   xmodule
 edx-organizations==6.11.1
     # via -r requirements/edx/base.in
-git+https://github.com/CredoEducation/edx-proctoring.git@integration-nutmeg#egg=edx-proctoring==4.10.3
+git+https://github.com/CredoEducation/edx-proctoring.git@integration-nutmeg#egg=edx-proctoring==4.10.4
     # via
     #   -r requirements/edx/base.in
     #   edx-proctoring-proctortrack
