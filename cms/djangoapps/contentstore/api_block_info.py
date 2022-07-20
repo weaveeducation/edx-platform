@@ -324,12 +324,13 @@ def _update_sibling_block_add_new_items(items_to_add, allowed_categories, src_bl
               or (src_block.category == 'vertical' and category == 'vertical') \
               or (src_block.category not in ('sequential', 'vertical') and category == 'other'):
                 src_block_parent = str(src_block.parent)
-                dst_block_parent = src_block_to_dst_block.get(src_block_parent)
-                if dst_block_parent:
-                    duplicate_xblock_fn(
-                        UsageKey.from_string(dst_block_parent), src_block.location, user,
-                        src_block.display_name, course_key=dst_course_key, force_create_api_block_info=True,
-                        published_after_copy=published_after_copy)
+                dst_block_parent_lst = src_block_to_dst_block.get(src_block_parent)
+                if dst_block_parent_lst:
+                    for dst_block_parent in dst_block_parent_lst:
+                        duplicate_xblock_fn(
+                            UsageKey.from_string(dst_block_parent), src_block.location, user,
+                            src_block.display_name, course_key=dst_course_key, force_create_api_block_info=True,
+                            published_after_copy=published_after_copy)
 
 
 def _get_sibling_not_connected(source_item, source_course_id, dst_course_id, user):
@@ -435,6 +436,9 @@ def _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need
         log.exception("update_sibling_block: corresponding block not found", str(source_usage_id))
         return False
 
+    all_dst_blocks = ApiBlockInfo.objects.filter(hash_id=source_main_block_info.hash_id, course_id=dst_course_id,
+                                                 deleted=False)
+
     dst_main_block_id = dst_main_block_info.block_id
     if sibling_update_task:
         sibling_update_task.sibling_block_id = dst_main_block_id
@@ -477,7 +481,9 @@ def _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need
                             dst_block_info.save(update_fields=['published_content_version'])
 
                         items_to_update[dst_block_info.block_id] = module
-                        src_block_to_dst_block[src_block_info.block_id] = dst_block_info.block_id
+                        if src_block_info.block_id not in src_block_to_dst_block:
+                            src_block_to_dst_block[src_block_info.block_id] = []
+                        src_block_to_dst_block[src_block_info.block_id].append(dst_block_info.block_id)
                         dst_block_ids.append(dst_block_info.block_id)
                         if dst_block_info.has_children:
                             dst_block_ids_has_children.append(dst_block_info.block_id)
@@ -508,14 +514,17 @@ def _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need
                 )
 
         dst_block_remove_check = []
-        dst_item = modulestore().get_item(UsageKey.from_string(dst_main_block_id))
-        sibling_dst_not_connected = _get_sibling_not_connected(dst_item, dst_course_id, course_id, user)
 
-        for dst_module in yield_dynamic_descriptor_descendants(dst_item, user.id):
-            dst_module_location = str(dst_module.location)
-            if dst_module_location not in dst_block_ids:
-                if dst_module_location not in sibling_dst_not_connected:
-                    dst_block_remove_check.append(dst_module_location)
+        for some_dst_block in all_dst_blocks:
+            some_dst_block_id = str(some_dst_block.block_id)
+            dst_item = modulestore().get_item(UsageKey.from_string(some_dst_block_id))
+            sibling_dst_not_connected = _get_sibling_not_connected(dst_item, dst_course_id, course_id, user)
+
+            for dst_module in yield_dynamic_descriptor_descendants(dst_item, user.id):
+                dst_module_location = str(dst_module.location)
+                if dst_module_location not in dst_block_ids:
+                    if dst_module_location not in sibling_dst_not_connected:
+                        dst_block_remove_check.append(dst_module_location)
 
         if dst_block_remove_check:
             dst_blocks_info = ApiBlockInfo.objects.filter(
@@ -560,7 +569,9 @@ def _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need
                 published_after_copy=need_publish, duplicate_xblock_fn=duplicate_xblock_fn)
 
         if need_publish:
-            store.publish(UsageKey.from_string(dst_main_block_id), user.id)
+            for some_dst_block in all_dst_blocks:
+                some_dst_block_id = str(some_dst_block.block_id)
+                store.publish(UsageKey.from_string(some_dst_block_id), user.id)
 
         if items_to_add:
             _update_sibling_block_add_new_items(
