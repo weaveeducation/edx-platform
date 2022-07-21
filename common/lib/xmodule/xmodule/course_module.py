@@ -912,7 +912,7 @@ class CourseFields:  # lint-amnesty, pylint: disable=missing-class-docstring
             "Enter true or false. If this value is true, timed exams are enabled in your course. "
             "Regardless of this setting, timed exams are enabled if Enable Proctored Exams is set to true."
         ),
-        default=SPECIAL_EXAMS_ENABLED,
+        default=False,
         scope=Scope.settings,
         deprecated=EXAM_SETTINGS_HTML_VIEW_ENABLED
     )
