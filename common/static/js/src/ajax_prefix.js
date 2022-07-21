@@ -13,11 +13,16 @@
         }
 
         return $.post("" + (prefix()) + url, data, function(respData, textStatus, jqXHR) {
-          if (inIframe() && jQuery.isPlainObject(respData) && ('badge_ready' in respData) && respData.badge_ready) {
+          var isInIframe = inIframe();
+          var respDataIsPO = jQuery.isPlainObject(respData);
+          if (isInIframe && respDataIsPO && ('badge_ready' in respData) && respData.badge_ready) {
             window.parent.postMessage('badgeReady', "*");
           }
-          if (inIframe() && jQuery.isPlainObject(respData) && ('problem_answered' in respData) && respData.problem_answered) {
+          if (isInIframe && respDataIsPO && ('problem_answered' in respData) && respData.problem_answered) {
             window.parent.postMessage('problemAnswered', "*");
+          }
+          if (isInIframe && respDataIsPO && ('show_summary_info_window' in respData) && respData.show_summary_info_window) {
+            window.parent.postMessage('showSummaryInfoWindow', "*");
           }
           callback(respData, textStatus, jqXHR);
         }, type);

@@ -1193,6 +1193,10 @@ def _invoke_xblock_handler(request, course_id, usage_id, handler, suffix, course
             data_to_append = {
                 'problem_answered': True
             }
+            if course and getattr(course, 'show_summary_info_after_quiz', False) and getattr(instance, 'graded', False):
+                data_to_append = {
+                    'show_summary_info_window': True
+                }
             badge_res = check_badge_is_ready_to_issue(request.user, course_key, instance)
             if badge_res.is_ready:
                 data_to_append['badge_ready'] = True
