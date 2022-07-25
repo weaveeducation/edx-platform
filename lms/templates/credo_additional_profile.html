@@ -18,32 +18,38 @@ from django.utils.translation import ugettext as _
           }
       }
 
-      $('#credo-additional-fields-form').on('submit', function() {
+      var frm = $('#credo-additional-fields-form');
+      frm.submit(function (e) {
+        e.preventDefault();
         $(".field-error").removeClass('field-error');
         $(".submission-error").addClass('hidden');
         $(".message-copy").empty();
         toggleSubmitButton(false);
-      });
 
-      $('#credo-additional-fields-form').on('ajax:success', function(event, json, xhr) {
-          updatePage();
-      });
+        $.ajax({
+            type: frm.attr('method'),
+            url: frm.attr('action'),
+            data: frm.serialize(),
+            success: function (data) {
+                updatePage();
+            },
+            error: function (jqXHR) {
+                if (jqXHR.status == 404) {
+                    updatePage();
+                    return null;
+                }
+                toggleSubmitButton(true);
+                var json = $.parseJSON(jqXHR.responseText);
+                var errorMessage = '';
+                for (var item in json) {
+                    $("#credo-additional-fields-form input[name=" + item + "]").addClass('field-error');
+                    errorMessage += "<li>" + json[item] + "</li>";
+                }
 
-      $('#credo-additional-fields-form').on('ajax:error', function(event, jqXHR, textStatus) {
-        if (jqXHR.status == 404) {
-            updatePage();
-            return null;
-        }
-        toggleSubmitButton(true);
-        var json = $.parseJSON(jqXHR.responseText);
-        var errorMessage = '';
-        for (var item in json) {
-            $("#credo-additional-fields-form input[name=" + item + "]").addClass('field-error');
-            errorMessage += "<li>" + json[item] + "</li>";
-        }
-
-        $(".submission-error").removeClass('hidden');
-        $(".message-copy").html(errorMessage);
+                $(".submission-error").removeClass('hidden');
+                $(".message-copy").html(errorMessage);
+            }
+        });
       });
 
       $('form select').change(function() {
