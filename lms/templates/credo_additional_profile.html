@@ -19,8 +19,7 @@ from django.utils.translation import ugettext as _
       }
 
       var frm = $('#credo-additional-fields-form');
-      frm.submit(function (e) {
-        e.preventDefault();
+      $('#credo-form-submit-btn').click(function () {
         $(".field-error").removeClass('field-error');
         $(".submission-error").addClass('hidden');
         $(".message-copy").empty();
@@ -109,6 +108,22 @@ from django.utils.translation import ugettext as _
         .credo-modules-information {
             line-height: 1.5;
         }
+
+        .credo-form-submit-btn {
+            box-shadow: 0 2px 1px 0 #0a4a67;
+            background: #126f9a;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-shadow: none;
+            font-weight: 500;
+            letter-spacing: 0;
+        }
+        .credo-form-submit-btn:hover {
+            background: #1790c7;
+            background-image: none !important;
+        }
     </style>
 </%block>
 
@@ -167,7 +182,7 @@ from django.utils.translation import ugettext as _
                 </ol>
             </div>
             <div class="form-actions">
-                <button name="submit" type="submit" id="submit" class="action action-primary action-update register-button">${_('Submit')}</button>
+                <button name="submit" id="credo-form-submit-btn" class="action action-primary action-update register-button credo-form-submit-btn">${_('Submit')}</button>
             </div>
         </form>
     </section>

@@ -99,8 +99,7 @@ class StudentProfileField:
             isnumber = None
             isalnum = False
 
-            default_tmp = default_fields[k].encode('utf-8')\
-                if default_fields and (k in default_fields) else v.get('default')
+            default_tmp = default_fields[k] if default_fields and (k in default_fields) else v.get('default')
             if options:
                 if not default_tmp or default_tmp in options:
                     default = default_tmp
