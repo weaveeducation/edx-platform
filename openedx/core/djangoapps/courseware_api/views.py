@@ -663,9 +663,10 @@ class SequenceMetadata(DeveloperErrorViewMixin, APIView):
         res = sequence.get_metadata(view=view, context=context)
         course = get_course_by_id(usage_key.course_key)
 
-        student_properties = get_student_properties(request, usage_key.course_key, sequence)
-        CourseUsageHelper.update_block_usage(request, usage_key.course_key, sequence.location, student_properties)
-        CourseUsageHelper.update_block_usage(request, usage_key.course_key, sequence.parent, student_properties)
+        if request.user.is_authenticated:
+            student_properties = get_student_properties(request, usage_key.course_key, sequence)
+            CourseUsageHelper.update_block_usage(request, usage_key.course_key, sequence.location, student_properties)
+            CourseUsageHelper.update_block_usage(request, usage_key.course_key, sequence.parent, student_properties)
 
         is_time_exam = getattr(sequence, 'is_proctored_exam', False) or getattr(sequence, 'is_time_limited', False)
         res['show_summary_info_after_quiz'] = course.show_summary_info_after_quiz and sequence.graded and not is_time_exam
