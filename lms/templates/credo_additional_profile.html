@@ -69,7 +69,7 @@ from django.utils.translation import ugettext as _
     })(this);
 
     function toggleSubmitButton(enable) {
-      var $submitButton = $('form .form-actions #submit');
+      var $submitButton = $('form .form-actions #credo-form-submit-btn');
 
       if (enable) {
         $submitButton.removeClass('is-disabled').attr('aria-disabled', false).prop('disabled', false);
@@ -119,6 +119,7 @@ from django.utils.translation import ugettext as _
             text-shadow: none;
             font-weight: 500;
             letter-spacing: 0;
+            width: 100%;
         }
         .credo-form-submit-btn:hover {
             background: #1790c7;
@@ -129,7 +130,7 @@ from django.utils.translation import ugettext as _
 
 <section class="register container" style="padding-left: 20px;">
     <section role="main">
-        <form role="form" id="credo-additional-fields-form" method="post" data-remote="true" action="${form_submit_url}">
+        <form role="form" id="credo-additional-fields-form" method="post" action="${form_submit_url}">
             <div role="alert" class="status message submission-error hidden" tabindex="-1">
                 <h3 class="message-title">${_("The following errors occurred:")} </h3>
                 <ul class="message-copy"> </ul>
@@ -182,7 +183,7 @@ from django.utils.translation import ugettext as _
                 </ol>
             </div>
             <div class="form-actions">
-                <button name="submit" id="credo-form-submit-btn" class="action action-primary action-update register-button credo-form-submit-btn">${_('Submit')}</button>
+                <button id="credo-form-submit-btn" class="credo-form-submit-btn">${_('Submit')}</button>
             </div>
         </form>
     </section>
