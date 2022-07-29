@@ -47,6 +47,7 @@ class CourseHomeMetadataSerializer(VerifiedModeSerializer):
     original_user_is_staff = serializers.BooleanField()
     user_must_be_active = serializers.BooleanField()
     studio_staff_access = serializers.BooleanField()
+    show_nw_help = serializers.BooleanField()
     start = serializers.DateTimeField()  # used for certain access denied errors
     tabs = CourseTabSerializer(many=True)
     title = serializers.CharField()

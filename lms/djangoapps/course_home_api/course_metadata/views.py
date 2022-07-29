@@ -22,8 +22,9 @@ from lms.djangoapps.courseware.courses import check_course_access
 from lms.djangoapps.courseware.masquerade import setup_masquerade
 from lms.djangoapps.courseware.tabs import get_course_tab_list
 from lms.djangoapps.courseware.toggles import courseware_mfe_is_visible
-from common.djangoapps.credo_modules.models import CourseStaffExtended
 from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_image_urls_for_user
+from openedx.core.djangoapps.user_api.accounts.utils import can_display_studio_link
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 
 class CourseHomeMetadataView(RetrieveAPIView):
@@ -126,15 +127,16 @@ class CourseHomeMetadataView(RetrieveAPIView):
         studio_staff_access = False
 
         if user.is_authenticated:
-            studio_staff_access = True
-            if CourseStaffExtended.objects.filter(
-                role__course_studio_access=False,
-                user=user,
-                course_id=course_key
-            ).exists():
-                studio_staff_access = False
+            studio_staff_access = can_display_studio_link(user, course)
 
         profile_image_url = get_profile_image_urls_for_user(user)['medium']
+
+        site_support_nw_help = configuration_helpers.get_value('SHOW_NW_HELP', False)
+        show_nw_help = False
+
+        if site_support_nw_help:
+            show_nw_help = user.instructor_dashboard_tabs.show_nw_help \
+                if hasattr(user, 'instructor_dashboard_tabs') else True
 
         data = {
             'course_id': course.id,
@@ -142,6 +144,7 @@ class CourseHomeMetadataView(RetrieveAPIView):
             'is_staff': has_access(request.user, 'staff', course_key).has_access,
             'original_user_is_staff': original_user_is_staff,
             'studio_staff_access': studio_staff_access,
+            'show_nw_help': bool(site_support_nw_help and show_nw_help),
             'number': course.display_number_with_default,
             'org': course.display_org_with_default,
             'start': course.start,
