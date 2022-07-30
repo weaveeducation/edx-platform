@@ -21,9 +21,27 @@ from django.utils.translation import ugettext as _
       var frm = $('#credo-additional-fields-form');
       $('#credo-form-submit-btn').click(function () {
         $(".field-error").removeClass('field-error');
+        $(".fields-error-box").html("").hide();
         $(".submission-error").addClass('hidden');
         $(".message-copy").empty();
         toggleSubmitButton(false);
+
+        var formIsValid = true;
+
+        $('.field-input').each(function() {
+            var req = $(this).is('[required]');
+            var name = $(this).attr('name');
+            var val = $(this).val();
+            if (req && (!val || val === "")) {
+                formIsValid = false;
+                $('.fields-error-box-' + name).show().html('This field is required');
+            }
+        });
+
+        if (!formIsValid) {
+            toggleSubmitButton(true);
+            return;
+        }
 
         $.ajax({
             type: frm.attr('method'),
@@ -129,12 +147,18 @@ from django.utils.translation import ugettext as _
         .form-actions {
             padding-top: 30px;
         }
+
+        .fields-error-box {
+            padding: 10px 0px;
+            color: red;
+            display: none;
+        }
     </style>
 </%block>
 
 <section class="register container" style="padding-left: 20px;">
     <section role="main">
-        <form role="form" id="credo-additional-fields-form" method="post" action="${form_submit_url}">
+        <form role="form" id="credo-additional-fields-form" method="post" action="${form_submit_url}" autocomplete="off">
             <div role="alert" class="status message submission-error hidden" tabindex="-1">
                 <h3 class="message-title">${_("The following errors occurred:")} </h3>
                 <ul class="message-copy"> </ul>
@@ -152,6 +176,7 @@ from django.utils.translation import ugettext as _
                         % if field.options:
                             <select id="credo-modules-${field.alias}"
                                     name="${field.alias}"
+                                    class="field-input"
                                     data-allow-non-suggested="${'1' if field.allow_non_suggested else '0'}" ${'required aria-required="true"' if field.required else ''}>
                                 <option value="" ${'' if field.default else 'selected=""'}>Not selected</option>
                                 % for option in field.options:
@@ -163,13 +188,16 @@ from django.utils.translation import ugettext as _
                                     <option value="${option}" ${selected}>${option}</option>
                                 % endfor
                             </select>
+                            <div class="fields-error-box fields-error-box-${field.alias}"></div>
                         % elif field.longtext:
                            <textarea id="credo-modules-${field.alias}"
                                      name="${field.alias}"
                                      rows="7"
+                                     class="field-input"
                                      ${'required aria-required="true"' if field.required else ''}>${field.default if field.default else ''}</textarea>
+                           <div class="fields-error-box fields-error-box-${field.alias}"></div>
                         % else:
-                            <input class=""
+                            <input class="field-input"
                                    id="credo-modules-${field.alias}"
                                    type="${'number' if field.isnumber else 'text'}"
                                    name="${field.alias}"
@@ -180,6 +208,7 @@ from django.utils.translation import ugettext as _
                                    ${'minlength="' + field.minlength + '"' if field.minlength else ''}
                                    ${'maxlength="' + field.maxlength + '"' if field.maxlength else ''}
                                    />
+                           <div class="fields-error-box fields-error-box-${field.alias}"></div>
                         % endif
                     % endif
                   </li>
