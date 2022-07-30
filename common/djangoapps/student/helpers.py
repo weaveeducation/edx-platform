@@ -771,7 +771,11 @@ def get_resume_urls_for_enrollments(user, enrollments):
                 if the value is '', then the user has not completed any blocks in the course run
     '''
     resume_course_urls = OrderedDict()
+    enrollments_num = len(enrollments)
     for enrollment in enrollments:
+        if enrollments_num > 20:
+            resume_course_urls[enrollment.course_id] = ''
+            continue
         try:
             block_key = get_key_to_last_completed_block(user, enrollment.course_id)
             try:
