@@ -112,18 +112,22 @@ from django.utils.translation import ugettext as _
         .credo-form-submit-btn {
             box-shadow: 0 2px 1px 0 #0a4a67;
             background: #126f9a;
-            color: #fff;
+            color: #fff !important;
             border: none;
             padding: 10px 20px;
             text-align: center;
             text-shadow: none;
             font-weight: 500;
             letter-spacing: 0;
-            width: 100%;
         }
         .credo-form-submit-btn:hover {
+            color: #fff !important;
             background: #1790c7;
             background-image: none !important;
+        }
+
+        .form-actions {
+            padding-top: 30px;
         }
     </style>
 </%block>
@@ -183,7 +187,7 @@ from django.utils.translation import ugettext as _
                 </ol>
             </div>
             <div class="form-actions">
-                <button id="credo-form-submit-btn" class="credo-form-submit-btn">${_('Submit')}</button>
+                <a id="credo-form-submit-btn" class="credo-form-submit-btn" href="javascript: void(0);">${_('Submit')}</a>
             </div>
         </form>
     </section>
