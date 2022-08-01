@@ -24,7 +24,9 @@
           if (isInIframe && respDataIsPO && ('show_summary_info_window' in respData) && respData.show_summary_info_window) {
             window.parent.postMessage('showSummaryInfoWindow', "*");
           }
-          callback(respData, textStatus, jqXHR);
+          if (callback) {
+            callback(respData, textStatus, jqXHR);
+          }
         }, type);
       };
       jQuery.getWithPrefix = function(url, data, callback, type) {
