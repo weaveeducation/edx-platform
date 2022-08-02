@@ -704,10 +704,17 @@ html.video-fullscreen {
 
     .xqa-modal,
     .staff-modal,
-    .history-modal,
     .scores-modal{
       width: 80%;
       height: 80%;
+      left: left(20%);
+      overflow: auto;
+      display: none;
+    }
+
+    .history-modal{
+      width: 80%;
+      max-height: 80%;
       left: left(20%);
       overflow: auto;
       display: none;
