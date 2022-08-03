@@ -113,7 +113,7 @@ def get_course_sequential_blocks(course):
     items = {}
     for chapter in course.get_children():
         for sequential in chapter.get_children():
-            if len(sequential.get_children()) > 0 and sequential.graded:
+            if len(sequential.get_children()) > 0:
                 items[str(sequential.location)] = {
                     'id': str(sequential.location),
                     'display_name': sequential.display_name,
