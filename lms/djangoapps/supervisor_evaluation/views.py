@@ -91,7 +91,9 @@ def render_supervisor_evaluation_block(request, hash_id):
         resp = render_xblock(request, str(survey_sequential_block.location), check_if_enrolled=False,
                              show_bookmark_button=False, link_access_hash=hash_id)
 
-    resp.set_cookie('supervisor-link-hash', hash_id, secure=getattr(settings, 'SESSION_COOKIE_SECURE', False))
+    resp.set_cookie('supervisor-link-hash', hash_id,
+                    secure=getattr(settings, 'SESSION_COOKIE_SECURE', False),
+                    samesite="None" if request.is_secure() else "Lax")
     return resp
 
 

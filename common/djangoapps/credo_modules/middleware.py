@@ -34,7 +34,7 @@ class RefererSaveMiddleware(MiddlewareMixin):
         if referer_url:
             saved_referer = get_saved_referer(request)
             if not saved_referer or saved_referer != referer_url:
-                save_referer(response, referer_url)
+                save_referer(request, response, referer_url)
 
         return response
 
@@ -116,7 +116,8 @@ class CourseUsageMiddleware(MiddlewareMixin):
             unique_user_id = get_unique_user_id(request)
             if unique_user_id and getattr(request, '_update_unique_user_id', False):
                 response.set_cookie(UNIQUE_USER_ID_COOKIE, unique_user_id, path='/', domain=cookie_domain,
-                                    secure=getattr(settings, 'SESSION_COOKIE_SECURE', False))
+                                    secure=getattr(settings, 'SESSION_COOKIE_SECURE', False),
+                                    samesite="None" if request.is_secure() else "Lax")
 
             if course_id and not CourseUsageHelper.is_viewed(request, course_id):
                 try:
