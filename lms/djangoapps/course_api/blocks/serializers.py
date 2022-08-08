@@ -4,11 +4,10 @@ Serializers for Course Blocks related return objects.
 
 from django.conf import settings
 from rest_framework import serializers
-from django.shortcuts import reverse
+from rest_framework.reverse import reverse
 
 from lms.djangoapps.course_blocks.transformers.visibility import VisibilityTransformer
 from openedx.core.djangoapps.discussions.transformers import DiscussionsTopicLinkTransformer
-from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 from .transformers.block_completion import BlockCompletionTransformer
 from .transformers.block_counts import BlockCountsTransformer
@@ -148,39 +147,33 @@ class BlockSerializer(serializers.Serializer):  # pylint: disable=abstract-metho
         authorization_denial_reason = block_structure.get_xblock_field(block_key, 'authorization_denial_reason')
         authorization_denial_message = block_structure.get_xblock_field(block_key, 'authorization_denial_message')
 
-        lms_url = configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL)
-
-        jump_path = reverse(
+        jump_to_courseware_url = reverse(
             'jump_to',
             kwargs={
                 'course_id': str(block_key.course_key),
                 'location': str(block_key),
-            }
+            },
+            request=self.context['request'],
         )
-        jump_to_courseware_url = f"{lms_url}{jump_path}"
-
-        student_view_path = reverse(
-            'render_xblock',
-            kwargs={'usage_key_string': str(block_key)},
-        )
-        student_view_url = f"{lms_url}{student_view_path}"
-
-        lti_path = reverse(
-            'lti_provider_launch',
-            kwargs={'course_id': str(block_key.course_key), 'usage_id': str(block_key)},
-        )
-        lti_url = f"{lms_url}{lti_path}"
 
         data = {
             'id': str(block_key),
             'block_id': str(block_key.block_id),
             'lms_web_url': jump_to_courseware_url,
             'legacy_web_url': jump_to_courseware_url + '?experience=legacy',
-            'student_view_url': student_view_url,
+            'student_view_url': reverse(
+                'render_xblock',
+                kwargs={'usage_key_string': str(block_key)},
+                request=self.context['request'],
+            ),
         }
 
         if settings.FEATURES.get("ENABLE_LTI_PROVIDER") and 'lti_url' in self.context['requested_fields']:
-            data['lti_url'] = lti_url
+            data['lti_url'] = reverse(
+                'lti_provider_launch',
+                kwargs={'course_id': str(block_key.course_key), 'usage_id': str(block_key)},
+                request=self.context['request'],
+            )
 
         # add additional requested fields that are supported by the various transformers
         for supported_field in SUPPORTED_FIELDS:
