@@ -50,6 +50,7 @@ from openedx.features.course_experience.course_updates import (
     dismiss_current_update_for_user,
     get_current_update_for_user
 )
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.features.course_experience.url_helpers import get_learning_mfe_home_url
 from openedx.features.course_experience.utils import get_course_outline_block_tree, get_start_block
 from openedx.features.discounts.utils import generate_offer_data
@@ -263,7 +264,8 @@ class OutlineTabView(RetrieveAPIView):
                     'course_id': course_key_string,
                     'location': str(resume_block)
                 })
-                resume_course['url'] = request.build_absolute_uri(resume_path)
+                lms_url = configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL)
+                resume_course['url'] = f"{lms_url}{resume_path}"
             except UnavailableCompletionData:
                 start_block = get_start_block(course_blocks)
                 resume_course['url'] = start_block['lms_web_url']
