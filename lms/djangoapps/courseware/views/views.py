@@ -1294,8 +1294,11 @@ def _progress(request, course_key, student_id, display_in_frame=False):
     studio_staff_access = False
     if staff_access:
         studio_staff_access = True
-        if CourseStaffExtended.objects.filter(role__course_studio_access=False,
-                                              user=request.user, course_id=course_key).exists():
+        if not request.user.is_superuser and CourseStaffExtended.objects.filter(
+            role__course_studio_access=False,
+            user=request.user,
+            course_id=course_key
+        ).exists():
             studio_staff_access = False
 
     context = {

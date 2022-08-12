@@ -162,7 +162,11 @@ def get_course_and_check_access(course_key, user, depth=0):
     """
     if not has_studio_read_access(user, course_key):
         raise PermissionDenied()
-    if CourseStaffExtended.objects.filter(role__course_studio_access=False, user=user, course_id=course_key).exists():
+    if not user.is_superuser and CourseStaffExtended.objects.filter(
+        role__course_studio_access=False,
+        user=user,
+        course_id=course_key
+    ).exists():
         raise PermissionDenied()
     course_module = modulestore().get_course(course_key, depth=depth)
     return course_module
@@ -493,8 +497,11 @@ def _accessible_courses_list_from_groups(request):
 
     instructor_courses = UserBasedRole(request.user, CourseInstructorRole.ROLE).courses_with_role()
     staff_courses = UserBasedRole(request.user, CourseStaffRole.ROLE).courses_with_role()
-    staff_access_denied = [str(c['course_id']) for c in CourseStaffExtended.objects.filter(
-        user=request.user, role__course_studio_access=False).values('course_id')]
+    if request.user.is_superuser:
+        staff_access_denied = []
+    else:
+        staff_access_denied = [str(c['course_id']) for c in CourseStaffExtended.objects.filter(
+            user=request.user, role__course_studio_access=False).values('course_id')]
     all_courses = list(filter(filter_ccx, instructor_courses | staff_courses))
     courses_list = []
     course_keys = {}

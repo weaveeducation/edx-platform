@@ -493,10 +493,11 @@ def _get_item_in_course(request, usage_key):
 
     if not has_course_author_access(request.user, course_key):
         raise PermissionDenied()
-    if CourseStaffExtended.objects.filter(
-      role__course_studio_access=False,
-      user=request.user,
-      course_id=course_key).exists():
+    if not request.user.is_superuser and CourseStaffExtended.objects.filter(
+        role__course_studio_access=False,
+        user=request.user,
+        course_id=course_key
+    ).exists():
         raise PermissionDenied()
 
     course = modulestore().get_course(course_key)
