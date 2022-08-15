@@ -794,7 +794,8 @@ def check_connection_between_siblings(user, course_id, vertical_xblocks):
         if api_block_info.created_as_copy_from_course_id:
             related_block_info = ApiBlockInfo.objects.filter(
                 course_id=api_block_info.created_as_copy_from_course_id,
-                hash_id=api_block_info.hash_id
+                hash_id=api_block_info.hash_id,
+                deleted=False
             ).first()
         else:
             # fallback
