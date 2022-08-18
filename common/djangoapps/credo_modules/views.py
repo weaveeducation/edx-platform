@@ -409,7 +409,10 @@ def login_as_user(request):
     login(request, edx_user, backend=settings.AUTHENTICATION_BACKENDS[0])
     request._user_logged_in = True
 
-    return redirect(reverse('dashboard'))
+    resp = redirect(reverse('dashboard'))
+    resp.delete_cookie(settings.JWT_AUTH['JWT_AUTH_COOKIE_HEADER_PAYLOAD'])
+    resp.delete_cookie(settings.JWT_AUTH['JWT_AUTH_COOKIE_SIGNATURE'])
+    return resp
 
 
 def _manage_org_tags_render_template(request, tpl, page_title, org, **kwargs):

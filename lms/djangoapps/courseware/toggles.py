@@ -219,8 +219,8 @@ def courseware_legacy_is_visible(
     #Avoid circular imports.
     from lms.djangoapps.courseware.access_utils import in_preview_mode
     # ALLOW: Global staff may always see the Legacy experience.
-    if is_global_staff:
-        return True
+    #if is_global_staff:
+    #    return True
     # ALLOW: All course previews will be shown in Legacy experience
     if in_preview_mode():
         return True
