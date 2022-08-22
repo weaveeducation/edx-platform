@@ -778,3 +778,10 @@
 
 /* freetextresponse */
 @import 'freetextresponse';
+
+
+.scorm-content {
+    .fullscreen-controls {
+        display: none;
+    }
+}

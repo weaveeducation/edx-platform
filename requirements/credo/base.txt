@@ -1,11 +1,12 @@
-premailer==3.9.0
-sentry-sdk==1.5.10
-PyLTI1p3==1.11.0
 jwcrypto==0.9
-parsel==1.6.0
+openedx-scorm-xblock==13.1.0
 openpyxl==3.0.7
-weasyprint==53.3
+parsel==1.6.0
+premailer==3.9.0
+PyLTI1p3==1.11.0
+sentry-sdk==1.5.10
 vertica-python==1.0.1
+weasyprint==53.3
 xlocal==0.5
 git+https://github.com/CredoEducation/xblock-image-explorer.git@integration-nutmeg#egg=xblock-image-explorer==2.1
 git+https://github.com/CredoEducation/xblock-supervisor-evaluation.git@integration-nutmeg#egg=xblock-supervisor-evaluation==1.0.5
