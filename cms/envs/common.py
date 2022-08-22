@@ -2663,13 +2663,3 @@ TEAMS_HELP_URL = "https://edx.readthedocs.io/projects/open-edx-building-and-runn
 TEXTBOOKS_HELP_URL = "https://edx.readthedocs.io/projects/open-edx-building-and-running-a-course/en/latest/course_assets/textbooks.html"
 WIKI_HELP_URL = "https://edx.readthedocs.io/projects/open-edx-building-and-running-a-course/en/latest/course_assets/course_wiki.html"
 CUSTOM_PAGES_HELP_URL = "https://edx.readthedocs.io/projects/open-edx-building-and-running-a-course/en/latest/course_assets/pages.html#adding-custom-pages"
-
-
-def s3_scorm_storage(xblock):
-    from common.djangoapps.credo_modules.storages import ScormS3Storage
-    return ScormS3Storage()
-
-
-XBLOCK_SETTINGS["ScormXBlock"] = {
-    "STORAGE_FUNC": s3_scorm_storage,
-}
