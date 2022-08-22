@@ -5134,3 +5134,13 @@ DISCUSSION_MODERATION_CLOSE_REASON_CODES = {
 }
 
 SKILLS_MFE_URL = None
+
+
+def s3_scorm_storage(xblock):
+    from common.djangoapps.credo_modules.storages import ScormS3Storage
+    return ScormS3Storage()
+
+
+XBLOCK_SETTINGS["ScormXBlock"] = {
+    "STORAGE_FUNC": s3_scorm_storage,
+}
