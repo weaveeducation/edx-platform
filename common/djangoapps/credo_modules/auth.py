@@ -25,7 +25,9 @@ class EdXOpenIdCustomConnent(EdXOAuth2):  # pylint: disable=abstract-method
 
 
 def auto_auth_credo_user(request, user_email):
-    if user_email and user_email.endswith('@credomodules.com') and not request.user.is_authenticated:
+    if user_email and user_email.endswith('@credomodules.com')\
+      and (not request.user.is_authenticated
+           or (request.user.email.endswith('@credomodules.com') and request.user.email != user_email)):
         date_joined_limit = timezone.now() - timedelta(days=3)
         edx_user = User.objects.filter(email=user_email, is_active=True, date_joined__gt=date_joined_limit).first()
         if edx_user and not edx_user.is_superuser and not edx_user.is_staff:

@@ -265,13 +265,11 @@ class StudentProfileView(View):
         views_with_simple_layout = ('render_xblock_course', 'lti_launch')
 
         user_email = request.GET.get('email')
+        if user_email:
+            auto_auth_credo_user(request, user_email)
+
         if not request.user.is_authenticated:
-            if user_email:
-                auth_resp = auto_auth_credo_user(request, user_email)
-                if not auth_resp:
-                    return HttpResponseForbidden("User is not authorized")
-            else:
-                return HttpResponseForbidden("User is not authorized")
+            return HttpResponseForbidden("User is not authorized")
 
         if not course.credo_additional_profile_fields:
             if not redirect_to:

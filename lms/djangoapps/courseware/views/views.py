@@ -1869,7 +1869,7 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookma
     from openedx.features.course_experience.urls import COURSE_HOME_VIEW_NAME
 
     user_email = request.GET.get('email')
-    if user_email and not request.user.is_authenticated:
+    if user_email:
         auto_auth_credo_user(request, user_email)
 
     usage_key = UsageKey.from_string(usage_key_string)
