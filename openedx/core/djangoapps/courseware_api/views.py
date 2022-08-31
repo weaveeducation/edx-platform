@@ -673,6 +673,9 @@ class SequenceMetadata(DeveloperErrorViewMixin, APIView):
         res['user_must_fill_additional_profile_fields'] = user_must_fill_additional_profile_fields(
             course, request.user, sequence)
         res['profile_fields_url'] = reverse('credo_modules_profile', kwargs={'course_id': str(course.id)})
+        res['user_email'] = None
+        if request.user.email.endswith('@credomodules.com'):
+            res['user_email'] = request.user.email
 
         return Response(res)
 
