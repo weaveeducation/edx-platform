@@ -163,6 +163,7 @@ from ..toggles import COURSEWARE_OPTIMIZED_RENDER_XBLOCK
 from common.djangoapps.util.views import add_p3p_header
 from openedx.core.djangoapps.user_authn.views.custom import register_login_and_enroll_anonymous_user,\
     validate_credo_access
+from common.djangoapps.credo_modules.auth import auto_auth_credo_user
 from common.djangoapps.credo_modules.models import user_must_fill_additional_profile_fields,\
     Organization, SendScores, SendScoresMailing,\
     CourseStaffExtended
@@ -1868,11 +1869,8 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookma
     from openedx.features.course_experience.urls import COURSE_HOME_VIEW_NAME
 
     user_email = request.GET.get('email')
-    if user_email and user_email.endswith('@credomodules.com') and not request.user.is_authenticated:
-        date_joined_limit = timezone.now() - timedelta(days=3)
-        edx_user = User.objects.filter(email=user_email, is_active=True, date_joined__gt=date_joined_limit).first()
-        if edx_user and not edx_user.is_superuser and not edx_user.is_staff:
-            login(request, edx_user, backend=settings.AUTHENTICATION_BACKENDS[0])
+    if user_email and not request.user.is_authenticated:
+        auto_auth_credo_user(request, user_email)
 
     usage_key = UsageKey.from_string(usage_key_string)
 

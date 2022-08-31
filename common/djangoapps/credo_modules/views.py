@@ -7,7 +7,7 @@ from lms.djangoapps.courseware.courses import get_course_by_id
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
-from django.http import Http404, HttpResponseBadRequest, JsonResponse
+from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, reverse, NoReverseMatch
 from django.urls import resolve
 from django.core.exceptions import PermissionDenied
@@ -24,6 +24,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.shortcuts import render
 from common.djangoapps.credo_modules.models import CredoModulesUserProfile, Organization, OrganizationTag,\
     OrganizationTagOrder, SupervisorEvaluationInvitation
+from common.djangoapps.credo_modules.auth import auto_auth_credo_user
 from common.djangoapps.credo_modules.utils import additional_profile_fields_hash
 from common.djangoapps.util.json_request import JsonResponse
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
@@ -254,7 +255,6 @@ def field_is_valid(value, field):
 
 class StudentProfileView(View):
 
-    @method_decorator(login_required)
     @method_decorator(xframe_options_exempt)
     @method_decorator(transaction.atomic)
     def get(self, request, course_id):
@@ -263,6 +263,15 @@ class StudentProfileView(View):
         course = get_course_by_id(course_key)
         simple_layout = False
         views_with_simple_layout = ('render_xblock_course', 'lti_launch')
+
+        user_email = request.GET.get('email')
+        if not request.user.is_authenticated:
+            if user_email:
+                auth_resp = auto_auth_credo_user(request, user_email)
+                if not auth_resp:
+                    return HttpResponseForbidden("User is not authorized")
+            else:
+                return HttpResponseForbidden("User is not authorized")
 
         if not course.credo_additional_profile_fields:
             if not redirect_to:
