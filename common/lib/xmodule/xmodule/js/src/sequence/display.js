@@ -792,10 +792,10 @@
             if ((direction === 'next') && (this.position >= this.contents.length)) {
                 if (this.returnToCourseOutline) {
                     targetUrl = '/courses/' + this.courseId + '/course/';
-                } else {
+                } else if (this.nextUrl !== 'None') {
                     targetUrl = this.nextUrl;
                 }
-            } else if ((direction === 'previous')) {
+            } else if ((direction === 'previous') && (this.prevUrl !== 'None')) {
                 targetUrl = this.prevUrl;
             }
 
