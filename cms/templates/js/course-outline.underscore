@@ -108,7 +108,7 @@ if (is_proctored_exam) {
     <div class="<%- xblockType %>-header">
         <% if (xblockInfo.isVertical()) { %>
         <div class="unit-header-checkbox">
-            <input type="checkbox" id="selected-state" class="input-checkbox" value="selected">
+            <input type="checkbox" id="selected-state" class="input-checkbox" value="selected" title="Choose <%- xblockInfo.get('display_name') %>">
         </div>
         <% } %>
         <% if (includesChildren) { %>
