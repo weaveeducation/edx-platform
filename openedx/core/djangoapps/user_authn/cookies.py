@@ -180,6 +180,7 @@ def get_response_with_refreshed_jwt_cookies(request, user):
         'response_http_date': http_date(current_time),
         'expires': expires_date if expires_date else 'not-found',
         'expires_epoch_seconds': expires_epoch,
+        'email': user.email,
     }
     if is_user_credo_anonymous(user):
         data['jwt_header_and_payload'] = jwt_header_and_payload
