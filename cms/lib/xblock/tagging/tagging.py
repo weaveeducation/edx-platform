@@ -16,6 +16,16 @@ from webob import Response
 
 _ = lambda text: text
 
+TAGGING_BLOCK_CATEGORIES = [
+    'problem',
+    'html',
+    'video',
+    'drag-and-drop-v2',
+    'image-explorer',
+    'freetextresponse',
+    'text_highlighter'
+]
+
 
 @XBlock.needs('user')
 class StructuredTagsAside(XBlockAside):
@@ -60,7 +70,7 @@ class StructuredTagsAside(XBlockAside):
         """
         from common.djangoapps.credo_modules.tagging import get_tags
 
-        if block.category in ['problem', 'html', 'video', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse'] or \
+        if block.category in TAGGING_BLOCK_CATEGORIES or \
                 (block.category == 'openassessment' and len(block.rubric_criteria) == 0):
 
             user_service = self.runtime.service(self, 'user')
@@ -219,7 +229,8 @@ class StructuredTagsAside(XBlockAside):
         """
         if self.saved_tags and event_type in ("problem_check", "edx.drag_and_drop_v2.item.dropped",
                                               "xblock.image-explorer.hotspot.opened",
-                                              "xblock.freetextresponse.submit"):
+                                              "xblock.freetextresponse.submit",
+                                              "xblock.text-highlighter.new_submission"):
             return {'saved_tags': self.saved_tags}
         else:
             return None

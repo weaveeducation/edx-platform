@@ -27,6 +27,7 @@ class EventCategory:
     dnd = 'dnd'
     viewed = 'viewed'
     image_explorer = 'image-explorer'
+    text_highlighter = 'text-highlighter'
     freetextresponse = 'freetextresponse'
 
 

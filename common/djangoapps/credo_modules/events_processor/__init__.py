@@ -5,6 +5,7 @@ from .parsers.ora_staff_assessment import OraStaffAssessmentParser
 from .parsers.viewed import ViewedParser
 from .parsers.image_explorer import ImageExplorerParser
 from .parsers.free_text_response import FreeTextResponseParser
+from .parsers.text_highlighter import TextHighlighterParser
 
 
 class EventProcessor:
@@ -19,6 +20,7 @@ class EventProcessor:
             'sequential_block.viewed': lambda: ViewedParser(),
             'sequential_block.remove_view': lambda: ViewedParser(),
             'xblock.image-explorer.hotspot.opened': lambda: ImageExplorerParser(),
+            'xblock.text-highlighter.new_submission': lambda: TextHighlighterParser(),
             'xblock.freetextresponse.submit': lambda: FreeTextResponseParser()
         }.get(event_type, lambda: None)()
 
