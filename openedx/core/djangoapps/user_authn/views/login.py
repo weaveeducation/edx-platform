@@ -58,6 +58,7 @@ from openedx.core.djangoapps.util.user_messages import PageLevelMessages
 from openedx.core.djangolib.markup import HTML, Text
 from openedx.core.lib.api.view_utils import require_post_params  # lint-amnesty, pylint: disable=unused-import
 from openedx.features.enterprise_support.api import activate_learner_enterprise, get_enterprise_learner_data_from_api
+from common.djangoapps.credo_modules.auth import auto_auth_credo_user
 
 log = logging.getLogger("edx.student")
 AUDIT_LOG = logging.getLogger("audit")
@@ -666,6 +667,10 @@ def login_user(request, api_version='v1'):  # pylint: disable=too-many-statement
 @csrf_exempt
 @require_http_methods(['POST'])
 def login_refresh(request):  # lint-amnesty, pylint: disable=missing-function-docstring
+    user_email = request.POST.get('email')
+    if user_email:
+        auto_auth_credo_user(request, user_email)
+
     if not request.user.is_authenticated or request.user.is_anonymous:
         return JsonResponse('Unauthorized', status=401)
 
