@@ -667,7 +667,13 @@ def login_user(request, api_version='v1'):  # pylint: disable=too-many-statement
 @csrf_exempt
 @require_http_methods(['POST'])
 def login_refresh(request):  # lint-amnesty, pylint: disable=missing-function-docstring
-    user_email = request.POST.get('email')
+    post_data = {}
+    try:
+        post_data = json.loads(request.body.decode('utf8') or '{}')
+    except ValueError:
+        pass
+
+    user_email = post_data.get('email')
     if user_email:
         auto_auth_credo_user(request, user_email)
 
