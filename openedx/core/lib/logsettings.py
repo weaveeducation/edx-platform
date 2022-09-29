@@ -26,6 +26,7 @@ class DBHandler(Handler):
         'openassessmentblock.peer_assess',
         'sequential_block.viewed',
         'xblock.image-explorer.hotspot.opened',
+        'xblock.text-highlighter.new_submission',
         'xblock.freetextresponse.submit'
     ]
 

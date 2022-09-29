@@ -18,6 +18,7 @@ class Command(BaseCommand):
         'openassessmentblock.staff_assess',
         'edx.drag_and_drop_v2.item.dropped',
         'xblock.image-explorer.hotspot.opened',
+        'xblock.text-highlighter.new_submission',
     ]
 
     def _get_sequential_id(self, block_id, block_seq_cache):
@@ -109,6 +110,8 @@ class Command(BaseCommand):
             elif log_item.event_name == 'xblock.image-explorer.hotspot.opened':
                 json_data = json.loads(log_item.message)
                 attempt_num = len(json_data.get('event', {}).get('opened_hotspots', []))
+            elif log_item.event_name == 'xblock.text-highlighter.new_submission':
+                raise Exception("text-highlighter processor is not defined")
 
             last_attempt_num = blocks_to_attempt.get(log_item.block_id, None)
             if not blocks_to_attempt or (last_attempt_num is not None and attempt_num <= last_attempt_num):

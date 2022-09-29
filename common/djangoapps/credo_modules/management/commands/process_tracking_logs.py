@@ -33,8 +33,9 @@ class Command(BaseCommand):
         'openassessmentblock.create_submission',
         'openassessmentblock.staff_assess',
         'edx.drag_and_drop_v2.item.dropped',
-        'xblock.image-explorer.hotspot.opened',
         'sequential_block.viewed',
+        'xblock.image-explorer.hotspot.opened',
+        'xblock.text-highlighter.new_submission',
         'xblock.freetextresponse.submit'
     ]
     update_process_num = None

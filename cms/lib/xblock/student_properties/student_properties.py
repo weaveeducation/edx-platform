@@ -95,7 +95,8 @@ class StudentPropertiesAside(XBlockAside):
                     ora_score.save()
 
         elif event_type in ("problem_check", "edx.drag_and_drop_v2.item.dropped",
-                            "xblock.image-explorer.hotspot.opened", "xblock.freetextresponse.submit") or \
+                            "xblock.image-explorer.hotspot.opened", "xblock.freetextresponse.submit",
+                            "xblock.text-highlighter.new_submission") or \
                 (event_type == 'openassessmentblock.create_submission' and 'submission_uuid' in event):
             usage_id = str(self.scope_ids.usage_id.usage_key)
             try:

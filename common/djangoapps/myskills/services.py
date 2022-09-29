@@ -137,7 +137,13 @@ def get_block_student_progress(request, course_id, usage_id, timezone_offset=Non
         }
     }
 
-    question_categories = ('openassessment', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse')
+    question_categories = (
+        'openassessment',
+        'drag-and-drop-v2',
+        'image-explorer',
+        'freetextresponse',
+        'text_highlighter'
+    )
 
     try:
         with modulestore().bulk_operations(course_key):
@@ -175,7 +181,9 @@ def get_block_student_progress(request, course_id, usage_id, timezone_offset=Non
             user_state_client = DjangoXBlockUserStateClient(request.user)
             user_state_dict = {}
             problem_locations = [item['data'].location for k, item in children_dict.items()
-                                 if item['category'] in ('problem', 'image-explorer', 'freetextresponse')]
+                                 if item['category'] in (
+                                     'problem', 'image-explorer', 'freetextresponse', 'text_highlighter'
+                                 )]
 
             if problem_locations:
                 user_state_dict = user_state_client.get_all_blocks(request.user, course_key, problem_locations)
@@ -206,7 +214,7 @@ def get_block_student_progress(request, course_id, usage_id, timezone_offset=Non
 
                         for key, score in section.problem_scores.items():
                             item = children_dict.get(str(key))
-                            if item and not item['hidden'] and item['category'] in CREDO_GRADED_ITEM_CATEGORIES:
+                            if item and not item.get('hidden', False) and item['category'] in CREDO_GRADED_ITEM_CATEGORIES:
                                 submission_uuid = None
                                 if item['category'] == 'openassessment':
                                     submission_uuid = item['data'].submission_uuid

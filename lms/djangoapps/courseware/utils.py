@@ -15,7 +15,14 @@ from django.utils.html import strip_tags
 from submissions import api as sub_data_api
 
 
-CREDO_GRADED_ITEM_CATEGORIES = ['problem', 'drag-and-drop-v2', 'openassessment', 'image-explorer', 'freetextresponse']
+CREDO_GRADED_ITEM_CATEGORIES = [
+    'problem',
+    'drag-and-drop-v2',
+    'openassessment',
+    'image-explorer',
+    'freetextresponse',
+    'text_highlighter',
+]
 
 
 def verified_upgrade_deadline_link(user, course=None, course_id=None):
@@ -199,6 +206,17 @@ def get_problem_detailed_info(item, parent_name, add_correctness=True):
             res['question_text_safe'] = description
             res['question_text_list'] = [description]
 
+        elif item.category == 'text_highlighter':
+            descr1 = item.description
+            descr2 = item.text
+            for br_val in brs_tags:
+                descr1 = descr1.replace(br_val, "\n")
+                descr2 = descr2.replace(br_val, "\n")
+            description_lst = [d for d in [strip_tags(descr1), strip_tags(descr2)] if d]
+            res['question_text'] = "<br />".join(description_lst)
+            res['question_text_safe'] = "\n".join(description_lst)
+            res['question_text_list'] = description_lst[:]
+
         elif item.category == 'freetextresponse':
             description = strip_tags(item.prompt)
             res['question_text'] = description
@@ -267,6 +285,12 @@ def get_answer_and_correctness(user_state_dict, score, category, block, key,
         if answer_state:
             opened_hotspots_cnt = len(answer_state.state.get('opened_hotspots', []))
             answer['opened_hotspots'] = 'Opened hotspots: ' + str(opened_hotspots_cnt)
+    elif category == 'text_highlighter':
+        answer_state = user_state_dict.get(str(key))
+        if answer_state:
+            user_answers = answer_state.state.get('user_answers', [])
+            if user_answers:
+                answer['student_answer'] = '; '.join(user_answers)
     elif category == 'freetextresponse':
         answer_state = user_state_dict.get(str(key))
         if answer_state:

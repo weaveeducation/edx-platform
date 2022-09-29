@@ -226,7 +226,8 @@ def update_structure_of_all_courses(self):
 
 def update_course_structure(course_id, logs_data=None):
     allowed_categories = ['chapter', 'sequential', 'vertical', 'library_content', 'problem',
-                          'openassessment', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse',
+                          'openassessment', 'drag-and-drop-v2', 'image-explorer',
+                          'freetextresponse', 'text_highlighter',
                           'html', 'video', 'survey']
     course_key = CourseKey.from_string(course_id)
     t1 = time.time()
@@ -385,7 +386,7 @@ def update_course_structure(course_id, logs_data=None):
                         ora_item.save()
                         ora_items_updated += 1
 
-                if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer',
+                if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer', 'text_highlighter',
                                      'freetextresponse', 'survey', 'openassessment'):
                     parent = _get_parent_sequential(item, structure_dict)
                     if parent:
@@ -425,7 +426,8 @@ def update_course_structure(course_id, logs_data=None):
                                         kwargs=dict(sequential_id=str(b2s_item.sequential_id))
                                     )
 
-                if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer', 'freetextresponse', 'html', 'video')\
+                if item.category in ('problem', 'drag-and-drop-v2', 'image-explorer', 'text_highlighter',
+                                     'freetextresponse', 'html', 'video')\
                     or (item.category == 'openassessment' and len(item.rubric_criteria) == 0):
                     aside = item.runtime.get_aside_of_type(item, 'tagging_aside')
                     if isinstance(aside.saved_tags, dict):
