@@ -93,7 +93,10 @@ class StructuredTagsAside(XBlockAside):
             fragment.initialize_js('StructuredTagsInit')
             return fragment
         else:
-            return Fragment('')
+            if block.category != 'vertical':
+                return Fragment(f'1111 {block.category}')
+            else:
+                return Fragment('')
 
     @XBlock.handler
     def edit_tags_view(self, request=None, suffix=None):  # pylint: disable=unused-argument
