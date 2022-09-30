@@ -21,7 +21,7 @@ CREDO_GRADED_ITEM_CATEGORIES = [
     'openassessment',
     'image-explorer',
     'freetextresponse',
-    'text_highlighter',
+    'text-highlighter',
 ]
 
 
@@ -206,7 +206,7 @@ def get_problem_detailed_info(item, parent_name, add_correctness=True):
             res['question_text_safe'] = description
             res['question_text_list'] = [description]
 
-        elif item.category == 'text_highlighter':
+        elif item.category == 'text-highlighter':
             descr1 = item.description
             descr2 = item.text
             for br_val in brs_tags:
@@ -285,7 +285,7 @@ def get_answer_and_correctness(user_state_dict, score, category, block, key,
         if answer_state:
             opened_hotspots_cnt = len(answer_state.state.get('opened_hotspots', []))
             answer['opened_hotspots'] = 'Opened hotspots: ' + str(opened_hotspots_cnt)
-    elif category == 'text_highlighter':
+    elif category == 'text-highlighter':
         answer_state = user_state_dict.get(str(key))
         if answer_state:
             user_answers = answer_state.state.get('user_answers', [])

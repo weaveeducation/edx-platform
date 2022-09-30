@@ -142,7 +142,7 @@ def get_block_student_progress(request, course_id, usage_id, timezone_offset=Non
         'drag-and-drop-v2',
         'image-explorer',
         'freetextresponse',
-        'text_highlighter'
+        'text-highlighter'
     )
 
     try:
@@ -182,7 +182,7 @@ def get_block_student_progress(request, course_id, usage_id, timezone_offset=Non
             user_state_dict = {}
             problem_locations = [item['data'].location for k, item in children_dict.items()
                                  if item['category'] in (
-                                     'problem', 'image-explorer', 'freetextresponse', 'text_highlighter'
+                                     'problem', 'image-explorer', 'freetextresponse', 'text-highlighter'
                                  )]
 
             if problem_locations:

@@ -23,7 +23,7 @@ TAGGING_BLOCK_CATEGORIES = [
     'drag-and-drop-v2',
     'image-explorer',
     'freetextresponse',
-    'text_highlighter'
+    'text-highlighter'
 ]
 
 
