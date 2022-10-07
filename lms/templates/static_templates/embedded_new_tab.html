@@ -7,7 +7,7 @@
         var currentTimestamp = (!Date.now ? +new Date() : Date.now());
         var newCookie = "nw_test_cookie=" + currentTimestamp + "; path=/";
         var sameSite = "${same_site if same_site else ''}";
-        if (endsWith(window.location.host, '.proxy.openathens.net') && !inIframe()) {
+        if ((endsWith(window.location.host, '.proxy.openathens.net') || endsWith(window.location.host, '.idm.oclc.org')) && !inIframe()) {
             window.location.href = window.location.protocol + '//' + window.location.host + window.location.pathname + $('#embedded-link').val() + '&iframe=0';
             return;
         }
