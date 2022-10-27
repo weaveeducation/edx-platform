@@ -426,20 +426,35 @@ def _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need
     # (block in the "dst_course_id" course that corresponding to "source_usage_id")
     source_main_block_info = ApiBlockInfo.objects.filter(
         block_id=str(source_usage_id), course_id=course_id, has_children=True, deleted=False).first()
-    if not source_main_block_info:
-        log.exception("update_sibling_block: src block not found", str(source_usage_id))
-        return False
 
-    dst_main_block_info = ApiBlockInfo.objects.filter(
-        hash_id=source_main_block_info.hash_id, course_id=dst_course_id, deleted=False).first()
-    if not dst_main_block_info:
-        log.exception("update_sibling_block: corresponding block not found", str(source_usage_id))
-        return False
+    find_vert_blocks_manually = False
+    dst_main_block_id = "not_exist"
 
-    all_dst_blocks = ApiBlockInfo.objects.filter(hash_id=source_main_block_info.hash_id, course_id=dst_course_id,
-                                                 deleted=False)
+    if source_main_block_info:
+        dst_main_block_info = ApiBlockInfo.objects.filter(
+            hash_id=source_main_block_info.hash_id, course_id=dst_course_id, deleted=False).first()
+        if dst_main_block_info:
+            all_dst_blocks = ApiBlockInfo.objects.filter(hash_id=source_main_block_info.hash_id, course_id=dst_course_id,
+                                                         deleted=False)
 
-    dst_main_block_id = dst_main_block_info.block_id
+            dst_main_block_id = dst_main_block_info.block_id
+        else:
+            find_vert_blocks_manually = True
+    else:
+        find_vert_blocks_manually = True
+
+    if find_vert_blocks_manually:
+        source_vertical_blocks_ids = get_vertical_blocks_with_changes(source_usage_id, user)
+        source_vertical_api_blocks = ApiBlockInfo.objects.filter(
+            course_id=source_usage_id,
+            block_id__in=source_vertical_blocks_ids,
+            deleted=False)
+        source_vertical_hash_ids = [v.hash_id for v in source_vertical_api_blocks]
+        all_dst_blocks = ApiBlockInfo.objects.filter(
+            hash_id__in=source_vertical_hash_ids,
+            course_id=dst_course_id,
+            deleted=False)
+
     if sibling_update_task:
         sibling_update_task.sibling_block_id = dst_main_block_id
 
