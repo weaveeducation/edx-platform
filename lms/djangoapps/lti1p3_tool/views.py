@@ -674,7 +674,8 @@ def launch_deep_link_submit(request, course_id):
             launch_url = request.build_absolute_uri(launch_url + '?block_id=' + quote(block_id))
             resource = DeepLinkResource()
             resource.set_url(launch_url) \
-                .set_title(course_items[block_id]['display_name'])
+                .set_title(course_items[block_id]['display_name']) \
+                .set_custom_params({"block_id": block_id})
 
             if auto_create_lineitem and course_items[block_id]['graded']:
                 earned, possible = course_grade.score_for_module(UsageKey.from_string(block_id))
