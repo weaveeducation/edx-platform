@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import hashlib
@@ -282,12 +283,24 @@ def login(request):
         course, err_tpl = get_course_by_id(course_id)
         if not course:
             return err_tpl
-    elif block_id:
+    elif page and page not in ALLOWED_PAGES:
+        raise Http404()
+
+    if not block_id:
+        lti_message_hint = request_params.get('lti_message_hint', request.GET.get('lti_message_hint'))
+        if lti_message_hint:
+            try:
+                lti_message_hint_str = base64.b64decode(lti_message_hint).decode('utf-8')
+                lti_message_hint_dict = json.loads(lti_message_hint_str)
+                if isinstance(lti_message_hint_dict, dict):
+                    block_id = lti_message_hint_dict.get("customParams", {}).get("block_id")
+            except:
+                pass
+
+    if block_id:
         block, err_tpl = get_block_by_id(block_id)
         if not block:
             return err_tpl
-    elif not page or page not in ALLOWED_PAGES:
-        raise Http404()
 
     is_time_exam = False
     if block:
@@ -351,12 +364,14 @@ def launch(request, usage_id=None):
             with transaction.atomic():
                 return _launch(request, page=page)
 
-    block, err_tpl = get_block_by_id(usage_id)
-    if not block:
-        return err_tpl
+    block = None
+    if usage_id:
+        block, err_tpl = get_block_by_id(usage_id)
+        if not block:
+            return err_tpl
 
     with transaction.atomic():
-        return _launch(request, block)
+        return _launch(request, block=block)
 
 
 @csrf_exempt
@@ -405,14 +420,6 @@ def _launch(request, block=None, course_id=None, page=None):
             return _render_launch_debug_page(request, jwt_data=jwt_data, error=str(e), http_error_code=403)
         return render_lti_error(str(e), 403)
 
-    course_key = None
-    current_item = str(block.location) if block else str(page + '_page')
-    if block:
-        course_key = block.location.course_key
-    elif course_id:
-        course_key = CourseKey.from_string(course_id)
-    usage_key = block.location if block else None
-
     is_iframe = state_params.get('is_iframe') if state_params else True
     context_id = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/context', {}).get('id')
     if context_id:
@@ -425,6 +432,20 @@ def _launch(request, block=None, course_id=None, page=None):
         context_title = context_title.strip()
     external_user_id = message_launch_data.get('sub')
     message_launch_custom_data = message_launch_data.get('https://purl.imsglobal.org/spec/lti/claim/custom', {})
+
+    if block is None and course_id is None and page is None:
+        cs_block_id = message_launch_custom_data.get("block_id")
+        block, err_tpl = get_block_by_id(cs_block_id)
+        if not block:
+            return err_tpl
+
+    course_key = None
+    current_item = str(block.location) if block else str(page + '_page')
+    if block:
+        course_key = block.location.course_key
+    elif course_id:
+        course_key = CourseKey.from_string(course_id)
+    usage_key = block.location if block else None
 
     if page == DEBUG_PAGE:
         return _render_launch_debug_page(
