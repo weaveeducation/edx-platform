@@ -692,7 +692,9 @@ def launch_deep_link_submit(request, course_id):
             if launch_url[-1] != '/':
                 launch_url += '/'
 
-            if not lti_tool.deep_linking_short_launch_urls:
+            if lti_tool.deep_linking_short_launch_urls:
+                launch_url = request.build_absolute_uri(launch_url)
+            else:
                 launch_url = request.build_absolute_uri(launch_url + '?block_id=' + quote(block_id))
             resource = DeepLinkResource()
             resource.set_url(launch_url) \
