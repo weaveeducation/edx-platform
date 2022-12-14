@@ -105,6 +105,10 @@ class LtiTool(models.Model):
     automatically_unenroll_users = models.BooleanField(default=False,
                                                        help_text=_("Automatically unenroll users using information "
                                                                    "from the Names and Role Provisioning service."))
+    deep_linking_short_launch_urls = models.BooleanField(default=False,
+                                                         help_text=_("Use short launch URLs as the result of "
+                                                                     "deep links embedding. Pass block_id in "
+                                                                     "LTI custom params"))
 
     def clean(self):
         if not self.key_set_url and not self.key_set:
