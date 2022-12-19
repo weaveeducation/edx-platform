@@ -11,4 +11,4 @@ xlocal==0.5
 git+https://github.com/CredoEducation/xblock-image-explorer.git@integration-nutmeg#egg=xblock-image-explorer==2.1
 git+https://github.com/CredoEducation/xblock-supervisor-evaluation.git@integration-nutmeg#egg=xblock-supervisor-evaluation==1.0.5
 git+https://github.com/CredoEducation/xblock-free-text-response.git@integration-nutmeg#egg=xblock-free-text-response==2.1.1
-git+https://github.com/CredoEducation/xblock-text-highlighter.git@main#egg=xblock-text-highlighter==1.0.7
+git+https://github.com/CredoEducation/xblock-text-highlighter.git@main#egg=xblock-text-highlighter==1.0.8
