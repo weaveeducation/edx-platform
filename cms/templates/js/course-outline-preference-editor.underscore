@@ -6,6 +6,11 @@
                 <input type="checkbox" name="use_as_survey_for_supervisor" value="1" class="input input-checkbox" />
                 <%- gettext('Use as survey for supervisor') %>
             </label>
+            <br />
+            <label class="label">
+                <input type="checkbox" name="units_sequential_completion" value="1" class="input input-checkbox" />
+                <%- gettext('Each "Unit" is available only after completion the previous one') %>
+            </label>
         </div>
     </div>
     <br />

@@ -17,6 +17,7 @@
      data-lms-url-to-issue-badge="${lms_url_to_issue_badge}"
      data-graded=${"1" if graded else "0"}
      data-show-summary-info-after-quiz=${"1" if show_summary_info_after_quiz else "0"}
+     data-units-sequential-completion=${"1" if units_sequential_completion else "0"}
      data-badge-id=${"1" if badge_id else "0"}
      data-correct-icon="${summary_info_imgs['correct_icon']}"
      data-incorrect-icon="${summary_info_imgs['incorrect_icon']}"
@@ -157,7 +158,7 @@
         % else:
         % for idx, item in enumerate(items):
         <li role="presentation">
-          <button class="seq_${item['type']} inactive nav-item tab"
+          <button class="seq_${'lock' if item['lock'] else item['type']} inactive nav-item tab"
             role="tab"
             tabindex="-1"
             aria-selected="false"
@@ -169,6 +170,7 @@
             data-page-title="${item['page_title']}"
             data-path="${item['path']}"
             data-graded="${item['graded']}"
+            data-type="${item['type']}"
             % if item.get('href'):
             data-href="${item['href']}"
             % endif

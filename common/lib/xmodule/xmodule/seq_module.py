@@ -170,6 +170,13 @@ class SequenceFields:  # lint-amnesty, pylint: disable=missing-class-docstring
         help=_("Issue a Badge")
     )
 
+    units_sequential_completion = Boolean(
+        display_name=_("Each 'Unit' is available only after completion the previous one"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Each 'Unit' is available only after completion the previous one")
+    )
+
 
 class SequenceMixin(SequenceFields):
     """
@@ -642,6 +649,12 @@ class SequenceBlock(
         badge_id = getattr(self, 'badge_id', None)
 
         items = self._render_student_view_for_items(context, display_items, fragment, view) if prereq_met else []
+        if self.units_sequential_completion:
+            lock_found = False
+            for i, item in enumerate(items):
+                if (i > 0 and not items[i - 1].get('complete')) or lock_found:
+                    items[i]['lock'] = True
+                    lock_found = True
 
         params = {
             'items': items,
@@ -669,6 +682,7 @@ class SequenceBlock(
             'lms_url_to_issue_badge': context.get('lms_url_to_issue_badge'),
             'show_summary_info_after_quiz': False if is_time_exam else context.get('show_summary_info_after_quiz',
                                                                                    False),
+            'units_sequential_completion': 1 if self.units_sequential_completion else 0,
             'badge_id': badge_id if badge_id else None,
 
             'summary_info_imgs': context.get('summary_info_imgs', {
@@ -912,6 +926,7 @@ class SequenceBlock(
                 'path': " > ".join(display_names + [item.display_name_with_default]),
                 'graded': item.graded,
                 'contains_content_type_gated_content': contains_content_type_gated_content,
+                'lock': False
             }
             if not render_items:
                 # The item url format can be defined in the template context like so:

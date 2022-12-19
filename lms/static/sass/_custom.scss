@@ -785,3 +785,18 @@
         display: none;
     }
 }
+
+.seq-locked-content {
+    .go-to-uncompleted-block {
+        border-color: #0075b4;
+        background: #0075b4;
+        color: #fcfcfc;
+    }
+    .go-to-uncompleted-block:hover,
+    .go-to-uncompleted-block:focus {
+        background-color: #065683;
+        background-image: none;
+        box-shadow: none;
+    }
+}
+

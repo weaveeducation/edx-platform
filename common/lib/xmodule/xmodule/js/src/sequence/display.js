@@ -69,7 +69,8 @@
 
             this.graded = parseInt(this.el.data('graded')) === 1;
             this.badgeId = parseInt(this.el.data('badge-id')) === 1;
-            this.showSummaryInfoAfterQuiz = parseInt(this.el.data('show-summary-info-after-quiz')) === 1;
+            this.showSummaryInfoAfterQuiz = parseInt(this.el.data('show-summary-info-after-quiz'), 10) === 1;
+            this.unitsSequentialCompletion = parseInt(this.el.data('units-sequential-completion'), 10) === 1;
             this.lmsUrlToGetGrades = this.el.data('lms-url-to-get-grades');
             this.lmsUrlToIssueBadge = this.el.data('lms-url-to-issue-badge');
             this.lmsUrlToEmailGrades = this.el.data('lms-url-to-email-grades');
@@ -135,7 +136,7 @@
                 this.getQuestionsInfo();
             }
 
-            this.render(parseInt(position, 10));
+            this.render(parseInt(position, 10), true);
         }
 
         Sequence.prototype.showSendScoresPanel = function() {
@@ -634,9 +635,8 @@
             this.updateButtonState(nextCarouselButtonClass, this.selectNext, isLastTab, this.nextUrl);
         };
 
-        Sequence.prototype.render = function(newPosition) {
-            var bookmarked, currentTab, sequenceLinks,
-                self = this;
+        Sequence.prototype.render = function(newPosition, firstInit) {
+            var elementNext, elementNextLocked, self = this;
             this.highlightNewCarouselElem({
                 position: newPosition,
                 animate: true
@@ -645,7 +645,7 @@
                 if (this.position) {
                     this.mark_visited(this.position);
                     if (this.showCompletion) {
-                        this.update_completion(this.position);
+                        this.update_completion(this.position, newPosition);
                     }
                     if (this.savePosition) {
                         $.postWithPrefix(this.gotoPositionUrl, JSON.stringify({
@@ -657,53 +657,112 @@
                 // clear video items that are ready to display
                 window.videoReady = [];
 
-                // On Sequence change, fire custom event 'sequence:change' on element.
-                // Added for aborting video bufferization, see ../video/10_main.js
-                this.el.trigger('sequence:change');
-                this.mark_active(newPosition);
-                currentTab = this.contents.eq(newPosition - 1);
-                bookmarked = this.el.find('.active .bookmark-icon').hasClass('bookmarked');
+                if (this.unitsSequentialCompletion) {
+                    elementNext = self.link_for(newPosition);
+                    elementNextLocked = $(elementNext[0]).hasClass('seq_lock');
+                    if (firstInit) {
+                        this.initUnit(newPosition, elementNextLocked);
+                    } else {
+                        if (!elementNextLocked) {
+                            this.initUnit(newPosition, false);
+                        } else {
+                            // do nothing because xblock will be rendered in after checking completion
+                        }
+                    }
+                } else {
+                    this.initUnit(newPosition, false);
+                }
+            }
+        };
 
-                // update the data-attributes with latest contents only for updated problems.
-                this.content_container
-                    .html(currentTab.text())  // xss-lint: disable=javascript-jquery-html
+        Sequence.prototype.initUnit = function(newPosition, lockContent) {
+            var bookmarked, currentTab, sequenceLinks,
+                self = this;
+
+            // On Sequence change, fire custom event 'sequence:change' on element.
+            // Added for aborting video bufferization, see ../video/10_main.js
+            this.el.trigger('sequence:change');
+            this.mark_active(newPosition);
+            currentTab = this.contents.eq(newPosition - 1);
+            bookmarked = this.el.find('.active .bookmark-icon').hasClass('bookmarked');
+
+            var newHtml = '';
+            var unitsArr = [];
+            var firstUncompletedUnitPos = null;
+            var firstUncompletedUnitTitle = null;
+
+            if (lockContent) {
+                this.el.find('.nav-item').each(function() {
+                    unitsArr.push({
+                        'position': $(this).attr('data-element'),
+                        'title': $(this).attr('data-page-title'),
+                        'lock': $(this).hasClass('seq_lock')
+                    });
+                });
+
+                for (var i = 0; i < unitsArr.length; i++) {
+                    if (unitsArr[i].lock && (i > 0) && (firstUncompletedUnitPos === null)) {
+                        firstUncompletedUnitPos = parseInt(unitsArr[i - 1].position, 10);
+                        firstUncompletedUnitTitle = unitsArr[i - 1].title;
+                    }
+                }
+
+                newHtml = '<div class="xblock xblock-student_view xblock-student_view-vertical xblock-initialized">' +
+                          '<div class="vert-mod seq-locked-content">' +
+                          '<h3 class="hd hd-3"><i class="fa fa-lock" aria-hidden="true"></i> Content Locked</h3>' +
+                          '<p>You must complete the prerequisite: "' + firstUncompletedUnitTitle + '" to access this content.</p>' +
+                          '<p><button type="button" class="btn-brand go-to-uncompleted-block">' +
+                          '<span class="submit-label">Go To Uncompleted Block</span></button></p>' +
+                          '</div>' +
+                          '</div>';
+            } else {
+                newHtml = currentTab.text();
+            }
+
+            // update the data-attributes with latest contents only for updated problems.
+            this.content_container
+                    .html(newHtml)  // xss-lint: disable=javascript-jquery-html
                     .attr('aria-labelledby', currentTab.attr('aria-labelledby'))
                     .data('bookmarked', bookmarked);
 
+            if (lockContent) {
+                this.content_container.find('.go-to-uncompleted-block').click(function() {
+                    self.render(firstUncompletedUnitPos, false);
+                });
+            }
 
-                if (this.anyUpdatedProblems(newPosition)) {
-                    $.each(this.updatedProblems[newPosition], function(problemId, latestData) {
-                        var latestContent, latestResponse;
-                        latestContent = latestData[0];
-                        latestResponse = latestData[1];
-                        self.content_container
+            if (this.anyUpdatedProblems(newPosition)) {
+                $.each(this.updatedProblems[newPosition], function(problemId, latestData) {
+                    var latestContent, latestResponse;
+                    latestContent = latestData[0];
+                    latestResponse = latestData[1];
+                    self.content_container
                             .find("[data-problem-id='" + problemId + "']")
                             .data('content', latestContent)
                             .data('problem-score', latestResponse.current_score)
                             .data('problem-total-possible', latestResponse.total_possible)
                             .data('attempts-used', latestResponse.attempts_used);
-                    });
-                }
-                XBlock.initializeBlocks(this.content_container, this.requestToken);
+                });
+            }
+            XBlock.initializeBlocks(this.content_container, this.requestToken);
 
-                // For embedded circuit simulator exercises in 6.002x
-                if (window.hasOwnProperty('update_schematics')) {
-                    window.update_schematics();
-                }
-                this.position = newPosition;
-                this.toggleArrows();
-                this.hookUpContentStateChangeEvent();
-                this.updatePageTitle();
-                sequenceLinks = this.content_container.find('a.seqnav');
-                sequenceLinks.click(this.goto);
+            // For embedded circuit simulator exercises in 6.002x
+            if (window.hasOwnProperty('update_schematics')) {
+                window.update_schematics();
+            }
+            this.position = newPosition;
+            this.toggleArrows();
+            this.hookUpContentStateChangeEvent();
+            this.updatePageTitle();
+            sequenceLinks = this.content_container.find('a.seqnav');
+            sequenceLinks.click(this.goto);
 
-                this.sr_container.focus();
+            this.sr_container.focus();
 
-                // in case of switch tab
-                // send to the parent frame information about new content width and height
-                if (window.chromlessView && window.postMessageResize) {
-                    window.postMessageResize();
-                }
+            // in case of switch tab
+            // send to the parent frame information about new content width and height
+            if (window.chromlessView && window.postMessageResize) {
+                window.postMessageResize();
             }
         };
 
@@ -747,7 +806,7 @@
                     delete window.queuePollerID;
                 }
 
-                this.render(newPosition);
+                this.render(newPosition, false);
 
                 if (!window.chromlessView) {
                     var positionLink = this.link_for(newPosition);
@@ -825,7 +884,7 @@
                 };
 
                 newPosition = this.position + offset[direction];
-                this.render(newPosition);
+                this.render(newPosition, false);
             }
         };
 
@@ -855,8 +914,23 @@
                 .addClass('visited');
         };
 
-        Sequence.prototype.update_completion = function(position) {
+        Sequence.prototype.check_and_unlock = function(newPosition) {
+            var prevPosition = newPosition - 1;
+            var prevElement = this.link_for(prevPosition);
+            var element = this.link_for(newPosition);
+            var completionIndicators = prevElement.find('.check-circle');
+            var prevElementIsCompleted = !$(completionIndicators).hasClass('is-hidden');
+            if (prevElementIsCompleted) {
+                var dataTypeClass = 'seq_' + $(element[0]).attr('data-type');
+                $(element[0]).removeClass('seq_lock').addClass(dataTypeClass);
+            }
+            this.initUnit(newPosition, !prevElementIsCompleted);
+        };
+
+        Sequence.prototype.update_completion = function(position, newPosition) {
             var element = this.link_for(position);
+            var elementNew = this.link_for(newPosition);
+            var elementNewLocked = $(elementNew[0]).hasClass('seq_lock');
             var usageKey = element[0].attributes['data-id'].value;
             var completionIndicators = element.find('.check-circle');
             var supportCompletion = element.data('support-completion');
@@ -876,6 +950,9 @@
                         } else {
                             completionIndicators.removeClass('is-hidden');
                         }
+                    }
+                    if (self.unitsSequentialCompletion && elementNewLocked) {
+                        self.check_and_unlock(newPosition);
                     }
                 });
             }

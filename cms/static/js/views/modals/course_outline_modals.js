@@ -1083,9 +1083,12 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             AbstractEditor.prototype.afterRender.call(this);
             var useAsSurveyForSupervisor = this.model.get('use_as_survey_for_supervisor');
             this.$('[name="use_as_survey_for_supervisor"]').prop('checked', useAsSurveyForSupervisor ? true : false);
+            var unitsSequentialCompletion = this.model.get('units_sequential_completion');
+            this.$('[name="units_sequential_completion"]').prop('checked', unitsSequentialCompletion ? true : false);
         },
         getRequestData: function() {
             var useAsSurveyForSupervisor = this.$('[name="use_as_survey_for_supervisor"]').is(':checked');
+            var unitsSequentialCompletion = this.$('[name="units_sequential_completion"]').is(':checked');
             var badgeId = '';
             var badgeEl = this.$('[name="badge_id"]');
             if (badgeEl.length) {
@@ -1095,6 +1098,7 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             return {
               metadata: {
                 use_as_survey_for_supervisor: useAsSurveyForSupervisor,
+                units_sequential_completion: unitsSequentialCompletion,
                 badge_id: badgeId
               }
             };

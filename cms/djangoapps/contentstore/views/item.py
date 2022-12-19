@@ -1477,6 +1477,7 @@ def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=F
                 'hide_after_due': xblock.hide_after_due,
                 'after_finish_return_to_course_outline': xblock.after_finish_return_to_course_outline,
                 'use_as_survey_for_supervisor': xblock.use_as_survey_for_supervisor,
+                'units_sequential_completion': xblock.units_sequential_completion,
                 'badgr_enabled': badgr_enabled,
                 'badges': badges,
                 'badge_id': xblock.badge_id,
