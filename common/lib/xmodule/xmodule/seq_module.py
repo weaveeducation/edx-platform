@@ -647,14 +647,17 @@ class SequenceBlock(
         is_time_exam = getattr(self, 'is_proctored_exam', False) or getattr(self, 'is_time_limited', False)
 
         badge_id = getattr(self, 'badge_id', None)
+        is_studio = getattr(self.runtime, "is_author_mode", False)
 
         items = self._render_student_view_for_items(context, display_items, fragment, view) if prereq_met else []
-        if self.units_sequential_completion:
+        if self.units_sequential_completion and not is_studio:
             lock_found = False
             for i, item in enumerate(items):
                 if (i > 0 and not items[i - 1].get('complete')) or lock_found:
                     items[i]['lock'] = True
                     lock_found = True
+
+        is_studio = getattr(self.runtime, "is_author_mode", False)
 
         params = {
             'items': items,
@@ -682,7 +685,7 @@ class SequenceBlock(
             'lms_url_to_issue_badge': context.get('lms_url_to_issue_badge'),
             'show_summary_info_after_quiz': False if is_time_exam else context.get('show_summary_info_after_quiz',
                                                                                    False),
-            'units_sequential_completion': 1 if self.units_sequential_completion else 0,
+            'units_sequential_completion': 1 if self.units_sequential_completion and not is_studio else 0,
             'badge_id': badge_id if badge_id else None,
 
             'summary_info_imgs': context.get('summary_info_imgs', {

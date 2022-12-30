@@ -201,7 +201,7 @@ FEATURES['COURSES_ARE_BROWSEABLE'] = True
 HOMEPAGE_COURSE_MAX = 9
 
 # Software secure fake page feature flag
-FEATURES['ENABLE_SOFTWARE_SECURE_FAKE'] = True
+FEATURES['ENABLE_SOFTWARE_SECURE_FAKE'] = False
 
 # Setting for the testing of Software Secure Result Callback
 VERIFY_STUDENT["SOFTWARE_SECURE"] = {
@@ -457,6 +457,7 @@ CLOSEST_CLIENT_IP_FROM_HEADERS = []
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 X_FRAME_OPTIONS = 'ALLOW'
+RATELIMIT_ENABLE = False
 
 ################# New settings must go ABOVE this line #################
 ########################################################################
