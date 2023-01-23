@@ -5,14 +5,18 @@
     function HTMLModule(element) {
       this.element = element;
       this.el = $(this.element);
-      JavascriptLoader.executeModuleScripts(this.el);
-      Collapsible.setCollapsibles(this.el);
-      if (typeof MathJax !== "undefined" && MathJax !== null) {
-        MathJax.Hub.Queue(["Typeset", MathJax.Hub, this.el[0]]);
+
+      if (!this.el.hasClass('xblock-author_view')) {
+        JavascriptLoader.executeModuleScripts(this.el);
+        Collapsible.setCollapsibles(this.el);
+        if (typeof MathJax !== "undefined" && MathJax !== null) {
+          MathJax.Hub.Queue(["Typeset", MathJax.Hub, this.el[0]]);
+        }
+        if (typeof setupFullScreenModal !== "undefined" && setupFullScreenModal !== null) {
+          setupFullScreenModal();
+        }
       }
-      if (typeof setupFullScreenModal !== "undefined" && setupFullScreenModal !== null) {
-        setupFullScreenModal();
-      }
+      this.el.find(".tabs").tabs();
     }
 
     HTMLModule.prototype.$ = function(selector) {

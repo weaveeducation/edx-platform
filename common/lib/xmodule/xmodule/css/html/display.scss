@@ -310,3 +310,31 @@ th {
     }
   }
 }
+
+
+.ui-tabs-nav {
+  margin: 0;
+  padding: 0.2em 0.2em 0;
+  border-bottom: 1px solid #c3bebe !important;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.ui-tabs-nav li {
+  list-style: none;
+  float: left;
+  position: relative;
+  top: 0;
+  margin: 1px 0.2em 0 0;
+  padding: 0;
+  white-space: nowrap;
+  border: 1px solid #c3bebe;
+}
+
+.ui-widget-content {
+  background: none !important;
+}
+
+.ui-state-active, .ui-widget-content .ui-state-active {
+  background: #fdf5ce;
+}
