@@ -118,7 +118,7 @@ class Lti1p3ScoresHandler(ScoresHandler):
             if not line_item:
                 raise OutcomeServiceSendScoreError("Lineitem not found in the external LMS: " + assignment.lti_lineitem)
 
-            timestamp = datetime.datetime.utcnow().isoformat()
+            timestamp = datetime.datetime.utcnow().isoformat(sep='T', timespec='milliseconds') + "Z"
 
             # activity_progress / grading_progress
             # https://www.imsglobal.org/spec/lti-ags/v2p0#activityprogress
