@@ -16,7 +16,7 @@ class TurnitinApi:
         'pdf', 'doc', 'ppt', 'pps', 'xls', 'docx', 'pptx', 'ppsx', 'xlsx',
         'xls', 'ps', 'rtf', 'htm', 'html', 'wpd', 'odt', 'txt'
     ]
-    _integration_name = 'NimblywiseApiClient'
+    _integration_name = 'EdxApiClient'
     _integration_version = '1.0.0'
 
     def __init__(self, api_key):

@@ -14,7 +14,7 @@ class ApiClientMethod(Enum):
 class BadgrApi:
     _config = None
     _api_host = 'https://api.badgr.io'
-    _integration_name = 'NimblywiseApiClient'
+    _integration_name = 'EdxApiClient'
 
     def __init__(self, config=None):
         self._config = Configuration.get_config() if config is None else config
