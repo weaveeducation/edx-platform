@@ -440,8 +440,9 @@ class SafeSessionMiddleware(SessionMiddleware, MiddlewareMixin):
 
         """
         response = super().process_response(request, response)  # Step 1
-
-        user_id_in_session = self.get_user_id_from_session(request)
+        user_id_in_session = None
+        if hasattr(request, "session"):
+            user_id_in_session = self.get_user_id_from_session(request)
         #user_matches = self._verify_user_and_log_mismatch(request, response, user_id_in_session)  # Step 2
 
         # If the user changed *unexpectedly* between the beginning and end of
