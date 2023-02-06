@@ -911,10 +911,10 @@ def _get_full_path_names(block):
 
 def _section_nw_help(request, course):
     help_url = configuration_helpers.get_value('NW_HELP_LINK', 'http://www.nimblywise.com/help-center/')
-    help_title = configuration_helpers.get_value('NW_HELP_TITLE', 'NimblyWise Help Center')
+    help_title = configuration_helpers.get_value('NW_HELP_TITLE', 'Help Center')
     section_data = {
         'section_key': 'nw_help',
-        'section_display_name': 'NimblyWise Help Center',
+        'section_display_name': 'Help Center',
         'course_id': str(course.id),
         'help_url': help_url,
         'help_title': help_title

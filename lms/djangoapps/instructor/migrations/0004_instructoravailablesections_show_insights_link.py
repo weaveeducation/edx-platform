@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='instructoravailablesections',
             name='show_insights_link',
-            field=models.BooleanField(default=True, verbose_name='Show "Credo Insights" section'),
+            field=models.BooleanField(default=True, verbose_name='Show "Insights" section'),
         ),
     ]

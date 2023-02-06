@@ -17,6 +17,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='instructoravailablesections',
             name='show_nw_help',
-            field=models.BooleanField(default=True, verbose_name='Show "NimblyWise Help Center" section'),
+            field=models.BooleanField(default=True, verbose_name='Show "Help Center" section'),
         ),
     ]

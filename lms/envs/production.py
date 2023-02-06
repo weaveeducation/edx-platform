@@ -1120,7 +1120,7 @@ CREDO_API_CONFIG = ENV_TOKENS.get('CREDO_API_CONFIG', {})
 ############## LTI Constructor ############################
 CONSTRUCTOR_LINK = ENV_TOKENS.get('CONSTRUCTOR_LINK', 'http://127.0.0.1:9015')
 
-############## Credo Insights ############################
+############## Insights ############################
 CREDO_INSIGHTS_LINK = ENV_TOKENS.get('CREDO_INSIGHTS_LINK', 'https://insights.credoeducation.com')
 
 ############## Turnitin_Integration ############################

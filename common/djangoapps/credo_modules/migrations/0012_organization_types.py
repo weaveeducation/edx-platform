@@ -71,15 +71,15 @@ class Migration(migrations.Migration):
                 ('constructor_direct_link', models.BooleanField(default=True,
                                                                 verbose_name='Display direct link in Constructor')),
                 ('insights_learning_outcomes', models.BooleanField(default=True,
-                                                                   verbose_name='Display LO report in Credo Insights')),
+                                                                   verbose_name='Display LO report in Insights')),
                 ('insights_assessments', models.BooleanField(
-                    default=True, verbose_name='Display Assessment report in Credo Insights')),
+                    default=True, verbose_name='Display Assessment report in Insights')),
                 ('insights_enrollment', models.BooleanField(
-                    default=True, verbose_name='Display Enrollment report in Credo Insights')),
+                    default=True, verbose_name='Display Enrollment report in Insights')),
                 ('insights_engagement', models.BooleanField(
-                    default=True, verbose_name='Display Engagement report in Credo Insights')),
+                    default=True, verbose_name='Display Engagement report in Insights')),
                 ('instructor_dashboard_credo_insights', models.BooleanField(
-                    default=True, verbose_name='Show Credo Insights link in the Instructor Dashboard')),
+                    default=True, verbose_name='Show Insights link in the Instructor Dashboard')),
             ],
         ),
         migrations.AlterField(

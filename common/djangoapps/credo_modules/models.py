@@ -403,11 +403,11 @@ class OrganizationType(models.Model):
     constructor_lti_link = models.BooleanField(default=True, verbose_name='Display LTI link in Constructor')
     constructor_embed_code = models.BooleanField(default=True, verbose_name='Display embed code field in Constructor')
     constructor_direct_link = models.BooleanField(default=True, verbose_name='Display direct link in Constructor')
-    insights_learning_outcomes = models.BooleanField(default=True, verbose_name='Display LO report in Credo Insights')
-    insights_assessments = models.BooleanField(default=True, verbose_name='Display Assessment report in Credo Insights')
-    insights_enrollment = models.BooleanField(default=True, verbose_name='Display Enrollment report in Credo Insights')
-    insights_engagement = models.BooleanField(default=True, verbose_name='Display Engagement report in Credo Insights')
-    instructor_dashboard_credo_insights = models.BooleanField(default=True, verbose_name='Show Credo Insights link'
+    insights_learning_outcomes = models.BooleanField(default=True, verbose_name='Display LO report in Insights')
+    insights_assessments = models.BooleanField(default=True, verbose_name='Display Assessment report in Insights')
+    insights_enrollment = models.BooleanField(default=True, verbose_name='Display Enrollment report in Insights')
+    insights_engagement = models.BooleanField(default=True, verbose_name='Display Engagement report in Insights')
+    instructor_dashboard_credo_insights = models.BooleanField(default=True, verbose_name='Show Insights link'
                                                                                          ' in the Instructor Dashboard')
     enable_page_level_engagement = models.BooleanField(default=False, verbose_name='Enable Page Level for Engagement '
                                                                                    'Statistic in Insights')

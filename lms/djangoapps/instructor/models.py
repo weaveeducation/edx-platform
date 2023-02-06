@@ -23,8 +23,8 @@ class InstructorAvailableSections(models.Model):
     show_studio_link = models.BooleanField(default=True, verbose_name='Show "View In Studio" link')
     show_open_responses = models.BooleanField(default=True, verbose_name='Show "Open responses" section')
     show_lti_constructor = models.BooleanField(default=True, verbose_name='Show "Link Constructor" section')
-    show_insights_link = models.BooleanField(default=True, verbose_name='Show "Credo Insights" section')
-    show_nw_help = models.BooleanField(default=True, verbose_name='Show "NimblyWise Help Center" section')
+    show_insights_link = models.BooleanField(default=True, verbose_name='Show "Insights" section')
+    show_nw_help = models.BooleanField(default=True, verbose_name='Show "Help Center" section')
     show_discussions_management = models.BooleanField(default=True, verbose_name='Show Discussions Management')
 
     class Meta:

@@ -56,12 +56,12 @@ def render_supervisor_evaluation_block(request, hash_id):
     if not request.user.is_authenticated or request.user.id != invitation.student.id:
         if invitation.supervisor_user_id is None:
             supervisor_user = register_login_and_enroll_anonymous_user(
-                request, course_key, email_domain='supervisor.nimblywise.com')
+                request, course_key, email_domain='supervisor.weaveeducation.com')
         else:
             supervisor_user = User.objects.filter(id=invitation.supervisor_user_id).first()
             if not supervisor_user:
                 supervisor_user = register_login_and_enroll_anonymous_user(
-                    request, course_key, email_domain='supervisor.nimblywise.com')
+                    request, course_key, email_domain='supervisor.weaveeducation.com')
             elif not request.user.is_authenticated or request.user.id != supervisor_user.id:
                 login(request, supervisor_user, backend=settings.AUTHENTICATION_BACKENDS[0])
 
