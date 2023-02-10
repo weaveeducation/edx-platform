@@ -330,6 +330,7 @@ def assessments_progress(courseware_summary, problems_dict=None, include_data_st
                             verticals[vertical_id]['elements'].append({
                                 'not_started': score.first_attempted is None,
                                 'is_correct': 1 if score.possible == score.earned and score.first_attempted is not None else 0,
+                                'is_partially_correct': 0 < score.earned < score.possible,
                                 'problem_id': key_str,
                                 'num': str(current_elements_num + 1),
                                 'display_name': problem_display_name
