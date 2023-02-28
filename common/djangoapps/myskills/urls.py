@@ -25,11 +25,11 @@ urlpatterns = [
         views.TagsGlobalView.as_view(), name='myskills_tags_global_all_some_user'),
     url(r'^tags-global/get-tag-data/$',
         views.TagsTagDataView.as_view(), name='myskills_tags_global_tag_data'),
-    url(r'^tags-global/get-tag-data/(?P<student_id>[^/]*)$',
+    url(r'^tags-global/get-tag-data/(?P<student_id>[^/]*)/$',
         views.TagsTagDataView.as_view(), name='myskills_tags_global_tag_data_some_user'),
     url(r'^tags-global/get-section-data/$',
         views.TagsTagSectionView.as_view(), name='myskills_tags_global_section_data'),
-    url(r'^tags-global/get-section-data/(?P<student_id>[^/]*)$',
+    url(r'^tags-global/get-section-data/(?P<student_id>[^/]*)/$',
         views.TagsTagSectionView.as_view(), name='myskills_tags_global_section_data_some_user'),
 
     url(r'^assessments/{}/summary/$'.format(settings.COURSE_ID_PATTERN),
