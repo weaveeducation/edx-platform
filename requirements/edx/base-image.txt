@@ -717,7 +717,7 @@ openedx-events==0.8.1
     # via -r requirements/edx/base.in
 openedx-filters==0.6.1
     # via -r requirements/edx/base.in
-git+https://github.com/CredoEducation/edx-ora2.git@4d80e5084cab9a4f220ec9642889d252170761d5#egg=ora2==4.1.6
+git+https://github.com/CredoEducation/edx-ora2.git@851e726de8687943ae9342d96826874204c4852d#egg=ora2==4.1.7
 packaging==21.3
     # via
     #   bleach
