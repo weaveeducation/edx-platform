@@ -373,6 +373,7 @@ class CustomUserRole(models.Model):
     edit_library_content = models.BooleanField(default=True, verbose_name='Unit: Can Edit Library Content in Course')
     update_library_content = models.BooleanField(default=False, verbose_name='Unit: Access to "Update Now" '
                                                                              'button for Library Content')
+    rerun_course = models.BooleanField(default=False, verbose_name='Rerun Course')
 
     class Meta:
         ordering = ['title']
@@ -394,7 +395,8 @@ class CustomUserRole(models.Model):
             'unit_add_discussion_component': self.unit_add_discussion_component,
             'view_tags': self.view_tags,
             'edit_library_content': self.edit_library_content,
-            'update_library_content': self.update_library_content
+            'update_library_content': self.update_library_content,
+            'rerun_course': self.rerun_course,
         }
 
 

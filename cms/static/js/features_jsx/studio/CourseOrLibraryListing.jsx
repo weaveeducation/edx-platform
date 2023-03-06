@@ -44,6 +44,7 @@ class CourseOrLibraryListing extends React.Component {
     const allowReruns = this.props.allowReruns;
     const linkClass = this.props.linkClass;
     const idBase = this.props.idBase;
+    const userHasPermissionsRerun = this.props.userHasPermissionsRerun || [];
 
     return (
             <ul className="list-courses">
@@ -75,7 +76,7 @@ class CourseOrLibraryListing extends React.Component {
                                     </a>
                                     {item.lms_link && item.rerun_link &&
                                     <ul className="item-actions course-actions">
-                                        {allowReruns &&
+                                        {(allowReruns || (userHasPermissionsRerun.indexOf(item.course_key) !== -1)) &&
                                         <li className="action action-rerun">
                                             <a
                                                 href={item.rerun_link}
@@ -110,6 +111,7 @@ CourseOrLibraryListing.propTypes = {
   idBase: PropTypes.string.isRequired,
   items: PropTypes.arrayOf(PropTypes.object).isRequired,
   linkClass: PropTypes.string.isRequired,
+  userHasPermissionsRerun: PropTypes.array
 };
 
 export { CourseOrLibraryListing };

@@ -326,8 +326,12 @@ def course_rerun_handler(request, course_key_string):
     GET
         html: return html page with form to rerun a course for the given course id
     """
-    # Only global staff (PMs) are able to rerun courses during the soft launch
-    if not GlobalStaff().has_user(request.user):
+    # Only global staff (PMs) or staff with special permissions are able to rerun courses during the soft launch
+    staff_rerun_permissions = CourseStaffExtended.objects.filter(
+        user=request.user,
+        role__rerun_course=True,
+        course_id=str(course_key_string)).exists()
+    if not GlobalStaff().has_user(request.user) and not staff_rerun_permissions:
         raise PermissionDenied()
     course_key = CourseKey.from_string(course_key_string)
     with modulestore().bulk_operations(course_key):
@@ -338,7 +342,8 @@ def course_rerun_handler(request, course_key_string):
                 'display_name': course_module.display_name,
                 'user': request.user,
                 'course_creator_status': _get_course_creator_status(request.user),
-                'allow_unicode_course_id': settings.FEATURES.get('ALLOW_UNICODE_COURSE_ID', False)
+                'allow_unicode_course_id': settings.FEATURES.get('ALLOW_UNICODE_COURSE_ID', False),
+                'staff_rerun_permissions': staff_rerun_permissions,
             })
 
 
@@ -579,6 +584,8 @@ def course_listing(request):
     split_archived = settings.FEATURES.get('ENABLE_SEPARATE_ARCHIVED_COURSES', False)
     active_courses, archived_courses = _process_courses_list(courses_iter, in_process_course_actions, split_archived)
     in_process_course_actions = [format_in_process_course_view(uca) for uca in in_process_course_actions]
+    user_rerun_courses = [str(csf.course_id) for csf in CourseStaffExtended.objects.filter(
+        user=user, role__rerun_course=True)]
 
     orgs = []
     for c in active_courses:
@@ -613,6 +620,7 @@ def course_listing(request):
         'request_course_creator_url': reverse('request_course_creator'),
         'course_creator_status': _get_course_creator_status(user),
         'rerun_creator_status': GlobalStaff().has_user(user),
+        'user_has_permissions_rerun': user_rerun_courses,
         'allow_unicode_course_id': settings.FEATURES.get('ALLOW_UNICODE_COURSE_ID', False),
         'allow_course_reruns': settings.FEATURES.get('ALLOW_COURSE_RERUNS', True),
         'optimization_enabled': optimization_enabled,
@@ -1054,7 +1062,20 @@ def rerun_course(user, source_course_key, org, number, run, fields, background=T
 
     # Make sure user has instructor and staff access to the destination course
     # so the user can see the updated status for that course
-    add_instructor(destination_course_key, user, user)
+
+    source_course_staff_role = CourseStaffRole(source_course_key).has_user(user)
+    source_course_staff_ext = CourseStaffExtended.objects.filter(
+        user=user, course_id=str(source_course_key), role__rerun_course=True).first()
+
+    if source_course_staff_role and source_course_staff_ext:
+        CourseStaffRole(destination_course_key).add_users(user)
+        CourseStaffExtended(
+            user=user,
+            course_id=destination_course_key,
+            role=source_course_staff_ext.role
+        ).save()
+    else:
+        add_instructor(destination_course_key, user, user)
 
     # Mark the action as initiated
     CourseRerunState.objects.initiated(source_course_key, destination_course_key, user, fields['display_name'])
