@@ -692,7 +692,7 @@ class CourseTabView(EdxFragmentView):
         with modulestore().bulk_operations(course_key):
             course_obj = modulestore().get_course(course_key, depth=0)
             if request.user.is_authenticated and is_user_credo_anonymous(request.user) \
-                and course_obj and course_obj.allow_anonymous_access:
+              and course_obj and course_obj.allow_anonymous_access:
                 CourseEnrollment.enroll(request.user, course_key)
 
             course = get_course_with_access(request.user, 'load', course_key)
@@ -707,6 +707,12 @@ class CourseTabView(EdxFragmentView):
             #self.register_user_access_warning_messages(request, course)
 
             set_custom_attributes_for_course_key(course_key)
+
+            if not (course_home_legacy_is_active(course.id) and request.user.is_staff):
+                microfrontend_url = get_learning_mfe_home_url(course_key=course_id, url_fragment='home',
+                                                              params=request.GET)
+                return redirect(microfrontend_url)
+
             return super().get(request, course=course, page_context=page_context, **kwargs)
 
     @staticmethod
