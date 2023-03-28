@@ -71,6 +71,7 @@
             this.badgeId = parseInt(this.el.data('badge-id')) === 1;
             this.showSummaryInfoAfterQuiz = parseInt(this.el.data('show-summary-info-after-quiz'), 10) === 1;
             this.unitsSequentialCompletion = parseInt(this.el.data('units-sequential-completion'), 10) === 1;
+            this.disableUnitsAfterCompletion = parseInt(this.el.data('disable-units-after-completion'), 10) === 1;
             this.lmsUrlToGetGrades = this.el.data('lms-url-to-get-grades');
             this.lmsUrlToIssueBadge = this.el.data('lms-url-to-issue-badge');
             this.lmsUrlToEmailGrades = this.el.data('lms-url-to-email-grades');
@@ -620,7 +621,18 @@
             // previous button
             isFirstTab = this.position === 1;
             previousButtonClass = '.sequence-nav-button.button-previous';
-            this.updateButtonState(previousButtonClass, this.selectPrevious, isFirstTab, this.prevUrl);
+            var isPrevBlockCompleted;
+
+            if (this.disableUnitsAfterCompletion) {
+                isPrevBlockCompleted = this.isPrevBlockCompleted();
+                if (isPrevBlockCompleted) {
+                  this.updateButtonState(previousButtonClass, this.selectPrevious, true, 'None');
+                } else {
+                  this.updateButtonState(previousButtonClass, this.selectPrevious, isFirstTab, this.prevUrl);
+                }
+            } else {
+                this.updateButtonState(previousButtonClass, this.selectPrevious, isFirstTab, this.prevUrl);
+            }
 
             previousCarouselButtonClass = '.sequence-nav-button-carousel.button-previous-carousel';
             this.updateButtonState(previousCarouselButtonClass, this.selectPrevious, isFirstTab, this.prevUrl);
@@ -690,13 +702,21 @@
             var unitsArr = [];
             var firstUncompletedUnitPos = null;
             var firstUncompletedUnitTitle = null;
+            var isCurrentBlockCompleted = false;
+
+            if (!lockContent && this.disableUnitsAfterCompletion) {
+                isCurrentBlockCompleted = this.isBlockCompleted(newPosition);
+                if (isCurrentBlockCompleted) {
+                    lockContent = true;
+                }
+            }
 
             if (lockContent) {
                 this.el.find('.nav-item').each(function() {
                     unitsArr.push({
-                        'position': $(this).attr('data-element'),
-                        'title': $(this).attr('data-page-title'),
-                        'lock': $(this).hasClass('seq_lock')
+                        "position": $(this).attr('data-element'),
+                        "title": $(this).attr('data-page-title'),
+                        "lock": $(this).hasClass('seq_lock')
                     });
                 });
 
@@ -708,13 +728,21 @@
                 }
 
                 newHtml = '<div class="xblock xblock-student_view xblock-student_view-vertical xblock-initialized">' +
-                          '<div class="vert-mod seq-locked-content">' +
-                          '<h3 class="hd hd-3"><i class="fa fa-lock" aria-hidden="true"></i> Content Locked</h3>' +
-                          '<p>You must complete the prerequisite: "' + firstUncompletedUnitTitle + '" to access this content.</p>' +
-                          '<p><button type="button" class="btn-brand go-to-uncompleted-block">' +
-                          '<span class="submit-label">Go To Uncompleted Block</span></button></p>' +
-                          '</div>' +
-                          '</div>';
+                          '<div class="vert-mod seq-locked-content">';
+
+                if (this.disableUnitsAfterCompletion && isCurrentBlockCompleted) {
+                    newHtml += '<br /><p>Block is completed</p>';
+                } else {
+                    newHtml += '<h3 class="hd hd-3"><i class="fa fa-lock" aria-hidden="true"></i> Content Locked</h3>' +
+                      '<p>You must complete the prerequisite: "' + firstUncompletedUnitTitle + '" to access this content.</p>';
+                }
+
+                if (firstUncompletedUnitPos !== null) {
+                    newHtml += '<p><button type="button" class="btn-brand go-to-uncompleted-block">' +
+                              '<span class="submit-label">Go To Uncompleted Block</span></button></p>' +
+                              '</div>' +
+                              '</div>';
+                }
             } else {
                 newHtml = currentTab.text();
             }
@@ -727,7 +755,9 @@
 
             if (lockContent) {
                 this.content_container.find('.go-to-uncompleted-block').click(function() {
-                    self.render(firstUncompletedUnitPos, false);
+                    if (firstUncompletedUnitPos !== null) {
+                        self.render(firstUncompletedUnitPos, false);
+                    }
                 });
             }
 
@@ -766,6 +796,43 @@
             }
         };
 
+        Sequence.prototype.isPrevBlockCompleted = function() {
+            var completionArr = [];
+            var self = this;
+            var found = false;
+            var foundVal = false;
+
+            if (this.position === 0) {
+                return false;
+            }
+
+            this.el.find('.nav-item').each(function(idx) {
+                var completionIndicators = $(this).find('.check-circle');
+                var isCompleted = !$(completionIndicators).hasClass('is-hidden');
+                completionArr.push(isCompleted);
+                if ((idx === (self.position - 1)) && !found) {
+                    foundVal = completionArr[idx - 1];
+                    found = true;
+                }
+            });
+            if (found) {
+                return foundVal;
+            }
+            return false;
+        };
+
+        Sequence.prototype.isBlockCompleted = function(position) {
+            var completionArr = [];
+
+            this.el.find('.nav-item').each(function() {
+                var completionIndicators = $(this).find('.check-circle');
+                var isCompleted = !$(completionIndicators).hasClass('is-hidden');
+                completionArr.push(isCompleted);
+            });
+
+            return completionArr.length > 0 ? completionArr[position - 1] : false;
+        };
+
         Sequence.prototype.goto = function(event) {
             var alertTemplate, alertText, isBottomNav, newPosition, widgetPlacement;
             event.preventDefault();
@@ -779,6 +846,10 @@
             // Tab links generated by backend template
             } else {
                 newPosition = $(event.currentTarget).data('element');
+            }
+
+            if (this.disableUnitsAfterCompletion && this.isBlockCompleted(newPosition)) {
+                return true;
             }
 
             if ((newPosition >= 1) && (newPosition <= this.num_contents)) {
@@ -928,6 +999,7 @@
         };
 
         Sequence.prototype.update_completion = function(position, newPosition) {
+            var self = this;
             var element = this.link_for(position);
             var elementNew = this.link_for(newPosition);
             var elementNewLocked = $(elementNew[0]).hasClass('seq_lock');
@@ -949,6 +1021,9 @@
                             }
                         } else {
                             completionIndicators.removeClass('is-hidden');
+                            if (self.disableUnitsAfterCompletion) {
+                                $(element).css({ cursor: "default" });
+                            }
                         }
                     }
                     if (self.unitsSequentialCompletion && elementNewLocked) {

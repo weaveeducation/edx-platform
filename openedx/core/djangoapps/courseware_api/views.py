@@ -671,6 +671,7 @@ class SequenceMetadata(DeveloperErrorViewMixin, APIView):
         is_time_exam = getattr(sequence, 'is_proctored_exam', False) or getattr(sequence, 'is_time_limited', False)
         res['show_summary_info_after_quiz'] = course.show_summary_info_after_quiz and sequence.graded and not is_time_exam
         res['units_sequential_completion'] = sequence.units_sequential_completion
+        res['disable_units_after_completion'] = sequence.disable_units_after_completion
         res['user_must_fill_additional_profile_fields'] = user_must_fill_additional_profile_fields(
             course, request.user, sequence)
         res['profile_fields_url'] = reverse('credo_modules_profile', kwargs={'course_id': str(course.id)})

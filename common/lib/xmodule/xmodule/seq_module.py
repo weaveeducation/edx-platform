@@ -177,6 +177,13 @@ class SequenceFields:  # lint-amnesty, pylint: disable=missing-class-docstring
         help=_("Each 'Unit' is available only after completion the previous one")
     )
 
+    disable_units_after_completion = Boolean(
+        display_name=_("Disable 'Unit' after completion"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Disable 'Unit' after completion")
+    )
+
 
 class SequenceMixin(SequenceFields):
     """
@@ -686,6 +693,7 @@ class SequenceBlock(
             'show_summary_info_after_quiz': False if is_time_exam else context.get('show_summary_info_after_quiz',
                                                                                    False),
             'units_sequential_completion': 1 if self.units_sequential_completion and not is_studio else 0,
+            'disable_units_after_completion': 1 if self.disable_units_after_completion and not is_studio else 0,
             'badge_id': badge_id if badge_id else None,
 
             'summary_info_imgs': context.get('summary_info_imgs', {

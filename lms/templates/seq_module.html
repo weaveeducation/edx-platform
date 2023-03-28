@@ -18,6 +18,7 @@
      data-graded=${"1" if graded else "0"}
      data-show-summary-info-after-quiz=${"1" if show_summary_info_after_quiz else "0"}
      data-units-sequential-completion=${"1" if units_sequential_completion else "0"}
+     data-disable-units-after-completion=${"1" if disable_units_after_completion else "0"}
      data-badge-id=${"1" if badge_id else "0"}
      data-correct-icon="${summary_info_imgs['correct_icon']}"
      data-incorrect-icon="${summary_info_imgs['incorrect_icon']}"
@@ -159,6 +160,9 @@
         % for idx, item in enumerate(items):
         <li role="presentation">
           <button class="seq_${'lock' if item['lock'] else item['type']} inactive nav-item tab"
+            % if disable_units_after_completion and 'complete' in item and item['complete']:
+            style="cursor: default"
+            % endif
             role="tab"
             tabindex="-1"
             aria-selected="false"
