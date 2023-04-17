@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import tarfile
+import zipfile
 from datetime import datetime
 from tempfile import NamedTemporaryFile, mkdtemp
 
@@ -21,6 +22,7 @@ from django.core.exceptions import SuspiciousOperation
 from django.core.files import File
 from django.test import RequestFactory
 from django.utils.text import get_valid_filename
+from django.utils.translation import gettext as _
 from edx_django_utils.monitoring import (
     set_code_owner_attribute,
     set_code_owner_attribute_from_module,
@@ -47,9 +49,13 @@ from cms.djangoapps.contentstore.courseware_index import (
 from cms.djangoapps.contentstore.storage import course_import_export_storage
 from cms.djangoapps.contentstore.utils import initialize_permissions, reverse_usage_url, translation_language
 from cms.djangoapps.models.settings.course_metadata import CourseMetadata
+from cms.djangoapps.contentstore.qti_converter import convert_to_olx
+from cms.djangoapps.contentstore.api_block_info import create_api_block_info, get_content_version, copy_milestones
 from common.djangoapps.course_action_state.models import CourseRerunState
 from common.djangoapps.student.auth import has_course_author_access
 from common.djangoapps.util.monitoring import monitor_import_failure
+from common.djangoapps.util.module_utils import yield_dynamic_descriptor_descendants
+from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo
 from openedx.core.djangoapps.content.learning_sequences.api import key_supports_outlines
 from openedx.core.djangoapps.course_apps.toggles import exams_ida_enabled
 from openedx.core.djangoapps.discussions.tasks import update_unit_discussion_state_from_discussion_blocks
@@ -101,6 +107,47 @@ def clone_instance(instance, field_values):
     return instance
 
 
+def copy_api_block_info_after_course_copy(store, source_course_key, destination_course_key, user_id):
+    user = User.objects.get(id=user_id)
+    destination_course_id = str(destination_course_key)
+    ApiBlockInfo.objects.filter(course_id=destination_course_id).delete()
+
+    api_blocks_to_insert = []
+    api_block_keys = []
+    with store.bulk_operations(source_course_key):
+        course_src = store.get_course(source_course_key)
+        chapters = course_src.get_children()
+        for chapter in chapters:
+            for module in yield_dynamic_descriptor_descendants(chapter, user_id):
+                published_after_copy = True
+                if store.has_changes(module):
+                    published_after_copy = False
+
+                source_block_info = ApiBlockInfo.objects.filter(block_id=str(module.location)).first()
+                if source_block_info:
+                    source_block_hash = source_block_info.hash_id
+                else:
+                    source_block_info = create_api_block_info(module.location, user, auto_save=False)
+                    source_block_hash = source_block_info.hash_id
+                    source_block_key = source_block_info.course_id + '|' + source_block_info.block_id
+                    if source_block_key not in api_block_keys:
+                        api_blocks_to_insert.append(source_block_info)
+                        api_block_keys.append(source_block_key)
+
+                content_version = get_content_version(module)
+                dst_location = module.location.map_into_course(destination_course_key)
+                dst_block_info = create_api_block_info(
+                    dst_location, user, block_hash_id=source_block_hash, created_as_copy=True,
+                    created_as_copy_from_course_id=str(source_course_key), published_after_copy=published_after_copy,
+                    published_content_version=content_version, auto_save=False)
+                dst_block_key = dst_block_info.course_id + '|' + dst_block_info.block_id
+                if dst_block_key not in api_block_keys:
+                    api_blocks_to_insert.append(dst_block_info)
+                    api_block_keys.append(dst_block_key)
+
+    ApiBlockInfo.objects.bulk_create(api_blocks_to_insert, 1000)
+
+
 @shared_task
 @set_code_owner_attribute
 def rerun_course(source_course_key_string, destination_course_key_string, user_id, fields=None):
@@ -121,6 +168,9 @@ def rerun_course(source_course_key_string, destination_course_key_string, user_i
         store = modulestore()
         with store.default_store('split'):
             store.clone_course(source_course_key, destination_course_key, user_id, fields=fields)
+
+        copy_api_block_info_after_course_copy(store, source_course_key, destination_course_key, user_id)
+        copy_milestones(str(source_course_key), str(destination_course_key))
 
         update_unit_discussion_state_from_discussion_blocks(destination_course_key, user_id)
 
@@ -475,7 +525,9 @@ def import_olx(self, user_id, course_key_string, archive_path, archive_name, lan
 
     def file_is_supported():
         """Check if it is a supported file."""
-        file_is_valid = archive_name.endswith('.tar.gz')
+        file_is_valid = False
+        if archive_name.endswith('.tar.gz') or archive_name.endswith('.zip'):
+            file_is_valid = True
 
         if not file_is_valid:
             message = f'Unsupported file {archive_name}'
@@ -604,17 +656,24 @@ def import_olx(self, user_id, course_key_string, archive_path, archive_name, lan
 
     # try-finally block for proper clean up after receiving file.
     try:
-        tar_file = tarfile.open(temp_filepath)  # lint-amnesty, pylint: disable=consider-using-with
-        try:
-            safetar_extractall(tar_file, (course_dir + '/'))
-        except SuspiciousOperation as exc:
-            with translation_language(language):
-                self.status.fail(UserErrors.UNSAFE_TAR_FILE)
-            LOGGER.error(f'{log_prefix}: Unsafe tar file')
-            monitor_import_failure(courselike_key, current_step, exception=exc)
-            return
-        finally:
-            tar_file.close()
+        if temp_filepath.endswith('.tar.gz'):
+            tar_file = tarfile.open(temp_filepath)
+            try:
+                safetar_extractall(tar_file, (course_dir + '/'))
+            except SuspiciousOperation as exc:
+                LOGGER.info('Course import %s: Unsafe tar file - %s', courselike_key, exc.args[0])
+                with translation_language(language):
+                    self.status.fail(_('Unsafe tar file. Aborting import.'))
+                return
+            finally:
+                tar_file.close()
+        else:
+            zip_file = zipfile.ZipFile(temp_filepath)
+            zip_file.extractall(course_dir + '/')
+            zip_file.close()
+
+        if os.path.isfile(course_dir + '/imsmanifest.xml'):
+            convert_to_olx(course_dir + '/')
 
         current_step = 'Verifying'
         self.status.set_state(current_step)

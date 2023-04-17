@@ -315,6 +315,14 @@ def own_metadata(block):
     return block.get_explicitly_set_fields_by_scope(Scope.settings)
 
 
+def get_settings_data(module):
+    result = {}
+    for field in module.fields.values():  # lint-amnesty, pylint: disable=no-member
+        if field.scope == Scope.settings:
+            result[field.name] = getattr(module, field.name, None)
+    return result
+
+
 class InheritingFieldData(KvsFieldData):
     """A `FieldData` implementation that can inherit value from parents to children."""
 

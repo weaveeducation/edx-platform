@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import shutil
+import zipfile
 from wsgiref.util import FileWrapper
 
 from django.conf import settings
@@ -36,15 +37,22 @@ from common.djangoapps.student.auth import has_course_author_access
 from common.djangoapps.util.json_request import JsonResponse
 from common.djangoapps.util.monitoring import monitor_import_failure
 from common.djangoapps.util.views import ensure_valid_course_key
-from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disable=wrong-import-order
+from xmodule.modulestore.django import modulestore
+from xmodule.modulestore.xml_exporter import export_course_to_xml_cc
+from xmodule.exceptions import SerializationError
+
+from django.core.files.temp import NamedTemporaryFile
+from tempfile import mkdtemp
+from xmodule.contentstore.django import contentstore
+from cms.djangoapps.contentstore.utils import reverse_usage_url
 
 from ..storage import course_import_export_storage
 from ..tasks import CourseExportTask, CourseImportTask, export_olx, import_olx
-from ..utils import reverse_course_url, reverse_library_url
+from ..utils import reverse_course_url, reverse_library_url, feature_is_available
 
 __all__ = [
     'import_handler', 'import_status_handler',
-    'export_handler', 'export_output_handler', 'export_status_handler',
+    'export_handler', 'export_output_handler', 'export_status_handler', 'export_handler_cc'
 ]
 
 log = logging.getLogger(__name__)
@@ -77,6 +85,9 @@ def import_handler(request, course_key_string):
         context_name = 'context_library'
         courselike_block = modulestore().get_library(courselike_key)
     else:
+        if not feature_is_available(courselike_key, request.user, 'top_menu_tools'):
+            raise PermissionDenied()
+
         successful_url = reverse_course_url('course_handler', courselike_key)
         context_name = 'context_course'
         courselike_block = modulestore().get_course(courselike_key)
@@ -136,7 +147,7 @@ def _write_chunk(request, courselike_key):  # lint-amnesty, pylint: disable=too-
         # Use sessions to keep info about import progress
         _save_request_status(request, courselike_string, 0)
 
-        if not filename.endswith('.tar.gz'):
+        if not filename.endswith('.tar.gz') and not filename.endswith('.zip'):
             error_message = _('We only support uploading a .tar.gz file.')
             _save_request_status(request, courselike_string, -1)
             monitor_import_failure(courselike_key, current_step, message=error_message)
@@ -319,6 +330,9 @@ def export_handler(request, course_key_string):
             'library': True
         }
     else:
+        if not feature_is_available(course_key, request.user, 'top_menu_tools'):
+            raise PermissionDenied()
+
         courselike_block = modulestore().get_course(course_key)
         if courselike_block is None:
             raise Http404
@@ -453,3 +467,95 @@ def _latest_task_status(request, course_key_string, view_func=None):
     for status_filter in STATUS_FILTERS:
         task_status = status_filter().filter_queryset(request, task_status, view_func)
     return task_status.order_by('-created').first()
+
+
+def create_export_tarball_cc(course_module, course_key, context):
+    """
+    Generates the export tarball, or returns None if there was an error.
+    Updates the context with any error information if applicable.
+    """
+    name = course_module.url_name
+    export_file = NamedTemporaryFile(prefix=name + '.', suffix=".imscc")
+    root_dir = path(mkdtemp())
+
+    try:
+        export_course_to_xml_cc(modulestore(), contentstore(), course_module.id, root_dir, name, settings.BASE_LTI_LINK)
+
+        logging.debug('tar file being generated at %s', export_file.name)
+        zipf = zipfile.ZipFile(export_file.name, 'w', zipfile.ZIP_DEFLATED)
+        for root, dirs, files in os.walk(root_dir):
+            for item in files:
+                zipf.write(os.path.join(root, item), os.path.join(root[len(root_dir) + 1:], item))
+        zipf.close()
+
+    except SerializationError as exc:
+        log.exception('There was an error exporting %s', course_key)
+        unit = None
+        failed_item = None
+        parent = None
+
+        context.update({
+            'in_err': True,
+            'raw_err_msg': str(exc),
+            'failed_module': failed_item,
+            'unit': unit,
+            'edit_unit_url': reverse_usage_url("container_handler", parent.location) if parent else "",
+        })
+        raise
+    except Exception as exc:
+        log.exception('There was an error exporting %s', course_key)
+        context.update({
+            'in_err': True,
+            'unit': None,
+            'raw_err_msg': str(exc)})
+        raise
+
+    return export_file
+
+
+@ensure_csrf_cookie
+@login_required
+@require_http_methods(("GET",))
+@ensure_valid_course_key
+def export_handler_cc(request, course_key_string):
+    """
+    The restful handler for exporting a course in common cartridge format.
+    GET
+        html: return html page for import page
+        application/x-tgz: return .imscc file containing exported course
+        json: not supported
+    """
+    course_key = CourseKey.from_string(course_key_string)
+    export_url_cc = reverse_course_url('export_cc_handler', course_key)
+    if not has_course_author_access(request.user, course_key):
+        raise PermissionDenied()
+    if not feature_is_available(course_key, request.user, 'top_menu_tools'):
+        raise PermissionDenied()
+
+    courselike_module = modulestore().get_course(course_key)
+    if courselike_module is None:
+        raise Http404
+
+    context = {
+        'context_course': courselike_module,
+        'courselike_home_url': reverse_course_url("course_handler", course_key),
+        'library': False,
+        'export_url_cc': export_url_cc + '?_accept=application/x-tgz'
+    }
+
+    # an _accept URL parameter will be preferred over HTTP_ACCEPT in the header.
+    requested_format = request.GET.get('_accept', request.META.get('HTTP_ACCEPT', 'text/html'))
+
+    if 'application/x-tgz' in requested_format:
+        try:
+            tarball = create_export_tarball_cc(courselike_module, course_key, context)
+        except SerializationError:
+            return render_to_response('export_cc.html', context)
+        return send_tarball(tarball, None)
+
+    elif 'text/html' in requested_format:
+        return render_to_response('export_cc.html', context)
+
+    else:
+        # Only HTML or x-tgz request formats are supported (no JSON).
+        return HttpResponse(status=406)

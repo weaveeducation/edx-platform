@@ -31,6 +31,7 @@ from xmodule.modulestore import ModuleStoreEnum  # lint-amnesty, pylint: disable
 from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.modulestore.exceptions import ItemNotFoundError  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.partitions.partitions_service import get_all_partitions_for_course  # lint-amnesty, pylint: disable=wrong-import-order
+from common.djangoapps.credo_modules.models import get_custom_user_role, get_extended_role_default_permissions
 
 log = logging.getLogger(__name__)
 
@@ -113,12 +114,15 @@ def get_lms_link_for_item(location, preview=False):
     """
     assert isinstance(location, UsageKey)
 
+    conf_lms_base = configuration_helpers.get_value('LMS_BASE', settings.LMS_BASE)
+
     # checks LMS_BASE value in site configuration for the given course_org_filter(org)
     # if not found returns settings.LMS_BASE
     lms_base = SiteConfiguration.get_value_for_org(
         location.org,
         "LMS_BASE",
-        settings.LMS_BASE
+        settings.LMS_BASE,
+        conf_lms_base
     )
 
     if lms_base is None:
@@ -130,7 +134,7 @@ def get_lms_link_for_item(location, preview=False):
         lms_base = SiteConfiguration.get_value_for_org(
             location.org,
             "PREVIEW_LMS_BASE",
-            settings.FEATURES.get('PREVIEW_LMS_BASE')
+            configuration_helpers.get_value('PREVIEW_LMS_BASE', settings.FEATURES.get('PREVIEW_LMS_BASE'))
         )
 
     return "//{lms_base}/courses/{course_key}/jump_to/{location}".format(
@@ -731,3 +735,22 @@ def translation_language(language):
             translation.activate(previous)
     else:
         yield
+
+
+def feature_is_available(course_key, user, feature):
+    if not hasattr(user, 'extended_role'):
+        role = get_custom_user_role(course_key, user, check_enrollment=False)
+        setattr(user, 'extended_role', role)
+    if user.extended_role:
+        return getattr(user.extended_role, feature)
+    return True
+
+
+def get_role_features(course_key, user):
+    if not hasattr(user, 'extended_role'):
+        role = get_custom_user_role(course_key, user, check_enrollment=False)
+        setattr(user, 'extended_role', role)
+    if user.extended_role:
+        return user.extended_role.to_dict()
+    else:
+        return get_extended_role_default_permissions()
