@@ -24,13 +24,14 @@ from common.djangoapps.edxmako.shortcuts import render_to_response
 from common.djangoapps.student.auth import has_course_author_access
 from common.djangoapps.xblock_django.api import authorable_xblocks, disabled_xblocks
 from common.djangoapps.xblock_django.models import XBlockStudioConfigurationFlag
+from common.djangoapps.credo_modules.models import CourseStaffExtended
 from cms.djangoapps.contentstore.toggles import use_new_problem_editor
 from openedx.core.lib.xblock_utils import get_aside_from_xblock, is_xblock_aside
 from openedx.core.djangoapps.discussions.models import DiscussionsConfiguration
 from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.modulestore.exceptions import ItemNotFoundError  # lint-amnesty, pylint: disable=wrong-import-order
 
-from ..utils import get_lms_link_for_item, get_sibling_urls, reverse_course_url
+from ..utils import get_lms_link_for_item, get_sibling_urls, reverse_course_url, get_role_features
 from .helpers import get_parent_xblock, is_unit, xblock_type_display_name
 from .block import StudioEditModuleRuntime, add_container_page_publishing_info, create_xblock_info
 
@@ -123,7 +124,16 @@ def container_handler(request, usage_key_string):
             except ItemNotFoundError:
                 return HttpResponseBadRequest()
 
-            component_templates = get_component_templates(course)
+            component_templates = []
+            component_templates_tmp = get_component_templates(course)
+
+            features = get_role_features(course.id, request.user)
+            for tpl in component_templates_tmp:
+                if (tpl['type'] == 'advanced' and features['unit_add_advanced_component']) \
+                    or (tpl['type'] == 'discussion' and features['unit_add_discussion_component']) \
+                    or (tpl['type'] not in ('advanced', 'discussion')):
+                    component_templates.append(tpl)
+
             ancestor_xblocks = []
             parent = get_parent_xblock(xblock)
             action = request.GET.get('action', 'view')
@@ -380,7 +390,8 @@ def get_component_templates(courselike, library=False):  # lint-amnesty, pylint:
                 )
                 if advanced_component_support_level:
                     try:
-                        component_display_name = xblock_type_display_name(component)
+                        if not component_display_name:
+                            component_display_name = xblock_type_display_name(component)
                     except PluginMissingError:
                         log.warning('Unable to load xblock type %s to read display_name', component, exc_info=True)
                     else:
@@ -521,6 +532,12 @@ def _get_item_in_course(request, usage_key):
     course_key = usage_key.course_key
 
     if not has_course_author_access(request.user, course_key):
+        raise PermissionDenied()
+
+    if CourseStaffExtended.objects.filter(
+        role__course_studio_access=False,
+        user=request.user,
+        course_id=course_key).exists():
         raise PermissionDenied()
 
     course = modulestore().get_course(course_key)
