@@ -54,6 +54,7 @@ from lms.djangoapps.courseware.courses import get_course_date_blocks, get_course
 from lms.djangoapps.courseware.date_summary import TodaysDate
 from lms.djangoapps.courseware.context_processor import user_timezone_locale_prefs
 from lms.djangoapps.course_home_api.dates.serializers import DateSummarySerializer
+from common.djangoapps.credo_modules.models import LoginRedirectAllowedHost
 from openedx.core.djangoapps.content.block_structure.exceptions import UsageKeyNotInBlockStructure
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.theming.helpers import get_themes
@@ -366,6 +367,7 @@ def _get_redirect_to(request_host, request_headers, request_params, request_is_h
             request_host=request_host,
             dot_client_id=request_params.get('client_id'),
             require_https=request_is_https,
+            login_redirect_whitelist_dict=LoginRedirectAllowedHost.get_all(),
         )
         if not safe_redirect:
             log.warning(

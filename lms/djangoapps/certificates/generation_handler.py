@@ -352,6 +352,8 @@ def is_on_certificate_allowlist(user, course_key):
     """
     Check if the user is on the allowlist, and is enabled for the allowlist, for this course run
     """
+    if not user.id:
+        return False
     return CertificateAllowlist.objects.filter(user=user, course_id=course_key, allowlist=True).exists()
 
 

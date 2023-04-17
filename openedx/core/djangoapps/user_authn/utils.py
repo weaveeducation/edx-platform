@@ -26,7 +26,8 @@ def _remove_unsafe_bytes_from_url(url):
     return url
 
 
-def is_safe_login_or_logout_redirect(redirect_to, request_host, dot_client_id, require_https):
+def is_safe_login_or_logout_redirect(redirect_to, request_host, dot_client_id, require_https,
+                                     login_redirect_whitelist_dict=None):
     """
     Determine if the given redirect URL/path is safe for redirection.
 
@@ -42,6 +43,8 @@ def is_safe_login_or_logout_redirect(redirect_to, request_host, dot_client_id, r
             This argument is ignored if it is None.
         require_https (str):
             Whether HTTPs should be required in the redirect URL.
+        login_redirect_whitelist_dict (dict):
+            Format: {host: require_https}
 
     Returns: bool
     """
@@ -49,6 +52,12 @@ def is_safe_login_or_logout_redirect(redirect_to, request_host, dot_client_id, r
     login_redirect_whitelist.add(request_host)
 
     redirect_to = _remove_unsafe_bytes_from_url(redirect_to)
+
+    if login_redirect_whitelist_dict:
+        login_redirect_whitelist.update(list(login_redirect_whitelist_dict.keys()))
+        redirect_host = urlparse(redirect_to).netloc
+        if redirect_host and redirect_host in login_redirect_whitelist_dict:
+            require_https = login_redirect_whitelist_dict[redirect_host]
 
     # Allow OAuth2 clients to redirect back to their site after logout.
     if dot_client_id:

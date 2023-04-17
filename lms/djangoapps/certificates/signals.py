@@ -103,6 +103,9 @@ def _listen_for_failing_grade(sender, user, course_id, grade, **kwargs):  # pyli
                  f'certificate.')
         return
 
+    if not user.id:
+        return
+
     cert = GeneratedCertificate.certificate_for_student(user, course_id)
     if cert is not None:
         if CertificateStatuses.is_passing_status(cert.status):

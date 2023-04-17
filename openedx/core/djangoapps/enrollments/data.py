@@ -6,6 +6,7 @@ source to be used throughout the API.
 
 import logging
 
+from django.conf import settings
 from django.contrib.auth.models import User  # lint-amnesty, pylint: disable=imported-auth-user
 from django.db import transaction
 from opaque_keys.edx.keys import CourseKey
@@ -15,6 +16,7 @@ from openedx.core.djangoapps.enrollments.errors import (
     CourseEnrollmentClosedError,
     CourseEnrollmentExistsError,
     CourseEnrollmentFullError,
+    CourseEnrollmentInactiveAccountError,
     InvalidEnrollmentAttribute,
     UserNotFoundError
 )
@@ -24,6 +26,7 @@ from common.djangoapps.student.models import (
     AlreadyEnrolledError,
     CourseEnrollment,
     CourseEnrollmentAttribute,
+    CourseEnrollmentAllowed,
     CourseFullError,
     EnrollmentClosedError,
     NonExistentCourseError
@@ -148,10 +151,14 @@ def create_course_enrollment(username, course_id, mode, is_active, enterprise_uu
         raise UserNotFoundError(msg)  # lint-amnesty, pylint: disable=raise-missing-from
 
     try:
-        enrollment = CourseEnrollment.enroll(
-            user, course_key, check_access=True, can_upgrade=force_enrollment, enterprise_uuid=enterprise_uuid
-        )
-        return _update_enrollment(enrollment, is_active=is_active, mode=mode)
+        if settings.FEATURES.get('ENROLL_ACTIVE_USERS_ONLY', False) and not user.is_active:
+            with transaction.atomic():
+                CourseEnrollmentAllowed.objects.get_or_create(course_id=course_key, email=user.email,
+                                                              auto_enroll=True)
+            raise CourseEnrollmentInactiveAccountError("Please, activate your account")
+        else:
+            enrollment = CourseEnrollment.enroll(user, course_key, check_access=True, enterprise_uuid=enterprise_uuid)
+            return _update_enrollment(enrollment, is_active=is_active, mode=mode)
     except NonExistentCourseError as err:
         raise CourseNotFoundError(str(err))  # lint-amnesty, pylint: disable=raise-missing-from
     except EnrollmentClosedError as err:

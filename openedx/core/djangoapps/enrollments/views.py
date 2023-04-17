@@ -37,7 +37,8 @@ from openedx.core.djangoapps.enrollments import api
 from openedx.core.djangoapps.enrollments.errors import (
     CourseEnrollmentError,
     CourseEnrollmentExistsError,
-    CourseModeNotFoundError
+    CourseModeNotFoundError,
+    CourseEnrollmentInactiveAccountError,
 )
 from openedx.core.djangoapps.enrollments.forms import CourseEnrollmentsApiListForm
 from openedx.core.djangoapps.enrollments.paginators import CourseEnrollmentsApiListPagination
@@ -860,6 +861,11 @@ class EnrollmentListView(APIView, ApiKeyPermissionMixIn):
         except CourseEnrollmentExistsError as error:
             log.warning('An enrollment already exists for user [%s] in course run [%s].', username, course_id)
             return Response(data=error.enrollment)
+        except CourseEnrollmentInactiveAccountError:
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"message": "Please, activate your account"}
+            )
         except CourseEnrollmentError:
             log.exception("An error occurred while creating the new course enrollment for user "
                           "[%s] in course run [%s]", username, course_id)

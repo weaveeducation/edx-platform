@@ -26,6 +26,10 @@ class CourseEnrollmentFullError(CourseEnrollmentError):
     pass
 
 
+class CourseEnrollmentInactiveAccountError(CourseEnrollmentError):
+    pass
+
+
 class CourseEnrollmentExistsError(CourseEnrollmentError):  # lint-amnesty, pylint: disable=missing-class-docstring
     enrollment = None
 
