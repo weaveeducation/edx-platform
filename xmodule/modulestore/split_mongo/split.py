@@ -657,6 +657,9 @@ class SplitMongoModuleStore(SplitBulkWriteMixin, ModuleStoreWriteBase):
         if default_class is not None:
             module_path, __, class_name = default_class.rpartition('.')
             try:
+                if class_name == "HiddenDescriptor":
+                    module_path = "xmodule.hidden_block"
+                    class_name = "HiddenBlock"
                 class_ = getattr(import_module(module_path), class_name)
             except (ImportError, AttributeError):
                 fallback_module_path = "xmodule.hidden_block"
