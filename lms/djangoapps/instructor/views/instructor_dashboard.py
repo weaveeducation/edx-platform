@@ -6,8 +6,11 @@ Instructor Dashboard Views
 import datetime
 import logging
 import uuid
+import hashlib
+import json
 from functools import reduce
 from unittest.mock import patch
+from urllib.parse import quote_plus
 
 import pytz
 from django.conf import settings
@@ -38,6 +41,7 @@ from common.djangoapps.student.roles import (
     CourseStaffRole
 )
 from common.djangoapps.util.json_request import JsonResponse
+from common.djangoapps.credo_modules.models import Organization, Feature, CourseStaffExtended, get_org_roles_types
 from lms.djangoapps.bulk_email.api import is_bulk_email_feature_enabled
 from lms.djangoapps.bulk_email.models_api import is_bulk_email_disabled_for_course
 from lms.djangoapps.certificates import api as certs_api
@@ -54,6 +58,8 @@ from lms.djangoapps.courseware.block_render import get_block_by_usage_id
 from lms.djangoapps.discussion.django_comment_client.utils import has_forum_access
 from lms.djangoapps.grades.api import is_writable_gradebook_enabled
 from lms.djangoapps.instructor.constants import INSTRUCTOR_DASHBOARD_PLUGIN_VIEW_NAME
+from lms.djangoapps.instructor.models import InstructorAvailableSections
+from lms.djangoapps.course_api.views import get_customer_info
 from openedx.core.djangoapps.course_groups.cohorts import DEFAULT_COHORT_NAME, get_course_cohorts, is_course_cohorted
 from openedx.core.djangoapps.discussions.config.waffle_utils import legacy_discussion_experience_enabled
 from openedx.core.djangoapps.discussions.utils import available_division_schemes
@@ -117,6 +123,16 @@ def instructor_dashboard_2(request, course_id):  # lint-amnesty, pylint: disable
     except InvalidKeyError:
         log.error("Unable to find course with course key %s while loading the Instructor Dashboard.", course_id)
         return HttpResponseServerError()
+    with modulestore().bulk_operations(course_key):
+        return _get_instructor_dashboard_2(request, course_id)
+
+
+def _get_instructor_dashboard_2(request, course_id):
+    try:
+        course_key = CourseKey.from_string(course_id)
+    except InvalidKeyError:
+        log.error("Unable to find course with course key %s while loading the Instructor Dashboard.", course_id)
+        return HttpResponseServerError()
 
     if course_key.deprecated:
         raise Http404
@@ -136,24 +152,30 @@ def instructor_dashboard_2(request, course_id):  # lint-amnesty, pylint: disable
     if not request.user.has_perm(permissions.VIEW_DASHBOARD, course_key):
         raise Http404()
 
+    available_tabs = request.user.instructor_dashboard_tabs if hasattr(request.user, 'instructor_dashboard_tabs') \
+        else InstructorAvailableSections()
+
     sections = []
     if access['staff']:
-        sections_content = [
-            _section_course_info(course, access),
-            _section_membership(course, access),
-            _section_cohort_management(course, access),
-            _section_student_admin(course, access),
-        ]
-
-        if legacy_discussion_experience_enabled(course_key):
+        sections_content = []
+        if available_tabs.show_course_info:
+            sections_content.append(_section_course_info(course, access, available_tabs))
+        if available_tabs.show_membership:
+            sections_content.append(_section_membership(course, access))
+        if available_tabs.show_cohort:
+            sections_content.append(_section_cohort_management(course, access))
+        if available_tabs.show_discussions_management and legacy_discussion_experience_enabled(course_key):
             sections_content.append(_section_discussions_management(course, access))
+        if available_tabs.show_student_admin:
+            sections_content.append(_section_student_admin(course, access))
+
         sections.extend(sections_content)
 
-    if access['data_researcher']:
-        sections.append(_section_data_download(course, access))
+    if access['data_researcher'] and available_tabs.show_data_download:
+        sections.append(_section_data_download(course, access, request.user))
 
     analytics_dashboard_message = None
-    if show_analytics_dashboard_message(course_key) and (access['staff'] or access['instructor']):
+    if available_tabs.show_analytics and show_analytics_dashboard_message(course_key) and (access['staff'] or access['instructor']):
         # Construct a URL to the external analytics dashboard
         analytics_dashboard_url = f'{settings.ANALYTICS_DASHBOARD_URL}/courses/{str(course_key)}'
         link_start = HTML("<a href=\"{}\" rel=\"noopener\" target=\"_blank\">").format(analytics_dashboard_url)
@@ -184,6 +206,7 @@ def instructor_dashboard_2(request, course_id):  # lint-amnesty, pylint: disable
 
     # Gate access to course email by feature flag & by course-specific authorization
     if (
+        available_tabs.show_email and
         is_bulk_email_feature_enabled(course_key) and not
         is_bulk_email_disabled_for_course(course_key) and
         (access['staff'] or access['instructor'])
@@ -209,18 +232,37 @@ def instructor_dashboard_2(request, course_id):  # lint-amnesty, pylint: disable
     # and enable self-generated certificates for a course.
     # Note: This is hidden for all CCXs
     certs_enabled = CertificateGenerationConfiguration.current().enabled and not hasattr(course_key, 'ccx')
-    if certs_enabled and access['admin']:
+    if available_tabs.show_certificates and certs_enabled and access['admin']:
         sections.append(_section_certificates(course))
 
-    openassessment_blocks = modulestore().get_items(
-        course_key, qualifiers={'category': 'openassessment'}
-    )
-    # filter out orphaned openassessment blocks
-    openassessment_blocks = [
-        block for block in openassessment_blocks if block.parent is not None
-    ]
-    if len(openassessment_blocks) > 0 and access['staff']:
-        sections.append(_section_open_response_assessment(request, course, openassessment_blocks, access))
+    if available_tabs.show_open_responses:
+        openassessment_blocks = modulestore().get_items(
+            course_key, qualifiers={'category': 'openassessment'}
+        )
+        # filter out orphaned openassessment blocks
+        openassessment_blocks = [
+            block for block in openassessment_blocks if block.parent is not None
+        ]
+        if len(openassessment_blocks) > 0 and access['staff']:
+            sections.append(_section_open_response_assessment(request, course, openassessment_blocks, access))
+
+    if available_tabs.show_lti_constructor:
+        sections.append(_section_lti_constructor(request, course))
+
+    display_credo_insights_link = True
+    try:
+        org = Organization.objects.get(org=course_key.org)
+        if org.org_type is not None:
+            display_credo_insights_link = org.org_type.instructor_dashboard_credo_insights
+    except Organization.DoesNotExist:
+        pass
+
+    if display_credo_insights_link and available_tabs.show_insights_link:
+        sections.append(_section_credo_insights(request, course))
+
+    site_support_nw_help = configuration_helpers.get_value('SHOW_NW_HELP', False)
+    if available_tabs.show_nw_help and site_support_nw_help:
+        sections.append(_section_nw_help(request, course))
 
     disable_buttons = not CourseEnrollment.objects.is_small_course(course_key)
 
@@ -245,9 +287,16 @@ def instructor_dashboard_2(request, course_id):  # lint-amnesty, pylint: disable
 
     certificate_invalidations = CertificateInvalidation.get_certificate_invalidations(course_key)
 
+    studio_staff_access = True
+    if not available_tabs.show_studio_link \
+        or CourseStaffExtended.objects.filter(role__course_studio_access=False,
+                                              user=request.user, course_id=course_key).exists():
+        studio_staff_access = False
+
     context = {
         'course': course,
         'studio_url': get_studio_url(course, 'course'),
+        'studio_staff_access': studio_staff_access,
         'sections': sections,
         'disable_buttons': disable_buttons,
         'analytics_dashboard_message': analytics_dashboard_message,
@@ -368,6 +417,10 @@ def _section_certificates(course):
                 'start_certificate_regeneration',
                 kwargs={'course_id': course.id}
             ),
+            'generate_missing_certificates': reverse(
+                'generate_missing_certificates',
+                kwargs={'course_id': course.id}
+            ),
             'list_instructor_tasks_url': reverse(
                 'list_instructor_tasks',
                 kwargs={'course_id': course.id}
@@ -412,7 +465,7 @@ def set_course_mode_price(request, course_id):
     return JsonResponse({'message': _("CourseMode price updated successfully")})
 
 
-def _section_course_info(course, access):
+def _section_course_info(course, access, available_tabs):
     """ Provide data for the corresponding dashboard section """
     course_key = course.id
 
@@ -435,7 +488,7 @@ def _section_course_info(course, access):
     if settings.FEATURES.get('DISPLAY_ANALYTICS_ENROLLMENTS'):
         section_data['enrollment_count'] = CourseEnrollment.objects.enrollment_counts(course_key)
 
-    if show_analytics_dashboard_message(course_key):
+    if available_tabs.show_analytics and show_analytics_dashboard_message(course_key):
         #  dashboard_link is already made safe in _get_dashboard_link
         dashboard_link = _get_dashboard_link(course_key)
         #  so we can use Text() here so it's not double-escaped and rendering HTML on the front-end
@@ -469,6 +522,7 @@ def _section_membership(course, access):
         'section_key': 'membership',
         'section_display_name': _('Membership'),
         'access': access,
+        'custom_roles': get_org_roles_types(course_key.org, include_default_roles=False),
         'ccx_is_enabled': ccx_enabled,
         'enroll_button_url': reverse('students_update_enrollment', kwargs={'course_id': str(course_key)}),
         'unenroll_button_url': reverse('students_update_enrollment', kwargs={'course_id': str(course_key)}),
@@ -490,7 +544,8 @@ def _section_membership(course, access):
             'update_forum_role_membership',
             kwargs={'course_id': str(course_key)}
         ),
-        'is_reason_field_enabled': configuration_helpers.get_value('ENABLE_MANUAL_ENROLLMENT_REASON_FIELD', False)
+        'is_reason_field_enabled': configuration_helpers.get_value('ENABLE_MANUAL_ENROLLMENT_REASON_FIELD', False),
+        'current_platform_name': configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
     }
     return section_data
 
@@ -537,7 +592,16 @@ def _section_student_admin(course, access):
     course_key = course.id
     is_small_course = CourseEnrollment.objects.is_small_course(course_key)
 
+    enable_extended_progress_page = False
+    try:
+        org = Organization.objects.get(org=course_key.org)
+        if org.org_type is not None:
+            enable_extended_progress_page = org.org_type.enable_extended_progress_page
+    except Organization.DoesNotExist:
+        pass
+
     section_data = {
+        'enable_extended_progress_page': enable_extended_progress_page,
         'section_key': 'student_admin',
         'section_display_name': _('Student Admin'),
         'access': access,
@@ -559,6 +623,9 @@ def _section_student_admin(course, access):
             'reset_student_attempts_for_entrance_exam',
             kwargs={'course_id': str(course_key)},
         ),
+        'reset_progress_student_url': reverse('reset_progress_student', kwargs={'course_id': str(course_key)}),
+        'list_reset_progress_tasks_url': reverse('list_reset_progress_tasks',
+                                                 kwargs={'course_id': str(course_key)}),
         'rescore_problem_url': reverse('rescore_problem', kwargs={'course_id': str(course_key)}),
         'override_problem_score_url': reverse(
             'override_problem_score',
@@ -575,6 +642,7 @@ def _section_student_admin(course, access):
             kwargs={'course_id': str(course_key)}
         ),
         'spoc_gradebook_url': reverse('spoc_gradebook', kwargs={'course_id': str(course_key)}),
+        'current_platform_name': configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
     }
     if is_writable_gradebook_enabled(course_key) and settings.WRITABLE_GRADEBOOK_URL:
         section_data['writable_gradebook_url'] = f'{settings.WRITABLE_GRADEBOOK_URL}/{str(course_key)}'
@@ -595,11 +663,12 @@ def _section_extensions(course):
             'show_student_extensions',
             kwargs={'course_id': str(course.id)}
         ),
+        'current_platform_name': configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
     }
     return section_data
 
 
-def _section_data_download(course, access):
+def _section_data_download(course, access, user=None):
     """ Provide data for the corresponding dashboard section """
     course_key = course.id
 
@@ -638,7 +707,9 @@ def _section_data_download(course, access):
         'export_ora2_submission_files_url': reverse(
             'export_ora2_submission_files', kwargs={'course_id': str(course_key)}
         ),
+        'reports_datapicker': Feature.is_published(Feature.INSTRUCTOR_DASHBOARD_REPORTS_DATAPICKER, user),
         'export_ora2_summary_url': reverse('export_ora2_summary', kwargs={'course_id': str(course_key)}),
+        'certificates_tab_available': configuration_helpers.get_value('INSTRUCTOR_DASHBOARD_CERT_TAB', True)
     }
     if not access.get('data_researcher'):
         section_data['is_hidden'] = True
@@ -736,16 +807,23 @@ def _section_open_response_assessment(request, course, openassessment_blocks, ac
     for block in openassessment_blocks:
         block_parent_id = str(block.parent)
         result_item_id = str(block.location)
-        if block_parent_id not in parents:
-            parents[block_parent_id] = modulestore().get_item(block.parent)
+        if result_item_id not in parents:
+            vert, seq, chapter = _get_full_path_names(block)
+            if vert and seq and chapter:
+                parents[result_item_id] = (vert, seq, chapter)
+            else:
+                continue
         assessment_name = _("Team") + " : " + block.display_name if block.teams_enabled else block.display_name
         ora_items.append({
             'id': result_item_id,
             'name': assessment_name,
             'parent_id': block_parent_id,
-            'parent_name': parents[block_parent_id].display_name,
-            'staff_assessment': 'staff-assessment' in block.assessment_steps,
-            'peer_assessment': 'peer-assessment' in block.assessment_steps,
+            'is_ora_empty_rubrics': len(block.rubric_criteria) == 0,
+            'parent_name': parents[result_item_id][0].display_name,
+            'seq_name': parents[result_item_id][1].display_name,
+            'chapter_name': parents[result_item_id][2].display_name,
+            'staff_assessment': len(block.rubric_criteria) > 0 and 'staff-assessment' in block.assessment_steps,
+            'peer_assessment': len(block.rubric_criteria) > 0 and 'peer-assessment' in block.assessment_steps,
             'team_assignment': block.teams_enabled,
             'url_base': reverse('xblock_view', args=[course.id, block.location, 'student_view']),
             'url_grade_available_responses': reverse('xblock_view', args=[course.id, block.location,
@@ -781,3 +859,59 @@ def is_ecommerce_course(course_key):
     """
     sku_count = len([mode.sku for mode in CourseMode.modes_for_course(course_key) if mode.sku])
     return sku_count > 0
+
+
+def _section_lti_constructor(request, course):
+    customer_info = get_customer_info(request.user)
+    org_details = {}
+    for v in customer_info['details']:
+        if course.org == v['org']:
+            org_details = v
+
+    course_id_hash = str(course.id) + '_credo_lti_constructor'
+    section_data = {
+        'section_key': 'lti_constructor',
+        'section_display_name': _('Link Constructor'),
+        'course_id': str(course.id),
+        'constructor_url': configuration_helpers.get_value('CONSTRUCTOR_LINK', settings.CONSTRUCTOR_LINK),
+        'course_id_hash': hashlib.md5(course_id_hash.encode('utf-8')).hexdigest(),
+        'org_details': quote_plus(json.dumps(org_details)),
+    }
+    return section_data
+
+
+def _section_credo_insights(request, course):
+    current_platform_name = configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
+    insights_url = configuration_helpers.get_value('INSIGHTS_LINK', settings.CREDO_INSIGHTS_LINK)
+    section_data = {
+        'section_key': 'credo_insights',
+        'section_display_name': current_platform_name + ' Insights',
+        'course_id': str(course.id),
+        'credo_insights_url': insights_url,
+        'current_platform_name': current_platform_name
+    }
+    return section_data
+
+
+def _get_full_path_names(block):
+    vert, seq, chapter = None, None, None
+    if block.parent:
+        vert = modulestore().get_item(block.parent)
+    if vert.parent:
+        seq = modulestore().get_item(vert.parent)
+    if seq.parent:
+        chapter = modulestore().get_item(seq.parent)
+    return vert, seq, chapter
+
+
+def _section_nw_help(request, course):
+    help_url = configuration_helpers.get_value('NW_HELP_LINK', 'http://www.nimblywise.com/help-center/')
+    help_title = configuration_helpers.get_value('NW_HELP_TITLE', 'Help Center')
+    section_data = {
+        'section_key': 'nw_help',
+        'section_display_name': 'Help Center',
+        'course_id': str(course.id),
+        'help_url': help_url,
+        'help_title': help_title
+    }
+    return section_data

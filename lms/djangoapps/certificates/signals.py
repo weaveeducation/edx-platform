@@ -6,6 +6,7 @@ import logging
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from xlocal import xlocal # type: ignore
 
 from common.djangoapps.course_modes import api as modes_api
 from common.djangoapps.student.models import CourseEnrollment
@@ -32,6 +33,7 @@ from openedx.core.djangoapps.signals.signals import (
 )
 
 log = logging.getLogger(__name__)
+cert_status = xlocal()
 
 
 @receiver(COURSE_PACING_CHANGED, dispatch_uid="update_cert_settings_on_pacing_change")
@@ -70,18 +72,25 @@ def listen_for_passing_grade(sender, user, course_id, **kwargs):  # pylint: disa
 
     If needed, generate a certificate task.
     """
+    cert_is_generating = getattr(cert_status, 'is_generating', False)
+    if cert_is_generating:
+        return
+
     if not auto_certificate_generation_enabled():
         return
 
-    cert = GeneratedCertificate.certificate_for_student(user, course_id)
-    if cert is not None and CertificateStatuses.is_passing_status(cert.status):
-        log.info(f'The cert status is already passing for user {user.id} : {course_id}. Passing grade signal will be '
-                 f'ignored.')
-        return
-    log.info(f'Attempt will be made to generate a course certificate for {user.id} : {course_id} as a passing grade '
-             f'was received.')
     try:
-        return generate_certificate_task(user, course_id)
+        with cert_status(is_generating=True):
+            cert = GeneratedCertificate.certificate_for_student(user, course_id)
+            if cert is not None and CertificateStatuses.is_passing_status(cert.status):
+                log.info(
+                    f'The cert status is already passing for user {user.id} : {course_id}. Passing grade signal will be '
+                    f'ignored.')
+                return
+            log.info(
+                f'Attempt will be made to generate a course certificate for {user.id} : {course_id} as a passing grade '
+                f'was received.')
+            return generate_certificate_task(user, course_id)
     except CertificateGenerationNotAllowed as e:
         log.exception(
             "Certificate generation not allowed for user %s in course %s",

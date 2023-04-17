@@ -14,13 +14,21 @@ from openedx.core.djangolib.markup import HTML, Text
 
             <div class="">
                 <select class="report-type selector">
+                    %if settings.FEATURES.get('ALLOW_COURSE_STAFF_GRADE_DOWNLOADS') or section_data['access']['admin']:
+                    <option data-graderelated="true" value="problemGradeReport"
+                    data-endpoint="${ section_data['problem_grade_report_url'] }">Problem Grade report
+                    </option>
+                    <option value="ORADataReport" data-graderelated="true"
+                            data-endpoint="${ section_data['export_ora2_data_url'] }">ORA Data
+                        report
+                    </option>
+                    %endif
                     <option value="gradingConfiguration"
                             data-endpoint="${ section_data['get_grading_config_url'] }">
                         Grading Configuration
                     </option>
                     <option value="listAnonymizeStudentIDs"
                             data-endpoint="${ section_data['get_anon_ids_url'] }"
-                            data-directdownload="true"
                             class="${'is-disabled' if disable_buttons else ''}"
                             aria-disabled="${'true' if disable_buttons else 'false'}">Anonymized Student IDs
                     </option>
@@ -50,20 +58,17 @@ from openedx.core.djangolib.markup import HTML, Text
                         Survey Result report
                     </option>
                     %endif
-                    %if settings.FEATURES.get('ALLOW_COURSE_STAFF_GRADE_DOWNLOADS') or section_data['access']['admin']:
-                    <option value="ORADataReport" data-graderelated="true"
-                            data-endpoint="${ section_data['export_ora2_data_url'] }">ORA Data
-                        report
-                    </option>
-                    <option data-graderelated="true" value="problemGradeReport"
-                    data-endpoint="${ section_data['problem_grade_report_url'] }">Problem Grade report
-                    </option>
-                    %endif
                     %endif
                 </select>
                 <input type="button" value="Download Report" class="download-report ml-10">
             </div>
 
+            %if section_data['reports_datapicker']:
+            <div class="grades-pr">
+                <p>Only include students enrolled in this time period in grade and problem grade reports:</p>
+                <p><input type="text" id="report-enroll-date-from-pr"> - <input type="text" id="report-enroll-date-to-pr"></p>
+            </div>
+            %endif
         </div>
 
         <div>

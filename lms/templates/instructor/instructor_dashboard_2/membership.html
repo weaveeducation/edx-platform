@@ -28,8 +28,8 @@ from openedx.core.djangolib.markup import HTML, Text
             <div class="hint auto-enroll-hint">
                 <span class="hint-caret"></span>
                 <p id="auto-enroll-tip">
-                    ${Text(_("If this option is {em_start}checked{em_end}, users who have not yet registered for {platform_name} will be automatically enrolled.")).format(em_start=HTML('<em>'), em_end=HTML('</em>'), platform_name=settings.PLATFORM_NAME)}
-                    ${Text(_("If this option is left {em_start}unchecked{em_end}, users who have not yet registered for {platform_name} will not be enrolled, but will be allowed to enroll once they make an account.")).format(em_start=HTML('<em>'), em_end=HTML('</em>'), platform_name=settings.PLATFORM_NAME)}
+                    ${Text(_("If this option is {em_start}checked{em_end}, users who have not yet registered for {platform_name} will be automatically enrolled.")).format(em_start=HTML('<em>'), em_end=HTML('</em>'), platform_name=section_data['current_platform_name'])}
+                    ${Text(_("If this option is left {em_start}unchecked{em_end}, users who have not yet registered for {platform_name} will not be enrolled, but will be allowed to enroll once they make an account.")).format(em_start=HTML('<em>'), em_end=HTML('</em>'), platform_name=section_data['current_platform_name'])}
                     <br /><br />
                     ${_("Checking this box has no effect if 'Unenroll' is selected.")}
                 </p>
@@ -53,7 +53,7 @@ from openedx.core.djangolib.markup import HTML, Text
         <input type="button" name="enrollment-button" class="enrollment-button" value="${pgettext('someone','Enroll')}" data-endpoint="${ section_data['enroll_button_url'] }" data-action="enroll" >
         <input type="button" name="enrollment-button" class="enrollment-button" value="${_("Unenroll")}" data-endpoint="${ section_data['unenroll_button_url'] }" data-action="unenroll" >
     </div>
-    <div class="request-response"></div>
+    <div class="request-response" role="status"></div>
     <div class="request-response-error"></div>
 </fieldset>
 
@@ -99,7 +99,7 @@ from openedx.core.djangolib.markup import HTML, Text
     <legend id="heading-batch-beta-testers" class="hd hd-3">${_("Batch Beta Tester Addition")}</legend>
     <label>
         ${_("Enter email addresses and/or usernames separated by new lines or commas.")}<br/>
-        ${_("Note: Users must have an activated {platform_name} account before they can be enrolled as beta testers.").format(platform_name=settings.PLATFORM_NAME)}
+        ${_("Note: Users must have an activated {platform_name} account before they can be enrolled as beta testers.").format(platform_name=section_data['current_platform_name'])}
         <textarea rows="6" cols="50" name="student-ids-for-beta" placeholder="${_("Email Addresses/Usernames")}" spellcheck="false"></textarea>
     </label>
     <div class="enroll-option">
@@ -132,7 +132,7 @@ from openedx.core.djangolib.markup import HTML, Text
         <input type="button" name="beta-testers" class="enrollment-button" value="${_("Add beta testers")}" data-endpoint="${ section_data['modify_beta_testers_button_url'] }" data-action="add" >
         <input type="button" name="beta-testers" class="enrollment-button" value="${_("Remove beta testers")}" data-endpoint="${ section_data['modify_beta_testers_button_url'] }" data-action="remove" >
     </div>
-    <div class="request-response"></div>
+    <div class="request-response" role="status"></div>
     <div class="request-response-error"></div>
 </fieldset>
 
@@ -176,6 +176,19 @@ from openedx.core.djangolib.markup import HTML, Text
       data-modify-endpoint="${ section_data['modify_access_url'] }"
       data-add-button-label="${_("Add Staff")}"
     ></div>
+
+    % if section_data['custom_roles']:
+      % for custom_role in section_data['custom_roles']:
+         <div class="auth-list-container"
+           data-rolename="staff-extended:${custom_role['id']}"
+           data-display-name="${custom_role['title']}"
+           data-info-text=""
+           data-list-endpoint="${ section_data['list_course_role_members_url'] }"
+           data-modify-endpoint="${ section_data['modify_access_url'] }"
+           data-add-button-label="${_("Add")} ${custom_role['title']}"
+    ></div>
+      % endfor
+    % endif
 
     ## Note that "Admin" is identified as "Instructor" in the Django admin panel.
     <div class="auth-list-container"

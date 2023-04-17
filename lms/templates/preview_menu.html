@@ -7,6 +7,8 @@ from django.utils.translation import gettext as _
 from django.conf import settings
 from openedx.core.djangolib.js_utils import dump_js_escaped_json
 from openedx.core.djangolib.markup import HTML, Text
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+from openedx.core.djangoapps.user_api.accounts.utils import can_display_studio_link
 from xmodule.partitions.partitions_service import get_all_partitions_for_course
 %>
 
@@ -27,6 +29,20 @@ show_preview_menu = course and can_masquerade and supports_preview_menu
     specific_student_selected = selected(not staff_selected and masquerade.user_name)
     student_selected = selected(not staff_selected and not specific_student_selected and not masquerade_group_id)
 
+    show_studio_link = False
+    if request.user.is_authenticated:
+        show_studio_link = can_display_studio_link(request.user, course)
+
+    site_support_nw_help = configuration_helpers.get_value('SHOW_NW_HELP', False)
+    show_nw_help = user.instructor_dashboard_tabs.nw_help if hasattr(user, 'nw_help') else True
+
+    help_url = None
+    help_title = ''
+
+    if site_support_nw_help and show_nw_help:
+        help_url = configuration_helpers.get_value('NW_HELP_LINK', 'http://www.nimblywise.com/help-center/')
+        help_title = configuration_helpers.get_value('NW_HELP_TITLE', 'Help Center')
+
     if settings.HTTPS == 'on':
         protocol = 'https'
     else:
@@ -35,8 +51,9 @@ show_preview_menu = course and can_masquerade and supports_preview_menu
     if settings.ANALYTICS_DASHBOARD_URL:
         insights_base_url = settings.ANALYTICS_DASHBOARD_URL + '/courses'
     studio_base_url = ''
-    if settings.CMS_BASE:
-        studio_base_url = protocol + '://' + settings.CMS_BASE
+    cms_base = configuration_helpers.get_value('CMS_BASE', settings.CMS_BASE)
+    if cms_base:
+        studio_base_url = protocol + '://' + cms_base
     insights_url = insights_base_url
     studio_url = studio_base_url
     if course and course.id:
@@ -91,7 +108,7 @@ show_preview_menu = course and can_masquerade and supports_preview_menu
                 </div>
             % endif
             <div style="flex-shrink: 1; text-align: center;">
-            % if studio_url:
+            % if studio_url and show_studio_link:
                 <a
                     class="btn btn-primary view-in-studio"
                     style="border: solid 1px white;"
@@ -133,6 +150,11 @@ show_preview_menu = course and can_masquerade and supports_preview_menu
             % if insights_url:
                 <a class="btn btn-primary" style="border: solid 1px white;" href="${insights_url}">
                     ${_("View in Insights")}
+                </a>
+            % endif
+            % if help_url:
+                <a class="btn btn-primary" style="border: solid 1px white;" href="${help_url}">
+                    ${help_title}
                 </a>
             % endif
             </div>

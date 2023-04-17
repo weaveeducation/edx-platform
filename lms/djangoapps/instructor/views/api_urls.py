@@ -53,6 +53,9 @@ urlpatterns = [
     path('reset_due_date', api.reset_due_date, name='reset_due_date'),
     path('show_unit_extensions', api.show_unit_extensions, name='show_unit_extensions'),
     path('show_student_extensions', api.show_student_extensions, name='show_student_extensions'),
+    path('reset_progress_student', api.reset_progress_student, name="reset_progress_student"),
+    path('list_reset_progress_tasks', api.list_reset_progress_tasks, name="list_reset_progress_tasks"),
+    path('generate_missing_certificates', api.generate_missing_certificates, name='generate_missing_certificates'),
 
     # proctored exam downloads...
     path('get_proctored_exam_results', api.get_proctored_exam_results, name='get_proctored_exam_results'),

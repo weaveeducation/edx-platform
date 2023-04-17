@@ -74,6 +74,7 @@ from common.djangoapps.util.file import (
 )
 from common.djangoapps.util.json_request import JsonResponse, JsonResponseBadRequest
 from common.djangoapps.util.views import require_global_staff
+from common.djangoapps.credo_modules.utils import get_progress_page_url
 from lms.djangoapps.bulk_email.api import is_bulk_email_feature_enabled, create_course_email
 from lms.djangoapps.certificates import api as certs_api
 from lms.djangoapps.certificates.models import (
@@ -123,6 +124,9 @@ from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiv
 from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin, view_auth_classes
 from openedx.core.lib.courses import get_course_by_id
 from openedx.features.course_experience.url_helpers import get_learning_mfe_home_url
+from xmodule.modulestore.django import modulestore
+from common.djangoapps.credo_modules.models import get_all_course_staff_extended_roles, CourseStaffExtended
+
 from .tools import (
     dump_block_extensions,
     dump_student_extensions,
@@ -989,6 +993,26 @@ def bulk_beta_modify_access(request, course_id):
 )
 @common_exceptions_400
 def modify_access(request, course_id):
+    is_bulk = request.POST.get('is_bulk', '0')
+    student_data = request.POST.get('unique_student_identifier')
+
+    if str(is_bulk) == '1':
+        student_lst = _split_input_list(student_data)
+        result = []
+        processed_users = []
+        for unique_student_identifier in student_lst:
+            res = _modify_access(request, course_id, unique_student_identifier)
+            if res:
+                if 'user_id' in res:
+                    processed_users.append(res['user_id'])
+                result.append(res)
+        return JsonResponse(result)
+    else:
+        response_payload = _modify_access(request, course_id, student_data)
+        return JsonResponse(response_payload)
+
+
+def _modify_access(request, course_id, unique_student_identifier, ignore_users=None):
     """
     Modify staff/instructor access of other user.
     Requires instructor access.
@@ -1005,13 +1029,15 @@ def modify_access(request, course_id):
         request.user, 'instructor', course_id, depth=None
     )
     try:
-        user = get_student_from_identifier(request.POST.get('unique_student_identifier'))
+        user = get_student_from_identifier(unique_student_identifier)
+        if ignore_users and user.id in ignore_users:
+            return
     except User.DoesNotExist:
         response_payload = {
-            'unique_student_identifier': request.POST.get('unique_student_identifier'),
+            'unique_student_identifier': unique_student_identifier,
             'userDoesNotExist': True,
         }
-        return JsonResponse(response_payload)
+        return response_payload
 
     # Check that user is active, because add_users
     # in common/djangoapps/student/roles.py fails
@@ -1019,12 +1045,25 @@ def modify_access(request, course_id):
     if not user.is_active:
         response_payload = {
             'unique_student_identifier': user.username,
+            'user_id': user.id,
             'inactiveUser': True,
         }
-        return JsonResponse(response_payload)
+        return response_payload
 
     rolename = request.POST.get('rolename')
     action = request.POST.get('action')
+
+    staff_extended_role_id = None
+    staff_extended_prefix = 'staff-extended:'
+
+    if rolename.startswith(staff_extended_prefix):
+        try:
+            staff_extended_role_id = int(rolename[len(staff_extended_prefix):])
+        except ValueError:
+            pass
+
+    if staff_extended_role_id:
+        rolename = 'staff'
 
     if rolename not in ROLES:
         error = strip_tags(f"unknown rolename '{rolename}'")
@@ -1035,16 +1074,28 @@ def modify_access(request, course_id):
     if rolename == 'instructor' and user == request.user and action != 'allow':
         response_payload = {
             'unique_student_identifier': user.username,
+            'user_id': user.id,
             'rolename': rolename,
             'action': action,
             'removingSelfAsInstructor': True,
         }
-        return JsonResponse(response_payload)
+        return response_payload
 
     if action == 'allow':
         allow_access(course, user, rolename)
+        if staff_extended_role_id:
+            CourseStaffExtended(
+                user=user,
+                course_id=course_id,
+                role_id=staff_extended_role_id
+            ).save()
     elif action == 'revoke':
         revoke_access(course, user, rolename)
+        CourseStaffExtended.objects.filter(
+            user=user,
+            course_id=course_id,
+            role_id=staff_extended_role_id
+        ).delete()
     else:
         return HttpResponseBadRequest(strip_tags(
             f"unrecognized action u'{action}'"
@@ -1052,11 +1103,12 @@ def modify_access(request, course_id):
 
     response_payload = {
         'unique_student_identifier': user.username,
+        'user_id': user.id,
         'rolename': rolename,
         'action': action,
         'success': 'yes',
     }
-    return JsonResponse(response_payload)
+    return response_payload
 
 
 @require_POST
@@ -1090,6 +1142,19 @@ def list_course_role_members(request, course_id):
 
     rolename = request.POST.get('rolename')
 
+    course_staff_extended = get_all_course_staff_extended_roles(course_id)
+    staff_extended_role_id = None
+    staff_extended_prefix = 'staff-extended:'
+
+    if rolename.startswith(staff_extended_prefix):
+        try:
+            staff_extended_role_id = int(rolename[len(staff_extended_prefix):])
+        except ValueError:
+            pass
+
+    if staff_extended_role_id:
+        rolename = 'staff'
+
     if rolename not in ROLES:
         return HttpResponseBadRequest()
 
@@ -1101,13 +1166,23 @@ def list_course_role_members(request, course_id):
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
+            'user_id': user.id
         }
+
+    role_users = list(map(extract_user_info, list_with_level(
+        course.id, rolename
+    )))
+
+    if rolename == 'staff':
+        if staff_extended_role_id:
+            role_users = [r for r in role_users if r['user_id'] in course_staff_extended and course_staff_extended[r['user_id']] == staff_extended_role_id]
+            rolename = staff_extended_prefix + str(staff_extended_role_id)
+        else:
+            role_users = [r for r in role_users if r['user_id'] not in course_staff_extended]
 
     response_payload = {
         'course_id': str(course_id),
-        rolename: list(map(extract_user_info, list_with_level(
-            course.id, rolename
-        ))),
+        rolename: role_users,
     }
     return JsonResponse(response_payload)
 
@@ -1738,7 +1813,7 @@ def get_student_progress_url(request, course_id):
         if user is not None:
             progress_url += '/{}/'.format(user.id)
     else:
-        progress_url = reverse('student_progress', kwargs={'course_id': str(course_id), 'student_id': user.id})
+        progress_url = get_progress_page_url(course_id, student_id=user.id)
 
     response_payload = {
         'course_id': str(course_id),
@@ -1906,6 +1981,45 @@ def reset_student_attempts_for_entrance_exam(request, course_id):
         return HttpResponseBadRequest(_("Course has no valid entrance exam section."))
 
     response_payload = {'student': student_identifier or _('All Students'), 'task': TASK_SUBMISSION_OK}
+    return JsonResponse(response_payload)
+
+
+@require_POST
+@transaction.non_atomic_requests
+@ensure_csrf_cookie
+@cache_control(no_cache=True, no_store=True, must_revalidate=True)
+@require_course_permission(permissions.OVERRIDE_GRADES)
+@require_post_params(
+    student_id="email or username of student for whom to get progress url"
+)
+def reset_progress_student(request, course_id):
+    course_id = CourseKey.from_string(course_id)
+    try:
+        user = get_student_from_identifier(request.POST.get('student_id'))
+        task_api.submit_reset_progress_for_student(request, course_id, user.id)
+    except User.DoesNotExist:
+        return HttpResponseBadRequest(_("User not found."))
+    response_payload = {
+        'student_id': user.id,
+        'task': 'created'
+    }
+    return JsonResponse(response_payload)
+
+
+@require_POST
+@ensure_csrf_cookie
+@cache_control(no_cache=True, no_store=True, must_revalidate=True)
+@require_course_permission(permissions.OVERRIDE_GRADES)
+def list_reset_progress_tasks(request, course_id):
+    course_id = CourseKey.from_string(course_id)
+    student_id = request.POST.get('student_id', None)
+    response_payload = {
+        'tasks': []
+    }
+    if student_id is not None:
+        tasks = task_api.get_running_instructor_tasks(course_id)
+        response_payload['tasks'] = list(map(extract_task_features, tasks))
+
     return JsonResponse(response_payload)
 
 
@@ -3602,3 +3716,20 @@ def _get_branded_email_template(course_overview):
         template_name = template_name.get(course_overview.display_org_with_default)
 
     return template_name
+
+
+@transaction.non_atomic_requests
+@ensure_csrf_cookie
+@cache_control(no_cache=True, no_store=True, must_revalidate=True)
+@require_global_staff
+@require_POST
+@common_exceptions_400
+def generate_missing_certificates(request, course_id):
+    course_key = CourseKey.from_string(course_id)
+    task_api.generate_missing_certificates(request, course_key)
+    response_payload = {
+        'message': _('Certificate generations task has been started. '
+                     'You can view the status of the generation task in the "Pending Tasks" section.'),
+        'success': True
+    }
+    return JsonResponse(response_payload)

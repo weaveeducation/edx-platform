@@ -37,6 +37,7 @@ from lms.djangoapps.instructor_task.config.waffle import (
     use_on_disk_grade_reporting,
 )
 from lms.djangoapps.teams.models import CourseTeamMembership
+from lms.djangoapps.lti1p3_tool.models import LtiExternalCourse, LtiUserEnrollment
 from lms.djangoapps.verify_student.services import IDVerificationService
 from openedx.core.djangoapps.content.block_structure.api import get_course_in_cache
 from openedx.core.djangoapps.course_groups.cohorts import bulk_cache_cohorts, get_cohort, is_course_cohorted
@@ -46,6 +47,8 @@ from openedx.core.lib.courses import get_course_by_id
 from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.partitions.partitions_service import PartitionService  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.split_test_block import get_split_user_partitions  # lint-amnesty, pylint: disable=wrong-import-order
+from common.djangoapps.credo_modules.models import CredoModulesUserProfile
+from common.djangoapps.credo_modules.views import StudentProfileField
 
 from .runner import TaskProgress
 from .utils import upload_csv_to_report_store, upload_csv_file_to_report_store
@@ -70,6 +73,44 @@ def _user_enrollment_status(user, course_id):
 
 def _flatten(iterable):
     return list(chain.from_iterable(iterable))
+
+
+def _get_enrollments_params(context):
+    res = {}
+    if not context:
+        context = {}
+    timestamp_from = context.get('timestamp_from')
+    timestamp_to = context.get('timestamp_to')
+    browser_tz_offset = context.get('browser_tz_offset')
+    if timestamp_from and browser_tz_offset:
+        timestamp_from = int(timestamp_from) + (int(browser_tz_offset) * 60)
+        res['courseenrollment__created__gte'] = datetime.fromtimestamp(timestamp_from).replace(tzinfo=UTC)
+    if timestamp_to and browser_tz_offset:
+        timestamp_to = int(timestamp_to) + (int(browser_tz_offset) * 60)
+        res['courseenrollment__created__lt'] = datetime.fromtimestamp(timestamp_to).replace(tzinfo=UTC)
+    return res
+
+
+def get_lti_fields_data(course_id, user):
+    lti_context_label_lst = []
+    lti_context_title_lst = []
+    lti_enrollments = LtiUserEnrollment.objects.filter(
+        external_course__edx_course_id=str(course_id),
+        lti_user__edx_user=user
+    )
+    for lti_enrollment in lti_enrollments:
+        lti_props = lti_enrollment.get_properties()
+        lti_context_label = lti_props.get('context_label')
+        if lti_context_label:
+            lti_context_label_lst.append(lti_context_label)
+        lti_context_title = lti_props.get('context_title')
+        if lti_context_title:
+            lti_context_title_lst.append(lti_context_title)
+    lti_fields = [
+        '; '.join(lti_context_label_lst) if lti_context_label_lst else '',
+        '; '.join(lti_context_title_lst) if lti_context_title_lst else '',
+    ]
+    return lti_fields
 
 
 class _CourseGradeReportContext:
@@ -285,6 +326,19 @@ class InMemoryReportMixin:
         Internal method for generating a grade report for the given context.
         """
         self.context.update_status('InMemoryReportMixin - 1: Starting grade report')
+
+        # additional profile fields from credo modules
+        course = self.context.course
+        if course.credo_additional_profile_fields:
+            for k, v in StudentProfileField.init_from_course(course).items():
+                self.additional_profile_fields.append(v.alias)
+                self.additional_profile_fields_title.append(v.title)
+            self.users_with_additional_profile = CredoModulesUserProfile.users_with_additional_profile(self.context.course_id)
+
+        lti_external_course = LtiExternalCourse.objects.filter(edx_course_id=str(course.id)).first()
+        if lti_external_course:
+            self.lti_fields = ['LTI 1.3 Context Label', 'LTI 1.3 Context Title']
+
         success_headers = self._success_headers()
         error_headers = self._error_headers()
         batched_rows = self._batched_rows()
@@ -325,9 +379,14 @@ class InMemoryReportMixin:
         the given batched_rows.
         """
         # partition and chain successes and errors
-        success_rows, error_rows = zip(*batched_rows)
-        success_rows = list(chain(*success_rows))
-        error_rows = list(chain(*error_rows))
+        batched_rows_res = [v for v in batched_rows]
+        if batched_rows_res:
+            success_rows, error_rows = zip(*batched_rows_res)
+            success_rows = list(chain(*success_rows))
+            error_rows = list(chain(*error_rows))
+        else:
+            success_rows = []
+            error_rows = []
 
         # update metrics on task status
         self.context.task_progress.succeeded = len(success_rows)
@@ -422,10 +481,12 @@ class GradeReportBase:
         """
         Returns count of number of learner enrolled in course.
         """
+        enroll_params = _get_enrollments_params(self.context.task_input)
         return CourseEnrollment.objects.users_enrolled_in(
             course_id=self.context.course_id,
             include_inactive=True,
             verified_only=self.context.report_for_verified_only,
+            query_kwargs=enroll_params
         ).count()
 
     def log_task_info(self, message):
@@ -451,7 +512,7 @@ class GradeReportBase:
             args = [iter(iterable)] * chunk_size
             return zip_longest(*args, fillvalue=fillvalue)
 
-        def get_enrolled_learners_for_course(course_id, verified_only=False):
+        def get_enrolled_learners_for_course(course_id, verified_only=False, task_input=None):
             """
             Get all the enrolled users in a course chunk by chunk.
             This generator method fetches & loads the enrolled user objects on demand which in chunk
@@ -460,6 +521,9 @@ class GradeReportBase:
             filter_kwargs = {
                 'courseenrollment__course_id': course_id,
             }
+            enroll_params = _get_enrollments_params(task_input)
+            filter_kwargs.update(enroll_params)
+
             if verified_only:
                 filter_kwargs['courseenrollment__mode'] = CourseMode.VERIFIED
 
@@ -479,7 +543,8 @@ class GradeReportBase:
 
         return get_enrolled_learners_for_course(
             course_id=self.context.course_id,
-            verified_only=self.context.report_for_verified_only
+            verified_only=self.context.report_for_verified_only,
+            task_input=self.context.task_input
         )
 
     def log_additional_info_for_testing(self, message):
@@ -512,6 +577,12 @@ class CourseGradeReport(GradeReportBase):
     # Batch size for chunking the list of enrollees in the course.
     USER_BATCH_SIZE = 100
 
+    def __init__(self):
+        self.additional_profile_fields = []
+        self.additional_profile_fields_title = []
+        self.users_with_additional_profile = {}
+        self.lti_fields = []
+
     @classmethod
     def generate(cls, _xblock_instance_args, _entry_id, course_id, _task_input, action_name):
         """
@@ -530,6 +601,8 @@ class CourseGradeReport(GradeReportBase):
         """
         return (
             ["Student ID", "Email", "Username"] +
+            self.additional_profile_fields_title +
+            self.lti_fields +
             self._grades_header() +
             (['Cohort Name'] if self.context.cohorts_enabled else []) +
             [f'Experiment Group ({partition.name})' for partition in self.context.course_experiments] +
@@ -553,8 +626,12 @@ class CourseGradeReport(GradeReportBase):
         grades_header = ["Grade"]
         for assignment_info in graded_assignments.values():
             if assignment_info['separate_subsection_avg_headers']:
-                grades_header.extend(assignment_info['subsection_headers'].values())
+                for subsection_block_id, subsection_headers in assignment_info['subsection_headers'].items():
+                    grades_header.append(subsection_headers)
+                    grades_header.append('%s Timestamp (UTC)' % subsection_headers)
             grades_header.append(assignment_info['average_header'])
+            if not assignment_info['separate_subsection_avg_headers']:
+                grades_header.append('%s Timestamp (UTC)' % assignment_info['average_header'])
         return grades_header
 
     def _rows_for_users(self, users):
@@ -571,12 +648,23 @@ class CourseGradeReport(GradeReportBase):
                 collected_block_structure=self.context.course_structure,
                 course_key=self.context.course_id,
             ):
+                # additional profile fields from credo modules
+                row_additional_profile = []
+                if self.context.course.credo_additional_profile_fields:
+                    additional_student_fields = self.users_with_additional_profile.get(user.id, {})
+                    for field in self.additional_profile_fields:
+                        row_additional_profile.append(additional_student_fields.get(field, ''))
+
+                lti_fields = []
+                if self.lti_fields:
+                    lti_fields = get_lti_fields_data(self.context.course_id, user)
+
                 if not course_grade:
                     # An empty gradeset means we failed to grade a student.
                     error_rows.append([user.id, user.username, str(error)])
                 else:
                     success_rows.append(
-                        [user.id, user.email, user.username] +
+                        [user.id, user.email, user.username] + row_additional_profile + lti_fields +
                         self._user_grades(course_grade) +
                         self._user_cohort_group_names(user) +
                         self._user_experiment_group_names(user) +
@@ -600,7 +688,8 @@ class CourseGradeReport(GradeReportBase):
             )
             grade_results.extend(subsection_grades_results)
 
-            assignment_average = self._user_assignment_average(course_grade, subsection_grades, assignment_info)
+            assignment_average, last_answer_timestamp = self._user_assignment_average(course_grade, subsection_grades,
+                                                                                      assignment_info)
             if assignment_average is not None:
                 grade_results.append([assignment_average])
 
@@ -617,9 +706,13 @@ class CourseGradeReport(GradeReportBase):
             subsection_grade = course_grade.subsection_grade(subsection_location)
             if subsection_grade.attempted_graded or subsection_grade.override:
                 grade_result = subsection_grade.percent_graded
+                grade_last_timestamp = subsection_grade.last_answer_timestamp
+                last_answer_timestamp_str = grade_last_timestamp.strftime("%Y-%m-%d %H:%M:%S") \
+                    if grade_last_timestamp else ''
             else:
                 grade_result = 'Not Attempted'
-            grade_results.append([grade_result])
+                last_answer_timestamp_str = 'Not Attempted'
+            grade_results.append([grade_result, last_answer_timestamp_str])
             subsection_grades.append(subsection_grade)
         return subsection_grades, grade_results
 
@@ -631,13 +724,21 @@ class CourseGradeReport(GradeReportBase):
             if assignment_info['grader']:
                 if course_grade.attempted:
                     subsection_breakdown = [
-                        {'percent': subsection_grade.percent_graded}
+                        {
+                            'percent': subsection_grade.percent_graded,
+                            'last_answer_timestamp': subsection_grade.last_answer_timestamp
+                        }
                         for subsection_grade in subsection_grades
                     ]
                     assignment_average, _ = assignment_info['grader'].total_with_drops(subsection_breakdown)
+                    last_answer_timestamp = assignment_info['grader'].max_last_answer_timestamp(subsection_breakdown)
+                    last_answer_timestamp_str = last_answer_timestamp.strftime("%Y-%m-%d %H:%M:%S") \
+                        if last_answer_timestamp else ''
                 else:
                     assignment_average = 0.0
-                return assignment_average
+                    last_answer_timestamp_str = 'Not Attempted'
+                return assignment_average, last_answer_timestamp_str
+        return None, None
 
     def _user_cohort_group_names(self, user):
         """
@@ -730,8 +831,20 @@ class ProblemGradeReport(GradeReportBase):
         Returns:
             list: combined header and scorable blocks
         """
-        header_row = list(self._problem_grades_header().values()) + ['Enrollment Status', 'Grade']
-        return header_row + _flatten(list(self.context.graded_scorable_blocks_header.values()))
+        header_row = list(self._problem_grades_header().values())
+        lti_external_course = LtiExternalCourse.objects.filter(edx_course_id=str(self.context.course.id)).first()
+        if lti_external_course:
+            header_row += ['LTI 1.3 Context Label', 'LTI 1.3 Context Title']
+
+        # additional profile fields from credo modules
+        additional_profile_fields = OrderedDict()
+        if self.context.course.credo_additional_profile_fields:
+            additional_profile_fields = StudentProfileField.init_from_course(self.context.course)
+
+        if additional_profile_fields:
+            header_row += [v.title for k, v in additional_profile_fields.items() if not v.info]
+        header_row += ['Enrollment Status', 'Grade'] + _flatten(list(self.context.graded_scorable_blocks_header.values()))
+        return header_row
 
     def _error_headers(self):
         """
@@ -749,6 +862,15 @@ class ProblemGradeReport(GradeReportBase):
         """
         Returns a list of rows for the given users for this report.
         """
+        additional_profile_fields = OrderedDict()
+        users_with_additional_profile_dict = {}
+        if self.context.course.credo_additional_profile_fields:
+            users_with_additional_profile_dict = CredoModulesUserProfile.users_with_additional_profile(
+                self.context.course_id)
+            additional_profile_fields = StudentProfileField.init_from_course(self.context.course)
+
+        lti_external_course = LtiExternalCourse.objects.filter(edx_course_id=str(self.context.course.id)).first()
+
         success_rows, error_rows = [], []
         for student, course_grade, error in CourseGradeFactory().iter(
             users,
@@ -780,11 +902,21 @@ class ProblemGradeReport(GradeReportBase):
                         earned_possible_values.append(['Not Attempted', problem_score.possible])
 
             enrollment_status = _user_enrollment_status(student, self.context.course_id)
-            success_rows.append(
-                [student.id, student.email, student.username] +
-                [enrollment_status, course_grade.percent] +
-                _flatten(earned_possible_values)
-            )
+            res = [student.id, student.email, student.username]
+            # additional profile fields from credo modules
+            if additional_profile_fields:
+                additional_student_fields = users_with_additional_profile_dict.get(student.id, {})
+                for field, field_item in additional_profile_fields.items():
+                    if not field_item.info:
+                        res.append(additional_student_fields.get(field, ''))
+
+            if lti_external_course:
+                lti_fields = get_lti_fields_data(self.context.course.id, student)
+                res += lti_fields
+
+            res += [enrollment_status, course_grade.percent]
+            res += _flatten(earned_possible_values)
+            success_rows.append(res)
 
         return success_rows, error_rows
 

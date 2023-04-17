@@ -22,10 +22,10 @@
     <h4 class="hd hd-4">${_("View a specific learner's enrollment status")}</h4>
     <div class="request-response-error"></div>
     <label for="student-select-enrollment-status">
-        ${_("Learner's {platform_name} email address or username *").format(platform_name=settings.PLATFORM_NAME)}
+        ${_("Learner's {platform_name} email address or username *").format(platform_name=section_data['current_platform_name'])}
     </label>
     <br>
-    <input type="text" name="student-select-enrollment-status" placeholder="${_('Learner email address or username')}" >
+    <input type="text" id="student-select-enrollment-status" name="student-select-enrollment-status" placeholder="${_('Learner email address or username')}" >
 
     <blockquote class="student-enrollment-status"></blockquote>
 
@@ -41,10 +41,16 @@
 </div>
 
 <div class="student-progress-container action-type-container">
-    <h4 class="hd hd-4">${_("View a specific learner's grades and progress")}</h4>
+    <h4 class="hd hd-4">
+        %if section_data.get('enable_extended_progress_page'):
+        ${_("View a specific learner's My Skills Report")}
+        %else:
+        ${_("View a specific learner's grades and progress")}
+        %endif
+    </h4>
     <div class="request-response-error"></div>
     <label for="student-select-progress">
-        ${_("Learner's {platform_name} email address or username").format(platform_name=settings.PLATFORM_NAME)}
+        ${_("Learner's {platform_name} email address or username").format(platform_name=section_data['current_platform_name'])}
     </label>
     <br>
     <input type="text" name="student-select-progress" placeholder="${_('Learner email address or username')}" >
@@ -52,18 +58,41 @@
     <div class="progress-link-wrapper">
         <span name="progress-link">
             <a href="" class="progress-link" data-endpoint="${ section_data['get_student_progress_url_url'] }">
+                %if section_data.get('enable_extended_progress_page'):
+                ${_("View My Skills Report")}
+                %else:
                 ${_("View Progress Page")}
+                %endif
             </a>
         </span>
     </div>
   <hr>
 </div>
 
+<div class="student-reset-progress-container action-type-container">
+    <h4 class="hd hd-4">${_("Reset a specific learner's progress")}</h4>
+    <div class="request-response-error" role="status"></div>
+    <label for="student-reset-progress">
+        ${_("Learner's {platform_name} email address or username *").format(platform_name=section_data['current_platform_name'])}
+    </label>
+    <br>
+    <input type="text" id="student-reset-progress" name="student-reset-progress" placeholder="${_('Learner email address or username')}" >
+    <br><br>
+    <input type="button" name="reset-progress" value="${_('Reset Student\'s Progress')}" data-endpoint="${ section_data['reset_progress_student_url'] }">
+    <br><br>
+    <h5 class="hd hd-5">${_("Task Status")}</h5>
+    <label for="reset-progress-history-single">${_("Show the status for the reseting tasks that you submitted for this learner")}</label>
+    <br>
+    <input type="button" id="reset-progress-history-single" name="reset-progress-history-single" value="${_('Show Task Status')}" data-endpoint="${ section_data['list_reset_progress_tasks_url'] }" aria-label="${_('Reset Progress Task Status')}">
+    <div class="reset-progress-table"></div>
+    <hr>
+</div>
+
 <div class="student-grade-container action-type-container">
     <h4 class="hd hd-4">${_("Adjust a learner's grade for a specific problem")}</h4>
     <div class="request-response-error"></div>
     <label for="student-select-grade">
-        ${_("Learner's {platform_name} email address or username").format(platform_name=settings.PLATFORM_NAME)}
+        ${_("Learner's {platform_name} email address or username").format(platform_name=section_data['current_platform_name'])}
     </label>
     <br>
     <input type="text" name="student-select-grade" placeholder="${_('Learner email address or username')}">
@@ -137,7 +166,7 @@
     <div class="request-response-error"></div>
 
     <label for="entrance-exam-student-select-grade">
-        ${_("Learner's {platform_name} email address or username").format(platform_name=settings.PLATFORM_NAME)}
+        ${_("Learner's {platform_name} email address or username").format(platform_name=section_data['current_platform_name'])}
     </label>
     <br>
     <input type="text" name="entrance-exam-student-select-grade" placeholder="${_('Learner email address or username')}">

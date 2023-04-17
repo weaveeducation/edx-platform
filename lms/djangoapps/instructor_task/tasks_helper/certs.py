@@ -8,15 +8,19 @@ import logging
 from time import time
 
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.db.models import Q
 
 from common.djangoapps.student.models import CourseEnrollment
+from common.djangoapps.course_modes.models import CourseMode
 from lms.djangoapps.certificates.api import (
     generate_certificate_task,
     get_enrolled_allowlisted_users,
     get_enrolled_allowlisted_not_passing_users
 )
+from lms.djangoapps.certificates.generation_handler import generate_regular_certificate_task
 from lms.djangoapps.certificates.data import CertificateStatuses
+from lms.djangoapps.certificates.models import GeneratedCertificate
 
 from .runner import TaskProgress
 
@@ -75,6 +79,20 @@ def generate_students_certificates(
         log.info(f'Attempt will be made to generate a course certificate for {student.id} : {course_id}.')
         generate_certificate_task(student, course_id)
     return task_progress.update_task_state(extra_meta=current_step)
+
+
+def generate_missing_students_certificates(_xmodule_instance_args, _entry_id, course_id, task_input, action_name):
+    enrollments = CourseEnrollment.objects.filter(course_id=course_id, is_active=True)
+    for enroll in enrollments:
+        with transaction.atomic():
+            if enroll.mode == CourseMode.AUDIT:
+                enroll.mode = CourseMode.HONOR
+                enroll.save()
+
+            gen_cert = GeneratedCertificate.objects.filter(
+                user=enroll.user, course_id=course_id, mode=CourseMode.HONOR).first()
+            if not gen_cert:
+                generate_regular_certificate_task(enroll.user, course_id, CourseMode.HONOR)
 
 
 def students_require_certificate(course_id, enrolled_students, statuses_to_regenerate=None):

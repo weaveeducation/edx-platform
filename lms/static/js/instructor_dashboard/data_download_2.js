@@ -2,7 +2,7 @@
 
 (function() {
     'use strict';
-    // eslint-disable-next-line no-unused-vars
+  // eslint-disable-next-line no-unused-vars
     var DataDownloadV2, PendingInstructorTasks, ReportDownloads, statusAjaxError;
 
     statusAjaxError = function() {
@@ -39,6 +39,23 @@
             this.$tabSwitch = $('.data-download-nav .btn-link');
             this.$selectedSection = $('#' + this.$tabSwitch.first().attr('data-section'));
             this.$learnerStatus = $('.learner-status');
+            this.$report_enroll_date_from_gr = null;
+            if (this.$section.find("#report-enroll-date-from-gr").length > 0) {
+                this.$report_enroll_date_from_gr = this.$section.find("#report-enroll-date-from-gr").datepicker()
+                  .datepicker("setDate", moment().subtract(1, 'months').format('MM/DD/YYYY'));
+            }
+            if (this.$section.find("#report-enroll-date-to-gr").length > 0) {
+                this.$report_enroll_date_to_gr = this.$section.find("#report-enroll-date-to-gr").datepicker()
+                  .datepicker("setDate", moment().format('MM/DD/YYYY'));
+            }
+            if (this.$section.find("#report-enroll-date-from-pr").length > 0) {
+                this.$report_enroll_date_from_pr = this.$section.find("#report-enroll-date-from-pr").datepicker()
+                  .datepicker("setDate", moment().subtract(1, 'months').format('MM/DD/YYYY'));
+            }
+            if (this.$section.find("#report-enroll-date-to-pr").length > 0) {
+                this.$report_enroll_date_to_pr = this.$section.find("#report-enroll-date-to-pr").datepicker()
+                  .datepicker("setDate", moment().format('MM/DD/YYYY'));
+            }
 
             this.ERROR_MESSAGES = {
                 ORADataReport: gettext('Error generating ORA data report. Please try again.'),
@@ -68,6 +85,33 @@
                 });
             };
 
+            this.add_timestamps_into_data = function(data_obj, report_type) {
+                var tzOffset = new Date().getTimezoneOffset();
+                var timestampFrom = null;
+                var timestampTo = null;
+                if (report_type === 'gr') {
+                    if (dataDownloadObj.$report_enroll_date_from_gr) {
+                        timestampFrom = dataDownloadObj.$report_enroll_date_from_gr.datepicker("getDate");
+                    }
+                    if (dataDownloadObj.$report_enroll_date_to_gr) {
+                        timestampTo = dataDownloadObj.$report_enroll_date_to_gr.datepicker("getDate");
+                    }
+                } else {
+                    if (dataDownloadObj.$report_enroll_date_from_pr) {
+                        timestampFrom = dataDownloadObj.$report_enroll_date_from_pr.datepicker("getDate");
+                    }
+                    if (dataDownloadObj.$report_enroll_date_to_pr) {
+                        timestampTo = dataDownloadObj.$report_enroll_date_to_pr.datepicker("getDate");
+                    }
+                }
+
+                if (timestampFrom && timestampTo) {
+                    data_obj.browser_tz_offset = (-1) * tzOffset;
+                    data_obj.timestamp_from = Math.floor(timestampFrom.getTime() / 1000);
+                    data_obj.timestamp_to = Math.floor(timestampTo.getTime() / 1000) + 24 * 60 * 60 - 1;
+                }
+            };
+
             this.clear_display();
 
             /**
@@ -94,6 +138,11 @@
              */
             this.$report_type_selector.change(function() {
                 var selectedOption = dataDownloadObj.$report_type_selector.val();
+                if (selectedOption === 'problemGradeReport') {
+                    dataDownloadObj.$section.find(".grades-pr").show();
+                } else {
+                    dataDownloadObj.$section.find(".grades-pr").hide();
+                }
                 dataDownloadObj.$selection_informations.each(function(index, elem) {
                     if ($(elem).hasClass(selectedOption)) {
                         $(elem).show();
@@ -114,13 +163,18 @@
             this.downloadReportClickHandler = function() {
                 var selectedOption = dataDownloadObj.selectedOption();
                 var errorMessage = dataDownloadObj.ERROR_MESSAGES[selectedOption.val()];
+                var postData = false;
 
                 if (selectedOption.data('directdownload')) {
                     location.href = selectedOption.data('endpoint') + '?csv=true';
                 } else if (selectedOption.data('datatable')) {
                     dataDownloadObj.renderDataTable(selectedOption);
                 } else {
-                    dataDownloadObj.downloadCSV(selectedOption, errorMessage, false);
+                    if (selectedOption.val() === 'problemGradeReport') {
+                        postData = {};
+                        dataDownloadObj.add_timestamps_into_data(postData, 'pr');
+                    }
+                    dataDownloadObj.downloadCSV(selectedOption, errorMessage, postData);
                 }
             };
             this.$download_report.click(dataDownloadObj.downloadReportClickHandler);
@@ -146,7 +200,6 @@
                 });
             };
 
-
             this.$downloadProblemReport.click(function() {
                 var data = {problem_location: dataDownloadObj.$list_problem_responses_csv_input.val()};
                 dataDownloadObj.downloadCSV($(this), false, data);
@@ -155,6 +208,7 @@
             this.$gradeReportDownload.click(function() {
                 var errorMessage = gettext('Error generating grades. Please try again.');
                 var data = {verified_learners_only: dataDownloadObj.$learnerStatus.val()};
+                dataDownloadObj.add_timestamps_into_data(data, 'gr');
                 dataDownloadObj.downloadCSV($(this), errorMessage, data);
             });
 
@@ -175,7 +229,7 @@
                     success: function(data) {
                         if (data.grading_config_summary) {
                             edx.HtmlUtils.setHtml(
-                                dataDownloadObj.$download_display_text, edx.HtmlUtils.HTML(data.grading_config_summary));
+                             dataDownloadObj.$download_display_text, edx.HtmlUtils.HTML(data.grading_config_summary));
                         } else {
                             dataDownloadObj.$reports_request_response.text(data.status);
                             $('.msg-confirm').css({display: 'block'});
@@ -187,7 +241,7 @@
             this.OnError = function(error, errorMessage) {
                 dataDownloadObj.clear_display();
                 if (error.responseText) {
-                    // eslint-disable-next-line no-param-reassign
+                  // eslint-disable-next-line no-param-reassign
                     errorMessage = JSON.parse(error.responseText);
                 }
                 dataDownloadObj.$download_request_response_error.text(errorMessage);
