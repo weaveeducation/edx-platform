@@ -88,7 +88,7 @@ CLEAR_REQUEST_CACHE_ON_TASK_COMPLETION = False
 
 #INSTALLED_APPS += ['debug_toolbar']
 
-MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
+#MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
 INTERNAL_IPS = ('127.0.0.1',)
 
 DEBUG_TOOLBAR_PANELS = (
