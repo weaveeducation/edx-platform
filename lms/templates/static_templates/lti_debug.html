@@ -1,0 +1,58 @@
+<%! from django.utils.translation import ugettext as _ %>
+<%inherit file="../main.html" />
+
+<%block name="pagetitle">${_("LTI test page")}</%block>
+
+<%block name="headextra">
+    <style>
+        .lti-debug {
+            padding: 8px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</%block>
+
+<main id="main" aria-label="Content" tabindex="-1">
+<table>
+<tr><td>${request_method}</td><td>${request_path}</td></tr>
+<tr><td>CONSUMER INFO</td><td>
+    % if len(lti_consumer_info) > 1:
+    <ul>
+    % for entry in lti_consumer_info:
+    <li>${entry}</li>
+    % endfor
+    </ul>
+    % else:
+    ${lti_consumer_info[0]}
+    % endif
+</td></tr>
+<tr><td>SIGNATURE VALIDATION</td><td>${signature_validation}</td></tr>
+</table><br /><hr />
+<div class="lti-debug">HEADERS:</div><br />
+<table>
+    % for header_key, header_value in headers_data.items():
+    <tr><td>${header_key}</td><td>${header_value}</td></tr>
+    % endfor
+</table><br /><hr />
+% if post_data:
+<div class="lti-debug">POST params:</div><br />
+<table>
+    % for post_key, post_value in post_data.items():
+    <tr><td>${post_key}</td><td>${post_value}</td></tr>
+    % endfor
+</table>
+% endif
+</main>

@@ -10,7 +10,7 @@ User = get_user_model()
 
 def check_sequential_block_is_completed(course_key, usage_id, block=None, user=None):
     from django.test.client import RequestFactory
-    from lms.djangoapps.courseware.module_render import get_module_by_usage_id
+    from lms.djangoapps.courseware.block_render import get_module_by_usage_id
 
     graded_categories = CREDO_GRADED_ITEM_CATEGORIES[:]
     graded_categories.append('survey')

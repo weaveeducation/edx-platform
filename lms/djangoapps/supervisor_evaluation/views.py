@@ -18,7 +18,7 @@ from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiv
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from lms.djangoapps.courseware.views.views import render_xblock
 from lms.djangoapps.courseware.utils import get_block_children, CREDO_GRADED_ITEM_CATEGORIES, get_answer_and_correctness
-from lms.djangoapps.courseware.module_render import get_module_by_usage_id
+from lms.djangoapps.courseware.block_render import get_module_by_usage_id
 from lms.djangoapps.courseware.user_state_client import DjangoXBlockUserStateClient
 from lms.djangoapps.supervisor_evaluation.tasks import generate_supervisor_pdf
 from lms.djangoapps.supervisor_evaluation.utils import get_course_block_with_survey

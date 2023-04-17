@@ -945,6 +945,15 @@ def get_block_by_usage_id(request, course_id, usage_id, disable_staff_debug_info
     return instance, tracking_context
 
 
+def get_module_by_usage_id(request, course_id, usage_id, disable_staff_debug_info=False, course=None,
+                           will_recheck_access=False):
+    """
+    Function for backward compatibility
+    """
+    return get_block_by_usage_id(request, course_id, usage_id, disable_staff_debug_info=disable_staff_debug_info,
+                                 course=course, will_recheck_access=will_recheck_access)
+
+
 def _invoke_xblock_handler(request, course_id, usage_id, handler, suffix, course=None):
     """
     Invoke an XBlock handler, either authenticated or not.

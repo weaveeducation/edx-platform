@@ -8,6 +8,7 @@ import logging
 from time import time
 
 from django.utils.translation import gettext_noop
+from django.contrib.auth import get_user_model
 from opaque_keys.edx.keys import UsageKey
 from xblock.runtime import KvsFieldData
 from xblock.scorable import Score
@@ -24,12 +25,18 @@ from lms.djangoapps.courseware.block_render import get_block_for_descriptor_inte
 from lms.djangoapps.grades.api import events as grades_events
 from openedx.core.lib.courses import get_course_by_id
 from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disable=wrong-import-order
+from common.djangoapps.credo_modules.models import SequentialBlockAnswered, OraBlockScore
+from completion.waffle import ENABLE_COMPLETION_TRACKING_SWITCH
+from completion.models import BlockCompletion
+from lms.djangoapps.courseware.utils import get_block_children
+from lms.djangoapps.utils import _create_edx_user
 
 from ..exceptions import UpdateProblemModuleStateError
 from .runner import TaskProgress
 from .utils import UNKNOWN_TASK_ID, UPDATE_STATUS_FAILED, UPDATE_STATUS_SKIPPED, UPDATE_STATUS_SUCCEEDED
 
 TASK_LOG = logging.getLogger('edx.celery.task')
+User = get_user_model()
 
 
 def perform_module_state_update(update_fcn, filter_fcn, _entry_id, course_id, task_input, action_name):
@@ -438,3 +445,88 @@ def _get_modules_to_update(course_id, usage_keys, student_identifier, filter_fcn
             for key in usage_keys
         ]
     return student_modules
+
+
+@outer_atomic
+def reset_progress_student(_xmodule_instance_args, _entry_id, course_id, _task_input, action_name):
+    start_time = time()
+
+    num_attempted = 1
+    num_total = 1
+
+    fmt = 'Task: {task_id}, InstructorTask ID: {entry_id}, Course: {course_id}, Input: {task_input}'
+    task_info_string = fmt.format(
+        task_id=_xmodule_instance_args.get('task_id') if _xmodule_instance_args is not None else None,
+        entry_id=_entry_id,
+        course_id=course_id,
+        task_input=_task_input
+    )
+    TASK_LOG.info('%s, Task type: %s, Starting task execution', task_info_string, action_name)
+
+    task_progress = TaskProgress(action_name, num_total, start_time)
+    task_progress.attempted = num_attempted
+
+    curr_step = {'step': "Creating user"}
+
+    TASK_LOG.info(
+        '%s, Task type: %s, Current step: %s for all submissions',
+        task_info_string,
+        action_name,
+        curr_step,
+    )
+
+    user = User.objects.get(id=_task_input['student'])
+
+    task_progress.succeeded = 1
+
+    curr_step = {'step': "Reseting progress"}
+    TASK_LOG.info(
+        '%s, Task type: %s, Current step: %s',
+        task_info_string,
+        action_name,
+        curr_step,
+    )
+    task_progress.update_task_state(extra_meta=curr_step)
+
+    reset_user_progress(user, course_id, initiator='instructor_dashboard_student_admin_tab')
+
+    curr_step = {'step': 'Finalizing reseting report'}
+    return task_progress.update_task_state(extra_meta=curr_step)
+
+
+def create_reset_user(user):
+    new_user = _create_edx_user(user.email, user.username, user.password, user)
+    new_profile = user.profile
+    new_profile.pk, new_profile.user = None, new_user
+    new_profile.save()
+    return new_user
+
+
+def reset_user_progress(user, course_key, block=None, initiator=None):
+    if not block:
+        StudentModule.objects.filter(course_id=course_key, student=user).delete()
+        SequentialBlockAnswered.objects.filter(course_id=str(course_key), user_id=user.id).delete()
+        OraBlockScore.objects.filter(course_id=str(course_key), user_id=user.id).delete()
+
+        if ENABLE_COMPLETION_TRACKING_SWITCH.is_enabled():
+            BlockCompletion.objects.clear_completion(user, course_key)
+    else:
+        children_dict = get_block_children(block, block.display_name, add_correctness=False)
+        items = [block.location]
+        ora_items = []
+        for k, v in children_dict.items():
+            items.append(UsageKey.from_string(k))
+            if v['category'] == 'openassessment':
+                ora_items.append(str(k))
+
+        StudentModule.objects.filter(course_id=course_key, module_state_key__in=items, student=user).delete()
+        SequentialBlockAnswered.objects.filter(
+            course_id=str(course_key), sequential_id=str(block.location), user_id=user.id).delete()
+        if ora_items:
+            OraBlockScore.objects.filter(
+                course_id=str(course_key), user_id=user.id, block_id__in=ora_items).delete()
+
+        if ENABLE_COMPLETION_TRACKING_SWITCH.is_enabled():
+            BlockCompletion.objects.filter(user=user, context_key=course_key, block_key__in=items).delete()
+    block_id_reset = str(block.location) if block else None
+    StudentModule.log_reset_progress(user.id, str(course_key), initiator=initiator, block_id=block_id_reset)

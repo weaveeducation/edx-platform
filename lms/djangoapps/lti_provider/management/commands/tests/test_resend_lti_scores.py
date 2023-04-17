@@ -7,13 +7,13 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from opaque_keys.edx.keys import CourseKey, UsageKey
-from xmodule.modulestore.tests.django_utils import TEST_DATA_SPLIT_MODULESTORE, SharedModuleStoreTestCase
-from xmodule.modulestore.tests.utils import TEST_DATA_DIR
-from xmodule.modulestore.xml_importer import import_course_from_xml
 
 from common.djangoapps.student.tests.factories import UserFactory
 from lms.djangoapps.lti_provider.management.commands import resend_lti_scores
 from lms.djangoapps.lti_provider.models import GradedAssignment, LtiConsumer, OutcomeService
+from xmodule.modulestore.tests.django_utils import SharedModuleStoreTestCase
+from xmodule.modulestore.tests.utils import TEST_DATA_DIR
+from xmodule.modulestore.xml_importer import import_course_from_xml
 
 
 class CommandArgsTestCase(TestCase):
@@ -46,17 +46,14 @@ class CommandExecutionTestCase(SharedModuleStoreTestCase):
     """
     Test `manage.py resend_lti_scores` command.
     """
-    MODULESTORE = TEST_DATA_SPLIT_MODULESTORE
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.course_key = cls.store.make_course_key('edX', 'lti_provider', '3000')
-        password = 'test'
-        user = UserFactory.create(is_staff=False, username='test_student', password=password)
         import_course_from_xml(
             cls.store,
-            user.id,
+            'test_user',
             TEST_DATA_DIR,
             source_dirs=['simple'],
             static_content_store=None,

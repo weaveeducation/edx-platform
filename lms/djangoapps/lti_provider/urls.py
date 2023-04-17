@@ -2,17 +2,25 @@
 LTI Provider API endpoint urls.
 """
 
-
 from django.conf import settings
-from django.urls import re_path
+from django.conf.urls import url
 
-from lms.djangoapps.lti_provider import views
+from . import views
 
 urlpatterns = [
-    re_path(
+    url(
+        r'^myskills$',
+        views.lti_myskills, name="lti_myskills"),
+    url(
+        r'^courses/{course_id}/progress$'.format(
+            course_id=settings.COURSE_ID_PATTERN,
+        ),
+        views.lti_progress, name="lti_provider_progress"),
+    url(
         r'^courses/{course_id}/{usage_id}$'.format(
             course_id=settings.COURSE_ID_PATTERN,
             usage_id=settings.USAGE_ID_PATTERN
         ),
         views.lti_launch, name="lti_provider_launch"),
+    url(r'^test/?$', views.test_launch, name="lti_provider_test_launch"),
 ]

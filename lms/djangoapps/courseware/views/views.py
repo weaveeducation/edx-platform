@@ -22,7 +22,9 @@ from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpRespo
 from django.shortcuts import redirect
 from django.template.context_processors import csrf
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.utils.http import urlquote_plus
 from django.utils.text import slugify
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
@@ -60,6 +62,7 @@ from common.djangoapps.util.course import course_location_from_key
 from common.djangoapps.util.db import outer_atomic
 from common.djangoapps.util.milestones_helpers import get_prerequisite_courses_display
 from common.djangoapps.util.views import ensure_valid_course_key, ensure_valid_usage_key
+from common.djangoapps.myskills.services import MySkillsService, get_block_student_progress
 from lms.djangoapps.ccx.custom_exception import CCXLocatorValidationException
 from lms.djangoapps.certificates import api as certs_api
 from lms.djangoapps.certificates.data import CertificateStatuses
@@ -79,7 +82,8 @@ from lms.djangoapps.courseware.courses import (
     get_permission_for_course_about,
     get_studio_url,
     sort_by_announcement,
-    sort_by_start_date
+    sort_by_start_date,
+    update_lms_course_usage
 )
 from lms.djangoapps.courseware.date_summary import verified_upgrade_deadline_link
 from lms.djangoapps.courseware.exceptions import CourseAccessRedirect, Redirect
@@ -91,6 +95,7 @@ from lms.djangoapps.courseware.toggles import course_is_invitation_only
 from lms.djangoapps.courseware.user_state_client import DjangoXBlockUserStateClient
 from lms.djangoapps.courseware.utils import (
     _use_new_financial_assistance_flow,
+    get_lti_context_session_key,
     create_financial_assistance_application,
     is_eligible_for_financial_aid
 )
@@ -101,6 +106,7 @@ from lms.djangoapps.instructor.enrollment import uses_shib
 from lms.djangoapps.instructor.views.api import require_global_staff
 from lms.djangoapps.survey import views as survey_views
 from lms.djangoapps.verify_student.services import IDVerificationService
+from lms.djangoapps.branding import api as branding_api
 from openedx.core.djangoapps.catalog.utils import (
     get_course_data,
     get_course_uuid_for_course,
@@ -122,6 +128,7 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
 from openedx.core.djangoapps.util.user_messages import PageLevelMessages
 from openedx.core.djangoapps.video_config.toggles import PUBLIC_VIDEO_SHARE
 from openedx.core.djangoapps.zendesk_proxy.utils import create_zendesk_ticket
+from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous
 from openedx.core.djangolib.markup import HTML, Text
 from openedx.core.lib.courses import get_course_by_id
 from openedx.core.lib.mobile_utils import is_request_from_mobile_app
@@ -139,6 +146,35 @@ from openedx.features.enterprise_support.api import data_sharing_consent_require
 from ..block_render import get_block, get_block_by_usage_id, get_block_for_descriptor
 from ..tabs import _get_dynamic_tabs
 from ..toggles import COURSEWARE_OPTIMIZED_RENDER_XBLOCK
+
+from common.djangoapps.util.views import add_p3p_header
+from openedx.core.djangoapps.user_authn.views.custom import register_login_and_enroll_anonymous_user,\
+    validate_credo_access
+from common.djangoapps.credo_modules.models import user_must_fill_additional_profile_fields,\
+    Organization, SendScores, SendScoresMailing,\
+    CourseStaffExtended
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotAllowed,\
+    JsonResponse
+from django.core.serializers.json import DjangoJSONEncoder
+from common.djangoapps.credo_modules.views import show_student_profile_form
+from common.djangoapps.credo_modules.utils import get_skills_mfe_url
+from mako.template import Template
+from lms import CELERY_APP
+from django.core import mail
+from openedx.core.lib.url_utils import unquote_slashes
+from django.core.validators import validate_email
+from django.core.exceptions import PermissionDenied, ValidationError
+
+from edx_rest_framework_extensions.auth.jwt.authentication import JwtAuthentication
+from edx_rest_framework_extensions.auth.session.authentication import SessionAuthenticationAllowInactiveUser
+from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiveUser
+from rest_framework.views import APIView
+from rest_framework import permissions
+
+try:
+    from premailer import transform
+except ImportError:
+    transform = None
 
 log = logging.getLogger("edx.courseware")
 
@@ -494,21 +530,25 @@ class CourseTabView(EdxFragmentView):
         """
         course_key = CourseKey.from_string(course_id)
         with modulestore().bulk_operations(course_key):
+            course_obj = modulestore().get_course(course_key, depth=0)
+            if request.user.is_authenticated and is_user_credo_anonymous(request.user) \
+                and course_obj and course_obj.allow_anonymous_access:
+                CourseEnrollment.enroll(request.user, course_key)
+
             course = get_course_with_access(request.user, 'load', course_key)
-            try:
-                # Render the page
-                course_tabs = course.tabs + _get_dynamic_tabs(course, request.user)
-                tab = CourseTabList.get_tab_by_type(course_tabs, tab_type)
-                page_context = self.create_page_context(request, course=course, tab=tab, **kwargs)
 
-                # Show warnings if the user has limited access
-                # Must come after masquerading on creation of page context
-                self.register_user_access_warning_messages(request, course)
+            # Render the page
+            course_tabs = course.tabs + _get_dynamic_tabs(course, request.user)
+            tab = CourseTabList.get_tab_by_type(course_tabs, tab_type)
+            page_context = self.create_page_context(request, course=course, tab=tab, **kwargs)
 
-                set_custom_attributes_for_course_key(course_key)
-                return super().get(request, course=course, page_context=page_context, **kwargs)
-            except Exception as exception:  # pylint: disable=broad-except
-                return CourseTabView.handle_exceptions(request, course_key, course, exception)
+            # Show warnings if the user has limited access
+            # Must come after masquerading on creation of page context
+            self.register_user_access_warning_messages(request, course)
+
+            set_custom_attributes_for_course_key(course_key)
+            return super().get(request, course=course, page_context=page_context, **kwargs)
+
 
     @staticmethod
     def url_to_enroll(course_key):
@@ -760,6 +800,7 @@ class EnrollStaffView(View):
 
 @ensure_csrf_cookie
 @ensure_valid_course_key
+@login_required
 @cache_if_anonymous()
 def course_about(request, course_id):  # pylint: disable=too-many-statements
     """
@@ -944,19 +985,38 @@ def progress(request, course_id, student_id=None):
         return _progress(request, course_key, student_id)
 
 
-def _progress(request, course_key, student_id):
+def render_progress_page_frame(request, course_key):
+    return _progress(request, course_key, None, display_in_frame=True)
+
+
+def _progress(request, course_key, student_id, display_in_frame=False):
     """
     Unwrapped version of "progress".
     User progress. We show the grade bar and every problem score.
     Course staff are allowed to see the progress of students in their class.
     """
+    url_params_list = []
 
     if student_id is not None:
         try:
             student_id = int(student_id)
+            url_params_list.append('userId=' + str(student_id))
         # Check for ValueError if 'student_id' cannot be converted to integer.
         except ValueError:
             raise Http404  # lint-amnesty, pylint: disable=raise-missing-from
+
+    is_frame = request.GET.get('frame')
+    if is_frame:
+        try:
+            is_frame = int(is_frame)
+            is_frame = is_frame == 1
+        except ValueError:
+            is_frame = None
+    if not is_frame:
+        is_frame = display_in_frame
+
+    if is_frame:
+        url_params_list.append('headless=true')
 
     course = get_course_with_access(request.user, 'load', course_key)
 
@@ -992,6 +1052,23 @@ def _progress(request, course_key, student_id):
         # refetch the course as the assumed student
         course = get_course_with_access(student, 'load', course_key, check_if_enrolled=True)
 
+    enable_extended_progress_page = False
+    try:
+        org = Organization.objects.get(org=course_key.org)
+        if org.org_type is not None:
+            enable_extended_progress_page = org.org_type.enable_extended_progress_page
+    except Organization.DoesNotExist:
+        pass
+
+    if enable_extended_progress_page:
+        mfe_url = get_skills_mfe_url()
+        if mfe_url and not request.user.is_superuser:
+            redirect_url = mfe_url + reverse('progress', kwargs={'course_id': str(course_key)})
+            if url_params_list:
+                redirect_url = redirect_url + '?' + '&'.join(url_params_list)
+            return redirect(redirect_url)
+        return _extended_progress_page(request, course, student, student_id, is_frame=is_frame)
+
     # NOTE: To make sure impersonation by instructor works, use
     # student instead of request.user in the rest of the function.
 
@@ -1003,6 +1080,12 @@ def _progress(request, course_key, student_id):
     enrollment_mode, _ = CourseEnrollment.enrollment_mode_for_user(student, course_key)
 
     course_expiration_fragment = generate_course_expired_fragment(student, course)
+    studio_staff_access = False
+    if staff_access:
+        studio_staff_access = True
+        if CourseStaffExtended.objects.filter(role__course_studio_access=False,
+                                              user=request.user, course_id=course_key).exists():
+            studio_staff_access = False
 
     context = {
         'course': course,
@@ -1011,12 +1094,14 @@ def _progress(request, course_key, student_id):
         'grade_summary': course_grade.summary,
         'can_masquerade': can_masquerade,
         'staff_access': staff_access,
+        'studio_staff_access': studio_staff_access,
         'masquerade': masquerade,
         'supports_preview_menu': True,
         'student': student,
         'credit_course_requirements': credit_course_requirements(course_key, student),
         'course_expiration_fragment': course_expiration_fragment,
-        'certificate_data': get_cert_data(student, course, enrollment_mode, course_grade)
+        'certificate_data': get_cert_data(student, course, enrollment_mode, course_grade),
+        'is_frame': is_frame
     }
 
     context.update(
@@ -1026,10 +1111,77 @@ def _progress(request, course_key, student_id):
         )
     )
 
-    with outer_atomic():
+    if is_frame:
+        context.update({
+            'allow_iframing': True,
+            'disable_accordion': True,
+            'disable_header': True,
+            'disable_footer': True,
+            'disable_window_wrap': True,
+            'disable_tabs': True
+        })
         response = render_to_response('courseware/progress.html', context)
+    else:
+        with outer_atomic():
+            response = render_to_response('courseware/progress.html', context)
 
     return response
+
+
+def _extended_progress_page(request, course, student, student_id=None, is_frame=False):
+    page = request.GET.get('page')
+
+    with modulestore().bulk_operations(course.id):
+        myskills_service = MySkillsService(student, course)
+
+        if page is None or page == 'progress':
+            page_context = myskills_service.get_tags_summary()
+            page_context['assessments'] = myskills_service.get_assessment_summary()
+            tpl_name = 'extended_progress.html'
+        elif page == 'skills':
+            page_context = myskills_service.get_tags_all_data()
+            tpl_name = 'extended_progress_skills.html'
+        elif page == 'grades':
+            page_context = myskills_service.get_assessment_all_data()
+            tpl_name = 'extended_progress_assessments.html'
+        else:
+            raise Http404
+
+    student_name = student.first_name + ' ' + student.last_name
+    student_name = student_name.strip()
+    if student_name:
+        student_name = student_name + ' (' + student.email + ')'
+    else:
+        student_name = student.email
+
+    context = {
+        'course': course,
+        'course_id': course.id,
+        'assessments_display': True,
+        'student_id': student.id,
+        'student': student,
+        'student_name': student_name,
+        'current_url': reverse('progress', kwargs={'course_id': course.id}) if student_id is None else reverse(
+            'student_progress', kwargs={'course_id': course.id, 'student_id': student_id}),
+        'current_url_additional_params': 'frame=1' if is_frame else ''
+    }
+    context.update(page_context)
+    if is_frame:
+        context.update({
+            'allow_iframing': True,
+            'disable_accordion': True,
+            'disable_header': True,
+            'disable_footer': True,
+            'disable_window_wrap': True,
+            'disable_tabs': True
+        })
+    context.update(
+        get_experiment_user_metadata_context(
+            course,
+            student,
+        )
+    )
+    return render_to_response('courseware/' + tpl_name, context)
 
 
 def _downloadable_certificate_message(course, cert_downloadable_status):  # lint-amnesty, pylint: disable=missing-function-docstring
@@ -1521,7 +1673,8 @@ def _check_sequence_exam_access(request, location):
 @xframe_options_exempt
 @transaction.non_atomic_requests
 @ensure_csrf_cookie
-def render_xblock(request, usage_key_string, check_if_enrolled=True):
+def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookmark_button=None, lti_context_id=None,
+                  link_access_hash=None):
     """
     Returns an HttpResponse with HTML content for the xBlock with the given usage_key.
     The returned HTML is a chromeless rendering of the xBlock (excluding content of the containing courseware).
@@ -1576,7 +1729,31 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True):
         )
 
         student_view_context = request.GET.dict()
-        student_view_context['show_bookmark_button'] = request.GET.get('show_bookmark_button', '0') == '1'
+        student_view_context['show_bookmark_button'] = False
+        student_view_context['enable_new_carousel_view'] = False
+        student_view_context['lms_url_to_get_grades'] = reverse('block_student_progress',
+                                                                kwargs={'course_id': str(course_key),
+                                                                        'usage_id': str(usage_key_string)})
+        student_view_context['lms_url_to_email_grades'] = reverse('email_student_progress',
+                                                                  kwargs={'course_id': str(course_key),
+                                                                          'usage_id': str(usage_key_string)})
+        student_view_context['lms_url_to_issue_badge'] = reverse('badgr_integration_issue_badge',
+                                                                 kwargs={'course_id': str(course_key),
+                                                                         'usage_id': str(usage_key_string)})
+        student_view_context['show_summary_info_after_quiz'] = course.show_summary_info_after_quiz
+        student_view_context['summary_info_imgs'] = get_student_progress_images()
+        student_view_context['logo_url'] = get_logo_url(request.is_secure())
+
+        try:
+            org = Organization.objects.get(org=course.org)
+            if org.org_type is not None:
+                student_view_context['enable_new_carousel_view'] = org.org_type.enable_new_carousel_view
+        except Organization.DoesNotExist:
+            pass
+        if show_bookmark_button is not None:
+            student_view_context['show_bookmark_button'] = show_bookmark_button
+        else:
+            student_view_context['show_bookmark_button'] = request.GET.get('show_bookmark_button', '0') == '1'
         student_view_context['show_title'] = request.GET.get('show_title', '1') == '1'
 
         is_learning_mfe = is_request_from_learning_mfe(request)
@@ -1648,8 +1825,11 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True):
             'on_courseware_page': True,
             'verified_upgrade_link': verified_upgrade_deadline_link(request.user, course=course),
             'is_learning_mfe': is_learning_mfe,
+            'lti_context_id': lti_context_id,
+            'link_access_hash': link_access_hash,
             'is_mobile_app': is_mobile_app,
             'render_course_wide_assets': True,
+            'block_type': usage_key.block_type,
 
             **optimization_flags,
         }
@@ -2254,3 +2434,327 @@ def get_learner_username(learner_identifier):
     learner = User.objects.filter(Q(username=learner_identifier) | Q(email=learner_identifier)).first()
     if learner:
         return learner.username
+
+
+@ensure_valid_course_key
+@add_p3p_header
+def check_credo_access(request, course_id):
+    course_key = CourseKey.from_string(course_id)
+    course = modulestore().get_course(course_key, depth=0)
+
+    if not course:
+        raise Http404("Course not found")
+
+    if not request.user.is_authenticated:
+        if course.credo_authentication:
+            credo_auth = validate_credo_access(request)
+            if not credo_auth:
+                return HttpResponseForbidden('Invalid Credo authentication. '
+                                             'You have no permissions to access the content. '
+                                             'If you are a student user, please screencap this error and share it '
+                                             'with your instructor. If you are an admin, please see our help site '
+                                             'or contact our support team for help.')
+        if course.allow_anonymous_access:
+            register_login_and_enroll_anonymous_user(request, course_key)
+        else:
+            return HttpResponseForbidden('Unauthorized')
+    elif is_user_credo_anonymous(request.user) and course.allow_anonymous_access \
+            and not CourseEnrollment.is_enrolled(request.user, course_key):
+        CourseEnrollment.enroll(request.user, course_key)
+
+    redirect_to = request.GET.get('next')
+    if redirect_to:
+        return redirect(redirect_to)
+    else:
+        return HttpResponse('OK')
+
+
+@ensure_valid_course_key
+@add_p3p_header
+@xframe_options_exempt
+def render_xblock_course(request, course_id, usage_key_string):
+    course_key = CourseKey.from_string(course_id)
+    course = modulestore().get_course(course_key, depth=2)
+
+    if not course:
+        raise Http404("Course not found")
+
+    try:
+        block = modulestore().get_item(UsageKey.from_string(usage_key_string))
+    except ItemNotFoundError:
+        raise Http404("Block not found")
+    is_time_exam = getattr(block, 'is_proctored_exam', False) or getattr(block, 'is_time_limited', False)
+
+    if not request.GET.get('process_request'):
+        url_query = ''
+        jwt_token = request.GET.get('jwt_token', None)
+        if jwt_token:
+            url_query = 'jwt_token=' + jwt_token
+
+        template = get_embedded_new_tab_page(is_time_exam=is_time_exam, url_query=url_query)
+        return HttpResponse(template.render())
+
+    if not request.user.is_authenticated:
+        if course.credo_authentication:
+            credo_auth = validate_credo_access(request)
+            if not credo_auth:
+                return HttpResponseForbidden('Invalid Credo authentication. '
+                                             'You have no permissions to access the content. '
+                                             'If you are a student user, please screencap this error and share it '
+                                             'with your instructor. If you are an admin, please see our help site '
+                                             'or contact our support team for help.')
+        if course.allow_anonymous_access:
+            register_login_and_enroll_anonymous_user(request, course_key)
+        else:
+            return HttpResponseForbidden('Unauthorized')
+    elif is_user_credo_anonymous(request.user) and course.allow_anonymous_access \
+            and not CourseEnrollment.is_enrolled(request.user, course_key):
+        CourseEnrollment.enroll(request.user, course_key)
+
+    if user_must_fill_additional_profile_fields(course, request.user, block):
+        return show_student_profile_form(request, course, True)
+
+    update_lms_course_usage(request, UsageKey.from_string(usage_key_string), course_key)
+    return render_xblock(request, usage_key_string, show_bookmark_button=False)
+
+
+@require_http_methods(["GET"])
+def cookie_check(request):
+    test_cookie_val = request.COOKIES.get('nw_test_cookie', None)
+    request_ts = request.GET.get('ts', None)
+    cookie_sent = True if request_ts and test_cookie_val and request_ts == test_cookie_val else False
+    return HttpResponse(json.dumps({
+        'cookie_sent': cookie_sent,
+        'test_cookie_val': test_cookie_val,
+        'request_ts': request_ts,
+    }), content_type='application/json')
+
+
+@require_http_methods(["GET"])
+def launch_new_tab(request, course_id, usage_id):
+    if not request.user.is_authenticated:
+        return HttpResponseForbidden('Unauthorized')
+    try:
+        course_key = CourseKey.from_string(course_id)
+        usage_id = unquote_slashes(usage_id)
+        usage_key = UsageKey.from_string(usage_id).map_into_course(course_key)
+    except InvalidKeyError:
+        log.error(
+            'Invalid course key %s or usage key %s from request %s',
+            course_id,
+            usage_id,
+            request
+        )
+        raise Http404()
+    update_lms_course_usage(request, usage_key, course_key)
+
+    lti_context_id = None
+    lti_context_id_key = get_lti_context_session_key(usage_id)
+
+    if lti_context_id_key in request.session:
+        lti_context_id = request.session[lti_context_id_key]
+
+    return render_xblock(request, str(usage_key), check_if_enrolled=False, show_bookmark_button=False,
+                         lti_context_id=lti_context_id)
+
+
+def get_student_progress_images():
+    return {
+        'correct_icon': settings.STATIC_URL + 'images/credo/question_correct.png',
+        'incorrect_icon': settings.STATIC_URL + 'images/credo/question_incorrect.png',
+        'unanswered_icon': settings.STATIC_URL + 'images/credo/question_unanswered.png',
+        'assessment_done_img': settings.STATIC_URL + 'images/credo/assessment_done.png'
+    }
+
+
+def get_logo_url(is_secure):
+    return branding_api.get_logo_url(is_secure)
+
+
+def get_student_progress_email_html(course_id, usage_id, request=None, student_progress=None):
+    course_key = CourseKey.from_string(course_id)
+    usage_key = UsageKey.from_string(usage_id)
+
+    course = modulestore().get_course(course_key)
+    breadcrumbs = []
+
+    org_name = course.display_organization
+    if not org_name:
+        org_name = course_key.org
+    breadcrumbs.append(org_name.strip())
+
+    course_name = course.display_name
+    if not course_name:
+        course_name = course_key.course
+    breadcrumbs.append(course_name.strip())
+
+    item = modulestore().get_item(usage_key)
+    parent = item.get_parent()
+    if parent.display_name != item.display_name:
+        breadcrumbs.append(parent.display_name)
+    breadcrumbs.append(item.display_name)
+
+    dt_now = datetime.now()
+    if request:
+        scores_info = get_block_student_progress(request, course_id, usage_id)
+    else:
+        scores_info = student_progress
+    context = {
+        'breadcrumbs': breadcrumbs,
+        'breadcrumbs_len': len(breadcrumbs) - 1,
+        'lms_url': configuration_helpers.get_value('LMS_ROOT_URL', settings.LMS_ROOT_URL),
+        'platform_name': configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME),
+        'support_url': configuration_helpers.get_value('SUPPORT_SITE_LINK', settings.SUPPORT_SITE_LINK),
+        'support_email': configuration_helpers.get_value('CONTACT_EMAIL', settings.CONTACT_EMAIL),
+        'scores': scores_info,
+        'current_year': dt_now.year,
+        'section_display_name': item.display_name,
+        'privacy_url': 'https://modules.zendesk.com/hc/en-us/articles/115005329466-Data-Privacy-FERPA-Security',
+        'use_static': True
+    }
+    html_email = render_to_string('emails/email_scores.html', context)
+    if transform:
+        html_email = transform(html_email)
+    return html_email, context
+
+
+class BlockStudentProgressView(APIView):
+    authentication_classes = (
+        JwtAuthentication,
+        BearerAuthenticationAllowInactiveUser,
+        SessionAuthenticationAllowInactiveUser,
+    )
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request, course_id, usage_id):
+        email_test = request.GET.get('email-test', None)
+        if email_test == 'y':
+            html_email, context = get_student_progress_email_html(course_id, usage_id, request)
+            return HttpResponse(html_email)
+        else:
+            return HttpResponseBadRequest()
+
+    def post(self, request, course_id, usage_id):
+        resp = get_block_student_progress(request, course_id, usage_id)
+        return JsonResponse(resp)
+
+
+class EmailStudentProgressView(APIView):
+    authentication_classes = (
+        JwtAuthentication,
+        BearerAuthenticationAllowInactiveUser,
+        SessionAuthenticationAllowInactiveUser,
+    )
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, course_id, usage_id):
+        data_type = request.GET.get('data_type')
+        if data_type == 'json':
+            try:
+                json_data = json.loads(request.body)
+                timezone_offset = json_data.get('timezone_offset', 0)
+                emails = json_data.get('emails', '')
+            except ValueError:
+                return JsonResponse({'success': False, 'error': "invalid data"})
+        else:
+            timezone_offset = request.POST.get('timezone_offset', 0)
+            emails = request.POST.get('emails', '')
+
+        try:
+            timezone_offset = int(timezone_offset)
+        except ValueError:
+            timezone_offset = 0
+
+        course_key = CourseKey.from_string(course_id)
+        resp = get_block_student_progress(request, course_id, usage_id, timezone_offset)
+
+        emails = emails.split(',')
+        emails_result = []
+
+        for e in emails:
+            try:
+                email = e.strip()
+                validate_email(email)
+                if email not in emails_result:
+                    emails_result.append(email)
+            except ValidationError:
+                pass
+
+        if len(emails_result) > 10:
+            return JsonResponse({'success': False, 'error': "Too much emails. Please don't use more than 10 emails"})
+        elif len(emails_result) == 0:
+            return JsonResponse({'success': False, 'error': "There are no valid emails"})
+
+        if not resp['error']:
+            with transaction.atomic():
+                try:
+                    send_scores = SendScores.objects.get(user=request.user, course_id=course_key, block_id=usage_id)
+                    time_diff = timezone.now() - send_scores.last_send_time
+                    if time_diff.total_seconds() < 300:  # 5 min
+                        return JsonResponse({'success': False, 'error': 'You have already sent email not so long ago. '
+                                                                        'Please try again later in 5 minutes'})
+                except SendScores.DoesNotExist:
+                    send_scores = SendScores(
+                        user=request.user,
+                        course_id=course_key,
+                        block_id=usage_id)
+                send_scores.last_send_time = timezone.now()
+                send_scores.save()
+
+                mailing = SendScoresMailing(
+                    email_scores=send_scores,
+                    data=json.dumps(resp, cls=DjangoJSONEncoder),
+                    last_send_time=timezone.now()
+                )
+                mailing.save()
+                transaction.on_commit(lambda: send_email_with_scores.delay(course_id, usage_id, mailing.id, emails_result))
+
+            log.info("Task to send scores was added for user_id: %s, course_id: %s, block_id: %s. "
+                     "Emails: %s. Mailing id: %s",
+                     str(request.user.id), str(course_key), str(usage_id), str(emails_result), str(mailing.id))
+
+            return Response({'success': True, 'error': False})
+        else:
+            return Response({'success': False, 'error': 'Error. Please refresh the page'})
+
+
+@CELERY_APP.task
+def send_email_with_scores(course_id, usage_id, mailing_id, emails):
+    log.info("Task to send scores was started. Mailing id: %s", str(mailing_id))
+
+    try:
+        mailing = SendScoresMailing.objects.get(id=mailing_id)
+        scores_info = json.loads(mailing.data)
+
+        html_email, context = get_student_progress_email_html(course_id, usage_id, None, scores_info)
+        text_email = render_to_string('emails/email_scores.txt', context)
+        from_address = configuration_helpers.get_value('email_from_address', settings.BULK_EMAIL_DEFAULT_FROM_EMAIL)
+
+        if settings.DEBUG:
+            log.info('Recipient list: ' + str(emails))
+            log.info('Email text: ' + text_email)
+
+        mail.send_mail('Credo Assessment Results: ' + context['section_display_name'], text_email, from_address, emails,
+                       fail_silently=False, html_message=html_email)
+
+        log.info("Task to send scores successfully finished. Mailing id: %s", str(mailing_id))
+    except SendScoresMailing.DoesNotExist:
+        log.error("Task to send scores finished with error. Mailing id: %s", str(mailing_id))
+
+
+def get_embedded_new_tab_page(is_time_exam=False, url_query=None, request_hash=None):
+    if url_query and not url_query.startswith('&'):
+        url_query = '&' + url_query
+
+    return Template(render_to_string('static_templates/embedded_new_tab.html', {
+        'disable_accordion': True,
+        'allow_iframing': True,
+        'disable_header': True,
+        'disable_footer': True,
+        'disable_window_wrap': True,
+        'hash': request_hash if request_hash else '',
+        'additional_url_params': url_query if url_query else '',
+        'time_exam': 1 if is_time_exam else 0,
+        'same_site': getattr(settings, 'DCS_SESSION_COOKIE_SAMESITE'),
+        'show_bookmark_button': False
+    }))

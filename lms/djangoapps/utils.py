@@ -6,6 +6,14 @@ from braze.client import BrazeClient
 from django.conf import settings
 from optimizely import optimizely
 from optimizely.config_manager import PollingConfigManager
+from django.contrib.auth import get_user_model
+from django.db.models import Q
+from django.db import transaction
+from django.db.utils import IntegrityError
+
+User = get_user_model()
+USERNAME_DB_FIELD_SIZE = 30
+EMAIL_DB_FIELD_SIZE = 254
 
 
 def _get_key(key_or_id, key_cls):
@@ -53,3 +61,41 @@ class OptimizelyClient:
             cls.optimizely_client = optimizely.Optimizely(config_manager=config_manager)
 
         return cls.optimizely_client
+
+
+def _create_edx_user(email, username, password, user=None):
+    i = 1
+    new_email = email
+    new_username = username
+
+    if user is not None:
+        new_email, new_username = _get_new_email_and_username(user, new_email, new_username, i)
+        i = i + 1
+
+    while True:
+        try:
+            with transaction.atomic():
+                return User.objects.create_user(
+                    email=new_email,
+                    username=new_username,
+                    password=password
+                )
+        except IntegrityError:
+            ex_user = User.objects.get(Q(email=new_email) | Q(username=new_username))
+            new_email, new_username = _get_new_email_and_username(ex_user, new_email, new_username, i)
+            i = i + 1
+
+
+def _get_new_email_and_username(ex_user, new_email, new_username, num):
+    if ex_user.email == new_email:
+        if len(ex_user.email) > (EMAIL_DB_FIELD_SIZE - 3):
+            new_email = ex_user.email[0:EMAIL_DB_FIELD_SIZE - 3] + str(num)
+        else:
+            new_email = ex_user.email + str(num)
+    if ex_user.username.lower() == new_username.lower():
+        if len(ex_user.username) > (USERNAME_DB_FIELD_SIZE - 3):
+            new_username = new_username[0:USERNAME_DB_FIELD_SIZE - 3] + str(num)
+        else:
+            new_username = new_username + str(num)
+
+    return new_email, new_username

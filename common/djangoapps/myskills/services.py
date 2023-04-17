@@ -5,7 +5,7 @@ from collections import OrderedDict
 from django.http import Http404
 from django.utils.html import escape
 from lms.djangoapps.courseware.courses import get_course_with_access
-from lms.djangoapps.courseware.module_render import get_module_by_usage_id
+from lms.djangoapps.courseware.block_render import get_module_by_usage_id
 from lms.djangoapps.courseware.utils import CREDO_GRADED_ITEM_CATEGORIES, get_block_children, get_score_points,\
     get_answer_and_correctness
 from lms.djangoapps.courseware.user_state_client import DjangoXBlockUserStateClient

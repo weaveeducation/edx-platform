@@ -15,6 +15,7 @@ from edx_django_utils.plugins import get_plugin_url_patterns
 
 from common.djangoapps.student import views as student_views
 from common.djangoapps.util import views as util_views
+from common.djangoapps.credo_modules.views import manage_org_tags, manage_org_tags_sorting
 from lms.djangoapps.branding import views as branding_views
 from lms.djangoapps.courseware.masquerade import MasqueradeView
 from lms.djangoapps.courseware.block_render import (
@@ -25,7 +26,11 @@ from lms.djangoapps.courseware.block_render import (
 )
 from lms.djangoapps.courseware.views import views as courseware_views
 from lms.djangoapps.courseware.views.index import CoursewareIndex
-from lms.djangoapps.courseware.views.views import CourseTabView, EnrollStaffView, StaticCourseTabView
+from lms.djangoapps.courseware.views.views import CourseTabView, EnrollStaffView, StaticCourseTabView, \
+    cookie_check, launch_new_tab, EmailStudentProgressView, BlockStudentProgressView, check_credo_access, \
+    render_xblock_course
+from lms.djangoapps.courseware.global_progress import global_skills_page, api_get_global_tag_data,\
+    api_get_global_tag_section_data
 from lms.djangoapps.debug import views as debug_views
 from lms.djangoapps.discussion import views as discussion_views
 from lms.djangoapps.discussion.config.settings import is_forum_daily_digest_enabled
@@ -99,7 +104,14 @@ urlpatterns = [
     path('', include('common.djangoapps.student.urls')),
     # TODO: Move lms specific student views out of common code
     re_path(r'^dashboard/?$', student_views.student_dashboard, name='dashboard'),
+    re_path(r'^archive/?$', student_views.student_dashboard_archive, name='dashboard_archive'),
     path('change_enrollment', student_views.change_enrollment, name='change_enrollment'),
+
+    re_path(r'^myskills/api-get-global-tag-data/?$', api_get_global_tag_data,
+            name='global_skills_api_get_tag_data'),
+    re_path(r'^myskills/api-get-global-tag-section-data/?$', api_get_global_tag_section_data,
+            name='global_skills_api_get_tag_section_data'),
+    re_path(r'^myskills/?$', global_skills_page, name='global_skills'),
 
     # Event tracking endpoints
     path('', include('common.djangoapps.track.urls')),
@@ -180,6 +192,8 @@ urlpatterns = [
     ),
 
     path('verify_student/', include('lms.djangoapps.verify_student.urls')),
+    re_path(r'^credo_modules/', include('common.djangoapps.credo_modules.urls')),
+    re_path(r'^turnitin/', include('common.djangoapps.turnitin_integration.urls')),
 
     # URLs for managing dark launches of languages
     path('update_lang/', include(('openedx.core.djangoapps.dark_lang.urls', 'openedx.core.djangoapps.dark_lang'),
@@ -214,6 +228,7 @@ urlpatterns = [
     ),
     path('api/discounts/', include(('openedx.features.discounts.urls', 'openedx.features.discounts'),
                                    namespace='api_discounts')),
+    re_path(r'^api/myskills/', include('common.djangoapps.myskills.urls')),
     path('403', handler403),
     path('404', handler404),
     path('429', handler429),
@@ -315,6 +330,56 @@ urlpatterns += [
         ),
         xblock_view,
         name='xblock_view',
+    ),
+
+    re_path(
+        r'^courses/{course_key}/block_student_progress/{usage_key}/?$'.format(
+            course_key=settings.COURSE_ID_PATTERN,
+            usage_key=settings.USAGE_ID_PATTERN,
+        ),
+        BlockStudentProgressView.as_view(),
+        name='block_student_progress',
+    ),
+
+    re_path(
+        r'^courses/{course_key}/email_student_progress/{usage_key}/?$'.format(
+            course_key=settings.COURSE_ID_PATTERN,
+            usage_key=settings.USAGE_ID_PATTERN,
+        ),
+        EmailStudentProgressView.as_view(),
+        name='email_student_progress',
+    ),
+
+    re_path(
+        r'^cookie/check$',
+        cookie_check,
+        name='cookie_check',
+    ),
+
+    re_path(
+        r'^courses/{course_id}/{usage_id}/new_tab/?$'.format(
+            course_id=settings.COURSE_ID_PATTERN,
+            usage_id=settings.USAGE_ID_PATTERN
+        ),
+        launch_new_tab,
+        name='launch_new_tab',
+    ),
+
+    re_path(
+        r'^courses/{course_key}/check_auth/?$'.format(
+            course_key=settings.COURSE_ID_PATTERN,
+        ),
+        check_credo_access,
+        name='check_credo_access',
+    ),
+
+    re_path(
+        r'^courses/{course_key}/xblock/{usage_key_string}/?$'.format(
+            course_key=settings.COURSE_ID_PATTERN,
+            usage_key_string=settings.USAGE_KEY_PATTERN
+        ),
+        render_xblock_course,
+        name='render_xblock_course',
     ),
 
     # xblock Rendering View URL
@@ -795,6 +860,9 @@ if settings.DEBUG or settings.FEATURES.get('ENABLE_DJANGO_ADMIN_SITE'):
             re_path(r'^admin/auth/user/\d+/password/$', handler404),
         ]
     urlpatterns += [
+        re_path(r'^admin/configure-org-tags/(?P<org_id>\d+)', manage_org_tags, name='admin-manage-org-tags'),
+        re_path(r'^admin/configure-org-tags-order/(?P<org_id>\d+)', manage_org_tags_sorting,
+                name='admin-manage-org-tags-order'),
         path('admin/password_change/', handler404),
         # We are enforcing users to login through third party auth in site's
         # login page so we are disabling the admin panel's login page.
@@ -819,6 +887,16 @@ if settings.FEATURES.get('EMBARGO'):
 # Survey Djangoapp
 urlpatterns += [
     path('survey/', include('lms.djangoapps.survey.urls')),
+]
+
+# Supervisor Evaluation
+urlpatterns += [
+    re_path(r'^supervisor/', include('lms.djangoapps.supervisor_evaluation.urls')),
+]
+
+# Badges
+urlpatterns += [
+    re_path(r'^badges/', include('common.djangoapps.badgr_integration.urls')),
 ]
 
 if settings.FEATURES.get('ENABLE_OAUTH2_PROVIDER'):
@@ -903,6 +981,7 @@ if settings.FEATURES.get('CUSTOM_COURSES_EDX'):
 if settings.FEATURES.get('ENABLE_LTI_PROVIDER'):
     urlpatterns += [
         path('lti_provider/', include('lms.djangoapps.lti_provider.urls')),
+        path('lti1p3_tool/', include('lms.djangoapps.lti1p3_tool.urls')),
     ]
 
 urlpatterns += [

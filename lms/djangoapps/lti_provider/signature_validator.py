@@ -2,7 +2,6 @@
 Subclass of oauthlib's RequestValidator that checks an OAuth signature.
 """
 
-
 from oauthlib.oauth1 import RequestValidator, SignatureOnlyEndpoint
 
 
@@ -21,6 +20,10 @@ class SignatureValidator(RequestValidator):
         self.endpoint = SignatureOnlyEndpoint(self)
         self.lti_consumer = lti_consumer
 
+    @property
+    def timestamp_lifetime(self):
+        return 43200  # 12 hours
+
     # The OAuth signature uses the endpoint URL as part of the request to be
     # hashed. By default, the oauthlib library rejects any URLs that do not
     # use HTTPS. We turn this behavior off in order to allow edX to run without
@@ -30,7 +33,7 @@ class SignatureValidator(RequestValidator):
     # on the platform.
     enforce_ssl = False
 
-    def check_client_key(self, key):  # lint-amnesty, pylint: disable=arguments-differ
+    def check_client_key(self, key):
         """
         Verify that the key supplied by the LTI consumer is valid for an LTI
         launch. This method is only concerned with the structure of the key;
@@ -140,13 +143,13 @@ class SignatureValidator(RequestValidator):
         """
         raise NotImplementedError
 
-    def dummy_access_token(self):  # lint-amnesty, pylint: disable=invalid-overridden-method
+    def dummy_access_token(self):
         """
         Unused abstract method from super class. See documentation in RequestValidator
         """
         raise NotImplementedError
 
-    def dummy_client(self):  # lint-amnesty, pylint: disable=invalid-overridden-method
+    def dummy_client(self):
         """
         Unused abstract method from super class. See documentation in RequestValidator
         """
@@ -171,7 +174,7 @@ class SignatureValidator(RequestValidator):
         """
         raise NotImplementedError
 
-    def dummy_request_token(self):  # lint-amnesty, pylint: disable=invalid-overridden-method
+    def dummy_request_token(self):
         """
         Unused abstract method from super class. See documentation in RequestValidator
         """

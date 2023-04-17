@@ -54,6 +54,7 @@ from openedx.features.enterprise_support.api import (
 )
 from openedx.features.enterprise_support.utils import is_enterprise_learner
 from openedx.core.djangoapps.geoinfo.api import country_code_from_ip
+from common.djangoapps.credo_modules.models import get_inactive_orgs, check_my_skills_access
 from common.djangoapps.student.api import COURSE_DASHBOARD_PLUGIN_VIEW_NAME
 from common.djangoapps.student.helpers import cert_info, check_verify_status_by_course, get_resume_urls_for_enrollments
 from common.djangoapps.student.models import (
@@ -93,6 +94,15 @@ def get_org_black_and_whitelist_for_site():
         # have been configured for any other sites. This applies to edx.org,
         # where it is easier to blacklist all other orgs.
         org_blacklist = configuration_helpers.get_all_orgs()
+
+    deactivated_orgs = get_inactive_orgs()
+    if len(deactivated_orgs):
+        if org_blacklist:
+            for deactivated_org in deactivated_orgs:
+                if deactivated_org not in org_blacklist:
+                    org_blacklist.add(deactivated_org)
+        else:
+            org_blacklist = set(deactivated_orgs)
 
     return org_whitelist, org_blacklist
 
@@ -502,7 +512,14 @@ def check_for_unacknowledged_notices(context):
 @login_required
 @ensure_csrf_cookie
 @add_maintenance_banner
-def student_dashboard(request):  # lint-amnesty, pylint: disable=too-many-statements
+def student_dashboard_archive(request):
+    return student_dashboard(request, display_archive=True)
+
+
+@login_required
+@ensure_csrf_cookie
+@add_maintenance_banner
+def student_dashboard(request, display_archive=False):  # lint-amnesty, pylint: disable=too-many-statements
     """
     Provides the LMS dashboard view
 
@@ -831,6 +848,7 @@ def student_dashboard(request):  # lint-amnesty, pylint: disable=too-many-statem
         'inverted_programs': inverted_programs,
         'show_program_listing': ProgramsApiConfig.is_enabled(),
         'show_dashboard_tabs': True,
+        'show_my_skills': check_my_skills_access(request.user),
         'disable_courseware_js': True,
         'display_course_modes_on_dashboard': enable_verified_certificates and display_course_modes_on_dashboard,
         'display_sidebar_account_activation_message': not(user.is_active or hide_dashboard_courses_until_activated),
@@ -840,6 +858,7 @@ def student_dashboard(request):  # lint-amnesty, pylint: disable=too-many-statem
         'recovery_email_message': recovery_email_message,
         'recovery_email_activation_message': recovery_email_activation_message,
         'show_load_all_courses_link': show_load_all_courses_link(user, course_limit, course_enrollments),
+        'display_archive': display_archive,
         # TODO START: clean up as part of REVEM-199 (START)
         'course_info': get_dashboard_course_info(user, course_enrollments),
         # TODO START: clean up as part of REVEM-199 (END)

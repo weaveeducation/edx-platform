@@ -1,0 +1,103 @@
+<%! from django.utils.translation import ugettext as _ %>
+<%inherit file="../main.html" />
+
+<%block name="pagetitle">${_("LTI1.3 LOGIN test page")}</%block>
+
+<%block name="headextra">
+    % if login_redirect:
+    <script type="text/javascript">
+    $(document).ready(function() {
+        var launchStep = "${login_url}";
+        $('#launch-step').click(function () {
+            $('#launch-step').hide();
+            window.open(launchStep, '_blank');
+        });
+    });
+    </script>
+    % endif
+    <style>
+        .lti-debug {
+            padding: 8px;
+        }
+
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</%block>
+
+<main id="main" aria-label="Content" tabindex="-1">
+
+<table>
+<tr><td>${request_method}</td><td>${request_path}</td></tr>
+% if error:
+<tr><td class="error">ERROR HTTP ${http_error_code}</td><td class="error">${error}</td></tr>
+% else:
+<tr><td class="success"></td><td class="success">NO ERRORS</td></tr>
+% endif
+<tr><td>LTI TOOL</td><td>
+% if lti_tool:
+    ${lti_tool.title} [ID: ${lti_tool.id}], is active: ${lti_tool.is_active}, issuer: ${lti_tool.issuer}, client_id: ${lti_tool.client_id}
+% else:
+    ---
+% endif
+</td></tr>
+% if login_redirect:
+<tr><td>LOGIN URL</td><td>${login_url}</td></tr>
+<tr><td>Platform's authorize URL</td><td>${login_redirect}</td></tr>
+<tr><td></td><td><button id="launch-step">Open new window with LAUNCH step</button></td></tr>
+% endif
+</table><br /><hr />
+<div class="lti-debug">HEADERS:</div><br />
+<table>
+    % for header_key, header_value in headers_data.items():
+    <tr><td>${header_key}</td><td>${header_value}</td></tr>
+    % endfor
+</table><br /><hr />
+% if get_data:
+<div class="lti-debug">GET params:</div><br />
+<table>
+    % for get_key, get_value in get_data.items():
+    <tr><td>${get_key}</td><td>${get_value}</td></tr>
+    % endfor
+</table>
+<br /><hr />
+% endif
+% if post_data:
+<div class="lti-debug">POST params:</div><br />
+<table>
+    % for post_key, post_value in post_data.items():
+    <tr><td>${post_key}</td><td>${post_value}</td></tr>
+    % endfor
+</table>
+<br /><hr />
+% endif
+% if request_params:
+<div class="lti-debug">REQUEST params:</div><br />
+<table>
+    % for req_key, req_value in request_params.items():
+    <tr><td>${req_key}</td><td>${req_value}</td></tr>
+    % endfor
+</table>
+% endif
+</main>

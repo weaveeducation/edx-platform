@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 from django.contrib.auth import get_user_model
 from django.http import Http404
-from lms.djangoapps.courseware.module_render import get_module_by_usage_id
+from lms.djangoapps.courseware.block_render import get_module_by_usage_id
 from lms.djangoapps.courseware.models import StudentModule
 from lms.djangoapps.courseware.user_state_client import DjangoXBlockUserStateClient
 from lms.djangoapps.courseware.utils import CREDO_GRADED_ITEM_CATEGORIES, get_block_children, \

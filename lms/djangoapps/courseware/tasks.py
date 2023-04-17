@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.db import transaction
 from lms import CELERY_APP
 from lms.djangoapps.courseware.models import StudentModule
-from lms.djangoapps.courseware.module_render import get_module_by_usage_id
+from lms.djangoapps.courseware.block_render import get_module_by_usage_id
 from lms.djangoapps.courseware.utils import get_block_children, CREDO_GRADED_ITEM_CATEGORIES
 from xmodule.modulestore.django import modulestore
 from opaque_keys.edx.keys import CourseKey, UsageKey

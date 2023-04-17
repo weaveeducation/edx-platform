@@ -3,7 +3,7 @@ from django.shortcuts import redirect
 from .api_client import BadgrApi
 from .models import Assertion
 from .service import issue_badge_assertion
-from lms.djangoapps.courseware.module_render import get_module_by_usage_id
+from lms.djangoapps.courseware.block_render import get_module_by_usage_id
 from lms.djangoapps.branding import api as branding_api
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys import InvalidKeyError

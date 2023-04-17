@@ -819,8 +819,13 @@ CREDIT_PROVIDER_SECRET_KEYS = AUTH_TOKENS.get("CREDIT_PROVIDER_SECRET_KEYS", {})
 
 ##################### LTI Provider #####################
 if FEATURES.get('ENABLE_LTI_PROVIDER'):
-    INSTALLED_APPS.append('lms.djangoapps.lti_provider.apps.LtiProviderConfig')
-    AUTHENTICATION_BACKENDS.append('lms.djangoapps.lti_provider.users.LtiBackend')
+    INSTALLED_APPS.extend([
+        'lms.djangoapps.lti_provider.apps.LtiProviderConfig',
+        'lms.djangoapps.lti1p3_tool.apps.Lti1p3ToolConfig'])
+    AUTHENTICATION_BACKENDS.extend([
+        'lms.djangoapps.lti_provider.users.LtiBackend',
+        'lms.djangoapps.lti1p3_tool.users.Lti1p3Backend'
+    ])
 
 LTI_USER_EMAIL_DOMAIN = ENV_TOKENS.get('LTI_USER_EMAIL_DOMAIN', 'lti.example.com')
 

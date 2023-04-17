@@ -49,8 +49,9 @@ from lms.djangoapps.courseware.date_summary import (
 from lms.djangoapps.courseware.exceptions import CourseAccessRedirect, CourseRunNotFound
 from lms.djangoapps.courseware.masquerade import check_content_start_date_for_masquerade_user
 from lms.djangoapps.courseware.model_data import FieldDataCache
-from lms.djangoapps.courseware.block_render import get_block
+from lms.djangoapps.courseware.block_render import get_block, get_block_for_descriptor
 from lms.djangoapps.survey.utils import SurveyRequiredAccessError, check_survey_required_and_unanswered
+from common.djangoapps.credo_modules.models import CourseUsageHelper, get_student_properties
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.djangoapps.enrollments.api import get_course_enrollment_details
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
@@ -827,7 +828,8 @@ def get_cms_course_link(course, page='course'):
     """
     # This is fragile, but unfortunately the problem is that within the LMS we
     # can't use the reverse calls from the CMS
-    return f"//{settings.CMS_BASE}/{page}/{str(course.id)}"
+    cms_base = configuration_helpers.get_value('CMS_BASE', settings.CMS_BASE)
+    return "//{}/{}/{}".format(cms_base, page, str(course.id))
 
 
 def get_cms_block_link(block, page):
@@ -837,7 +839,8 @@ def get_cms_block_link(block, page):
     """
     # This is fragile, but unfortunately the problem is that within the LMS we
     # can't use the reverse calls from the CMS
-    return f"//{settings.CMS_BASE}/{page}/{block.location}"
+    cms_base = configuration_helpers.get_value('CMS_BASE', settings.CMS_BASE)
+    return f"//{cms_base}/{page}/{block.location}"
 
 
 def get_studio_url(course, page):
@@ -955,3 +958,52 @@ def get_course_chapter_ids(course_key):
         log.exception('Failed to retrieve course from modulestore.')
         return []
     return [str(chapter_key) for chapter_key in chapter_keys if chapter_key.block_type == 'chapter']
+
+
+def update_lms_course_usage(request, usage_key, course_key):
+    if request.method == 'HEAD':
+        return
+
+    item = None
+    block_type = ''
+    max_attempts = 10
+    num_attempt = 0
+    student_properties = None
+
+    while block_type != 'course' and num_attempt < max_attempts:
+        if item is None:  # first iteration
+            item = modulestore().get_item(usage_key)
+            student_properties = get_student_properties(request, course_key, item)
+            if item.category == 'sequential':
+                add_vertical_usage(item, request, course_key, student_properties)
+        CourseUsageHelper.update_block_usage(request, course_key, item.location, student_properties)
+        item = item.get_parent()
+        block_type = item.category
+        num_attempt = num_attempt + 1
+
+
+def add_vertical_usage(item, request, course_key, student_properties=None):
+    activate_block_id = request.GET.get('activate_block_id')
+    if activate_block_id:
+        try:
+            item_vertical = modulestore().get_item(UsageKey.from_string(activate_block_id))
+            if item_vertical.category == 'vertical':
+                CourseUsageHelper.update_block_usage(request, course_key, item_vertical.location, student_properties)
+                return
+        except ItemNotFoundError:
+            pass
+
+    course = get_course_by_id(course_key, depth=1)
+    field_data_cache = FieldDataCache.cache_for_descriptor_descendents(
+        course.id, request.user, item, depth=2
+    )
+    course_module = get_module_for_descriptor(
+        request.user, request, item, field_data_cache, course.id, course=course
+    )
+    if course_module is not None:
+        real_position = (course_module.position - 1) if course_module.position else 0
+        try:
+            child = course_module.get_children()[real_position]
+            CourseUsageHelper.update_block_usage(request, course_key, child.location, student_properties)
+        except IndexError:
+            pass
