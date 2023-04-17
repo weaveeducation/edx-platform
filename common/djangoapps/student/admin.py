@@ -5,14 +5,12 @@ from functools import wraps
 
 from config_models.admin import ConfigurationModelAdmin
 from django import forms
-from django.conf import settings
 from django.contrib import admin
 from django.contrib.admin.sites import NotRegistered
 from django.contrib.admin.utils import unquote
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.forms import ReadOnlyPasswordHashField
-from django.contrib.auth.forms import UserChangeForm as BaseUserChangeForm
+from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 from django.db import models, router, transaction
 from django.http import HttpResponseRedirect
 from django.http.request import QueryDict
@@ -124,6 +122,11 @@ class DisableEnrollmentAdminMixin:
         Returns True if links to the CourseEnrollment admin view can be displayed.
         """
         return super().has_module_permission(request)
+
+
+class AlwaysChangedForm(forms.ModelForm):
+    def has_changed(self):
+        return True
 
 
 class CourseAccessRoleForm(forms.ModelForm):
@@ -312,6 +315,7 @@ class CourseEnrollmentAdmin(DisableEnrollmentAdminMixin, admin.ModelAdmin):
 class UserProfileInline(admin.StackedInline):
     """ Inline admin interface for UserProfile model. """
     model = UserProfile
+    form = AlwaysChangedForm
     can_delete = False
     verbose_name_plural = _('User profile')
 
@@ -324,30 +328,32 @@ class AccountRecoveryInline(admin.StackedInline):
     verbose_name_plural = _('Account recovery')
 
 
-class UserChangeForm(BaseUserChangeForm):
-    """
-    Override the default UserChangeForm such that the password field
-    does not contain a link to a 'change password' form.
-    """
-    last_name = forms.CharField(max_length=30, required=False)
+class CustomUserCreationForm(UserCreationForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # make user email field required
+        self.fields['email'].required = True
 
-        if not settings.FEATURES.get('ENABLE_CHANGE_USER_PASSWORD_ADMIN'):
-            self.fields["password"] = ReadOnlyPasswordHashField(
-                label=_("Password"),
-                help_text=_(
-                    "Raw passwords are not stored, so there is no way to see this "
-                    "user's password."
-                ),
-            )
+
+class CustomUserChangeForm(UserChangeForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # make user email field required
+        self.fields['email'].required = True
 
 
 class UserAdmin(BaseUserAdmin):
     """ Admin interface for the User model. """
     inlines = (UserProfileInline, AccountRecoveryInline)
-    form = UserChangeForm
+    add_form = CustomUserCreationForm
+    form = CustomUserChangeForm
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'password1', 'password2', 'email', 'first_name', 'last_name'),
+        }),
+    )
 
     def get_readonly_fields(self, request, obj=None):
         """

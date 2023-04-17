@@ -39,7 +39,7 @@ from django.contrib.sites.models import Site
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import FileExtensionValidator, RegexValidator
-from django.db import IntegrityError, models
+from django.db import IntegrityError, models, transaction
 from django.db.models import Q
 from django.db.models.signals import post_save, pre_save
 from django.db.utils import ProgrammingError
@@ -158,12 +158,13 @@ def anonymous_id_for_user(user, course_id):
         anonymous_user_id = hasher.hexdigest(16)
 
         try:
-            AnonymousUserId.objects.create(
-                user=user,
-                course_id=course_id,
-                anonymous_user_id=anonymous_user_id,
-            )
-            monitoring.increment('temp_anon_uid_v2.stored')
+            with transaction.atomic():
+                AnonymousUserId.objects.create(
+                    user=user,
+                    course_id=course_id,
+                    anonymous_user_id=anonymous_user_id,
+                )
+                monitoring.increment('temp_anon_uid_v2.stored')
         except IntegrityError:
             # Another thread has already created this entry, so
             # continue
