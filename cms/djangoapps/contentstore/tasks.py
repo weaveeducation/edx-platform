@@ -54,7 +54,7 @@ from cms.djangoapps.contentstore.api_block_info import create_api_block_info, ge
 from common.djangoapps.course_action_state.models import CourseRerunState
 from common.djangoapps.student.auth import has_course_author_access
 from common.djangoapps.util.monitoring import monitor_import_failure
-from common.djangoapps.util.module_utils import yield_dynamic_descriptor_descendants
+from common.djangoapps.util.block_utils import yield_dynamic_descriptor_descendants
 from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo
 from openedx.core.djangoapps.content.learning_sequences.api import key_supports_outlines
 from openedx.core.djangoapps.course_apps.toggles import exams_ida_enabled
