@@ -8,10 +8,6 @@ from django.utils.translation import gettext as _
 from openedx.core.djangolib.markup import HTML
 %>
 
-%if unit_title and show_title:
-  <h2 class="hd hd-2 unit-title">${unit_title}</h2>
-% endif
-
 % if has_assignments and due:
   % if subsection_format:
     <%
