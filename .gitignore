@@ -150,4 +150,4 @@ pii_report
 # Pyenv Python version file
 .python-version
 
-xblock/
+/xblock/
