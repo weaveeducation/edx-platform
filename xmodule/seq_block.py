@@ -111,6 +111,76 @@ class SequenceFields:  # lint-amnesty, pylint: disable=missing-class-docstring
         scope=Scope.settings,
     )
 
+    top_of_course_outline = Boolean(
+        display_name=_("Attach at the top of the course outline"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Attach at the top of the course outline"),
+    )
+
+    course_outline_description = String(
+        display_name=_("Course outline: description"),
+        default="",
+        scope=Scope.settings,
+        help=_("Course outline: description"),
+    )
+
+    course_outline_button_title = String(
+        display_name=_("Course outline: button title"),
+        default="",
+        scope=Scope.settings,
+        help=_("Course outline: button title"),
+    )
+
+    after_finish_return_to_course_outline = Boolean(
+        display_name=_("When the section is completed return the user to the course outline"),
+        default=False,
+        scope=Scope.settings,
+        help=_("When the section is completed return the user to the course outline"),
+    )
+
+    do_not_display_in_course_outline = Boolean(
+        display_name=_("Do not display in course outline"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Do not display in course outline")
+    )
+
+    use_as_survey_for_supervisor = Boolean(
+        display_name=_("Use as survey for supervisor"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Use as survey for supervisor")
+    )
+
+    supervisor_evaluation_hash = String(
+        display_name=_("Supervisor evaluation hash"),
+        default="",
+        scope=Scope.settings,
+        help=_("Supervisor evaluation hash"),
+    )
+
+    badge_id = String(
+        display_name=_("Issue a Badge"),
+        default="",
+        scope=Scope.settings,
+        help=_("Issue a Badge")
+    )
+
+    units_sequential_completion = Boolean(
+        display_name=_("Each 'Unit' is available only after completion the previous one"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Each 'Unit' is available only after completion the previous one")
+    )
+
+    disable_units_after_completion = Boolean(
+        display_name=_("Disable 'Unit' after completion"),
+        default=False,
+        scope=Scope.settings,
+        help=_("Disable 'Unit' after completion")
+    )
+
 
 class SequenceMixin(SequenceFields):
     """
@@ -576,6 +646,10 @@ class SequenceBlock(
                 'This section is a prerequisite. You must complete this section in order to unlock additional content.'
             )
 
+        # disable scores panel for timed and proctored exams
+        is_time_exam = getattr(self, 'is_proctored_exam', False) or getattr(self, 'is_time_limited', False)
+        badge_id = getattr(self, 'badge_id', None)
+
         blocks = self._render_student_view_for_blocks(context, children, fragment, view) if prereq_met else []
 
         params = {
@@ -594,7 +668,25 @@ class SequenceBlock(
             'gated_content': self._get_gated_content_info(prereq_met, prereq_meta_info),
             'sequence_name': self.display_name,
             'exclude_units': context.get('exclude_units', False),
-            'gated_sequence_paywall': self.gated_sequence_paywall
+            'gated_sequence_paywall': self.gated_sequence_paywall,
+            'enable_new_carousel_view': context.get('enable_new_carousel_view'),
+            'after_finish_return_to_course_outline': 1 if self.after_finish_return_to_course_outline else 0,
+            'course_id': str(self.course_id),
+            'graded': self.graded,
+            'lms_url_to_get_grades': context.get('lms_url_to_get_grades'),
+            'lms_url_to_email_grades': context.get('lms_url_to_email_grades'),
+            'lms_url_to_issue_badge': context.get('lms_url_to_issue_badge'),
+            'show_summary_info_after_quiz': False if is_time_exam else context.get('show_summary_info_after_quiz',
+                                                                                   False),
+            'badge_id': badge_id if badge_id else None,
+
+            'summary_info_imgs': context.get('summary_info_imgs', {
+                'correct_icon': '',
+                'incorrect_icon': '',
+                'unanswered_icon': '',
+                'assessment_done_img': ''
+            }),
+            'logo_url': context.get('logo_url')
         }
 
         return params
@@ -779,6 +871,12 @@ class SequenceBlock(
         user = self.runtime.service(self, 'user').get_current_user()
         context['username'] = user.opt_attrs.get(
             'edx-platform.username')
+
+        is_user_credo_anonymous = False
+        if is_user_authenticated:
+            is_user_credo_anonymous = self.runtime.service(self, 'user').get_current_user().opt_attrs.get(
+                'edx-platform.is_credo_anonymous')
+
         display_names = [
             self.get_parent().display_name_with_default,
             self.display_name_with_default
@@ -798,6 +896,11 @@ class SequenceBlock(
             context['show_bookmark_button'] = show_bookmark_button
             context['bookmarked'] = is_bookmarked
             context['format'] = getattr(self, 'format', '')
+
+            if is_user_credo_anonymous:
+                context['show_bookmark_button'] = False
+            else:
+                context['show_bookmark_button'] = context.get('show_bookmark_button', show_bookmark_button)
 
             if render_blocks:
                 rendered_block = block.render(view, context)
