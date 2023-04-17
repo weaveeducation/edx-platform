@@ -24,7 +24,7 @@ from rest_framework.views import APIView
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.djangoapps.user_api.accounts import BIO_MAX_LENGTH
 from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiveUser
-from openedx.core.lib.api.permissions import IsUserInUrl
+from openedx.core.lib.api.permissions import IsUserInUrl, APIAdminAuthentication
 
 
 class DeveloperErrorResponseException(Exception):
@@ -122,7 +122,8 @@ def view_auth_classes(is_user=False, is_authenticated=True):
         func_or_class.authentication_classes = (
             JwtAuthentication,
             BearerAuthenticationAllowInactiveUser,
-            SessionAuthenticationAllowInactiveUser
+            SessionAuthenticationAllowInactiveUser,
+            APIAdminAuthentication
         )
         func_or_class.permission_classes = ()
         if is_authenticated:

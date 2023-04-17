@@ -702,7 +702,7 @@ class LoginSessionView(APIView):
     def get(self, request, *args, **kwargs):
         return HttpResponse(get_login_session_form(request).to_json(), content_type="application/json")  # lint-amnesty, pylint: disable=http-response-with-content-type-json
 
-    @method_decorator(csrf_protect)
+#    @method_decorator(csrf_protect)
     def post(self, request, api_version):
         """Log in a user.
 

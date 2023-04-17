@@ -86,7 +86,7 @@ CLEAR_REQUEST_CACHE_ON_TASK_COMPLETION = False
 
 ################################ DEBUG TOOLBAR ################################
 
-INSTALLED_APPS += ['debug_toolbar']
+#INSTALLED_APPS += ['debug_toolbar']
 
 MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
 INTERNAL_IPS = ('127.0.0.1',)
@@ -116,6 +116,7 @@ DEBUG_TOOLBAR_CONFIG = {
 
 def should_show_debug_toolbar(request):  # lint-amnesty, pylint: disable=missing-function-docstring
     # We always want the toolbar on devstack unless running tests from another Docker container
+    return False
     hostname = request.get_host()
     if hostname.startswith('edx.devstack.studio:') or hostname.startswith('studio.devstack.edx:'):
         return False
@@ -147,7 +148,7 @@ FEATURES['ENABLE_CONTENT_LIBRARY_INDEX'] = False
 SEARCH_ENGINE = "search.elastic.ElasticSearchEngine"
 
 ################################ COURSE DISCUSSIONS ###########################
-FEATURES['ENABLE_DISCUSSION_SERVICE'] = True
+FEATURES['ENABLE_DISCUSSION_SERVICE'] = False
 
 ################################ CREDENTIALS ###########################
 CREDENTIALS_SERVICE_USERNAME = 'credentials_worker'
@@ -284,8 +285,8 @@ COURSEGRAPH_CONNECTION: dict = {
 WEBPACK_LOADER['DEFAULT']['TIMEOUT'] = 5
 
 ################ Using LMS SSO for login to Studio ################
-SOCIAL_AUTH_EDX_OAUTH2_KEY = 'studio-sso-key'
-SOCIAL_AUTH_EDX_OAUTH2_SECRET = 'studio-sso-secret'  # in stage, prod would be high-entropy secret
+#SOCIAL_AUTH_EDX_OAUTH2_KEY = 'studio-sso-key'
+#SOCIAL_AUTH_EDX_OAUTH2_SECRET = 'studio-sso-secret'  # in stage, prod would be high-entropy secret
 SOCIAL_AUTH_EDX_OAUTH2_URL_ROOT = 'http://edx.devstack.lms:18000'  # routed internally server-to-server
 SOCIAL_AUTH_EDX_OAUTH2_PUBLIC_URL_ROOT = 'http://localhost:18000'  # used in browser redirect
 
@@ -315,6 +316,9 @@ EVENT_BUS_PRODUCER = 'edx_event_bus_kafka.create_producer'
 EVENT_BUS_KAFKA_SCHEMA_REGISTRY_URL = 'http://edx.devstack.schema-registry:8081'
 EVENT_BUS_KAFKA_BOOTSTRAP_SERVERS = 'edx.devstack.kafka:29092'
 EVENT_BUS_TOPIC_PREFIX = 'dev'
+
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
 
 ################# New settings must go ABOVE this line #################
 ########################################################################

@@ -341,7 +341,12 @@ class LibraryContentBlock(
         if max_count < 0:
             max_count = len(self.children)
 
-        block_keys = self.make_selection(self.selected, self.children, max_count, "random")  # pylint: disable=no-member
+        selected_block_ids = [selected_block_item[1] for selected_block_item in self.selected]
+        source_children = [self.runtime.get_block(child_key) for child_key in self.children]
+        children = [block.location for block in source_children
+                    if not getattr(block, 'hidden', False) or (block and block.location.block_id in selected_block_ids)]
+
+        block_keys = self.make_selection(self.selected, children, self.max_count, "random")  # pylint: disable=no-member
 
         # Publish events for analytics purposes:
         lib_tools = self.runtime.service(self, 'library_tools')
@@ -567,7 +572,11 @@ class LibraryContentBlock(
         """
         latest_version = lib_tools.get_library_version(library_key)
         if latest_version is not None:
-            if version is None or version != str(latest_version):
+            us = self.runtime.service(self, 'user')
+            if version is None or version != str(latest_version) \
+                and ((hasattr(us, 'is_instructor_user') and us.is_instructor_user(self.course_id))
+                     or us.is_superadmin_user()
+                     or us.staff_feature_is_available(self.course_id, 'update_library_content')):
                 validation.set_summary(
                     StudioValidationMessage(
                         StudioValidationMessage.WARNING,

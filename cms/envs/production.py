@@ -12,6 +12,7 @@ import copy
 import os
 import warnings
 import yaml
+import logging
 
 from corsheaders.defaults import default_headers as corsheaders_default_headers
 from django.core.exceptions import ImproperlyConfigured
@@ -25,8 +26,18 @@ from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
 from .common import *
 
 from openedx.core.lib.derived import derive_settings  # lint-amnesty, pylint: disable=wrong-import-order
-from openedx.core.lib.logsettings import get_logger_config  # lint-amnesty, pylint: disable=wrong-import-order
+from openedx.core.lib.logsettings import get_logger_config, suppress_warning_exception  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.modulestore.modulestore_settings import convert_module_store_setting_if_needed  # lint-amnesty, pylint: disable=wrong-import-order
+
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+except ImportError:
+    pass
+
+warnings.warn = suppress_warning_exception(warnings.warn)
 
 
 def get_env_setting(setting):
@@ -226,7 +237,7 @@ SHARED_COOKIE_DOMAIN = ENV_TOKENS.get('SHARED_COOKIE_DOMAIN', SESSION_COOKIE_DOM
 # unencrypted channels. It is set to False here for backward compatibility,
 # but it is highly recommended that this is True for environments accessed
 # by end users.
-CSRF_COOKIE_SECURE = ENV_TOKENS.get('CSRF_COOKIE_SECURE', False)
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
 #Email overrides
 MKTG_URL_LINK_MAP.update(ENV_TOKENS.get('MKTG_URL_LINK_MAP', {}))
@@ -274,9 +285,19 @@ for feature, value in ENV_FEATURES.items():
 for app in ENV_TOKENS.get('ADDL_INSTALLED_APPS', []):
     INSTALLED_APPS.append(app)
 
+############## Syslog settings ############################
+SYSLOG_USE_TCP = ENV_TOKENS.get('SYSLOG_USE_TCP', False)
+SYSLOG_HOST = ENV_TOKENS.get('SYSLOG_HOST', '')
+SYSLOG_PORT = ENV_TOKENS.get('SYSLOG_PORT', 0)
+
 LOGGING = get_logger_config(LOG_DIR,
-                            logging_env=ENV_TOKENS.get('LOGGING_ENV', LOGGING_ENV),
-                            service_variant=SERVICE_VARIANT)
+                            logging_env=ENV_TOKENS['LOGGING_ENV'],
+                            service_variant=SERVICE_VARIANT,
+                            syslog_settings={
+                                'SYSLOG_USE_TCP': SYSLOG_USE_TCP,
+                                'SYSLOG_HOST': SYSLOG_HOST,
+                                'SYSLOG_PORT': SYSLOG_PORT
+                            })
 
 # The following variables use (or) instead of the default value inside (get). This is to enforce using the Lazy Text
 # values when the varibale is an empty string. Therefore, setting these variable as empty text in related
@@ -569,6 +590,31 @@ EXAMS_SERVICE_USERNAME = ENV_TOKENS.get('EXAMS_SERVICE_USERNAME', EXAMS_SERVICE_
 ############### Settings for edx-rbac  ###############
 SYSTEM_WIDE_ROLE_CLASSES = ENV_TOKENS.get('SYSTEM_WIDE_ROLE_CLASSES') or SYSTEM_WIDE_ROLE_CLASSES
 
+############## Sentry ############################
+RAVEN_CONFIG = ENV_TOKENS.get('RAVEN_CONFIG', {})
+
+############## Credo API config ############################
+CREDO_API_CONFIG = ENV_TOKENS.get('CREDO_API_CONFIG', {})
+
+############## LTI Constructor ############################
+CONSTRUCTOR_LINK = ENV_TOKENS.get('CONSTRUCTOR_LINK', 'http://127.0.0.1:9015')
+
+############## Turnitin_Integration ############################
+TURNITIN_SIGNING_SECRET = ENV_TOKENS.get('TURNITIN_SIGNING_SECRET', 'replace-me')
+TURNITIN_WEBHOOK_HOST = ENV_TOKENS.get('TURNITIN_WEBHOOK_HOST', 'http://127.0.0.1')
+
+############## Credo Insights ############################
+CREDO_INSIGHTS_LINK = ENV_TOKENS.get('CREDO_INSIGHTS_LINK', 'https://insights.credoeducation.com')
+
+############## Base format for LTI links ############################
+BASE_LTI_LINK = ENV_TOKENS.get('BASE_LTI_LINK', 'http://127.0.0.1/lti_provider/courses/{}/{}')
+
+############## VERTICA DSN ############################
+VERTICA_DSN = ENV_TOKENS.get('VERTICA_DSN', '')
+VERTICA_BACKUP_SERVER_NODES = ENV_TOKENS.get('VERTICA_BACKUP_SERVER_NODES', None)
+
+BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 7 * 24 * 60 * 60}  # 7 days
+
 ######################## Setting for content libraries ########################
 MAX_BLOCKS_PER_CONTENT_LIBRARY = ENV_TOKENS.get('MAX_BLOCKS_PER_CONTENT_LIBRARY', MAX_BLOCKS_PER_CONTENT_LIBRARY)
 
@@ -621,6 +667,16 @@ EXPLICIT_QUEUES = {
 }
 
 LOGO_IMAGE_EXTRA_TEXT = ENV_TOKENS.get('LOGO_IMAGE_EXTRA_TEXT', '')
+
+raven_dsn = RAVEN_CONFIG.get('dsn')
+if raven_dsn:
+    sentry_sdk.init(
+        dsn=raven_dsn,
+        integrations=[CeleryIntegration(), DjangoIntegration(), LoggingIntegration(
+            level=logging.INFO,        # Capture info and above as breadcrumbs
+            event_level=logging.ERROR  # Send errors as events
+        )]
+    )
 
 ############## XBlock extra mixins ############################
 XBLOCK_MIXINS += tuple(XBLOCK_EXTRA_MIXINS)

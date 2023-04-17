@@ -46,6 +46,7 @@ from common.djangoapps.xblock_django.constants import (
     ATTR_KEY_USER_ID,
     ATTR_KEY_USER_IS_STAFF,
     ATTR_KEY_USER_ROLE,
+    ATTR_KEY_USER_IS_SUPERUSER,
 )
 
 
@@ -1142,7 +1143,13 @@ class DescriptorSystem(MetricsMixin, ConfigurableFragmentWrapper, Runtime):
         """
         See :meth:`xblock.runtime.Runtime:applicable_aside_types` for documentation.
         """
-        potential_set = set(super().applicable_aside_types(block))
+        lst = super().applicable_aside_types(block)
+        if block.scope_ids.block_type != 'openassessment' and 'tagging_ora_aside' in lst:
+            lst.remove('tagging_ora_aside')
+        if block.scope_ids.block_type == 'openassessment' and 'tagging_aside' in lst:
+            lst.remove('tagging_aside')
+        potential_set = set(lst)
+
         if getattr(block, 'xmodule_runtime', None) is not None:
             if hasattr(block.xmodule_runtime, 'applicable_aside_types'):
                 application_set = set(block.xmodule_runtime.applicable_aside_types(block))
@@ -1370,6 +1377,21 @@ class ModuleSystemShim:
         user_service = self._services.get('user')
         if user_service:
             return self._services['user'].get_current_user().opt_attrs.get(ATTR_KEY_USER_IS_STAFF)
+        return None
+
+    @property
+    def user_is_superuser(self):
+        """
+        Returns whether the current user has staff access to the course.
+        Deprecated in favor of the user service.
+        """
+        warnings.warn(
+            'runtime.user_is_staff is deprecated. Please use the user service instead.',
+            DeprecationWarning, stacklevel=3,
+        )
+        user_service = self._services.get('user')
+        if user_service:
+            return self._services['user'].get_current_user().opt_attrs.get(ATTR_KEY_USER_IS_SUPERUSER)
         return None
 
     @property

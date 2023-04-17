@@ -20,6 +20,8 @@ import codecs
 import copy
 import datetime
 import os
+import logging
+import warnings
 
 import yaml
 from corsheaders.defaults import default_headers as corsheaders_default_headers
@@ -29,10 +31,20 @@ from path import Path as path
 
 from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
 from openedx.core.lib.derived import derive_settings
-from openedx.core.lib.logsettings import get_logger_config
+from openedx.core.lib.logsettings import get_logger_config, suppress_warning_exception
 from xmodule.modulestore.modulestore_settings import convert_module_store_setting_if_needed  # lint-amnesty, pylint: disable=wrong-import-order
 
 from .common import *
+
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+except ImportError:
+    pass
+
+warnings.warn = suppress_warning_exception(warnings.warn)
 
 
 def get_env_setting(setting):
@@ -110,7 +122,7 @@ BROKER_POOL_LIMIT = 0
 BROKER_CONNECTION_TIMEOUT = 1
 
 # Allow env to configure celery result backend with default set to django-cache
-CELERY_RESULT_BACKEND = ENV_TOKENS.get('CELERY_RESULT_BACKEND', 'django-cache')
+CELERY_RESULT_BACKEND = ENV_TOKENS.get('CELERY_RESULT_BACKEND', 'django-db')
 
 # When the broker is behind an ELB, use a heartbeat to refresh the
 # connection and to detect if it has been dropped.
@@ -319,10 +331,20 @@ local_loglevel = ENV_TOKENS.get('LOCAL_LOGLEVEL', 'INFO')
 LOG_DIR = ENV_TOKENS.get('LOG_DIR', LOG_DIR)
 DATA_DIR = path(ENV_TOKENS.get('DATA_DIR', DATA_DIR))
 
+############## Syslog settings ############################
+SYSLOG_USE_TCP = ENV_TOKENS.get('SYSLOG_USE_TCP', False)
+SYSLOG_HOST = ENV_TOKENS.get('SYSLOG_HOST', '')
+SYSLOG_PORT = ENV_TOKENS.get('SYSLOG_PORT', 0)
+
 LOGGING = get_logger_config(LOG_DIR,
                             logging_env=ENV_TOKENS.get('LOGGING_ENV', LOGGING_ENV),
                             local_loglevel=local_loglevel,
-                            service_variant=SERVICE_VARIANT)
+                            service_variant=SERVICE_VARIANT,
+                            syslog_settings={
+                                'SYSLOG_USE_TCP': SYSLOG_USE_TCP,
+                                'SYSLOG_HOST': SYSLOG_HOST,
+                                'SYSLOG_PORT': SYSLOG_PORT
+                            })
 
 COURSE_LISTINGS = ENV_TOKENS.get('COURSE_LISTINGS', {})
 COMMENTS_SERVICE_URL = ENV_TOKENS.get("COMMENTS_SERVICE_URL", '')
@@ -362,7 +384,7 @@ VIDEO_CDN_URL = ENV_TOKENS.get('VIDEO_CDN_URL', {})
 # unencrypted channels. It is set to False here for backward compatibility,
 # but it is highly recommended that this is True for enviroments accessed
 # by end users.
-CSRF_COOKIE_SECURE = ENV_TOKENS.get('CSRF_COOKIE_SECURE', False)
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
 # Determines which origins are trusted for unsafe requests eg. POST requests.
 CSRF_TRUSTED_ORIGINS = ENV_TOKENS.get('CSRF_TRUSTED_ORIGINS', [])
@@ -1045,6 +1067,16 @@ EXPLICIT_QUEUES = {
         'queue': PROGRAM_CERTIFICATES_ROUTING_KEY},
     'openedx.core.djangoapps.programs.tasks.award_course_certificate': {
         'queue': PROGRAM_CERTIFICATES_ROUTING_KEY},
+    'lms.djangoapps.lti_provider.tasks.send_composite_outcome': {
+        'queue': HIGH_PRIORITY_QUEUE},
+    'lms.djangoapps.lti_provider.tasks.send_leaf_outcome': {
+        'queue': HIGH_PRIORITY_QUEUE},
+    'lms.djangoapps.lti1p3_tool.tasks.lti1p3_send_composite_outcome': {
+        'queue': HIGH_PRIORITY_QUEUE},
+    'lms.djangoapps.lti1p3_tool.tasks.lti1p3_send_leaf_outcome': {
+        'queue': HIGH_PRIORITY_QUEUE},
+    'lms.djangoapps.courseware.tasks.exec_delayed_tasks': {
+        'queue': HIGH_PRIORITY_QUEUE},
 }
 
 LOGO_IMAGE_EXTRA_TEXT = ENV_TOKENS.get('LOGO_IMAGE_EXTRA_TEXT', '')
@@ -1070,6 +1102,42 @@ DISCUSSIONS_MFE_FEEDBACK_URL = ENV_TOKENS.get('DISCUSSIONS_MFE_FEEDBACK_URL', DI
 
 ############## DRF overrides ##############
 REST_FRAMEWORK.update(ENV_TOKENS.get('REST_FRAMEWORK', {}))
+
+HIDE_PROFILE = ENV_TOKENS.get('HIDE_PROFILE', HIDE_PROFILE)
+
+############## Sentry ############################
+RAVEN_CONFIG = ENV_TOKENS.get('RAVEN_CONFIG', {})
+
+############## Credo API config ############################
+CREDO_API_CONFIG = ENV_TOKENS.get('CREDO_API_CONFIG', {})
+
+############## LTI Constructor ############################
+CONSTRUCTOR_LINK = ENV_TOKENS.get('CONSTRUCTOR_LINK', 'http://127.0.0.1:9015')
+
+############## Credo Insights ############################
+CREDO_INSIGHTS_LINK = ENV_TOKENS.get('CREDO_INSIGHTS_LINK', 'https://insights.credoeducation.com')
+
+############## Turnitin_Integration ############################
+TURNITIN_SIGNING_SECRET = ENV_TOKENS.get('TURNITIN_SIGNING_SECRET', 'replace-me')
+TURNITIN_WEBHOOK_HOST = ENV_TOKENS.get('TURNITIN_WEBHOOK_HOST', 'http://127.0.0.1')
+
+############## VERTICA DSN ############################
+VERTICA_DSN = ENV_TOKENS.get('VERTICA_DSN', '')
+VERTICA_BACKUP_SERVER_NODES = ENV_TOKENS.get('VERTICA_BACKUP_SERVER_NODES', None)
+
+BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 7 * 24 * 60 * 60}  # 7 days
+
+raven_dsn = RAVEN_CONFIG.get('dsn')
+if raven_dsn:
+    sentry_sdk.init(
+        dsn=raven_dsn,
+        integrations=[CeleryIntegration(), DjangoIntegration(), LoggingIntegration(
+            level=logging.INFO,        # Capture info and above as breadcrumbs
+            event_level=logging.ERROR  # Send errors as events
+        )]
+    )
+
+SKILLS_MFE_URL = ENV_TOKENS.get('SKILLS_MFE_URL', None)
 
 ############################# CELERY ############################
 CELERY_IMPORTS.extend(ENV_TOKENS.get('CELERY_EXTRA_IMPORTS', []))

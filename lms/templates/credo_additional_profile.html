@@ -1,0 +1,223 @@
+<%inherit file="main.html" />
+<%!
+from django.shortcuts import reverse
+from django.utils.translation import ugettext as _
+%>
+
+<%block name="js_extra">
+  <script type="text/javascript">
+    (function() {
+      toggleSubmitButton(true);
+      var nextUrl = "${redirect_url}";
+
+      function updatePage() {
+          if (nextUrl) {
+              location.href = nextUrl;
+          } else {
+              location.reload();
+          }
+      }
+
+      var frm = $('#credo-additional-fields-form');
+      $('#credo-form-submit-btn').click(function () {
+        $(".field-error").removeClass('field-error');
+        $(".fields-error-box").html("").hide();
+        $(".submission-error").addClass('hidden');
+        $(".message-copy").empty();
+        toggleSubmitButton(false);
+
+        var formIsValid = true;
+
+        $('.field-input').each(function() {
+            var req = $(this).is('[required]');
+            var name = $(this).attr('name');
+            var val = $(this).val();
+            if (req && (!val || val === "")) {
+                formIsValid = false;
+                $('.fields-error-box-' + name).show().html('This field is required');
+            }
+        });
+
+        if (!formIsValid) {
+            toggleSubmitButton(true);
+            return;
+        }
+
+        $.ajax({
+            type: frm.attr('method'),
+            url: frm.attr('action'),
+            data: frm.serialize(),
+            success: function (data) {
+                updatePage();
+            },
+            error: function (jqXHR) {
+                if (jqXHR.status == 404) {
+                    updatePage();
+                    return null;
+                }
+                toggleSubmitButton(true);
+                var json = $.parseJSON(jqXHR.responseText);
+                var errorMessage = '';
+                for (var item in json) {
+                    $("#credo-additional-fields-form input[name=" + item + "]").addClass('field-error');
+                    errorMessage += "<li>" + json[item] + "</li>";
+                }
+
+                $(".submission-error").removeClass('hidden');
+                $(".message-copy").html(errorMessage);
+            }
+        });
+      });
+
+      $('form select').change(function() {
+          var allowNonSuggested = parseInt($(this).data('allow-non-suggested'));
+          var currVal = $(this).val();
+          var alias = '';
+          var relatedItem = null;
+          if (allowNonSuggested === 1) {
+              alias = $(this).parent().data('alias');
+              relatedItem = $('form .credo-modules-field-' + alias + '__custom');
+              if ((currVal === 'Other') && $(relatedItem).hasClass('hidden')) {
+                  $(relatedItem).removeClass('hidden');
+              } else if ((currVal !== 'Other') && !$(relatedItem).hasClass('hidden')) {
+                  $(relatedItem).addClass('hidden');
+              }
+          }
+      });
+    })(this);
+
+    function toggleSubmitButton(enable) {
+      var $submitButton = $('form .form-actions #credo-form-submit-btn');
+
+      if (enable) {
+        $submitButton.removeClass('is-disabled').attr('aria-disabled', false).prop('disabled', false);
+      } else {
+        $submitButton.addClass('is-disabled').prop('disabled', true);
+      }
+    }
+
+    $(document).ready(function() {
+       var link_access_hash = "${link_access_hash if link_access_hash else ''}";
+       if (link_access_hash !== '') {
+            var intervalId = setInterval(function() {
+                if ($.cookie('supervisor-link-hash') !== link_access_hash) {
+                    clearInterval(intervalId);
+                    $("body").html("Other survey was opened in the separate window");
+                }
+            }, 1000);
+        }
+    });
+  </script>
+</%block>
+
+<%block name="headextra">
+    <style>
+        section[class='register container'] {
+            padding-left: 20px;
+            padding-right: 20px;
+            max-width: 600px;
+            min-width: 380px;
+        }
+
+        section[class='register container'] section {
+            width: 100%;
+        }
+
+        .credo-modules-information {
+            line-height: 1.5;
+        }
+
+        .credo-form-submit-btn {
+            box-shadow: 0 2px 1px 0 #0a4a67;
+            background: #126f9a;
+            color: #fff !important;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-shadow: none;
+            font-weight: 500;
+            letter-spacing: 0;
+        }
+        .credo-form-submit-btn:hover {
+            color: #fff !important;
+            background: #1790c7;
+            background-image: none !important;
+        }
+
+        .form-actions {
+            padding-top: 30px;
+        }
+
+        .fields-error-box {
+            padding: 10px 0px;
+            color: red;
+            display: none;
+        }
+    </style>
+</%block>
+
+<section class="register container" style="padding-left: 20px;">
+    <section role="main">
+        <form role="form" id="credo-additional-fields-form" method="post" action="${form_submit_url}" autocomplete="off">
+            <div role="alert" class="status message submission-error hidden" tabindex="-1">
+                <h3 class="message-title">${_("The following errors occurred:")} </h3>
+                <ul class="message-copy"> </ul>
+            </div>
+            <div class="group group-form group-form-requiredinformation">
+                <h2 class="sr">${_('Required Information')}</h2>
+
+                <ol class="list-input">
+                  % for field in fields:
+                  <li data-alias="${field.alias}" class="credo-modules-field-${field.alias} field ${'required' if field.required else ''} text ${'hidden' if field.hidden else ''}">
+                    % if field.info:
+                        <p class="credo-modules-information"> ${field.title} </p>
+                    % else:
+                        <label for="credo-modules-${field.alias}">${field.title}</label>
+                        % if field.options:
+                            <select id="credo-modules-${field.alias}"
+                                    name="${field.alias}"
+                                    class="field-input"
+                                    data-allow-non-suggested="${'1' if field.allow_non_suggested else '0'}" ${'required aria-required="true"' if field.required else ''}>
+                                <option value="" ${'' if field.default else 'selected=""'}>Not selected</option>
+                                % for option in field.options:
+                                    <%
+                                        selected = ''
+                                        if option == field.default:
+                                            selected = 'selected=""'
+                                    %>
+                                    <option value="${option}" ${selected}>${option}</option>
+                                % endfor
+                            </select>
+                            <div class="fields-error-box fields-error-box-${field.alias}"></div>
+                        % elif field.longtext:
+                           <textarea id="credo-modules-${field.alias}"
+                                     name="${field.alias}"
+                                     rows="7"
+                                     class="field-input"
+                                     ${'required aria-required="true"' if field.required else ''}>${field.default if field.default else ''}</textarea>
+                           <div class="fields-error-box fields-error-box-${field.alias}"></div>
+                        % else:
+                            <input class="field-input"
+                                   id="credo-modules-${field.alias}"
+                                   type="${'number' if field.isnumber else 'text'}"
+                                   name="${field.alias}"
+                                   value="${field.default if field.default else ''}"
+                                   ${'required aria-required="true"' if field.required else ''}
+                                   ${'min="' + field.minnumber + '"' if field.minnumber else ''}
+                                   ${'max="' + field.maxnumber + '"' if field.maxnumber else ''}
+                                   ${'minlength="' + field.minlength + '"' if field.minlength else ''}
+                                   ${'maxlength="' + field.maxlength + '"' if field.maxlength else ''}
+                                   />
+                           <div class="fields-error-box fields-error-box-${field.alias}"></div>
+                        % endif
+                    % endif
+                  </li>
+                  % endfor
+                </ol>
+            </div>
+            <div class="form-actions">
+                <a id="credo-form-submit-btn" class="credo-form-submit-btn" href="javascript: void(0);">${_('Submit')}</a>
+            </div>
+        </form>
+    </section>
+</section>

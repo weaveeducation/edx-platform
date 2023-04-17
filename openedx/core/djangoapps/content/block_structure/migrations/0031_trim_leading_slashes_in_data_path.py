@@ -32,7 +32,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('block_structure', '0004_blockstructuremodel_usagekeywithrun'),
+        ('block_structure', '0030_alter_apiblockinfonotsiblings_options'),
     ]
 
     operations = [

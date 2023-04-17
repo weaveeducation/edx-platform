@@ -121,11 +121,17 @@ class PreviewModuleSystem(ModuleSystem):  # pylint: disable=abstract-method
 
         # TODO: aside_type != 'acid_aside' check should be removed once AcidBlock is only installed during tests
         # (see https://openedx.atlassian.net/browse/TE-811)
-        return [
+        lst = [
             aside_type
             for aside_type in super().applicable_aside_types(block)
             if aside_type != 'acid_aside'
         ]
+
+        if block.scope_ids.block_type != 'openassessment' and 'tagging_ora_aside' in lst:
+            lst.remove('tagging_ora_aside')
+        if block.scope_ids.block_type == 'openassessment' and 'tagging_aside' in lst:
+            lst.remove('tagging_aside')
+        return lst
 
     def render_child_placeholder(self, block, view_name, context):
         """
@@ -139,13 +145,15 @@ class PreviewModuleSystem(ModuleSystem):  # pylint: disable=abstract-method
         result.add_fragment_resources(frag)
 
         for aside, aside_fn in aside_frag_fns:
-            aside_frag = aside_fn(block, context)
-            if aside_frag.content != '':
-                aside_frag_wrapped = self.wrap_aside(block, aside, view_name, aside_frag, context)
-                aside.save()
-                result.add_fragment_resources(aside_frag_wrapped)
-                replacement = position_for_asides + aside_frag_wrapped.content
-                frag.content = frag.content.replace(position_for_asides, replacement)
+            if not hasattr(aside, 'saved_tags') \
+              or (hasattr(aside, 'saved_tags') and context['role_features']['view_tags']):
+                aside_frag = aside_fn(block, context)
+                if aside_frag.content != '':
+                    aside_frag_wrapped = self.wrap_aside(block, aside, view_name, aside_frag, context)
+                    aside.save()
+                    result.add_fragment_resources(aside_frag_wrapped)
+                    replacement = position_for_asides + aside_frag_wrapped.content
+                    frag.content = frag.content.replace(position_for_asides, replacement)
 
         result.add_content(frag.content)
         return result
@@ -314,6 +322,11 @@ def _studio_wrap_xblock(xblock, view, frag, context, display_name_only=False):
             'selected_groups_label': selected_groups_label,
             'can_add': context.get('can_add', True),
             'can_move': context.get('can_move', xblock.scope_ids.usage_id.context_key.is_course),
+            'can_copy': context.get('can_copy', True),
+            'ability_edit_library_content': context.get('role_features', {}).get('edit_library_content', True),
+            'root_xblock_is_library': root_xblock and (getattr(root_xblock, 'category', None) == 'library'),
+            'root_xblock_is_library_content': root_xblock and (
+                getattr(root_xblock, 'category', None) == 'library_content'),
             'language': getattr(course, 'language', None)
         }
 

@@ -5,15 +5,76 @@ import logging
 import platform
 import sys
 import warnings
-from logging.handlers import SysLogHandler
+import json
+import socket
+from logging.handlers import SysLogHandler, SYSLOG_UDP_PORT
+from logging import Handler
+from django.db import transaction
 
 LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+
+
+class DBHandler(Handler):
+
+    model = None
+    allowed_events = [
+        'problem_check',
+        'edx.drag_and_drop_v2.item.dropped',
+        'openassessmentblock.create_submission',
+        'openassessmentblock.staff_assess',
+        'openassessmentblock.self_assess',
+        'openassessmentblock.peer_assess',
+        'sequential_block.viewed',
+        'xblock.image-explorer.hotspot.opened',
+        'xblock.text-highlighter.new_submission',
+        'xblock.freetextresponse.submit'
+    ]
+
+    def emit(self, record):
+        if not self.model:
+            from common.djangoapps.credo_modules.models import DBLogEntry
+            self.model = DBLogEntry
+        msg = record.getMessage()
+        try:
+            data = json.loads(msg)
+        except ValueError:
+            return
+        event_type = data.get('event_type')
+        event_source = data.get('event_source')
+
+        if event_type not in self.allowed_events or event_source != 'server':
+            return
+
+        user_id = data.get('context', {}).get('user_id', None)
+        course_id = data.get('context', {}).get('course_id', None)
+        if event_type == 'sequential_block.viewed':
+            block_id = data.get('event', {}).get('usage_key', None)
+        else:
+            block_id = data.get('context', {}).get('module', {}).get('usage_key', None)
+
+        if event_type == 'xblock.image-explorer.hotspot.opened':
+            new_grade = data.get('event', {}).get('new_grade')
+            if not new_grade:
+                return
+
+        if user_id and course_id and block_id:
+            with transaction.atomic():
+                formatted_msg = msg.replace('||', ';')
+                item = self.model(
+                    event_name=event_type,
+                    user_id=user_id,
+                    course_id=course_id,
+                    block_id=block_id,
+                    message=formatted_msg
+                )
+                item.save()
 
 
 def get_logger_config(log_dir,  # lint-amnesty, pylint: disable=unused-argument
                       logging_env="no_env",
                       local_loglevel='INFO',
-                      service_variant=""):
+                      service_variant="",
+                      syslog_settings=None):
     """
 
     Return the appropriate logging config dictionary. You should assign the
@@ -27,6 +88,13 @@ def get_logger_config(log_dir,  # lint-amnesty, pylint: disable=unused-argument
     if local_loglevel not in LOG_LEVELS:
         local_loglevel = 'INFO'
 
+    if syslog_settings is None:
+        syslog_settings = {
+            'SYSLOG_USE_TCP': False,
+            'SYSLOG_HOST': '',
+            'SYSLOG_PORT': 0
+        }
+
     hostname = platform.node().split(".")[0]
     syslog_format = ("[service_variant={service_variant}]"
                      "[%(name)s][env:{logging_env}] %(levelname)s "
@@ -34,6 +102,10 @@ def get_logger_config(log_dir,  # lint-amnesty, pylint: disable=unused-argument
                      "- %(message)s").format(service_variant=service_variant,
                                              logging_env=logging_env,
                                              hostname=hostname)
+
+    syslog_use_tcp = syslog_settings.get('SYSLOG_USE_TCP', False)
+    syslog_host = syslog_settings.get('SYSLOG_HOST', '')
+    syslog_port = syslog_settings.get('SYSLOG_PORT', SYSLOG_UDP_PORT)
 
     logger_config = {
         'version': 1,
@@ -73,7 +145,8 @@ def get_logger_config(log_dir,  # lint-amnesty, pylint: disable=unused-argument
             'local': {
                 'level': local_loglevel,
                 'class': 'logging.handlers.SysLogHandler',
-                'address': '/dev/log',
+                'address': (syslog_host, syslog_port) if syslog_host else '/dev/log',
+                'socktype': socket.SOCK_STREAM if syslog_use_tcp else socket.SOCK_DGRAM,
                 'formatter': 'syslog_format',
                 'filters': ['userid_context', 'remoteip_context'],
                 'facility': SysLogHandler.LOG_LOCAL0,
@@ -81,14 +154,33 @@ def get_logger_config(log_dir,  # lint-amnesty, pylint: disable=unused-argument
             'tracking': {
                 'level': 'DEBUG',
                 'class': 'logging.handlers.SysLogHandler',
-                'address': '/dev/log',
+                'address': (syslog_host, syslog_port) if syslog_host else '/dev/log',
+                'socktype': socket.SOCK_STREAM if syslog_use_tcp else socket.SOCK_DGRAM,
                 'facility': SysLogHandler.LOG_LOCAL1,
                 'formatter': 'raw',
             },
+            'log_db': {
+                'level': 'INFO',
+                'class': 'openedx.core.lib.logsettings.DBHandler',
+                'formatter': 'raw',
+            },
+            'credo_json': {
+                'level': 'DEBUG',
+                'class': 'logging.handlers.SysLogHandler',
+                'address': (syslog_host, syslog_port) if syslog_host else '/dev/log',
+                'socktype': socket.SOCK_STREAM if syslog_use_tcp else socket.SOCK_DGRAM,
+                'facility': SysLogHandler.LOG_LOCAL2,
+                'formatter': 'syslog_format',
+            },
         },
         'loggers': {
+            'credo_json': {
+                'handlers': ['console', 'credo_json'],
+                'level': 'DEBUG',
+                'propagate': False,
+            },
             'tracking': {
-                'handlers': ['tracking'],
+                'handlers': ['tracking', 'log_db'],
                 'level': 'DEBUG',
                 'propagate': False,
             },
@@ -111,6 +203,15 @@ def get_logger_config(log_dir,  # lint-amnesty, pylint: disable=unused-argument
     }
 
     return logger_config
+
+
+def suppress_warning_exception(fn):
+    def warn(*args, **kwargs):
+        try:
+            fn(*args, **kwargs)
+        except Exception as e:
+            logging.warning(str(e))
+    return warn
 
 
 def log_python_warnings():

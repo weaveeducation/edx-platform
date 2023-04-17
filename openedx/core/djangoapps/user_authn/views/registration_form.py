@@ -33,6 +33,7 @@ from common.djangoapps.util.password_policy_validators import (
     password_validators_instruction_texts,
     password_validators_restrictions,
     validate_password,
+    DEFAULT_MAX_PASSWORD_LENGTH,
 )
 
 
@@ -178,17 +179,13 @@ class AccountCreationForm(forms.Form):
         extra_fields=None,
         extended_profile_fields=None,
         do_third_party_auth=True,
-        tos_required=True
+        tos_required=False
     ):
         super().__init__(data)
 
         extra_fields = extra_fields or {}
         self.extended_profile_fields = extended_profile_fields or {}
         self.do_third_party_auth = do_third_party_auth
-        if tos_required:
-            self.fields["terms_of_service"] = TrueField(
-                error_messages={"required": _("You must accept the terms of service.")}
-            )
 
         error_message_dict = {
             "level_of_education": _("A level of education is required"),
@@ -199,6 +196,11 @@ class AccountCreationForm(forms.Form):
             "city": _("A city is required"),
             "country": _("A country is required")
         }
+
+        extra_fields['password_copy'] = "required"
+        extra_fields['honor_code'] = "hidden"
+        extra_fields['country'] = "options"
+
         for field_name, field_value in extra_fields.items():
             if field_name not in self.fields:
                 if field_name == "honor_code":
@@ -206,6 +208,13 @@ class AccountCreationForm(forms.Form):
                         self.fields[field_name] = TrueField(
                             error_messages={
                                 "required": _("To enroll, you must follow the honor code.")
+                            }
+                        )
+                elif field_name == "password_copy":
+                    if field_value == "required" and data.get("password"):
+                        self.fields[field_name] = forms.CharField(
+                            error_messages={
+                                "required": _("Please confirm password.")
                             }
                         )
                 else:
@@ -272,6 +281,15 @@ class AccountCreationForm(forms.Form):
             )
         return email
 
+    def clean_password_copy(self):
+        """Enforce password policies (if applicable)"""
+        password_copy = self.cleaned_data["password_copy"]
+
+        if "password" in self.cleaned_data and self.cleaned_data["password"] != password_copy:
+            raise ValidationError(_("Passwords don't match"))
+
+        return password_copy
+
     def clean_year_of_birth(self):
         """
         Parse year_of_birth to an integer, but just use None instead of raising
@@ -313,7 +331,7 @@ class RegistrationFormFactory:
     Construct Registration forms and associated fields.
     """
 
-    DEFAULT_FIELDS = ["email", "name", "username", "password"]
+    DEFAULT_FIELDS = ["email", "name", "username", "password", "password_copy"]
 
     def _is_field_visible(self, field_name):
         """Check whether a field is visible based on Django settings. """
@@ -330,6 +348,7 @@ class RegistrationFormFactory:
     def __init__(self):
 
         self.EXTRA_FIELDS = [
+            "password_copy",
             "confirm_email",
             "first_name",
             "last_name",
@@ -360,6 +379,8 @@ class RegistrationFormFactory:
         if not self._extra_fields_setting:
             self._extra_fields_setting = copy.deepcopy(settings.REGISTRATION_EXTRA_FIELDS)
         self._extra_fields_setting["honor_code"] = self._extra_fields_setting.get("honor_code", "required")
+        self._extra_fields_setting["country"] = "hidden"
+        self._extra_fields_setting["city"] = "hidden"
 
         if settings.MARKETING_EMAILS_OPT_IN:
             self._extra_fields_setting['marketing_emails_opt_in'] = 'optional'
@@ -409,13 +430,30 @@ class RegistrationFormFactory:
         Returns:
             HttpResponse
         """
-        form_desc = FormDescription("post", self._get_registration_submit_url(request))
-        self._apply_third_party_auth_overrides(request, form_desc)
+        url = reverse("user_api_registration")
+        org_id = None
 
         # Custom form fields can be added via the form set in settings.REGISTRATION_EXTENSION_FORM
-        custom_form = get_registration_extension_form()
+        custom_form = get_registration_extension_form(request=request)
+        if custom_form:
+            org_id = custom_form.get_org()
+        if org_id:
+            url = url + '?org_id=' + org_id
+
+        form_desc = FormDescription("post", url)
+        self._apply_third_party_auth_overrides(request, form_desc)
+
         if custom_form:
             custom_form_field_names = [field_name for field_name, field in custom_form.fields.items()]
+
+            # Extra fields configured in Django settings
+            # may be required, optional, or hidden
+            for field_name in self.EXTRA_FIELDS:
+                if self._is_field_visible(field_name):
+                    self.field_handlers[field_name](
+                        form_desc,
+                        required=self._is_field_required(field_name)
+                    )
         else:
             custom_form_field_names = []
 
@@ -473,6 +511,33 @@ class RegistrationFormFactory:
                     del form_desc.fields[index]
                     break
         return form_desc
+
+    def _add_password_copy_field(self, form_desc, required=True):
+        """Add a password copy field to a form description.
+        Arguments:
+            form_desc: A form description
+        Keyword Arguments:
+            required (bool): Whether this field is required; defaults to True
+        """
+        # Translators: This label appears above a field on the registration form
+        # meant to hold the user's retyped password.
+        password_copy_label = _(u"Confirm password")
+
+        error_msg = _(u"Please confirm password.")
+
+        form_desc.add_field(
+            "password_copy",
+            label=password_copy_label,
+            field_type="password",
+            restrictions={
+                "min_length": 2,
+                "max_length": DEFAULT_MAX_PASSWORD_LENGTH,
+            },
+            error_messages={
+                "required": error_msg
+            },
+            required=required,
+        )
 
     def _get_registration_submit_url(self, request):
         return reverse("user_api_registration") if is_api_v1(request) else reverse("user_api_registration_v2")
@@ -1021,38 +1086,17 @@ class RegistrationFormFactory:
         )
         field_type = 'checkbox'
 
-        if not separate_honor_and_tos:
-            field_type = 'plaintext'
-
-            pp_link = marketing_link("PRIVACY")
-            label = Text(_(
-                "By creating an account, you agree to the \
-                  {terms_of_service_link_start}{terms_of_service}{terms_of_service_link_end} \
-                  and you acknowledge that {platform_name} and each Member process your personal data in accordance \
-                  with the {privacy_policy_link_start}Privacy Policy{privacy_policy_link_end}."
-            )).format(
-                platform_name=configuration_helpers.get_value("PLATFORM_NAME", settings.PLATFORM_NAME),
-                terms_of_service=terms_label,
-                terms_of_service_link_start=HTML("<a href='{terms_url}' rel='noopener' target='_blank'>").format(
-                    terms_url=terms_link
-                ),
-                terms_of_service_link_end=HTML("</a>"),
-                privacy_policy_link_start=HTML("<a href='{pp_url}' rel='noopener' target='_blank'>").format(
-                    pp_url=pp_link
-                ),
-                privacy_policy_link_end=HTML("</a>"),
+        if separate_honor_and_tos:
+            form_desc.add_field(
+                "honor_code",
+                label=label,
+                field_type=field_type,
+                default=False,
+                required=required,
+                error_messages={
+                    "required": error_msg
+                },
             )
-
-        form_desc.add_field(
-            "honor_code",
-            label=label,
-            field_type=field_type,
-            default=False,
-            required=required,
-            error_messages={
-                "required": error_msg
-            },
-        )
 
     def _add_terms_of_service_field(self, form_desc, required=True):
         """Add a terms of service field to a form description.
@@ -1162,15 +1206,28 @@ class RegistrationFormFactory:
                     )
 
                     # Hide the password field
-                    form_desc.override_field_properties(
-                        "password",
-                        default="",
-                        field_type="hidden",
-                        required=False,
-                        label="",
-                        instructions="",
-                        restrictions={}
-                    )
+                    for name in ["password", "password_copy"]:
+                        if name == 'password':
+                            form_desc.override_field_properties(
+                                "password",
+                                default="",
+                                field_type="hidden",
+                                required=False,
+                                label="",
+                                instructions="",
+                                restrictions={}
+                            )
+                        if name == 'password_copy':
+                            form_desc.override_field_properties(
+                                "password_copy",
+                                default="",
+                                field_type="hidden",
+                                required=False,
+                                label="",
+                                instructions="",
+                                restrictions={}
+                            )
+
                     # used to identify that request is running third party social auth
                     form_desc.add_field(
                         "social_auth_provider",

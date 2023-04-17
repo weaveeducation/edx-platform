@@ -676,6 +676,7 @@ CONTEXT_PROCESSORS = (
     'django.template.context_processors.csrf',
     'help_tokens.context_processor',
     'openedx.core.djangoapps.site_configuration.context_processors.configuration_context',
+    'common.djangoapps.credo_modules.context_processors.studio_configuration_context',
 )
 
 # Django templating
@@ -749,7 +750,7 @@ EDX_ROOT_URL = ''
 
 # use the ratelimit backend to prevent brute force attacks
 AUTHENTICATION_BACKENDS = [
-    'auth_backends.backends.EdXOAuth2',
+    'common.djangoapps.credo_modules.auth.EdXOpenIdCustomConnent',
     'rules.permissions.ObjectPermissionBackend',
     'openedx.core.djangoapps.content_libraries.auth.LtiAuthenticationBackend',
     'django.contrib.auth.backends.AllowAllUsersModelBackend',
@@ -880,6 +881,8 @@ MIDDLEWARE = [
     # Instead of AuthenticationMiddleware, we use a cache-backed version
     'openedx.core.djangoapps.cache_toolbox.middleware.CacheBackedAuthenticationMiddleware',
 
+    'common.djangoapps.credo_modules.middleware.LinkAccessOnlyMiddleware',
+
     'common.djangoapps.student.middleware.UserStandingMiddleware',
     'openedx.core.djangoapps.contentserver.middleware.StaticContentServer',
 
@@ -927,7 +930,7 @@ MIDDLEWARE = [
 EXTRA_MIDDLEWARE_CLASSES = []
 
 # Clickjacking protection can be disabled by setting this to 'ALLOW'
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS = 'ALLOW'
 
 # Platform for Privacy Preferences header
 P3P_HEADER = 'CP="Open EdX does not have a P3P policy."'
@@ -1515,6 +1518,10 @@ CELERY_BROKER_VHOST = ''
 CELERY_BROKER_USE_SSL = False
 CELERY_EVENT_QUEUE_TTL = None
 
+CELERY_ACKS_LATE = True
+CELERYD_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+
 ############################## Video ##########################################
 
 YOUTUBE = {
@@ -1562,6 +1569,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_celery_results',
+    'django_celery_beat',
     'method_override',
 
     # Common Initialization
@@ -1700,6 +1708,7 @@ INSTALLED_APPS = [
 
     # Tagging
     'cms.lib.xblock.tagging',
+    'cms.lib.xblock.tagging_ora',
 
     # Enables default site and redirects
     'django_sites_extensions',
@@ -1742,6 +1751,10 @@ INSTALLED_APPS = [
 
     # API Documentation
     'drf_yasg',
+
+    'common.djangoapps.badgr_integration.apps.BadgrIntegrationAppConfig',
+    'common.djangoapps.credo_modules.apps.CredoAppConfig',
+    'common.djangoapps.turnitin_integration.apps.TurnitinIntegrationAppConfig',
 
     'openedx.features.course_duration_limits',
     'openedx.features.content_type_gating',
@@ -2666,6 +2679,9 @@ LOGO_URL_PNG = None
 LOGO_TRADEMARK_URL = None
 FAVICON_URL = None
 DEFAULT_EMAIL_LOGO_URL = 'https://edx-cdn.org/v3/default/logo.png'
+
+XQUEUE_WAITTIME_BETWEEN_REQUESTS = 5  # seconds
+GENERATE_PROFILE_SCORES = False
 
 ############## Settings for course import olx validation ############################
 COURSE_OLX_VALIDATION_STAGE = 1

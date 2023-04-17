@@ -208,6 +208,8 @@ FEATURES = {
     # .. toggle_creation_date: 2013-04-13
     'ENABLE_MASQUERADE': True,
 
+    'ENROLL_ACTIVE_USERS_ONLY': False,
+
     # .. toggle_name: FEATURES['DISABLE_LOGIN_BUTTON']
     # .. toggle_implementation: DjangoSetting
     # .. toggle_default: False
@@ -216,6 +218,8 @@ FEATURES = {
     # .. toggle_use_cases: open_edx
     # .. toggle_creation_date: 2013-12-03
     'DISABLE_LOGIN_BUTTON': False,
+
+    'DISABLE_REGISTER_BUTTON': False, # used for cases if you want to register users only after push "enroll" button
 
     # .. toggle_name: FEATURES['ENABLE_OAUTH2_PROVIDER']
     # .. toggle_implementation: DjangoSetting
@@ -226,7 +230,7 @@ FEATURES = {
     # .. toggle_creation_date: 2014-09-09
     # .. toggle_target_removal_date: None
     # .. toggle_warning: This temporary feature toggle does not have a target removal date.
-    'ENABLE_OAUTH2_PROVIDER': False,
+    'ENABLE_OAUTH2_PROVIDER': True,
 
     # .. toggle_name: FEATURES['ENABLE_XBLOCK_VIEW_ENDPOINT']
     # .. toggle_implementation: DjangoSetting
@@ -237,7 +241,7 @@ FEATURES = {
     # .. toggle_use_cases: open_edx
     # .. toggle_creation_date: 2014-03-14
     # .. toggle_tickets: https://github.com/openedx/edx-platform/pull/2968
-    'ENABLE_XBLOCK_VIEW_ENDPOINT': False,
+    'ENABLE_XBLOCK_VIEW_ENDPOINT': True,
 
     # Allows to configure the LMS to provide CORS headers to serve requests from other
     # domains
@@ -692,7 +696,7 @@ FEATURES = {
     # .. toggle_use_cases: open_edx
     # .. toggle_creation_date: 2015-09-04
     # .. toggle_tickets: https://github.com/openedx/edx-platform/pull/9744
-    'ENABLE_SPECIAL_EXAMS': False,
+    'ENABLE_SPECIAL_EXAMS': True,
 
     # .. toggle_name: FEATURES['ENABLE_OPENBADGES']
     # .. toggle_implementation: DjangoSetting
@@ -718,7 +722,7 @@ FEATURES = {
     # .. toggle_use_cases: open_edx
     # .. toggle_creation_date: 2015-04-24
     # .. toggle_tickets: https://github.com/openedx/edx-platform/pull/7689
-    'ENABLE_LTI_PROVIDER': False,
+    'ENABLE_LTI_PROVIDER': True,
 
     # .. toggle_name: FEATURES['SHOW_HEADER_LANGUAGE_SELECTOR']
     # .. toggle_implementation: DjangoSetting
@@ -2153,6 +2157,9 @@ MIDDLEWARE = [
     #'django.contrib.auth.middleware.AuthenticationMiddleware',
     'openedx.core.djangoapps.cache_toolbox.middleware.CacheBackedAuthenticationMiddleware',
 
+    'common.djangoapps.credo_modules.middleware.LinkAccessOnlyMiddleware',
+    'common.djangoapps.credo_modules.middleware.JwtCookiesMiddleware',
+
     'common.djangoapps.student.middleware.UserStandingMiddleware',
     'openedx.core.djangoapps.contentserver.middleware.StaticContentServer',
 
@@ -2165,9 +2172,9 @@ MIDDLEWARE = [
 
     # CORS and CSRF
     'corsheaders.middleware.CorsMiddleware',
-    'openedx.core.djangoapps.cors_csrf.middleware.CorsCSRFMiddleware',
+#    'openedx.core.djangoapps.cors_csrf.middleware.CorsCSRFMiddleware',
     'openedx.core.djangoapps.cors_csrf.middleware.CsrfCrossDomainCookieMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+#    'django.middleware.csrf.CsrfViewMiddleware',
 
     'splash.middleware.SplashMiddleware',
 
@@ -2220,12 +2227,16 @@ MIDDLEWARE = [
     # Handles automatically storing user ids in django-simple-history tables when possible.
     'simple_history.middleware.HistoryRequestMiddleware',
 
+    'common.djangoapps.credo_modules.middleware.RefererSaveMiddleware',
+    'common.djangoapps.credo_modules.middleware.CourseUsageMiddleware',
+    'common.djangoapps.third_party_auth.middleware.SSOAuthMiddleware',
+
     # This must be last
     'openedx.core.djangoapps.site_configuration.middleware.SessionCookieDomainOverrideMiddleware',
 ]
 
 # Clickjacking protection can be disbaled by setting this to 'ALLOW'
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS = 'ALLOW'
 
 # Platform for Privacy Preferences header
 P3P_HEADER = 'CP="Open EdX does not have a P3P policy."'
@@ -2797,6 +2808,10 @@ CELERY_BROKER_HOSTNAME = 'localhost'
 CELERY_BROKER_USER = 'celery'
 CELERY_BROKER_PASSWORD = 'celery'
 
+CELERY_ACKS_LATE = True
+CELERYD_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+
 ############################## HEARTBEAT ######################################
 
 # Checks run in normal mode by the heartbeat djangoapp
@@ -2954,6 +2969,7 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'django.contrib.staticfiles',
     'django_celery_results',
+    'django_celery_beat',
 
     # Common Initialization
     'openedx.core.djangoapps.common_initialization.apps.CommonInitializationConfig',
@@ -3148,6 +3164,9 @@ INSTALLED_APPS = [
     # Gating of course content
     'lms.djangoapps.gating.apps.GatingConfig',
 
+    # Supervisor Evaluation
+    'lms.djangoapps.supervisor_evaluation.apps.SupervisorEvaluationConfig',
+
     # Static i18n support
     'statici18n',
 
@@ -3230,6 +3249,11 @@ INSTALLED_APPS = [
     # Management of per-user schedules
     'openedx.core.djangoapps.schedules',
     'rest_framework_jwt',
+
+    'common.djangoapps.badgr_integration.apps.BadgrIntegrationAppConfig',
+    'common.djangoapps.credo_modules.apps.CredoAppConfig',
+    'common.djangoapps.turnitin_integration.apps.TurnitinIntegrationAppConfig',
+    'common.djangoapps.myskills.apps.MySkillsAppConfig',
 
     # Learning Sequence Navigation
     'openedx.core.djangoapps.content.learning_sequences.apps.LearningSequencesConfig',
@@ -3571,6 +3595,7 @@ REGISTRATION_EXTRA_FIELDS = {
     'terms_of_service': 'hidden',
     'city': 'hidden',
     'country': 'hidden',
+    'password_copy': 'required',
 }
 
 REGISTRATION_FIELD_ORDER = [
@@ -3613,6 +3638,13 @@ CERT_NAME_LONG = "Certificate of Achievement"
 #    the interface provided by lms.djangoapps.badges.backends.base.BadgeBackend
 # .. setting_warning: Review FEATURES['ENABLE_OPENBADGES'] for further context.
 BADGING_BACKEND = 'lms.djangoapps.badges.backends.badgr.BadgrBackend'
+
+# .. setting_name: BADGR_API_TOKEN
+# .. setting_default: None
+# .. setting_description: The API token string for Badgr. You should be able to create this via Badgr's settings. See
+#    https://github.com/concentricsky/badgr-server for details on setting up Badgr.
+# .. setting_warning: Review FEATURES['ENABLE_OPENBADGES'] for further context.
+BADGR_API_TOKEN = None
 
 # .. setting_name: BADGR_BASE_URL
 # .. setting_default: 'http://localhost:8005'
@@ -5130,6 +5162,15 @@ GITHUB_REPO_ROOT = '/edx/var/edxapp/data'
 ##################### SUPPORT URL ############################
 SUPPORT_HOW_TO_UNENROLL_LINK = ''
 
+############## LTI additional settings ############################
+
+EMBEDDED_CODE_CACHE_TIMEOUT = 60 * 60
+EMBEDDED_CODE_CACHE_PREFIX = "embedded_code"
+
+############## Additional settings ############################
+
+HIDE_PROFILE = False
+
 ######################## Setting for content libraries ########################
 MAX_BLOCKS_PER_CONTENT_LIBRARY = 1000
 
@@ -5206,6 +5247,8 @@ DISCUSSION_MODERATION_CLOSE_REASON_CODES = {
     "duplicate": _("Post is a duplicate"),
     "off-topic": _("Post is off-topic"),
 }
+
+SKILLS_MFE_URL = None
 
 ################# Settings for edx-financial-assistance #################
 IS_ELIGIBLE_FOR_FINANCIAL_ASSISTANCE_URL = '/core/api/course_eligibility/'

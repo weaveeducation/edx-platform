@@ -182,6 +182,7 @@ def create_account_with_params(request, params):  # pylint: disable=too-many-sta
 
     if is_third_party_auth_enabled and (pipeline.running(request) or third_party_auth_credentials_in_api):
         params["password"] = generate_password()
+        params["password_copy"] = params["password"]
 
     # in case user is registering via third party (Google, Facebook) and pipeline has expired, show appropriate
     # error message
@@ -213,7 +214,7 @@ def create_account_with_params(request, params):  # pylint: disable=too-many-sta
         do_third_party_auth=False,
         tos_required=tos_required,
     )
-    custom_form = get_registration_extension_form(data=params)
+    custom_form = get_registration_extension_form(data=params, request=request)
     is_marketable = params.get('marketing_emails_opt_in') in ['true', '1']
 
     # Perform operations within a transaction that are critical to account creation
@@ -665,6 +666,13 @@ class RegistrationView(APIView):
         # for TOS, privacy policy, etc.
         if data.get("honor_code") and "terms_of_service" not in data:
             data["terms_of_service"] = data["honor_code"]
+        password = data.get("password")
+        password_copy = data.get("password_copy")
+        if password and password_copy and password != password_copy:
+            errors = {
+                'password_copy': [{"user_message": "The passwords must match."}]
+            }
+            return JsonResponse(errors, status=400)
 
     def _create_account(self, request, data):
         response, user = None, None
