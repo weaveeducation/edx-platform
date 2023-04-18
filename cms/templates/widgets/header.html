@@ -9,6 +9,7 @@
   from urllib.parse import quote_plus
   from cms.djangoapps.contentstore import toggles
   from cms.djangoapps.contentstore.utils import get_pages_and_resources_url
+  from cms.djangoapps.contentstore.utils import feature_is_available
   from openedx.core.djangoapps.discussions.config.waffle import ENABLE_PAGES_AND_RESOURCES_MICROFRONTEND
   from openedx.core.djangoapps.lang_pref.api import header_language_selector_is_enabled, released_languages
 %>
@@ -140,6 +141,7 @@
             </div>
           </li>
 
+          % if feature_is_available(course_key, request.user, 'top_menu_tools'):
           <li class="nav-item nav-course-tools">
             <h3 class="title"><span class="label">${_("Tools")}</span> <span class="icon fa fa-caret-down ui-toggle-dd" aria-hidden="true"></span></h3>
             <div class="wrapper wrapper-nav-sub">
@@ -163,6 +165,7 @@
               </div>
             </div>
           </li>
+          % endif
         </ol>
       </nav>
       % elif context_library:
