@@ -18,7 +18,11 @@
     <div class="wrapper wrapper-l">
       <h1 class="branding">
         <a class="brand-link" href="/">
-          <img class="brand-image" src="${static.url('images/studio-logo.png')}" alt="${settings.STUDIO_NAME}" />
+          % if studio_logo_url_is_abs:
+          <img class="brand-image" src="${studio_logo_url}" alt="${settings.STUDIO_NAME}" />
+          % else:
+          <img class="brand-image" src="${static.url(studio_logo_url)}" alt="${settings.STUDIO_NAME}" />
+          % endif
             % if settings.LOGO_IMAGE_EXTRA_TEXT == 'edge':
             <span class="font-italic"> <span class="tilted">|</span> EDGE</span>
             % endif
