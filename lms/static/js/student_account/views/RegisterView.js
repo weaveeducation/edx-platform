@@ -59,6 +59,7 @@
                 this.syncLearnerProfileData = data.thirdPartyAuth.syncLearnerProfileData || false;
                 this.errorMessage = data.thirdPartyAuth.errorMessage || '';
                 this.platformName = data.platformName;
+                this.disableSigninButton = data.disableSigninButton || false;
                 this.autoSubmit = data.thirdPartyAuth.autoSubmitRegForm;
                 this.hideAuthWarnings = data.hideAuthWarnings;
                 this.autoRegisterWelcomeMessage = data.thirdPartyAuth.autoRegisterWelcomeMessage || '';
@@ -157,6 +158,7 @@
                             providers: this.providers,
                             hasSecondaryProviders: this.hasSecondaryProviders,
                             platformName: this.platformName,
+                            disableSigninButton: this.disableSigninButton,
                             autoRegisterWelcomeMessage: this.autoRegisterWelcomeMessage,
                             registerFormSubmitButtonText: this.registerFormSubmitButtonText,
                             is_require_third_party_auth_enabled: this.is_require_third_party_auth_enabled
