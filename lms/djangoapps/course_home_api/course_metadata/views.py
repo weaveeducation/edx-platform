@@ -23,6 +23,7 @@ from lms.djangoapps.courseware.context_processor import user_timezone_locale_pre
 from lms.djangoapps.courseware.courses import check_course_access
 from lms.djangoapps.courseware.masquerade import setup_masquerade
 from lms.djangoapps.courseware.tabs import get_course_tab_list
+from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_image_urls_for_user
 
 
 class CourseHomeMetadataView(RetrieveAPIView):
@@ -126,6 +127,8 @@ class CourseHomeMetadataView(RetrieveAPIView):
         ).exists():
             studio_staff_access = False
 
+        profile_image_url = get_profile_image_urls_for_user(user)['medium']
+
         data = {
             'course_id': course.id,
             'username': username,
@@ -144,7 +147,8 @@ class CourseHomeMetadataView(RetrieveAPIView):
             'user_timezone': user_timezone,
             'can_view_certificate': certificates_viewable_for_course(course),
             'user_must_be_active': settings.FEATURES.get('ENROLL_ACTIVE_USERS_ONLY', False)
-                                   and user.is_authenticated and not user.is_active
+                                   and user.is_authenticated and not user.is_active,
+            'profile_image_url': profile_image_url
         }
         context = self.get_serializer_context()
         context['course'] = course
