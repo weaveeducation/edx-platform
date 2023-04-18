@@ -151,7 +151,8 @@ def get_lms_link_for_certificate_web_view(course_key, mode):
     assert isinstance(course_key, CourseKey)
 
     # checks LMS_BASE value in SiteConfiguration against course_org_filter if not found returns settings.LMS_BASE
-    lms_base = SiteConfiguration.get_value_for_org(course_key.org, "LMS_BASE", settings.LMS_BASE)
+    lms_base = SiteConfiguration.get_value_for_org(course_key.org, "LMS_BASE",
+                                                   configuration_helpers.get_value('LMS_BASE', settings.LMS_BASE))
 
     if lms_base is None:
         return None

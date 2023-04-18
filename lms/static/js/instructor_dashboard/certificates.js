@@ -99,6 +99,40 @@ var onCertificatesReady = null;
                 }
             });
         });
+
+        $section.on('click', '#btn-start-check-and-generate-certificates', function(event) {
+            if (!confirm(gettext('Start generating missing certificates for students in this course?'))) {
+                event.preventDefault();
+                return;
+            }
+
+            var $btn_regenerating_certs = $(this),
+                $certificate_regeneration_status = $('.certificate-regeneration-status'),
+                url = $btn_regenerating_certs.data('endpoint');
+
+            $.ajax({
+                type: 'POST',
+                url: url,
+                success: function(data) {
+                    $btn_regenerating_certs.attr('disabled', 'disabled');
+                    if (data.success) {
+                        $certificate_regeneration_status.text(data.message).addClass('message');
+                    } else {
+                        $certificate_regeneration_status.text(data.message).addClass('message');
+                    }
+                },
+                error: function(jqXHR) {
+                    try {
+                        var response = JSON.parse(jqXHR.responseText);
+                        $certificate_regeneration_status.text(gettext(response.message)).addClass('message');
+                    } catch (error) {
+                        $certificate_regeneration_status.
+                            text(gettext('Error while generating certificates. Please try again.')).
+                            addClass('message');
+                    }
+                }
+            });
+        });
     };
 
     // Call onCertificatesReady on document.ready event

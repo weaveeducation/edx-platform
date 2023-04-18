@@ -64,6 +64,8 @@ RELATIVE_DATES_FLAG = CourseWaffleFlag(f'{WAFFLE_FLAG_NAMESPACE}.relative_dates'
 # .. toggle_tickets: https://openedx.atlassian.net/browse/AA-36
 CALENDAR_SYNC_FLAG = CourseWaffleFlag(f'{WAFFLE_FLAG_NAMESPACE}.calendar_sync', __name__)  # lint-amnesty, pylint: disable=toggle-missing-annotation
 
+DISABLE_DATES_TAB_FLAG = CourseWaffleFlag(f'{WAFFLE_FLAG_NAMESPACE}.disable_dates_tab', __name__)
+
 
 def course_home_page_title(_course):
     """
