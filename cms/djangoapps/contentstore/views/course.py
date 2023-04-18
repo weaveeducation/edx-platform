@@ -39,6 +39,8 @@ from cms.djangoapps.course_creators.models import CourseCreator
 from cms.djangoapps.models.settings.course_grading import CourseGradingModel
 from cms.djangoapps.models.settings.course_metadata import CourseMetadata
 from cms.djangoapps.models.settings.encoder import CourseSettingsEncoder
+from common.djangoapps.credo_modules.models import CopyBlockTask, SiblingBlockUpdateTask, CourseStaffExtended, get_inactive_orgs
+from common.djangoapps.credo_modules.mongo import get_unit_block_versions
 from common.djangoapps.course_action_state.managers import CourseActionStateItemNotFoundError
 from common.djangoapps.course_action_state.models import CourseRerunState, CourseRerunUIStateManager
 from common.djangoapps.course_modes.models import CourseMode
@@ -164,6 +166,8 @@ def get_course_and_check_access(course_key, user, depth=0):
     for the view functions in this file.
     """
     if not has_studio_read_access(user, course_key):
+        raise PermissionDenied()
+    if CourseStaffExtended.objects.filter(role__course_studio_access=False, user=user, course_id=course_key).exists():
         raise PermissionDenied()
     course_block = modulestore().get_course(course_key, depth=depth)
     return course_block

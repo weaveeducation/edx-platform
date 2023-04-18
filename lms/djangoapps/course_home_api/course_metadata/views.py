@@ -14,6 +14,7 @@ from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiv
 from openedx.core.djangoapps.courseware_api.utils import get_celebrations_dict
 
 from common.djangoapps.student.models import CourseEnrollment
+from common.djangoapps.credo_modules.models import CourseStaffExtended
 from lms.djangoapps.course_api.api import course_detail
 from lms.djangoapps.course_goals.models import UserActivity
 from lms.djangoapps.course_home_api.course_metadata.serializers import CourseHomeMetadataSerializer
@@ -117,11 +118,20 @@ class CourseHomeMetadataView(RetrieveAPIView):
 
         user = request.user
 
+        studio_staff_access = True
+        if CourseStaffExtended.objects.filter(
+            role__course_studio_access=False,
+            user=user,
+            course_id=course_key
+        ).exists():
+            studio_staff_access = False
+
         data = {
             'course_id': course.id,
             'username': username,
             'is_staff': has_access(request.user, 'staff', course_key).has_access,
             'original_user_is_staff': original_user_is_staff,
+            'studio_staff_access': studio_staff_access,
             'number': course.display_number_with_default,
             'org': course.display_org_with_default,
             'start': course.start,
