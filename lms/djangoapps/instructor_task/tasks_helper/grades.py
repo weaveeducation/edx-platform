@@ -29,6 +29,7 @@ from lms.djangoapps.courseware.user_state_client import DjangoXBlockUserStateCli
 from lms.djangoapps.grades.api import CourseGradeFactory
 from lms.djangoapps.grades.api import context as grades_context
 from lms.djangoapps.grades.api import prefetch_course_and_subsection_grades
+from lms.djangoapps.grades.subsection_grade import FakeSubsectionGrade
 from lms.djangoapps.instructor_analytics.basic import list_problem_responses
 from lms.djangoapps.instructor_analytics.csvs import format_dictlist
 from lms.djangoapps.instructor_task.config.waffle import (
@@ -703,7 +704,14 @@ class CourseGradeReport(GradeReportBase):
         subsection_grades = []
         grade_results = []
         for subsection_location in subsection_headers:
-            subsection_grade = course_grade.subsection_grade(subsection_location)
+            try:
+                subsection_grade = course_grade.subsection_grade(subsection_location)
+            except KeyError:
+                subsection_grade = FakeSubsectionGrade()
+                TASK_LOG.warning(
+                    'CourseGradeReport: section %s was not found',
+                    str(subsection_location),
+                )
             if subsection_grade.attempted_graded or subsection_grade.override:
                 grade_result = subsection_grade.percent_graded
                 grade_last_timestamp = subsection_grade.last_answer_timestamp
