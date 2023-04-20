@@ -647,7 +647,7 @@ def login_user(request, api_version='v1'):  # pylint: disable=too-many-statement
         return response
     except AuthFailedError as error:
         response_content = error.get_response()
-        log.exception(response_content)
+        #log.exception(response_content)
 
         error_code = response_content.get('error_code')
         if error_code:
@@ -688,7 +688,13 @@ def redirect_to_lms_login(request):
     This view redirect the admin/login url to the site's login page if
     waffle switch is on otherwise returns the admin site's login view.
     """
-    return redirect('/login?next=/admin')
+    if request.user.is_authenticated:
+        if request.user.is_staff or request.user.is_superuser:
+            return redirect('/admin')
+        else:
+            return HttpResponseForbidden("You don't have permissions to access this page")
+    else:
+        return redirect('/login?next=/admin')
 
 
 class LoginSessionView(APIView):
