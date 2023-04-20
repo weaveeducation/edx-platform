@@ -307,12 +307,12 @@ def inherit_metadata(descriptor, inherited_data):
         pass
 
 
-def own_metadata(block):
+def own_metadata(block, include_default=False):
     """
     Return a JSON-friendly dictionary that contains only non-inherited field
     keys, mapped to their serialized values
     """
-    return block.get_explicitly_set_fields_by_scope(Scope.settings)
+    return block.get_explicitly_set_fields_by_scope(Scope.settings, include_default=include_default)
 
 
 def get_settings_data(module):
@@ -354,7 +354,13 @@ class InheritingFieldData(KvsFieldData):
             # that this field is set on. Use the field from the current
             # block so that if it has a different default than the root
             # node of the tree, the block's default will be used.
-            field = block.fields[name]
+            if name == 'self_paced':
+                try:
+                    field = block.fields[name]
+                except TypeError:
+                    return super(InheritingFieldData, self).default(block, name)
+            else:
+                field = block.fields[name]
             ancestor = block.get_parent()
             # In case, if block's parent is of type 'library_content',
             # bypass inheritance and use kvs' default instead of reusing
@@ -366,6 +372,9 @@ class InheritingFieldData(KvsFieldData):
                 return super().default(block, name)
 
             while ancestor is not None:
+                if name == 'max_attempts' and ancestor.location.block_type != 'course':
+                    ancestor = ancestor.get_parent()
+                    continue
                 if field.is_set_on(ancestor):
                     return field.read_json(ancestor)
                 else:

@@ -1,0 +1,35 @@
+<form>
+    <h3 class="modal-section-title"><%- gettext('Extended settings') %></h3>
+    <div class="modal-section-content has-actions">
+        <div class="list-fields list-input" style="width: 100%" role="group" aria-label="<%- gettext('Extended settings') %>">
+            <label class="label">
+                <input type="checkbox" name="use_as_survey_for_supervisor" value="1" class="input input-checkbox" />
+                <%- gettext('Use as survey for supervisor') %>
+            </label>
+            <br />
+            <label class="label">
+                <input type="checkbox" name="units_sequential_completion" value="1" class="input input-checkbox" />
+                <%- gettext('Each "Unit" is available only after completion the previous one') %>
+            </label>
+            <br />
+            <label class="label">
+                <input type="checkbox" name="disable_units_after_completion" value="1" class="input input-checkbox" />
+                <%- gettext('Disable "Unit" after completion') %>
+            </label>
+        </div>
+    </div>
+    <br />
+    <% if (isBadgrEnabled) { %>
+    <br />
+    <h3 class="modal-section-title"><%- gettext('Issue a Badge') %></h3>
+    <div class="modal-section-content has-actions">
+        <p>Select the badge learners can earn upon reaching the minimum grade requirement for the graded assessments in this subsection</p>
+        <select name="badge_id">
+        <option value="" <% if (badgeId == '') { %>selected<% } %>>No Badge</option>
+        <% _.each(badges, function(badge) { %>
+        <option value="<%- badge.id %>" <% if (badgeId == badge.id) { %>selected<% } %>><%- badge.title %></option>
+        <% }) %>
+        </select>
+    </div>
+    <% } %>
+</form>

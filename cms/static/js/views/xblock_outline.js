@@ -93,7 +93,14 @@ function($, _, gettext, BaseView, ViewUtils, XBlockViewUtils, XBlockStringFieldE
                 defaultNewChildName = childInfo.display_name;
             }
             /* globals course */
+            var userPermissions = {};
+            if (this.initialState && this.initialState.user_permissions) {
+                userPermissions = this.initialState.user_permissions;
+            } else if (window.courseOutlineInitialState && window.courseOutlineInitialState.user_permissions) {
+                userPermissions = window.courseOutlineInitialState.user_permissions;
+            }
             return {
+                userPermissions: userPermissions,
                 xblockInfo: xblockInfo,
                 visibilityClass: XBlockViewUtils.getXBlockVisibilityClass(xblockInfo.get('visibility_state')),
                 typeListClass: XBlockViewUtils.getXBlockListTypeClass(xblockType),

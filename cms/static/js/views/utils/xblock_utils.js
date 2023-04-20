@@ -7,7 +7,7 @@ function($, _, gettext, ViewUtils, ModuleUtils, XBlockInfo, StringUtils) {
     'use strict';
     var addXBlock, duplicateXBlock, deleteXBlock, createUpdateRequestData, updateXBlockField, VisibilityState,
         getXBlockVisibilityClass, getXBlockListTypeClass, updateXBlockFields, getXBlockType, findXBlockInfo,
-        moveXBlock;
+        moveXBlock, copyXBlock;
 
     /**
          * Represents the possible visibility states for an xblock:
@@ -117,6 +117,25 @@ function($, _, gettext, ViewUtils, ModuleUtils, XBlockInfo, StringUtils) {
                         moveOperation.reject();
                     });
                 return moveOperation.promise();
+            });
+    };
+
+    copyXBlock = function(sourceLocator, targetParentLocator, targetIndex) {
+        var copyOperation = $.Deferred(),
+            operationText = targetIndex !== undefined ? gettext('Undo copying') : gettext('Copying');
+        return ViewUtils.runOperationShowingMessage(operationText,
+            function() {
+                $.patchJSON(ModuleUtils.getUpdateUrl(), {
+                    copy_source_locator: sourceLocator,
+                    parent_locator: targetParentLocator,
+                    target_index: targetIndex
+                }, function(response) {
+                    copyOperation.resolve(response);
+                })
+                    .fail(function() {
+                        copyOperation.reject();
+                    });
+                return copyOperation.promise();
             });
     };
 
@@ -300,6 +319,7 @@ function($, _, gettext, ViewUtils, ModuleUtils, XBlockInfo, StringUtils) {
         VisibilityState: VisibilityState,
         addXBlock: addXBlock,
         moveXBlock: moveXBlock,
+        copyXBlock: copyXBlock,
         duplicateXBlock: duplicateXBlock,
         deleteXBlock: deleteXBlock,
         updateXBlockField: updateXBlockField,

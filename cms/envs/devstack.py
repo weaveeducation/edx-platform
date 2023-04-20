@@ -311,7 +311,7 @@ CREDENTIALS_PUBLIC_SERVICE_URL = 'http://localhost:18150'
 # .. toggle_warning: For consistency in user experience, keep the value in sync with the setting of the same name
 #   in the LMS and CMS.
 # .. toggle_tickets: 'https://github.com/openedx/edx-platform/pull/31813'
-FEATURES['ENABLE_SEND_XBLOCK_EVENTS_OVER_BUS'] = True
+FEATURES['ENABLE_SEND_XBLOCK_EVENTS_OVER_BUS'] = False
 EVENT_BUS_PRODUCER = 'edx_event_bus_kafka.create_producer'
 EVENT_BUS_KAFKA_SCHEMA_REGISTRY_URL = 'http://edx.devstack.schema-registry:8081'
 EVENT_BUS_KAFKA_BOOTSTRAP_SERVERS = 'edx.devstack.kafka:29092'

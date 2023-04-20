@@ -420,23 +420,30 @@ class XModuleMixin(XModuleFields, XBlock):
         """
         return self._asides
 
-    def get_explicitly_set_fields_by_scope(self, scope=Scope.content):
+    def get_explicitly_set_fields_by_scope(self, scope=Scope.content, include_default=False):
         """
         Get a dictionary of the fields for the given scope which are set explicitly on this xblock. (Including
         any set to None.)
         """
         result = {}
         for field in self.fields.values():  # lint-amnesty, pylint: disable=no-member
-            if field.scope == scope and field.is_set_on(self):
-                try:
-                    result[field.name] = field.read_json(self)
-                except TypeError as exception:
-                    exception_message = "{message}, Block-location:{location}, Field-name:{field_name}".format(
-                        message=str(exception),
-                        location=str(self.location),
-                        field_name=field.name
-                    )
-                    raise TypeError(exception_message)  # lint-amnesty, pylint: disable=raise-missing-from
+            if field.scope == scope:
+                if field.is_set_on(self):
+                    try:
+                        result[field.name] = field.read_json(self)
+                    except TypeError as exception:
+                        exception_message = "{message}, Block-location:{location}, Field-name:{field_name}".format(
+                            message=str(exception),
+                            location=str(self.location),
+                            field_name=field.name
+                        )
+                        raise TypeError(exception_message)
+                elif include_default:
+                    try:
+                        if self._unwrapped_field_data.default(self, field.name):
+                            result[field.name] = field.read_json(self)
+                    except KeyError:
+                        pass
         return result
 
     def has_children_at_depth(self, depth):

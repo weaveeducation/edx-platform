@@ -106,6 +106,11 @@ if (is_proctored_exam) {
     <span class="draggable-drop-indicator draggable-drop-indicator-before"><span class="icon fa fa-caret-right" aria-hidden="true"></span></span>
     <% if (xblockInfo.isHeaderVisible()) { %>
     <div class="<%- xblockType %>-header">
+        <% if (xblockInfo.isVertical()) { %>
+        <div class="unit-header-checkbox">
+            <input type="checkbox" id="selected-state" class="input-checkbox" value="selected" title="Choose <%- xblockInfo.get('display_name') %>">
+        </div>
+        <% } %>
         <% if (includesChildren) { %>
             <h3 class="<%- xblockType %>-header-details expand-collapse <%- isCollapsed ? 'expand' : 'collapse' %> ui-toggle-expansion"
                 title="<%- interpolate(
@@ -163,6 +168,22 @@ if (is_proctored_exam) {
                         </a>
                     </li>
                 <% } %>
+                <% if (xblockInfo.isSequential()) { %>
+                    <li class="action-item action-copy-to-library">
+                        <a href="#" data-tooltip="<%- gettext('Copy to a library') %>" class="copy-to-library-button action-button <%- xblockInfo.hasSelectedChildren() ? '' : 'is-disabled' %>">
+                            <span class="icon fa fa-share-square-o" aria-hidden="true"></span>
+                            <span class="sr action-button-text"><%- gettext('Copy to a library') %></span>
+                        </a>
+                    </li>
+                <% } %>
+                <% if (xblockInfo.isChapter() && userPermissions.course_outline_copy_to_other_course) { %>
+                    <li class="action-item action-copy-to-other-course">
+                        <a href="#" data-tooltip="<%- gettext('Copy to other course') %>" class="copy-to-other-course-button action-button">
+                            <span class="icon fa fa-share-square-o" aria-hidden="true"></span>
+                            <span class="sr action-button-text"><%- gettext('Copy to other course') %></span>
+                        </a>
+                    </li>
+                <% } %>
                 <% if (xblockInfo.isEditableOnCourseOutline()) { %>
                     <li class="action-item action-configure">
                         <a href="#" data-tooltip="<%- gettext('Configure') %>" class="configure-button action-button">
@@ -171,7 +192,7 @@ if (is_proctored_exam) {
                         </a>
                     </li>
                 <% } %>
-                <% if (xblockInfo.isDuplicable()) { %>
+                <% if (xblockInfo.isDuplicable() && ((!childType) || ((childType === 'subsection') && userPermissions.course_outline_duplicate_section) || ((childType === 'unit') && userPermissions.course_outline_duplicate_subsection))) { %>
                     <li class="action-item action-duplicate">
                         <a href="#" data-tooltip="<%- gettext('Duplicate') %>" class="duplicate-button action-button">
                             <span class="icon fa fa-copy" aria-hidden="true"></span>
@@ -230,7 +251,7 @@ if (is_proctored_exam) {
                 </p>
               </div>
             <% } %>
-            <% if (xblockInfo.isChapter()) { %>
+            <% if (xblockInfo.isChapter() && xblockInfo.highlights_enabled) { %>
                 <div class="block-highlights">
                     <% var number_of_highlights = (xblockInfo.get('highlights') || []).length; %>
                         <button class="block-highlights-value highlights-button action-button">
@@ -359,6 +380,7 @@ if (is_proctored_exam) {
     <% if (!parentInfo && xblockInfo.get('child_info') && xblockInfo.get('child_info').children.length === 0) { %>
         <div class="no-content add-section">
             <p><%- gettext("You haven't added any content to this course yet.") %>
+                <% if (userPermissions.course_outline_create_new_section) { %>
                 <a href="#" class="button button-new" data-category="<%- childCategory %>"
                    data-parent="<%- xblockInfo.get('id') %>" data-default-name="<%- defaultNewChildName %>"
                    title="<%- interpolate(
@@ -367,6 +389,7 @@ if (is_proctored_exam) {
                 >
                     <span class="icon fa fa-plus" aria-hidden="true"></span><%- addChildLabel %>
                 </a>
+                <% } %>
             </p>
         </div>
     <% } else if (!xblockInfo.isVertical()) { %>
@@ -378,7 +401,7 @@ if (is_proctored_exam) {
             </ol>
 
             <% if (childType) { %>
-            <% if (xblockInfo.isChildAddable()) { %>
+            <% if (xblockInfo.isChildAddable() && ((childType === 'unit') || ((childType === 'section') && userPermissions.course_outline_create_new_section) || ((childType === 'subsection') && userPermissions.course_outline_create_new_subsection))) { %>
                 <div class="add-<%- childType %> add-item">
                     <a href="#" class="button button-new" data-category="<%- childCategory %>"
                        data-parent="<%- xblockInfo.get('id') %>" data-default-name="<%- defaultNewChildName %>"

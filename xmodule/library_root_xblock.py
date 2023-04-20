@@ -4,6 +4,7 @@
 
 
 import logging
+import json
 
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
@@ -66,6 +67,13 @@ class LibraryRoot(XBlock):
 
         paging = context.get('paging', None)
 
+        tags = {}
+        if 'tags' in context:
+            tags_from_request = json.loads(context['tags'])
+            for tag_key, tag_values in tags_from_request.items():
+                if tag_values:
+                    tags[tag_key] = tag_values
+
         children_count = len(self.children)  # pylint: disable=no-member
         item_start, item_end = 0, children_count
 
@@ -76,10 +84,14 @@ class LibraryRoot(XBlock):
             page_size = raw_page_size if raw_page_size is not None else children_count
             item_start, item_end = page_size * page_number, page_size * (page_number + 1)
 
-        children_to_show = self.children[item_start:item_end]  # pylint: disable=no-member
+        if tags:
+            children_to_show = self.children
+        else:
+            children_to_show = self.children[item_start:item_end]  # pylint: disable=no-member
 
         force_render = context.get('force_render', None)
         context['can_move'] = False
+        context['can_copy'] = True
 
         for child_key in children_to_show:
             # Children must have a separate context from the library itself. Make a copy.
@@ -87,6 +99,24 @@ class LibraryRoot(XBlock):
             child_context['show_preview'] = self.show_children_previews
             child_context['can_edit_visibility'] = False
             child = self.runtime.get_block(child_key)
+            if tags:
+                saved_tags = {}
+                tag_found = False
+                for aside in child.runtime.get_asides(child):
+                    if aside.scope_ids.block_type == 'tagging_aside':
+                        saved_tags = aside.saved_tags
+                        break
+                for tag_key, tag_values in tags.items():
+                    if tag_key not in saved_tags:
+                        break
+                    else:
+                        for tag_val in tag_values:
+                            if tag_val in saved_tags[tag_key]:
+                                tag_found = True
+                                break
+                if not tag_found:
+                    continue
+
             child_view_name = StudioEditableBlock.get_preview_view_name(child)
 
             if str(child.location) == force_render:

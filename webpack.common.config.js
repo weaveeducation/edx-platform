@@ -380,6 +380,7 @@ module.exports = Merge.smart({
                 'jquery.smoothScroll': 'jquery.smooth-scroll.min',
                 'jquery.timepicker': 'timepicker/jquery.timepicker',
                 'backbone.associations': 'backbone-associations/backbone-associations-min',
+                'jquery.multiselect': 'jquery.multiselect-2.4.12',
                 squire: 'Squire',
                 tinymce: 'tinymce',
 

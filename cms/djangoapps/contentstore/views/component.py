@@ -57,7 +57,7 @@ CONTAINER_TEMPLATES = [
     "add-xblock-component", "add-xblock-component-button", "add-xblock-component-menu",
     "add-xblock-component-support-legend", "add-xblock-component-support-level", "add-xblock-component-menu-problem",
     "xblock-string-field-editor", "xblock-access-editor", "publish-xblock", "publish-history",
-    "unit-outline", "container-message", "container-access", "license-selector", "copy-clipboard-button",
+    "unit-outline", "container-message", "container-actions", "container-access", "license-selector", "copy-clipboard-button",
     "edit-title-button",
 ]
 
@@ -139,6 +139,7 @@ def container_handler(request, usage_key_string):
             action = request.GET.get('action', 'view')
 
             is_unit_page = is_unit(xblock)
+            is_library_content = (xblock.category == 'library_content')
             unit = xblock if is_unit_page else None
 
             is_first = True
@@ -203,6 +204,7 @@ def container_handler(request, usage_key_string):
                 'xblock_locator': xblock.location,
                 'unit': unit,
                 'is_unit_page': is_unit_page,
+                'is_library_content': is_library_content,
                 'subsection': subsection,
                 'section': section,
                 'position': index,
@@ -533,11 +535,11 @@ def _get_item_in_course(request, usage_key):
 
     if not has_course_author_access(request.user, course_key):
         raise PermissionDenied()
-
-    if CourseStaffExtended.objects.filter(
+    if not request.user.is_superuser and CourseStaffExtended.objects.filter(
         role__course_studio_access=False,
         user=request.user,
-        course_id=course_key).exists():
+        course_id=course_key
+    ).exists():
         raise PermissionDenied()
 
     course = modulestore().get_course(course_key)

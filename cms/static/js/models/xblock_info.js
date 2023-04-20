@@ -167,7 +167,9 @@ define(
                 highlights_enabled: false,
                 highlights_enabled_for_messaging: false,
                 highlights_preview_only: true,
-                highlights_doc_url: ''
+                highlights_doc_url: '',
+                selected: false,
+                selected_children: []
             },
 
             initialize: function() {
@@ -198,6 +200,10 @@ define(
             hasChildren: function() {
                 var childInfo = this.get('child_info');
                 return childInfo && childInfo.children.length > 0;
+            },
+
+            hasSelectedChildren: function() {
+                return this.hasChildren() && this.get('child_info').children.some(child => child.get('selected'))
             },
 
             isPublishable: function() {

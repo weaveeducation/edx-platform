@@ -8,7 +8,7 @@
 define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
     'js/views/modals/base_modal', 'date', 'js/views/utils/xblock_utils',
     'js/utils/date_utils', 'edx-ui-toolkit/js/utils/html-utils',
-    'edx-ui-toolkit/js/utils/string-utils'
+    'edx-ui-toolkit/js/utils/string-utils', 'jquery.multiselect'
 ], function(
     $, Backbone, _, gettext, BaseView, BaseModal, date, XBlockViewUtils, DateUtils, HtmlUtils, StringUtils
 ) {
@@ -18,7 +18,9 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
         ReleaseDateEditor, DueDateEditor, SelfPacedDueDateEditor, GradingEditor, PublishEditor, AbstractVisibilityEditor,
         StaffLockEditor, UnitAccessEditor, ContentVisibilityEditor, TimedExaminationPreferenceEditor,
         AccessEditor, ShowCorrectnessEditor, HighlightsEditor, HighlightsEnableXBlockModal, HighlightsEnableEditor,
-        DiscussionEditor;
+        DiscussionEditor,
+        CopyToOtherCourseXBlockModal, CopyToLibraryModal, CourseOutlinePreferenceEditor,
+        CopyCourseToOtherCourseXBlockModal;
 
     CourseOutlineXBlockModal = BaseModal.extend({
         events: _.extend({}, BaseModal.prototype.events, {
@@ -185,6 +187,409 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
         }
     });
 
+    CopyToOtherCourseXBlockModal = CourseOutlineXBlockModal.extend({
+        events : _.extend({}, CourseOutlineXBlockModal.prototype.events, {
+            'click .action-copy': 'save'
+        }),
+
+        options: $.extend({}, BaseModal.prototype.options, {
+            modalSize: 'lg'
+        }),
+
+        initialize: function() {
+            CourseOutlineXBlockModal.prototype.initialize.call(this);
+            this.progress = false;
+            this.taskId = null;
+            this.intervalId = null;
+            this.done = false;
+            this.maxSelect = false;
+            this.urlToCopy = '/copy_section_to_other_course';
+            this.urlToCheckCopyResult = '/copy_section_to_other_courses_result';
+        },
+
+        getTitle: function () {
+            return interpolate(
+                gettext('Copy %(display_name)s to other courses'),
+                { display_name: this.model.get('display_name') }, true
+            );
+        },
+
+        addActionButtons: function() {
+            this.addActionButton('copy', gettext('Copy'), true);
+            this.addActionButton('cancel', gettext('Cancel'));
+        },
+
+        getIntroductionMessage: function () {
+            return interpolate(
+                gettext('Please choose courses where to copy the selected %(item)s'),
+                { item: this.options.xblockType }, true
+            );
+        },
+
+        getCurrentCourseKey: function() {
+            var studioUrl = this.model.get('studio_url');
+            var currentCourseKey = studioUrl.split('/')[2].split('?')[0];
+            return currentCourseKey;
+        },
+
+        initializeEditors: function () {
+            var self = this;
+            var currentCourseKey = this.getCurrentCourseKey();
+
+            $.ajax({
+                url: '/course_listing',
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    var windowTemplate = self.loadTemplate('copy-to-other-course');
+                    data.sort(function(a, b) {
+                        if (a.display_name < b.display_name) return -1;
+                        if (a.display_name > b.display_name) return 1;
+                        return 0;
+                    });
+                    var result = [];
+                    $.each(data, function(index, course) {
+                        if (course.course_key !== currentCourseKey) {
+                            result.push({
+                                id: course.course_key,
+                                name: course.display_name + ' [ ' + course.number + ' / ' + course.run + ' ]'
+                            });
+                        }
+                    });
+
+                    var multiselectOptions = {
+                        columns: 1,
+                        search: true,
+                        selectAll: true,
+                        texts: {
+                            placeholder: 'Select Courses',
+                            search: 'Search...'
+                        }
+                    };
+
+                    if (self.maxSelect !== false) {
+                        multiselectOptions.selectAll = false;
+                        multiselectOptions.onOptionClick = function(element, option) {
+                            var maxSelect = self.maxSelect;
+
+                            // too many selected, deselect this option
+                            if ($(element).val() && $(element).val().length > maxSelect) {
+                                if( $(option).is(':checked') ) {
+                                    var thisVals = $(element).val();
+
+                                    thisVals.splice(
+                                        thisVals.indexOf( $(option).val() ), 1
+                                    );
+
+                                    $(element).val( thisVals );
+
+                                    $(option).prop( 'checked', false ).closest('li')
+                                        .toggleClass('selected');
+                                }
+                            }
+                            // max select reached, disable non-checked checkboxes
+                            else if($(element).val() && ($(element).val().length == maxSelect)) {
+                                $(element).next('.ms-options-wrap')
+                                    .find('li:not(.selected)').addClass('disabled')
+                                    .find('input[type="checkbox"]')
+                                        .attr( 'disabled', 'disabled' );
+                            }
+                            // max select not reached, make sure any disabled
+                            // checkboxes are available
+                            else {
+                                $(element).next('.ms-options-wrap')
+                                    .find('li.disabled').removeClass('disabled')
+                                    .find('input[type="checkbox"]')
+                                        .removeAttr( 'disabled' );
+                            }
+                        };
+                    }
+
+                    self.$('.modal-section').html(windowTemplate({courses: result}));
+                    self.$('.modal-section').find("select[name='copy-to-courses']").multiselect(multiselectOptions);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    self.$('.modal-section').html(gettext("Course list can't be loaded from server"));
+                }
+            });
+        },
+
+        getRequestData: function () {
+            var requestData = {
+                'usage_key': this.model.id,
+                'copy_to_courses': this.$('.modal-section').find("select[name='copy-to-courses']").val()
+            };
+            return $.extend.apply(this, [true, {}].concat(requestData));
+        },
+
+        save: function(event) {
+            event.preventDefault();
+            if (this.progress) {
+                return;
+            }
+            if (this.done) {
+                this.hide();
+                return;
+            }
+            var requestData = this.getRequestData();
+            if (requestData.copy_to_courses.length === 0) {
+                return;
+            }
+            this.startCopy(requestData);
+        },
+
+        startCopy: function(data) {
+            var self = this;
+            this.getActionButton('copy').html('Please wait...');
+            this.progress = true;
+            this.$('.modal-section').find('.copy-to-course-result').html('');
+            $.ajax({
+                url: this.urlToCopy,
+                type: 'POST',
+                data: JSON.stringify(data),
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function(data) {
+                    if (data.task_id) {
+                        self.taskId = data.task_id;
+                        self.intervalId = setInterval(function() { self.checkCopy(); }, 5000);
+                    } else {
+                        self.$('.modal-section').find('.copy-to-course-result').html(gettext("Error!"));
+                        self.progress = false;
+                        self.getActionButton('copy').html('Copy');
+                    }
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    self.$('.modal-section').find('.copy-to-course-result').html(gettext("Error!"));
+                    self.progress = false;
+                    self.getActionButton('copy').html('Copy');
+                }
+            });
+        },
+
+        checkCopy: function() {
+            var self = this;
+            $.ajax({
+                url: this.urlToCheckCopyResult,
+                type: 'POST',
+                data: JSON.stringify({'task_id': self.taskId}),
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function(data) {
+                    var html = '';
+                    if (data.result) {
+                        html = '<div><strong>Done!</strong></div>';
+                        clearInterval(self.intervalId);
+                        self.progress = false;
+                        self.done = true;
+                        self.getActionButton('copy').html('Close');
+                    }
+
+                    $.each(data.courses, function(index, course) {
+                        var st = '<span>Not started</span>';
+                        if (course.status === 'started') {
+                            st = '<span>In progress</span>';
+                        } else if (course.status === 'finished') {
+                            st = '<span style="color: green;">Success</span>';
+                        } else if (course.status === 'error') {
+                            st = '<span style="color: red;">Fail</span>';
+                        }
+                        html = html + '<div>' + course.title + ': ' + st + '</div>';
+                    });
+                    self.$('.modal-section').find('.copy-to-course-result').html(html);
+                }
+            });
+        }
+    });
+
+    CopyCourseToOtherCourseXBlockModal = CopyToOtherCourseXBlockModal.extend({
+        initialize: function() {
+            CopyToOtherCourseXBlockModal.prototype.initialize.call(this);
+            this.maxSelect = 1;
+            this.urlToCopy = '/copy_course_to_other_course';
+            this.urlToCheckCopyResult = '/copy_course_to_other_course_result';
+        },
+
+        getTitle: function () {
+            return gettext('Copy course content to other course');
+        },
+
+        getRequestData: function () {
+            var requestData = {
+                'src_course_id': this.getCurrentCourseKey(),
+                'copy_to_courses': this.$('.modal-section').find("select[name='copy-to-courses']").val()
+            };
+            return $.extend.apply(this, [true, {}].concat(requestData));
+        },
+
+        getIntroductionMessage: function () {
+            return gettext('Please choose course where to copy content from the current course.');
+        }
+    });
+
+    CopyToLibraryModal = CourseOutlineXBlockModal.extend({
+        events : _.extend({}, CourseOutlineXBlockModal.prototype.events, {
+            'click .action-copy': 'save'
+        }),
+
+        options: $.extend({}, BaseModal.prototype.options, {
+            modalSize: 'lg'
+        }),
+
+        initialize: function() {
+            CourseOutlineXBlockModal.prototype.initialize.call(this);
+            this.progress = false;
+            this.taskId = null;
+            this.intervalId = null;
+            this.done = false;
+        },
+
+        getTitle: function () {
+            return interpolate(
+                gettext('Copy selected units to a library'),
+                { display_name: this.model.get('display_name') }, true
+            );
+        },
+
+        addActionButtons: function() {
+            this.addActionButton('copy', gettext('Copy'), true);
+            this.addActionButton('cancel', gettext('Cancel'));
+        },
+
+        getIntroductionMessage: function () {
+            return interpolate(
+                gettext('Please choose the library where to copy the selected units')
+            );
+        },
+
+        getCurrentCourseKey: function() {
+            var studioUrl = this.model.get('studio_url');
+            var currentCourseKey = studioUrl.split('/')[2].split('?')[0];
+            return currentCourseKey;
+        },
+
+        initializeEditors: function () {
+            var self = this;
+            var currentCourseKey = this.getCurrentCourseKey();
+
+            $.ajax({
+                url: '/libraries_listing',
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    var windowTemplate = self.loadTemplate('copy-to-library');
+                    data.sort(function(a, b) {
+                        if (a.display_name < b.display_name) return -1;
+                        if (a.display_name > b.display_name) return 1;
+                        return 0;
+                    });
+                    var result = [];
+                    $.each(data, function(index, library) {
+                        result.push({
+                            id: library.location,
+                            name: library.display_name + ' [ ' + library.org + ' / ' + library.course + ' ]'
+                        });
+                    });
+
+                    self.$('.modal-section').html(windowTemplate({libraries: result}));
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    self.$('.modal-section').html(gettext("library list can't be loaded from server"));
+                }
+            });
+        },
+
+        getRequestData: function () {
+            var requestData = {
+                'usage_keys': this.model.get('child_info').children
+                    .filter(child => child.get('selected'))
+                    .map(child => child.get('id')),
+                'copy_to_libraries': [
+                    this.$('.modal-section').find("select[name='copy-to-library']").val()
+                ]
+            };
+            return $.extend.apply(this, [true, {}].concat(requestData));
+        },
+
+        save: function(event) {
+            event.preventDefault();
+            if (this.progress) {
+                return;
+            }
+            if (this.done) {
+                this.hide();
+                return;
+            }
+            var requestData = this.getRequestData();
+            if (requestData.copy_to_libraries.length === 0) {
+                return;
+            }
+            this.startCopy(requestData);
+        },
+
+        startCopy: function(data) {
+            var self = this;
+            this.getActionButton('copy').html('Please wait...');
+            this.progress = true;
+            this.$('.modal-section').find('.copy-to-course-result').html('');
+            $.ajax({
+                url: '/copy_units_to_libraries',
+                type: 'POST',
+                data: JSON.stringify(data),
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function(data) {
+                    if (data.task_id) {
+                        self.taskId = data.task_id;
+                        self.intervalId = setInterval(function() { self.checkCopy(); }, 5000);
+                    } else {
+                        self.$('.modal-section').find('.copy-to-course-result').html(gettext("Error!"));
+                        self.progress = false;
+                        self.getActionButton('copy').html('Copy');
+                    }
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    self.$('.modal-section').find('.copy-to-course-result').html(gettext("Error!"));
+                    self.progress = false;
+                    self.getActionButton('copy').html('Copy');
+                }
+            });
+        },
+
+        checkCopy: function() {
+            var self = this;
+            $.ajax({
+                url: '/copy_units_to_libraries_result',
+                type: 'POST',
+                data: JSON.stringify({'task_id': self.taskId}),
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function(data) {
+                    var html = '';
+                    if (data.result) {
+                        html = '<div><strong>Done!</strong></div>';
+                        clearInterval(self.intervalId);
+                        self.progress = false;
+                        self.done = true;
+                        self.getActionButton('copy').html('Close');
+                    }
+
+                    $.each(data.courses, function(index, course) {
+                        var st = '<span>Not started</span>';
+                        if (course.status === 'started') {
+                            st = '<span>In progress</span>';
+                        } else if (course.status === 'finished') {
+                            st = '<span style="color: green;">Success</span>';
+                        } else if (course.status === 'error') {
+                            st = '<span style="color: red;">Fail</span>';
+                        }
+                        html = html + '<div>' + course.title + ': ' + st + '</div>';
+                    });
+                    self.$('.modal-section').find('.copy-to-course-result').html(html);
+                }
+            });
+        }
+    });
 
     PublishXBlockModal = CourseOutlineXBlockModal.extend({
         events: _.extend({}, CourseOutlineXBlockModal.prototype.events, {
@@ -313,9 +718,15 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             var isProctoredExam = xblockInfo.get('is_proctored_exam');
             var isPracticeExam = xblockInfo.get('is_practice_exam');
             var isOnboardingExam = xblockInfo.get('is_onboarding_exam');
+            var isBadgrEnabled = xblockInfo.get('badgr_enabled');
+            var badges = xblockInfo.get('badges');
+            var badgeId = xblockInfo.get('badge_id');
             var html = this.template($.extend({}, {
                 xblockInfo: xblockInfo,
                 xblockType: this.options.xblockType,
+                isBadgrEnabled: isBadgrEnabled,
+                badges: badges,
+                badgeId: badgeId,
                 enableProctoredExams: this.options.enable_proctored_exams,
                 enableTimedExams: this.options.enable_timed_exams,
                 isSpecialExam: isTimeLimited,
@@ -660,6 +1071,40 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
 
             return {
                 metadata: metadata
+            };
+        }
+    });
+
+    CourseOutlinePreferenceEditor = AbstractEditor.extend({
+        templateName: 'course-outline-preference-editor',
+        className: 'edit-settings-timed-examination',
+
+        afterRender: function() {
+            AbstractEditor.prototype.afterRender.call(this);
+            var useAsSurveyForSupervisor = this.model.get('use_as_survey_for_supervisor');
+            this.$('[name="use_as_survey_for_supervisor"]').prop('checked', useAsSurveyForSupervisor ? true : false);
+            var unitsSequentialCompletion = this.model.get('units_sequential_completion');
+            this.$('[name="units_sequential_completion"]').prop('checked', unitsSequentialCompletion ? true : false);
+            var disableUnitsAfterCompletion = this.model.get('disable_units_after_completion');
+            this.$('[name="disable_units_after_completion"]').prop('checked', disableUnitsAfterCompletion ? true : false);
+        },
+        getRequestData: function() {
+            var useAsSurveyForSupervisor = this.$('[name="use_as_survey_for_supervisor"]').is(':checked');
+            var unitsSequentialCompletion = this.$('[name="units_sequential_completion"]').is(':checked');
+            var disableUnitsAfterCompletion = this.$('[name="disable_units_after_completion"]').is(':checked');
+            var badgeId = '';
+            var badgeEl = this.$('[name="badge_id"]');
+            if (badgeEl.length) {
+                badgeId = badgeEl.val();
+            }
+
+            return {
+              metadata: {
+                use_as_survey_for_supervisor: useAsSurveyForSupervisor,
+                units_sequential_completion: unitsSequentialCompletion,
+                disable_units_after_completion: disableUnitsAfterCompletion,
+                badge_id: badgeId
+              }
             };
         }
     });
@@ -1212,6 +1657,10 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                 return this.getEditModal(xblockInfo, options);
             } else if (type === 'publish') {
                 return this.getPublishModal(xblockInfo, options);
+            } else if (type === 'copy-to-other-course') {
+                 return this.getCopyToOtherCourseModal(xblockInfo, options);
+            } else if (type === 'copy-to-library') {
+                return this.getCopyToLibraryModal(xblockInfo, options);
             } else if (type === 'highlights') {
                 return this.getHighlightsModal(xblockInfo, options);
             } else if (type === 'highlights_enable') {
@@ -1253,6 +1702,9 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                     if (course.get('self_paced') && course.get('is_custom_relative_dates_active')) {
                         tabs[0].editors.push(SelfPacedDueDateEditor);
                     }
+
+                    advancedTab.editors.push(CourseOutlinePreferenceEditor);
+
                     if (options.enable_proctored_exams || options.enable_timed_exams) {
                         advancedTab.editors.push(TimedExaminationPreferenceEditor);
                     }
@@ -1303,6 +1755,24 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
         getPublishModal: function(xblockInfo, options) {
             return new PublishXBlockModal($.extend({
                 editors: [PublishEditor],
+                model: xblockInfo
+            }, options));
+        },
+
+        getCopyToOtherCourseModal: function (xblockInfo, options) {
+            return new CopyToOtherCourseXBlockModal($.extend({
+                model: xblockInfo
+            }, options));
+        },
+
+        getCopyCourseToOtherCourseModal: function (xblockInfo, options) {
+            return new CopyCourseToOtherCourseXBlockModal($.extend({
+                model: xblockInfo
+            }, options));
+        },
+
+        getCopyToLibraryModal: function (xblockInfo, options) {
+            return new CopyToLibraryModal($.extend({
                 model: xblockInfo
             }, options));
         },

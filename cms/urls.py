@@ -18,6 +18,7 @@ import openedx.core.djangoapps.lang_pref.views
 from cms.djangoapps.contentstore import toggles
 from cms.djangoapps.contentstore import views as contentstore_views
 from cms.djangoapps.contentstore.views.organization import OrganizationListView
+from common.djangoapps.credo_modules.views import manage_org_tags, manage_org_tags_sorting
 from openedx.core.apidocs import api_info
 from openedx.core.djangoapps.password_policy import compliance as password_policy_compliance
 from openedx.core.djangoapps.password_policy.forms import PasswordPolicyAwareAdminAuthForm
@@ -101,6 +102,45 @@ urlpatterns = oauth2_urlpatterns + [
             ),
     re_path(r'^home/?$', contentstore_views.course_listing, name='home'),
     re_path(r'^home_library/?$', contentstore_views.library_listing, name='home_library'),
+
+    re_path(r'^course_listing/?$', contentstore_views.course_listing_short,
+            name='course_listing_short'),
+
+    re_path(r'^get_courses_with_duplicates/{}?$'.format(settings.USAGE_KEY_PATTERN),
+            contentstore_views.api_get_courses_with_duplicates,
+            name='courses_with_duplicates'),
+
+    re_path(r'^get_versions_list/{}?$'.format(settings.USAGE_KEY_PATTERN),
+            contentstore_views.get_versions_list,
+            name='get_versions_list'),
+    re_path(r'^restore_block_version/{}?$'.format(settings.USAGE_KEY_PATTERN),
+            contentstore_views.restore_block_version,
+            name='restore_block_version'),
+
+    re_path(r'^copy_section_to_other_course/?$', contentstore_views.copy_section_to_other_courses,
+            name='copy_section_to_other_courses'),
+    re_path(r'^copy_section_to_other_courses_result/?$', contentstore_views.copy_section_to_other_courses_result,
+            name='copy_section_to_other_courses_result'),
+    re_path(r'^update_block_in_related_courses_result/?$', contentstore_views.update_block_in_related_courses_result,
+            name='update_block_in_related_courses_result'),
+
+    re_path(r'^copy_course_to_other_course/?$', contentstore_views.copy_course_to_other_course,
+            name='copy_course_to_other_course'),
+    re_path(r'^copy_course_to_other_course_result/?$', contentstore_views.copy_course_to_other_course_result,
+            name='copy_course_to_other_course_result'),
+
+    re_path(r'^copy_units_to_libraries/?$', contentstore_views.copy_units_to_libraries,
+            name='copy_units_to_libraries'),
+    re_path(r'^copy_units_to_libraries_result/?$', contentstore_views.copy_units_to_libraries_result,
+            name='copy_units_to_libraries_result'),
+    re_path(r'^copy_components_to_libraries/?$', contentstore_views.copy_components_to_libraries,
+            name='copy_components_to_libraries'),
+    re_path(r'^copy_components_to_libraries_result/?$', contentstore_views.copy_components_to_libraries_result,
+            name='copy_components_to_libraries_result'),
+    re_path(r'^libraries_listing/?$', contentstore_views.libraries_listing_short,
+            name='libraries_listing_short'),
+
+
     re_path(fr'^course/{settings.COURSE_KEY_PATTERN}/search_reindex?$',
             contentstore_views.course_search_index_handler,
             name='course_search_index_handler'
@@ -132,6 +172,8 @@ urlpatterns = oauth2_urlpatterns + [
          ),
     re_path(fr'^export/{COURSELIKE_KEY_PATTERN}$', contentstore_views.export_handler,
             name='export_handler'),
+    re_path(fr'^export_cc/{COURSELIKE_KEY_PATTERN}$', contentstore_views.export_handler_cc,
+            name='export_cc_handler'),
     re_path(fr'^export_output/{COURSELIKE_KEY_PATTERN}$', contentstore_views.export_output_handler,
             name='export_output_handler'),
     re_path(fr'^export_status/{COURSELIKE_KEY_PATTERN}$', contentstore_views.export_status_handler,
@@ -190,6 +232,8 @@ urlpatterns = oauth2_urlpatterns + [
     path('api/val/v0/', include('edxval.urls')),
     path('api/tasks/v0/', include('user_tasks.urls')),
     path('accessibility', contentstore_views.accessibility, name='accessibility'),
+    path('turnitin/', include('common.djangoapps.turnitin_integration.urls')),
+    path('logout-redirect', contentstore_views.logout_redirect_to_lms, name='logout_redirect_to_lms'),
 ]
 
 if not settings.DISABLE_DEPRECATED_SIGNIN_URL:
@@ -231,6 +275,11 @@ if toggles.EXPORT_GIT.is_enabled():
 
 if settings.FEATURES.get('ENABLE_SERVICE_STATUS'):
     urlpatterns.append(path('status/', include('openedx.core.djangoapps.service_status.urls')))
+
+urlpatterns.append(re_path(r'^admin/configure-org-tags/(?P<org_id>\d+)', manage_org_tags,
+                           name='admin-manage-org-tags'))
+urlpatterns.append(re_path(r'^admin/configure-org-tags-order/(?P<org_id>\d+)', manage_org_tags_sorting,
+                           name='admin-manage-org-tags-order'),)
 
 # The password pages in the admin tool are disabled so that all password
 # changes go through our user portal and follow complexity requirements.

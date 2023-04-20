@@ -1,445 +1,412 @@
 /**
- * XBlockContainerPage is used to display Studio's container page for an xblock which has children.
- * This page allows the user to understand and manipulate the xblock and its children.
+ * Subviews (usually small side panels) for XBlockContainerPage.
  */
-define(['jquery', 'underscore', 'backbone', 'gettext', 'js/views/pages/base_page',
-    'common/js/components/utils/view_utils', 'js/views/container', 'js/views/xblock',
-    'js/views/components/add_xblock', 'js/views/modals/edit_xblock', 'js/views/modals/move_xblock_modal',
-    'js/models/xblock_info', 'js/views/xblock_string_field_editor', 'js/views/xblock_access_editor',
-    'js/views/pages/container_subviews', 'js/views/unit_outline', 'js/views/utils/xblock_utils'],
-function($, _, Backbone, gettext, BasePage, ViewUtils, ContainerView, XBlockView, AddXBlockComponent,
-    EditXBlockModal, MoveXBlockModal, XBlockInfo, XBlockStringFieldEditor, XBlockAccessEditor,
-    ContainerSubviews, UnitOutlineView, XBlockUtils) {
+define(['jquery', 'underscore', 'gettext', 'js/views/baseview', 'common/js/components/utils/view_utils',
+    'js/views/utils/xblock_utils', 'js/views/utils/move_xblock_utils', 'js/views/modals/copy_to_libraries',
+    'edx-ui-toolkit/js/utils/html-utils', 'js/views/utils/push_changes_utils'],
+function($, _, gettext, BaseView, ViewUtils, XBlockViewUtils, MoveXBlockUtils, CopyToLibraryModal,
+    HtmlUtils, PushChangesUtils) {
     'use strict';
-    var XBlockContainerPage = BasePage.extend({
-        // takes XBlockInfo as a model
 
-        events: {
-            'click .edit-button': 'editXBlock',
-            'click .access-button': 'editVisibilitySettings',
-            'click .duplicate-button': 'duplicateXBlock',
-            'click .copy-button': 'copyXBlock',
-            'click .move-button': 'showMoveXBlockModal',
-            'click .delete-button': 'deleteXBlock',
-            'click .show-actions-menu-button': 'showXBlockActionsMenu',
-            'click .new-component-button': 'scrollToNewComponentButtons'
-        },
+    var disabledCss = 'is-disabled';
 
-        options: {
-            collapsedClass: 'is-collapsed',
-            canEdit: true // If not specified, assume user has permission to make changes
-        },
-
-        view: 'container_preview',
-
-
-        defaultViewClass: ContainerView,
-
-        // Overridable by subclasses-- determines whether the XBlock component
-        // addition menu is added on initialization. You may set this to false
-        // if your subclass handles it.
-        components_on_init: true,
-
-        initialize: function(options) {
-            BasePage.prototype.initialize.call(this, options);
-            this.viewClass = options.viewClass || this.defaultViewClass;
-            this.isLibraryPage = (this.model.attributes.category === 'library');
-            this.nameEditor = new XBlockStringFieldEditor({
-                el: this.$('.wrapper-xblock-field'),
-                model: this.model
-            });
-            this.nameEditor.render();
-            if (!this.isLibraryPage) {
-                this.accessEditor = new XBlockAccessEditor({
-                    el: this.$('.wrapper-xblock-field')
-                });
-                this.accessEditor.render();
-            }
-            if (this.options.action === 'new') {
-                this.nameEditor.$('.xblock-field-value-edit').click();
-            }
-            this.xblockView = this.getXBlockView();
-            this.messageView = new ContainerSubviews.MessageView({
-                el: this.$('.container-message'),
-                model: this.model
-            });
-            this.messageView.render();
-            // Display access message on units and split test components
-            if (!this.isLibraryPage) {
-                this.containerAccessView = new ContainerSubviews.ContainerAccess({
-                    el: this.$('.container-access'),
-                    model: this.model
-                });
-                this.containerAccessView.render();
-
-                this.xblockPublisher = new ContainerSubviews.Publisher({
-                    el: this.$('#publish-unit'),
-                    model: this.model,
-                    // When "Discard Changes" is clicked, the whole page must be re-rendered.
-                    renderPage: this.render
-                });
-                this.xblockPublisher.render();
-
-                this.publishHistory = new ContainerSubviews.PublishHistory({
-                    el: this.$('#publish-history'),
-                    model: this.model
-                });
-                this.publishHistory.render();
-
-                this.viewLiveActions = new ContainerSubviews.ViewLiveButtonController({
-                    el: this.$('.nav-actions'),
-                    model: this.model
-                });
-                this.viewLiveActions.render();
-
-                this.unitOutlineView = new UnitOutlineView({
-                    el: this.$('.wrapper-unit-overview'),
-                    model: this.model
-                });
-                this.unitOutlineView.render();
-            }
-
-            this.listenTo(Backbone, 'move:onXBlockMoved', this.onXBlockMoved);
-        },
-
-        getViewParameters: function() {
-            return {
-                el: this.$('.wrapper-xblock'),
-                model: this.model,
-                view: this.view
-            };
-        },
-
-        getXBlockView: function() {
-            return new this.viewClass(this.getViewParameters());
-        },
-
-        render: function(options) {
-            var self = this,
-                xblockView = this.xblockView,
-                loadingElement = this.$('.ui-loading'),
-                unitLocationTree = this.$('.unit-location'),
-                hiddenCss = 'is-hidden';
-
-            loadingElement.removeClass(hiddenCss);
-
-            // Hide both blocks until we know which one to show
-            xblockView.$el.addClass(hiddenCss);
-
-            // Render the xblock
-            xblockView.render({
-                done: function() {
-                    // Show the xblock and hide the loading indicator
-                    xblockView.$el.removeClass(hiddenCss);
-                    loadingElement.addClass(hiddenCss);
-
-                    // Notify the runtime that the page has been successfully shown
-                    xblockView.notifyRuntime('page-shown', self);
-
-                    if (self.components_on_init) {
-                        // Render the add buttons. Paged containers should do this on their own.
-                        self.renderAddXBlockComponents();
-                    }
-
-                    // Refresh the views now that the xblock is visible
-                    self.onXBlockRefresh(xblockView);
-                    unitLocationTree.removeClass(hiddenCss);
-
-                    // Re-enable Backbone events for any updated DOM elements
-                    self.delegateEvents();
-                },
-                block_added: options && options.block_added
-            });
-        },
-
-        findXBlockElement: function(target) {
-            return $(target).closest('.studio-xblock-wrapper');
-        },
-
-        getURLRoot: function() {
-            return this.xblockView.model.urlRoot;
-        },
-
-        onXBlockRefresh: function(xblockView, block_added, is_duplicate) {
-            this.xblockView.refresh(xblockView, block_added, is_duplicate);
-            // Update publish and last modified information from the server.
-            this.model.fetch();
-        },
-
-        renderAddXBlockComponents: function() {
-            var self = this;
-            if (self.options.canEdit) {
-                this.$('.add-xblock-component').each(function(index, element) {
-                    var component = new AddXBlockComponent({
-                        el: element,
-                        createComponent: _.bind(self.createComponent, self),
-                        collection: self.options.templates
-                    });
-                    component.render();
-                });
-            } else {
-                this.$('.add-xblock-component').remove();
-            }
-        },
-
-        editXBlock: function(event, options) {
-            event.preventDefault();
-
-            if(!options || options.view !== 'visibility_view' ){
-                const primaryHeader = $(event.target).closest('.xblock-header-primary')
-
-                var useNewTextEditor = primaryHeader.attr("use-new-editor-text"),
-                    useNewVideoEditor = primaryHeader.attr("use-new-editor-video"),
-                    useNewProblemEditor = primaryHeader.attr("use-new-editor-problem"),
-                    blockType = primaryHeader.attr("data-block-type");
-
-                if( (useNewTextEditor === "True" && blockType === "html") ||
-                        (useNewVideoEditor === "True" && blockType === "video") ||
-                        (useNewProblemEditor === "True" && blockType === "problem")
-                ) {
-                    var destinationUrl = primaryHeader.attr("authoring_MFE_base_url") + '/' + blockType + '/' + encodeURI(primaryHeader.attr("data-usage-id"));
-                    window.location.href = destinationUrl;
-                    return;
-                }
-            }
-
-            var xblockElement = this.findXBlockElement(event.target),
-                self = this,
-                modal = new EditXBlockModal(options);
-
-            modal.edit(xblockElement, this.model, {
-                readOnlyView: !this.options.canEdit,
-                refresh: function() {
-                    self.refreshXBlock(xblockElement, false);
-                }
-            });
-        },
-
-        /**
-         * If the new "Actions" menu is enabled, most XBlock actions like
-         * Duplicate, Move, Delete, Manage Access, etc. are moved into this
-         * menu. For this event, we just toggle displaying the menu.
-         * @param {*} event 
+    /**
+         * A view that refreshes the view when certain values in the XBlockInfo have changed
+         * after a server sync operation.
          */
-        showXBlockActionsMenu: function(event) {
-            const showActionsButton = event.currentTarget;
-            const subMenu = showActionsButton.parentElement.querySelector(".wrapper-nav-sub");
-            // Code in 'base.js' normally handles toggling these dropdowns but since this one is
-            // not present yet during the domReady event, we have to handle displaying it ourselves.
-            subMenu.classList.toggle("is-shown");
-            // if propagation is not stopped, the event will bubble up to the
-            // body element, which will close the dropdown.
-            event.stopPropagation();
+    var ContainerStateListenerView = BaseView.extend({
+
+        // takes XBlockInfo as a model
+        initialize: function() {
+            this.model.on('sync', this.onSync, this);
         },
 
-        editVisibilitySettings: function(event) {
-            this.editXBlock(event, {
-                view: 'visibility_view',
-                // Translators: "title" is the name of the current component or unit being edited.
-                titleFormat: gettext('Editing access for: {title}'),
-                viewSpecificClasses: '',
-                modalSize: 'med'
+        onSync: function(model) {
+            if (this.shouldRefresh(model)) {
+                this.render();
+            }
+        },
+
+        shouldRefresh: function(model) {
+            return false;
+        },
+
+        render: function() {}
+    });
+
+    var ContainerActionsView = BaseView.extend({
+        events: {
+            'click .copy-to-libraries-button': 'onCopyToLibraries',
+        },
+
+        initialize: function() {
+            this.template = this.loadTemplate('container-actions');
+            this.model.on('change:selected_children', this.render, this);
+        },
+
+        render: function() {
+            HtmlUtils.setHtml(
+                this.$el,
+                HtmlUtils.HTML(
+                    this.template({
+                        selected_children_count: this.model.get('selected_children').length
+                    })
+                )
+            );
+            return this;
+        },
+
+        onCopyToLibraries: function(event) {
+            // var xblockElement = this.findXBlockElement(event.target),
+            // parentXBlockElement = xblockElement.parents('.studio-xblock-wrapper'),
+            var modal = new CopyToLibraryModal({
+                model: this.model,
+                selectedXblocks: this.model.get('selected_children')
+                // onSave: this.refresh.bind(this),
             });
-        },
-
-        duplicateXBlock: function(event) {
-            event.preventDefault();
-            this.duplicateComponent(this.findXBlockElement(event.target));
-        },
-
-        showMoveXBlockModal: function(event) {
-            var xblockElement = this.findXBlockElement(event.target),
-                parentXBlockElement = xblockElement.parents('.studio-xblock-wrapper'),
-                modal = new MoveXBlockModal({
-                    sourceXBlockInfo: XBlockUtils.findXBlockInfo(xblockElement, this.model),
-                    sourceParentXBlockInfo: XBlockUtils.findXBlockInfo(parentXBlockElement, this.model),
-                    XBlockURLRoot: this.getURLRoot(),
-                    outlineURL: this.options.outlineURL
-                });
 
             event.preventDefault();
             modal.show();
-        },
-
-        deleteXBlock: function(event) {
-            event.preventDefault();
-            this.deleteComponent(this.findXBlockElement(event.target));
-        },
-
-        createPlaceholderElement: function() {
-            return $('<div/>', {class: 'studio-xblock-wrapper'});
-        },
-
-        createComponent: function(template, target) {
-            // A placeholder element is created in the correct location for the new xblock
-            // and then onNewXBlock will replace it with a rendering of the xblock. Note that
-            // for xblocks that can't be replaced inline, the entire parent will be refreshed.
-            var parentElement = this.findXBlockElement(target),
-                parentLocator = parentElement.data('locator'),
-                buttonPanel = target.closest('.add-xblock-component'),
-                listPanel = buttonPanel.prev(),
-                scrollOffset = ViewUtils.getScrollOffset(buttonPanel),
-                $placeholderEl = $(this.createPlaceholderElement()),
-                requestData = _.extend(template, {
-                    parent_locator: parentLocator
-                }),
-                placeholderElement;
-            placeholderElement = $placeholderEl.appendTo(listPanel);
-            return $.postJSON(this.getURLRoot() + '/', requestData,
-                _.bind(this.onNewXBlock, this, placeholderElement, scrollOffset, false))
-                .fail(function() {
-                    // Remove the placeholder if the update failed
-                    placeholderElement.remove();
-                });
-        },
-
-        copyXBlock: function(event) {
-            event.preventDefault();
-            // This is a new feature, hidden behind a feature flag.
-            alert("Copying of XBlocks is coming soon.");
-        },
-
-        duplicateComponent: function(xblockElement) {
-            // A placeholder element is created in the correct location for the duplicate xblock
-            // and then onNewXBlock will replace it with a rendering of the xblock. Note that
-            // for xblocks that can't be replaced inline, the entire parent will be refreshed.
-            var self = this,
-                parentElement = self.findXBlockElement(xblockElement.parent()),
-                scrollOffset = ViewUtils.getScrollOffset(xblockElement),
-                $placeholderEl = $(self.createPlaceholderElement()),
-                placeholderElement;
-
-            placeholderElement = $placeholderEl.insertAfter(xblockElement);
-            XBlockUtils.duplicateXBlock(xblockElement, parentElement)
-                .done(function(data) {
-                    self.onNewXBlock(placeholderElement, scrollOffset, true, data);
-                })
-                .fail(function() {
-                    // Remove the placeholder if the update failed
-                    placeholderElement.remove();
-                });
-        },
-
-        deleteComponent: function(xblockElement) {
-            var self = this,
-                xblockInfo = new XBlockInfo({
-                    id: xblockElement.data('locator')
-                });
-            XBlockUtils.deleteXBlock(xblockInfo).done(function() {
-                self.onDelete(xblockElement);
-            });
-        },
-
-        onDelete: function(xblockElement) {
-            // get the parent so we can remove this component from its parent.
-            var xblockView = this.xblockView,
-                parent = this.findXBlockElement(xblockElement.parent());
-            xblockElement.remove();
-
-            // Inform the runtime that the child has been deleted in case
-            // other views are listening to deletion events.
-            xblockView.acknowledgeXBlockDeletion(parent.data('locator'));
-
-            // Update publish and last modified information from the server.
-            this.model.fetch();
-        },
-
-        /*
-         * After move operation is complete, updates the xblock information from server .
-         */
-        onXBlockMoved: function() {
-            this.model.fetch();
-        },
-
-        onNewXBlock: function(xblockElement, scrollOffset, is_duplicate, data) {
-            var useNewTextEditor = this.$('.xblock-header-primary').attr("use-new-editor-text"),
-                useNewVideoEditor = this.$('.xblock-header-primary').attr("use-new-editor-video"),
-                useNewProblemEditor = this.$('.xblock-header-primary').attr("use-new-editor-problem");
-
-            //find the block type in the locator if availible
-            if(data.hasOwnProperty('locator')){
-                var matchBlockTypeFromLocator = /\@(.*?)\+/;
-                var blockType = data.locator.match(matchBlockTypeFromLocator);
-            }
-            if((useNewTextEditor === "True" && blockType.includes("html")) ||
-                    (useNewVideoEditor === "True" && blockType.includes("video"))||
-                    (useNewProblemEditor === "True" && blockType.includes("problem"))
-            ){
-                var destinationUrl = this.$('.xblock-header-primary').attr("authoring_MFE_base_url") + '/' + blockType[1] + '/' + encodeURI(data.locator);
-                window.location.href = destinationUrl;
-                return;
-            }
-            ViewUtils.setScrollOffset(xblockElement, scrollOffset);
-            xblockElement.data('locator', data.locator);
-            return this.refreshXBlock(xblockElement, true, is_duplicate);
-        },
-
-        /**
-         * Refreshes the specified xblock's display. If the xblock is an inline child of a
-         * reorderable container then the element will be refreshed inline. If not, then the
-         * parent container will be refreshed instead.
-         * @param element An element representing the xblock to be refreshed.
-         * @param block_added Flag to indicate that new block has been just added.
-         */
-        refreshXBlock: function(element, block_added, is_duplicate) {
-            var xblockElement = this.findXBlockElement(element),
-                parentElement = xblockElement.parent(),
-                rootLocator = this.xblockView.model.id;
-            if (xblockElement.length === 0 || xblockElement.data('locator') === rootLocator) {
-                this.render({refresh: true, block_added: block_added});
-            } else if (parentElement.hasClass('reorderable-container')) {
-                this.refreshChildXBlock(xblockElement, block_added, is_duplicate);
-            } else {
-                this.refreshXBlock(this.findXBlockElement(parentElement));
-            }
-        },
-
-        /**
-         * Refresh an xblock element inline on the page, using the specified xblockInfo.
-         * Note that the element is removed and replaced with the newly rendered xblock.
-         * @param xblockElement The xblock element to be refreshed.
-         * @param block_added Specifies if a block has been added, rather than just needs
-         * refreshing.
-         * @returns {jQuery promise} A promise representing the complete operation.
-         */
-        refreshChildXBlock: function(xblockElement, block_added, is_duplicate) {
-            var self = this,
-                xblockInfo,
-                TemporaryXBlockView,
-                temporaryView;
-            xblockInfo = new XBlockInfo({
-                id: xblockElement.data('locator')
-            });
-            // There is only one Backbone view created on the container page, which is
-            // for the container xblock itself. Any child xblocks rendered inside the
-            // container do not get a Backbone view. Thus, create a temporary view
-            // to render the content, and then replace the original element with the result.
-            TemporaryXBlockView = XBlockView.extend({
-                updateHtml: function(element, html) {
-                    // Replace the element with the new HTML content, rather than adding
-                    // it as child elements.
-                    this.$el = $(html).replaceAll(element); // xss-lint: disable=javascript-jquery-insertion
-                }
-            });
-            temporaryView = new TemporaryXBlockView({
-                model: xblockInfo,
-                view: self.xblockView.new_child_view,
-                el: xblockElement
-            });
-            return temporaryView.render({
-                success: function() {
-                    self.onXBlockRefresh(temporaryView, block_added, is_duplicate);
-                    temporaryView.unbind();  // Remove the temporary view
-                },
-                initRuntimeData: this
-            });
-        },
-
-        scrollToNewComponentButtons: function(event) {
-            event.preventDefault();
-            $.scrollTo(this.$('.add-xblock-component'), {duration: 250});
         }
     });
 
-    return XBlockContainerPage;
+    var ContainerAccess = ContainerStateListenerView.extend({
+        initialize: function() {
+            ContainerStateListenerView.prototype.initialize.call(this);
+            this.template = this.loadTemplate('container-access');
+        },
+
+        shouldRefresh: function(model) {
+            return ViewUtils.hasChangedAttributes(model, ['has_partition_group_components', 'user_partitions']);
+        },
+
+        render: function() {
+            HtmlUtils.setHtml(
+                this.$el,
+                HtmlUtils.HTML(
+                    this.template({
+                        hasPartitionGroupComponents: this.model.get('has_partition_group_components'),
+                        userPartitionInfo: this.model.get('user_partition_info')
+                    })
+                )
+            );
+            return this;
+        }
+    });
+
+    var MessageView = ContainerStateListenerView.extend({
+        initialize: function() {
+            ContainerStateListenerView.prototype.initialize.call(this);
+            this.template = this.loadTemplate('container-message');
+        },
+
+        shouldRefresh: function(model) {
+            return ViewUtils.hasChangedAttributes(model, ['currently_visible_to_students']);
+        },
+
+        render: function() {
+            HtmlUtils.setHtml(
+                this.$el,
+                HtmlUtils.HTML(
+                    this.template({currentlyVisibleToStudents: this.model.get('currently_visible_to_students')})
+                )
+            );
+            return this;
+        }
+    });
+
+    /**
+         * A controller for updating the "View Live" button.
+         */
+    var ViewLiveButtonController = ContainerStateListenerView.extend({
+        shouldRefresh: function(model) {
+            return ViewUtils.hasChangedAttributes(model, ['published']);
+        },
+
+        render: function() {
+            var viewLiveAction = this.$el.find('.button-view');
+            if (this.model.get('published')) {
+                viewLiveAction.removeClass(disabledCss).attr('aria-disabled', false);
+            } else {
+                viewLiveAction.addClass(disabledCss).attr('aria-disabled', true);
+            }
+        }
+    });
+
+    /**
+         * Publisher is a view that supports the following:
+         * 1) Publishing of a draft version of an xblock.
+         * 2) Discarding of edits in a draft version.
+         * 3) Display of who last edited the xblock, and when.
+         * 4) Display of publish status (published, published with changes, changes with no published version).
+         */
+    var Publisher = BaseView.extend({
+        events: {
+            'click .action-publish': 'publish',
+            'click .action-discard': 'discardChanges',
+            'click .action-list-versions': 'getListVersions',
+            'click .version-to-restore-link': 'restoreVersion',
+            'click .action-staff-lock': 'toggleStaffLock'
+        },
+
+        // takes XBlockInfo as a model
+
+        initialize: function() {
+            BaseView.prototype.initialize.call(this);
+            this.template = this.loadTemplate('publish-xblock');
+            this.model.on('sync', this.onSync, this);
+            this.renderPage = this.options.renderPage;
+            this.versionsListProgress = false;
+            this.versionsRestoreInProgress = false;
+            this.versionsData = {};
+            this.currentVersion = null;
+        },
+
+        onSync: function(model) {
+            if (ViewUtils.hasChangedAttributes(model, [
+                'has_changes', 'published', 'edited_on', 'edited_by', 'visibility_state',
+                'has_explicit_staff_lock'
+            ])) {
+                this.render();
+            }
+        },
+
+        render: function() {
+            HtmlUtils.setHtml(
+                this.$el,
+                HtmlUtils.HTML(
+                    this.template({
+                        visibilityState: this.model.get('visibility_state'),
+                        visibilityClass: XBlockViewUtils.getXBlockVisibilityClass(
+                            this.model.get('visibility_state')
+                        ),
+                        hasChanges: this.model.get('has_changes'),
+                        editedOn: this.model.get('edited_on'),
+                        editedBy: this.model.get('edited_by'),
+                        published: this.model.get('published'),
+                        publishedOn: this.model.get('published_on'),
+                        publishedBy: this.model.get('published_by'),
+                        released: this.model.get('released_to_students'),
+                        releaseDate: this.model.get('release_date'),
+                        releaseDateFrom: this.model.get('release_date_from'),
+                        hasExplicitStaffLock: this.model.get('has_explicit_staff_lock'),
+                        staffLockFrom: this.model.get('staff_lock_from'),
+                        course: window.course,
+                        HtmlUtils: HtmlUtils
+                    })
+                )
+            );
+
+            return this;
+        },
+
+        publish: function(e) {
+            var xblockInfo = this.model;
+            if (e && e.preventDefault) {
+                e.preventDefault();
+            }
+
+            PushChangesUtils.publishChanges({
+                target: xblockInfo,
+                xblockType: gettext('unit'),
+                alwaysShow: false,
+                onSave: function() {
+                    xblockInfo.set('publish', null);
+                    xblockInfo.fetch();
+                    // Hide any move notification if present.
+                    MoveXBlockUtils.hideMovedNotification();
+                }
+            });
+        },
+
+        discardChanges: function(e) {
+            var xblockInfo = this.model,
+                renderPage = this.renderPage;
+            if (e && e.preventDefault) {
+                e.preventDefault();
+            }
+            ViewUtils.confirmThenRunOperation(gettext('Discard Changes'),
+                gettext('Are you sure you want to revert to the last published version of the unit? You cannot undo this action.'),
+                gettext('Discard Changes'),
+                function() {
+                    ViewUtils.runOperationShowingMessage(gettext('Discarding Changes'),
+                        function() {
+                            return xblockInfo.save({publish: 'discard_changes'}, {patch: true});
+                        }).always(function() {
+                        xblockInfo.set('publish', null);
+                        // Hide any move notification if present.
+                        MoveXBlockUtils.hideMovedNotification();
+                    }).done(function() {
+                        renderPage();
+                    });
+                }
+            );
+        },
+
+        toggleStaffLock: function(e) {
+            var xblockInfo = this.model,
+                self = this,
+                enableStaffLock, hasInheritedStaffLock,
+                saveAndPublishStaffLock, revertCheckBox;
+            if (e && e.preventDefault) {
+                e.preventDefault();
+            }
+            enableStaffLock = !xblockInfo.get('has_explicit_staff_lock');
+            hasInheritedStaffLock = xblockInfo.get('ancestor_has_staff_lock');
+
+            revertCheckBox = function() {
+                self.checkStaffLock(!enableStaffLock);
+            };
+
+            saveAndPublishStaffLock = function() {
+                // Setting staff lock to null when disabled will delete the field from this xblock,
+                // allowing it to use the inherited value instead of using false explicitly.
+                return xblockInfo.save({
+                    publish: 'republish',
+                    metadata: {visible_to_staff_only: enableStaffLock ? true : null}},
+                {patch: true}
+                ).always(function() {
+                    xblockInfo.set('publish', null);
+                }).done(function() {
+                    xblockInfo.fetch();
+                }).fail(function() {
+                    revertCheckBox();
+                });
+            };
+
+            this.checkStaffLock(enableStaffLock);
+            if (enableStaffLock && !hasInheritedStaffLock) {
+                ViewUtils.runOperationShowingMessage(gettext('Hiding from Students'),
+                    _.bind(saveAndPublishStaffLock, self));
+            } else if (enableStaffLock && hasInheritedStaffLock) {
+                ViewUtils.runOperationShowingMessage(gettext('Explicitly Hiding from Students'),
+                    _.bind(saveAndPublishStaffLock, self));
+            } else if (!enableStaffLock && hasInheritedStaffLock) {
+                ViewUtils.runOperationShowingMessage(gettext('Inheriting Student Visibility'),
+                    _.bind(saveAndPublishStaffLock, self));
+            } else {
+                ViewUtils.confirmThenRunOperation(gettext('Make Visible to Students'),
+                    gettext('If the unit was previously published and released to students, any changes you made to the unit when it was hidden will now be visible to students. Do you want to proceed?'),
+                    gettext('Make Visible to Students'),
+                    function() {
+                        ViewUtils.runOperationShowingMessage(gettext('Making Visible to Students'),
+                            _.bind(saveAndPublishStaffLock, self));
+                    },
+                    function() {
+                        // On cancel, revert the check in the check box
+                        revertCheckBox();
+                    }
+                );
+            }
+        },
+
+        getListVersions: function(e) {
+            var self = this;
+            if (this.versionsListProgress) {
+                return;
+            }
+            this.versionsListProgress = true;
+            this.$el.find('.versions-list').html('Loading...');
+            $.ajax({
+                url: '/get_versions_list/' + this.model.get('id'),
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    self.versionsListProgress = false;
+                    if (data.versions.length > 0) {
+                        var versionsHtml = '';
+                        $.each(data.versions, function(idx, val) {
+                            self.versionsData[val.id] = val;
+                            if (!val.can_restore) {
+                                self.currentVersion = val.id;
+                            }
+                            versionsHtml += '<div class="version-to-restore">' +
+                                  '<div>' + val.datetime + '</div>' +
+                                  '<div>by ' + val.user + ' | <a href="javascript: void(0);" class="version-to-restore-link ' + (val.can_restore ? 'can-restore' : 'cant-restore') + '" data-version-id="' + val.id + '">' + (val.can_restore ? 'Restore' : 'Current Version') + '</a></div>' +
+                                  '</div>';
+                        });
+                        self.$el.find('.versions-list').html(versionsHtml);
+                    } else {
+                        self.$el.find('.versions-list').html('Previous versions not found');
+                    }
+                }
+            });
+        },
+
+        restoreVersion: function(e) {
+            var self = this;
+            if ((this.versionsRestoreInProgress) || ($(e.target).hasClass('cant-restore'))) {
+                return;
+            }
+            var versionId = $(e.target).data('version-id');
+            var version = this.versionsData[versionId];
+            if (window.confirm("Do you wish to revert to this previously published version (" + (version.datetime + ' - ' + version.user) + ")?")) {
+                this.versionsRestoreInProgress = true;
+                ViewUtils.runOperationShowingMessage(gettext('Restore in progress. Please wait'),
+                    function() {
+                        return $.ajax({
+                            url: '/restore_block_version/' + self.model.get('id'),
+                            type: 'POST',
+                            data: {versionId: versionId, currentVersionId: self.currentVersion},
+                            dataType: 'json',
+                            success: function(data) {
+                                if (data.success) {
+                                    location.reload();
+                                }
+                            }
+                        });
+                    }).always(function() {
+                }).done(function() {
+                });
+            }
+        },
+
+        checkStaffLock: function(check) {
+            this.$('.action-staff-lock i').removeClass('fa-check-square-o fa-square-o');
+            this.$('.action-staff-lock i').addClass(check ? 'fa-check-square-o' : 'fa-square-o');
+        }
+    });
+
+    /**
+         * PublishHistory displays when and by whom the xblock was last published, if it ever was.
+         */
+    var PublishHistory = BaseView.extend({
+        // takes XBlockInfo as a model
+
+        initialize: function() {
+            BaseView.prototype.initialize.call(this);
+            this.template = this.loadTemplate('publish-history');
+            this.model.on('sync', this.onSync, this);
+        },
+
+        onSync: function(model) {
+            if (ViewUtils.hasChangedAttributes(model, ['published', 'published_on', 'published_by'])) {
+                this.render();
+            }
+        },
+
+        render: function() {
+            HtmlUtils.setHtml(
+                this.$el,
+                HtmlUtils.HTML(
+                    this.template({
+                        published: this.model.get('published'),
+                        published_on: this.model.get('published_on'),
+                        published_by: this.model.get('published_by')
+                    })
+                )
+            );
+
+            return this;
+        }
+    });
+
+    return {
+        MessageView: MessageView,
+        ViewLiveButtonController: ViewLiveButtonController,
+        Publisher: Publisher,
+        PublishHistory: PublishHistory,
+        ContainerAccess: ContainerAccess,
+        ContainerActionsView: ContainerActionsView
+    };
 }); // end define();

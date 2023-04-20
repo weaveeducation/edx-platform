@@ -1,15 +1,18 @@
 """Views for blocks."""
 
 import logging
+import io
 from collections import OrderedDict
 from datetime import datetime
 from functools import partial
 from uuid import uuid4
+import xml.etree.ElementTree as ET
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User  # lint-amnesty, pylint: disable=imported-auth-user
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.utils.timezone import timezone
 from django.utils.translation import gettext as _
@@ -25,8 +28,8 @@ from edx_proctoring.api import (
 from edx_proctoring.exceptions import ProctoredExamNotFoundException
 from help_tokens.core import HelpUrlExpert
 from lti_consumer.models import CourseAllowPIISharingInLTIFlag
-from opaque_keys.edx.keys import CourseKey
-from opaque_keys.edx.locator import LibraryUsageLocator
+from opaque_keys.edx.keys import CourseKey, UsageKey
+from opaque_keys.edx.locator import LibraryUsageLocator, BlockUsageLocator
 from pytz import UTC
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
@@ -42,6 +45,11 @@ from common.djangoapps.student.auth import has_studio_read_access, has_studio_wr
 from common.djangoapps.util.date_utils import get_default_time_display
 from common.djangoapps.util.json_request import JsonResponse, expect_json
 from common.djangoapps.xblock_django.user_service import DjangoXBlockUserService
+from common.djangoapps.badgr_integration.models import Badge, Configuration
+from common.djangoapps.badgr_integration.utils import org_badgr_enabled
+from common.djangoapps.credo_modules.models import CopyBlockTask
+from openedx.core.djangoapps.content.block_structure.models import ApiBlockInfo, BlockCache
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.bookmarks import api as bookmarks_api
 from openedx.core.djangoapps.discussions.models import DiscussionsConfiguration
 from openedx.core.lib.gating import api as gating_api
@@ -57,6 +65,10 @@ from xmodule.modulestore.inheritance import own_metadata  # lint-amnesty, pylint
 from xmodule.services import ConfigurationService, SettingsService, TeamsConfigurationService  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.tabs import CourseTabList  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.x_module import AUTHOR_VIEW, PREVIEW_VIEWS, STUDENT_VIEW, STUDIO_VIEW  # lint-amnesty, pylint: disable=wrong-import-order
+from xmodule.contentstore.content import StaticContent
+from xmodule.contentstore.django import contentstore
+from xmodule.exceptions import NotFoundError
+from celery import shared_task
 
 from ..utils import (
     ancestor_has_staff_lock,
@@ -67,7 +79,8 @@ from ..utils import (
     get_visibility_partition_info,
     has_children_visible_to_specific_partition_groups,
     is_currently_visible_to_students,
-    is_self_paced
+    is_self_paced,
+    get_role_features
 )
 from .helpers import (
     create_xblock,
@@ -79,6 +92,9 @@ from .helpers import (
     xblock_type_display_name
 )
 from .preview import get_preview_fragment
+from ..api_block_info import update_api_blocks_before_publish, update_sibling_block_after_publish,\
+    sync_api_blocks_before_move, sync_api_blocks_before_remove, create_api_block_info, copy_api_block_info,\
+    update_api_block_info, get_vertical_blocks_with_changes, copy_milestones, SyncApiBlockInfo
 
 __all__ = [
     'orphan_handler', 'xblock_handler', 'xblock_view_handler', 'xblock_outline_handler', 'xblock_container_handler'
@@ -201,21 +217,27 @@ def xblock_handler(request, usage_key_string=None):
             _delete_item(usage_key, request.user)
             return JsonResponse()
         else:  # Since we have a usage_key, we are updating an existing xblock.
-            return _save_xblock(
-                request.user,
-                _get_xblock(usage_key, request.user),
-                data=request.json.get('data'),
-                children_strings=request.json.get('children'),
-                metadata=request.json.get('metadata'),
-                nullout=request.json.get('nullout'),
-                grader_type=request.json.get('graderType'),
-                is_prereq=request.json.get('isPrereq'),
-                prereq_usage_key=request.json.get('prereqUsageKey'),
-                prereq_min_score=request.json.get('prereqMinScore'),
-                prereq_min_completion=request.json.get('prereqMinCompletion'),
-                publish=request.json.get('publish'),
-                fields=request.json.get('fields'),
-            )
+            copy_to_course = request.json.get('copy_to_course', None)
+            if copy_to_course:
+                copy_result = _copy_to_other_course(request.user, _get_xblock(usage_key, request.user), copy_to_course)
+                return JsonResponse(copy_result, encoder=EdxJSONEncoder)
+            else:
+                return _save_xblock(
+                    request.user,
+                    _get_xblock(usage_key, request.user),
+                    data=request.json.get('data'),
+                    children_strings=request.json.get('children'),
+                    metadata=request.json.get('metadata'),
+                    nullout=request.json.get('nullout'),
+                    grader_type=request.json.get('graderType'),
+                    is_prereq=request.json.get('isPrereq'),
+                    prereq_usage_key=request.json.get('prereqUsageKey'),
+                    prereq_min_score=request.json.get('prereqMinScore'),
+                    prereq_min_completion=request.json.get('prereqMinCompletion'),
+                    publish=request.json.get('publish'),
+                    fields=request.json.get('fields'),
+                    related_courses=request.json.get('related_courses'),
+                )
     elif request.method in ('PUT', 'POST'):
         if 'duplicate_source_locator' in request.json:
             parent_usage_key = usage_key_with_run(request.json['parent_locator'])
@@ -228,6 +250,17 @@ def xblock_handler(request, usage_key_string=None):
                     not has_studio_read_access(request.user, source_course)
             ):
                 raise PermissionDenied()
+
+            def copy_ora(md):
+                if md and 'block_unique_id' in md:
+                    md.pop('block_unique_id', None)
+                if md and 'support_multiple_rubrics' in md:
+                    md.pop('support_multiple_rubrics', None)
+                return md
+
+            metadata_filter_fn = None
+            if duplicate_source_usage_key.block_type == 'openassessment':
+                metadata_filter_fn = copy_ora
 
             # Libraries have a maximum component limit enforced on them
             if (isinstance(parent_usage_key, LibraryUsageLocator) and
@@ -246,6 +279,7 @@ def xblock_handler(request, usage_key_string=None):
                 duplicate_source_usage_key,
                 request.user,
                 request.json.get('display_name'),
+                metadata_filter_fn=metadata_filter_fn
             )
             return JsonResponse({
                 'locator': str(dest_usage_key),
@@ -264,6 +298,17 @@ def xblock_handler(request, usage_key_string=None):
             ):
                 raise PermissionDenied()
             return _move_item(move_source_usage_key, target_parent_usage_key, request.user, target_index)
+        if 'copy_source_locator' in request.json:
+            copy_source_usage_key = usage_key_with_run(request.json.get('copy_source_locator'))
+            target_parent_usage_key = usage_key_with_run(request.json.get('parent_locator'))
+            if (
+                not has_studio_write_access(request.user, target_parent_usage_key.course_key) or
+                not has_studio_read_access(request.user, target_parent_usage_key.course_key)
+            ):
+                raise PermissionDenied()
+            if copy_source_usage_key.category == 'library_content' and target_parent_usage_key.category == 'library':
+                return _copy_library_content_to_library(copy_source_usage_key, target_parent_usage_key, request.user)
+            return _copy_item(copy_source_usage_key, target_parent_usage_key, request.user)
 
         return JsonResponse({'error': 'Patch request did not recognise any parameters to handle.'}, status=400)
     else:
@@ -425,6 +470,7 @@ def xblock_view_handler(request, usage_key_string, view_name):
                 'paging': paging,
                 'force_render': force_render,
                 'item_url': '/container/{usage_key}',
+                'role_features': get_role_features(usage_key.course_key, request.user)
             })
             fragment = get_preview_fragment(request, xblock, context)
 
@@ -514,7 +560,7 @@ def xblock_container_handler(request, usage_key_string):
         return Http404
 
 
-def _update_with_callback(xblock, user, old_metadata=None, old_content=None):
+def _update_with_callback(xblock, user, old_metadata=None, old_content=None, asides=None):
     """
     Updates the xblock in the modulestore.
     But before doing so, it calls the xblock's editor_saved callback function.
@@ -528,12 +574,65 @@ def _update_with_callback(xblock, user, old_metadata=None, old_content=None):
         xblock.editor_saved(user, old_metadata, old_content)
 
     # Update after the callback so any changes made in the callback will get persisted.
-    return modulestore().update_item(xblock, user.id)
+    return modulestore().update_item(xblock, user.id, asides=asides)
+
+
+def _copy_to_other_course(user, xblock, course_dst_id):
+    broken_blocks = {}
+    course_key = CourseKey.from_string(course_dst_id)
+    course = modulestore().get_course(course_key)
+    duplicate_source_usage_key = usage_key_with_run(str(course.location))
+    _duplicate_block(duplicate_source_usage_key, xblock.location, user, xblock.display_name, course_key=course_key,
+                     broken_blocks=broken_blocks)
+    return {'id': str(xblock.location), 'broken_blocks': broken_blocks}
+
+
+def _copy_unit_to_library(user, xblocks, library_dst_id):
+    broken_blocks = {}
+    library_key = usage_key_with_run(library_dst_id)
+    course_key = library_key.course_key
+    processed_ids = []
+    for xblock in xblocks:
+        for xblock_child in xblock.get_children():
+            if xblock_child.category in ['problem', 'html', 'video']:
+                processed_ids.append(xblock_child.location)
+                _duplicate_block(library_key, xblock_child.location, user=user, display_name=xblock_child.display_name,
+                                 course_key=course_key, broken_blocks=broken_blocks)
+    return {'ids': processed_ids, 'broken_blocks': broken_blocks}
+
+
+def _copy_components_to_library(user, xblocks, library_dst_id):
+    broken_blocks = {}
+    library_key = usage_key_with_run(library_dst_id)
+    course_key = library_key.course_key
+    processed_ids = []
+    for xblock in xblocks:
+        if xblock.category in ['problem', 'html', 'video']:
+            processed_ids.append(xblock.location)
+            _duplicate_block(library_key, xblock.location, user=user, display_name=xblock.display_name,
+                             course_key=course_key, broken_blocks=broken_blocks)
+    return {'ids': processed_ids, 'broken_blocks': broken_blocks}
+
+
+def _copy_course_to_other_course(source_course_key_string, destination_course_key_string, user_id):
+    source_course_key = CourseKey.from_string(source_course_key_string)
+    dst_course_key = CourseKey.from_string(destination_course_key_string)
+    store = modulestore()
+    user = User.objects.get(id=user_id)
+    dst_course = store.get_course(dst_course_key)
+    with store.bulk_operations(source_course_key):
+        course = store.get_course(source_course_key)
+        for chapter_xblock in course.get_children():
+            _duplicate_block(dst_course.location, chapter_xblock.location, user, chapter_xblock.display_name,
+                             course_key=dst_course_key)
+    copy_milestones(str(source_course_key), str(dst_course_key))
+    cs = contentstore()
+    cs.copy_all_course_assets(source_course_key, dst_course_key)
 
 
 def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, nullout=None,  # lint-amnesty, pylint: disable=too-many-statements
                  grader_type=None, is_prereq=None, prereq_usage_key=None, prereq_min_score=None,
-                 prereq_min_completion=None, publish=None, fields=None):
+                 prereq_min_completion=None, publish=None, fields=None, asides=None, related_courses=None):
     """
     Saves xblock w/ its fields. Has special processing for grader_type, publish, and nullout and Nones in metadata.
     nullout means to truly set the field to None whereas nones in metadata mean to unset them (so they revert
@@ -546,15 +645,29 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
 
         # Don't allow updating an xblock and discarding changes in a single operation (unsupported by UI).
         if publish == "discard_changes":
-            store.revert_to_published(xblock.location, user.id)
+            with SyncApiBlockInfo(xblock, user):
+                store.revert_to_published(xblock.location, user.id)
+                update_api_block_info(xblock, user, reverted_to_previous_version=False)
             # Returning the same sort of result that we do for other save operations. In the future,
             # we may want to return the full XBlockInfo.
             return JsonResponse({'id': str(xblock.location)})
 
         old_metadata = own_metadata(xblock)
+
+        if xblock.location.block_type == 'sequential' and metadata:
+            metadata['supervisor_evaluation_hash'] = old_metadata.get('supervisor_evaluation_hash', str(uuid4()))
+            badge_id = metadata.get('badge_id', None)
+            BlockCache.update_cache(str(xblock.location.course_key), str(xblock.location), 'badge_id', badge_id)
+
         old_content = xblock.get_explicitly_set_fields_by_scope(Scope.content)
 
         if data:
+            validate_res, validate_err = _validate_xml(data)
+            if not validate_res:
+                return JsonResponse({
+                    "error": f'XML Validation Failure: {validate_err} Adjust problem XML and try again.'
+                }, 400)
+
             # TODO Allow any scope.content fields not just "data" (exactly like the get below this)
             xblock.data = data
         else:
@@ -575,6 +688,7 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
                 old_parent_location = store.get_parent_location(new_child)
                 if old_parent_location:
                     old_parent = store.get_item(old_parent_location)
+                    #sync_api_blocks_before_move(new_child, user)
                     old_parent.children.remove(new_child)
                     old_parent = _update_with_callback(old_parent, user)
                 else:
@@ -636,7 +750,7 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
 
         validate_and_update_xblock_due_date(xblock)
         # update the xblock and call any xblock callbacks
-        xblock = _update_with_callback(xblock, user, old_metadata, old_content)
+        xblock = _update_with_callback(xblock, user, old_metadata, old_content, asides=asides)
 
         # for static tabs, their containing course also records their display name
         course = store.get_course(xblock.location.course_key)
@@ -692,7 +806,14 @@ def _save_xblock(user, xblock, data=None, children_strings=None, metadata=None, 
         # Make public after updating the xblock, in case the caller asked for both an update and a publish.
         # Used by Bok Choy tests and by republishing of staff locks.
         if publish == 'make_public':
-            modulestore().publish(xblock.location, user.id)
+            with transaction.atomic():
+                update_api_blocks_before_publish(xblock, user)
+                vertical_ids_with_changes = get_vertical_blocks_with_changes(str(xblock.location), user)
+                modulestore().publish(xblock.location, user.id)
+                task_uuid = update_sibling_block_after_publish(
+                    related_courses, xblock, user, vertical_ids_with_changes)
+                if task_uuid:
+                    result['update_related_courses_task_id'] = task_uuid
 
         # Note that children aren't being returned until we have a use case.
         return JsonResponse(result, encoder=EdxJSONEncoder)
@@ -741,6 +862,7 @@ def _create_block(request):
         display_name=request.json.get('display_name'),
         boilerplate=request.json.get('boilerplate'),
     )
+    create_api_block_info(created_block.location, request.user)
 
     return JsonResponse(
         {'locator': str(created_block.location), 'courseKey': str(created_block.location.course_key)}
@@ -854,6 +976,8 @@ def _move_item(source_usage_key, target_parent_usage_key, user, target_index=Non
         # When target_index is provided, insert xblock at target_index position, otherwise insert at the end.
         insert_at = target_index if target_index is not None else len(target_parent.children)
 
+        sync_api_blocks_before_move(source_usage_key, user)
+
         store.update_item_parent(
             item_location=source_item.location,
             new_parent_location=target_parent.location,
@@ -878,15 +1002,46 @@ def _move_item(source_usage_key, target_parent_usage_key, user, target_index=Non
         return JsonResponse(context)
 
 
-def _duplicate_block(parent_usage_key, duplicate_source_usage_key, user, display_name=None, is_child=False):
+def _get_breadcrumbs(item):
+    names_list = []
+    first = True
+    parent = None
+    while first or parent:
+        if first:
+            first = False
+            names_list.append(item.display_name)
+            parent = item.get_parent()
+        else:
+            names_list.append(parent.display_name)
+            parent = parent.get_parent()
+        if parent.category == 'course':
+            parent = None
+    return ' / ' .join(names_list[::-1])
+
+
+def _duplicate_block(parent_usage_key, duplicate_source_usage_key, user, display_name=None, is_child=False,
+                     course_key=None, broken_blocks=None, metadata_filter_fn=None,
+                     level=0, blocks_to_inserts=None, force_create_api_block_info=False, published_after_copy=False):
     """
     Duplicate an existing xblock as a child of the supplied parent_usage_key.
     """
+    if broken_blocks is None:
+        broken_blocks = {}
+
+    if level == 0:
+        blocks_to_inserts = []
+
     store = modulestore()
-    with store.bulk_operations(duplicate_source_usage_key.course_key):
+    with store.bulk_operations(course_key if course_key else duplicate_source_usage_key.course_key):
         source_item = store.get_item(duplicate_source_usage_key)
         # Change the blockID to be unique.
         dest_usage_key = source_item.location.replace(name=uuid4().hex)
+        if course_key and (str(course_key) != str(dest_usage_key.course_key)):
+            dest_usage_key = BlockUsageLocator(
+                course_key.version_agnostic(),
+                block_type=dest_usage_key.block_type,
+                block_id=dest_usage_key.block_id,
+            )
         category = dest_usage_key.block_type
 
         # Update the display name to indicate this is a duplicate (unless display name provided).
@@ -920,9 +1075,12 @@ def _duplicate_block(parent_usage_key, duplicate_source_usage_key, user, display
                 if field.scope not in (Scope.settings, Scope.content,):
                     field.delete_from(aside)
 
+        if metadata_filter_fn is not None:
+            duplicate_metadata = metadata_filter_fn(duplicate_metadata)
+
         dest_block = store.create_item(
             user.id,
-            dest_usage_key.course_key,
+            course_key if course_key else dest_usage_key.course_key,
             dest_usage_key.block_type,
             block_id=dest_usage_key.block_id,
             definition_data=source_item.get_explicitly_set_fields_by_scope(Scope.content),
@@ -931,6 +1089,18 @@ def _duplicate_block(parent_usage_key, duplicate_source_usage_key, user, display
             asides=asides_to_create
         )
 
+        if course_key and dest_block.category == 'video' and dest_block.sub:
+            filename = 'subs_{0}.srt.sjson'.format(dest_block.sub)
+            content_location_src = StaticContent.compute_location(source_item.location.course_key, filename)
+            content_location_dst = StaticContent.compute_location(course_key, filename)
+            try:
+                sjson_transcripts = contentstore().find(content_location_src)
+                new_content = StaticContent(content_location_dst, filename,
+                                            sjson_transcripts.content_type, sjson_transcripts.data)
+                contentstore().save(new_content)
+            except NotFoundError:
+                pass
+
         children_handled = False
 
         if hasattr(dest_block, 'studio_post_duplicate'):
@@ -938,17 +1108,31 @@ def _duplicate_block(parent_usage_key, duplicate_source_usage_key, user, display
             # These blocks may handle their own children or parenting if needed. Let them return booleans to
             # let us know if we need to handle these or not.
             dest_block.xmodule_runtime = StudioEditModuleRuntime(user)
-            children_handled = dest_block.studio_post_duplicate(store, source_item)
+            try:
+                children_handled = dest_block.studio_post_duplicate(store, source_item)
+            except ItemNotFoundError:
+                broken_blocks[str(source_item.location)] = _get_breadcrumbs(source_item)
 
         # Children are not automatically copied over (and not all xblocks have a 'children' attribute).
         # Because DAGs are not fully supported, we need to actually duplicate each child as well.
-        if source_item.has_children and not children_handled:
+        if source_item.has_children and not children_handled and source_item.category != 'library_content':
             dest_block.children = dest_block.children or []
             for child in source_item.children:
-                dupe = _duplicate_block(dest_block.location, child, user=user, is_child=True)
+                new_level = level + 1
+                dupe = _duplicate_block(dest_block.location, child, user=user, is_child=True, course_key=course_key,
+                                        broken_blocks=broken_blocks,
+                                        level=new_level,
+                                        blocks_to_inserts=blocks_to_inserts,
+                                        published_after_copy=published_after_copy)
                 if dupe not in dest_block.children:  # _duplicate_block may add the child for us.
                     dest_block.children.append(dupe)
             store.update_item(dest_block, user.id)
+
+        block_to_insert = copy_api_block_info(source_item, dest_block, user, level=level, auto_save=False,
+                                              force=force_create_api_block_info,
+                                              published_after_copy=published_after_copy)
+        if block_to_insert:
+            blocks_to_inserts.append(block_to_insert)
 
         # pylint: disable=protected-access
         if 'detached' not in source_item.runtime.load_block_type(category)._class_tags:
@@ -961,6 +1145,9 @@ def _duplicate_block(parent_usage_key, duplicate_source_usage_key, user, display
             else:
                 parent.children.append(dest_block.location)
             store.update_item(parent, user.id)
+
+        if level == 0 and blocks_to_inserts:
+            ApiBlockInfo.objects.bulk_create(blocks_to_inserts)
 
         # .. event_implemented_name: XBLOCK_DUPLICATED
         XBLOCK_DUPLICATED.send_event(
@@ -1000,6 +1187,8 @@ def _delete_item(usage_key, user):
             existing_tabs = course.tabs or []
             course.tabs = [tab for tab in existing_tabs if tab.get('url_slug') != usage_key.block_id]
             store.update_item(course, user.id)
+
+        sync_api_blocks_before_remove(usage_key, user)
 
         # Delete user bookmarks
         bookmarks_api.delete_bookmarks(usage_key)
@@ -1137,10 +1326,21 @@ def _get_gating_info(course, xblock):
     return info
 
 
+def get_badges_info(course):
+    badgr_enabled = org_badgr_enabled(course.org)
+    badges = []
+    if badgr_enabled:
+        config = Configuration.get_config()
+        issuer_entity_id = config.get_issuer_entity_id()
+        badges = Badge.get_all(issuer_entity_id)
+
+    return course.org, badgr_enabled, badges
+
+
 @pluggable_override('OVERRIDE_CREATE_XBLOCK_INFO')
 def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=False, include_child_info=False,  # lint-amnesty, pylint: disable=too-many-statements
                        course_outline=False, include_children_predicate=NEVER, parent_xblock=None, graders=None,
-                       user=None, course=None, is_concise=False):
+                       user=None, course=None, is_concise=False, org=None, badges=None):
     """
     Creates the information needed for client-side XBlockInfo.
 
@@ -1185,6 +1385,10 @@ def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=F
     if course is None:
         course = modulestore().get_course(xblock.location.course_key)
 
+    org, badgr_enabled, badges = None, None, None
+    if xblock.category in ('course', 'sequential'):
+        org, badgr_enabled, badges = get_badges_info(course)
+
     # Compute the child info first so it can be included in aggregate information for the parent
     should_visit_children = include_child_info and (course_outline and not is_xblock_unit or not course_outline)
     if should_visit_children and xblock.has_children:
@@ -1195,7 +1399,9 @@ def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=F
             include_children_predicate=include_children_predicate,
             user=user,
             course=course,
-            is_concise=is_concise
+            is_concise=is_concise,
+            org=org,
+            badges=badges
         )
     else:
         child_info = None
@@ -1284,6 +1490,18 @@ def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=F
         if xblock.category == 'sequential':
             xblock_info.update({
                 'hide_after_due': xblock.hide_after_due,
+                'after_finish_return_to_course_outline': xblock.after_finish_return_to_course_outline,
+                'use_as_survey_for_supervisor': xblock.use_as_survey_for_supervisor,
+                'units_sequential_completion': xblock.units_sequential_completion,
+                'disable_units_after_completion': xblock.disable_units_after_completion,
+                'badgr_enabled': badgr_enabled,
+                'badges': badges,
+                'badge_id': xblock.badge_id,
+                'supervisor_evaluation_hash': xblock.supervisor_evaluation_hash,
+                'top_of_course_outline': xblock.top_of_course_outline,
+                'course_outline_description': xblock.course_outline_description,
+                'course_outline_button_title': xblock.course_outline_button_title,
+                'do_not_display_in_course_outline': xblock.do_not_display_in_course_outline,
             })
         elif xblock.category in ('chapter', 'course'):
             if xblock.category == 'chapter':
@@ -1295,7 +1513,7 @@ def create_xblock_info(xblock, data=None, metadata=None, include_ancestor_info=F
                     'highlights_enabled_for_messaging': course.highlights_enabled_for_messaging,
                 })
             xblock_info.update({
-                'highlights_enabled': True,  # used to be controlled by a waffle switch, now just always enabled
+                'highlights_enabled': configuration_helpers.get_value('highlights_enabled', True),  # used to be controlled by a waffle switch, now just always enabled
                 'highlights_preview_only': False,  # used to be controlled by a waffle flag, now just always disabled
                 'highlights_doc_url': HelpUrlExpert.the_one().url_for_token('content_highlights'),
             })
@@ -1540,7 +1758,7 @@ def _create_xblock_ancestor_info(xblock, course_outline=False, include_child_inf
 
 
 def _create_xblock_child_info(xblock, course_outline, graders, include_children_predicate=NEVER, user=None,
-                              course=None, is_concise=False):
+                              course=None, is_concise=False, org=None, badges=None):
     """
     Returns information about the children of an xblock, as well as about the primary category
     of xblock expected as children.
@@ -1561,7 +1779,9 @@ def _create_xblock_child_info(xblock, course_outline, graders, include_children_
                 graders=graders,
                 user=user,
                 course=course,
-                is_concise=is_concise
+                is_concise=is_concise,
+                org=org,
+                badges=badges
             ) for child in xblock.get_children()
         ]
     return child_info
@@ -1618,3 +1838,243 @@ def _xblock_type_and_display_name(xblock):
     return _('{section_or_subsection} "{display_name}"').format(
         section_or_subsection=xblock_type_display_name(xblock),
         display_name=xblock.display_name_with_default)
+
+
+def _copy_item(source_usage_key, target_parent_usage_key, user):
+    parent_component_types = list(
+        set(name for name, class_ in XBlock.load_classes() if getattr(class_, 'has_children', False)) -
+        set(DIRECT_ONLY_CATEGORIES)
+    )
+
+    store = modulestore()
+    with store.bulk_operations(source_usage_key.course_key):
+        source_item = store.get_item(source_usage_key)
+        source_parent = source_item.get_parent()
+        target_parent = store.get_item(target_parent_usage_key)
+        source_type = source_item.category
+        target_parent_type = target_parent.category
+        error = None
+
+        # Store actual/initial index of the source item. This would be sent back with response,
+        # so that with Undo operation, it would easier to move back item to it's original/old index.
+        source_index = _get_source_index(source_usage_key, source_parent)
+
+        valid_move_type = {
+            'sequential': 'vertical',
+            'chapter': 'sequential',
+        }
+
+        if (valid_move_type.get(target_parent_type, '') != source_type and
+            target_parent_type not in parent_component_types):
+            error = _('You can not move {source_type} into {target_parent_type}.').format(
+                source_type=source_type,
+                target_parent_type=target_parent_type,
+            )
+        elif source_parent.location == target_parent.location or source_item.location in target_parent.children:
+            error = _('Item is already present in target location.')
+        elif source_item.location == target_parent.location:
+            error = _('You can not move an item into itself.')
+        elif is_source_item_in_target_parents(source_item, target_parent):
+            error = _('You can not move an item into it\'s child.')
+        elif target_parent_type == 'split_test':
+            error = _('You can not move an item directly into content experiment.')
+        elif source_index is None:
+            error = _('{source_usage_key} not found in {parent_usage_key}.').format(
+                source_usage_key=str(source_usage_key),
+                parent_usage_key=str(source_parent.location)
+            )
+
+        if error:
+            return JsonResponse({'error': error}, status=400)
+
+        _duplicate_block(target_parent_usage_key, source_usage_key, user=user, is_child=True,
+                         course_key=target_parent_usage_key.course_key)
+
+        log.info(
+            'COPY: %s copied from %s to %s',
+            str(source_usage_key),
+            str(source_parent.location),
+            str(target_parent_usage_key))
+
+        target_is_library = (target_parent_usage_key.category == 'library')
+
+        context = {
+            'copy_source_locator': str(source_usage_key),
+            'parent_locator': str(target_parent_usage_key.course_key) if target_is_library else str(target_parent_usage_key),
+            'source_index': 0,
+            'target_is_library': target_is_library
+        }
+        return JsonResponse(context)
+
+
+def _copy_library_content_to_library(copy_source_usage_key, target_parent_usage_key, user):
+    store = modulestore()
+
+    with store.bulk_operations(copy_source_usage_key.course_key):
+        lib_content_block = store.get_item(copy_source_usage_key)
+        for lib_child in lib_content_block.get_children():
+            _duplicate_block(target_parent_usage_key, lib_child.location, user=user, is_child=True,
+                             course_key=target_parent_usage_key.course_key)
+
+    target_is_library = (target_parent_usage_key.category == 'library')
+
+    context = {
+        'copy_source_locator': str(copy_source_usage_key),
+        'parent_locator': str(target_parent_usage_key.course_key) if target_is_library else str(target_parent_usage_key),
+        'source_index': 0,
+        'target_is_library': target_is_library
+    }
+    return JsonResponse(context)
+
+
+def _validate_xml(xmlstring):
+    f = io.StringIO(xmlstring)
+    try:
+        tree = ET.parse(f)
+        options = tree.findall(".//option")
+        for option in options:
+            correct_attr = option.attrib.get('correct')
+            if not correct_attr:
+                return False, '"correct" attribute for tag <option> is not set'
+            if correct_attr.lower()  not in ('true', 'false'):
+                return False, 'Invalid value "' + correct_attr + '" for attribute "correct" in tag <option>. ' \
+                                                                 'Valid options: "True"/"False".'
+
+        choices = tree.findall(".//choice")
+        for choice in choices:
+            correct_attr = choice.attrib.get('correct')
+            if not correct_attr:
+                return False, '"correct" attribute for tag <choice> is not set'
+            if correct_attr.lower() not in ('true', 'false'):
+                return False, 'Invalid option "' + correct_attr + '" for attribute "correct" in tag <choice>. ' \
+                                                                  'Valid options: "true"/"false".'
+    except ET.ParseError:
+        pass
+    return True, None
+
+
+@shared_task
+def copy_block_to_other_course_task(task_id, user_id, usage_key_string, destination_course_key_string):
+    try:
+        copy_task = CopyBlockTask.objects.get(id=task_id)
+    except CopyBlockTask.DoesNotExist:
+        return
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        copy_task.set_error()
+        copy_task.save()
+        return
+
+    try:
+        copy_task.set_started()
+        copy_task.save()
+
+        usage_key = UsageKey.from_string(usage_key_string)
+        _copy_to_other_course(user, _get_xblock(usage_key, user), destination_course_key_string)
+
+        copy_task.set_finished()
+        copy_task.save()
+    except Exception as e:
+        log.exception(e)
+        copy_task.set_error()
+        copy_task.save()
+        raise
+
+
+@shared_task
+def copy_unit_to_library_task(task_id, user_id, usage_keys_strings, destination_course_key_string):
+    try:
+        copy_task = CopyBlockTask.objects.get(id=task_id)
+    except CopyBlockTask.DoesNotExist:
+        return
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        copy_task.set_error()
+        copy_task.save()
+        return
+
+    try:
+        copy_task.set_started()
+        copy_task.save()
+
+        xblocks = []
+
+        for usage_key_string in usage_keys_strings:
+            xblocks.append(_get_xblock(UsageKey.from_string(usage_key_string), user))
+
+        _copy_unit_to_library(user, xblocks, destination_course_key_string)
+
+        copy_task.set_finished()
+        copy_task.save()
+    except Exception as e:
+        log.exception(e)
+        copy_task.set_error()
+        copy_task.save()
+        raise
+
+
+@shared_task
+def copy_components_to_library_task(task_id, user_id, usage_keys_strings, destination_course_key_string):
+    try:
+        copy_task = CopyBlockTask.objects.get(id=task_id)
+    except CopyBlockTask.DoesNotExist:
+        return
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        copy_task.set_error()
+        copy_task.save()
+        return
+
+    try:
+        copy_task.set_started()
+        copy_task.save()
+
+        xblocks = []
+
+        for usage_key_string in usage_keys_strings:
+            xblocks.append(_get_xblock(UsageKey.from_string(usage_key_string), user))
+
+        _copy_components_to_library(user, xblocks, destination_course_key_string)
+
+        copy_task.set_finished()
+        copy_task.save()
+    except Exception as e:
+        log.exception(e)
+        copy_task.set_error()
+        copy_task.save()
+        raise
+
+
+@shared_task
+def copy_course_to_other_course_task(task_id, user_id, src_course_id, dst_course_id):
+    try:
+        copy_task = CopyBlockTask.objects.get(id=task_id)
+    except CopyBlockTask.DoesNotExist:
+        return
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        copy_task.set_error()
+        copy_task.save()
+        return
+
+    try:
+        copy_task.set_started()
+        copy_task.save()
+
+        _copy_course_to_other_course(src_course_id, dst_course_id, user.id)
+
+        copy_task.set_finished()
+        copy_task.save()
+    except Exception as e:
+        log.exception(e)
+        copy_task.set_error()
+        copy_task.save()
+        raise

@@ -29,11 +29,14 @@ from django.urls import reverse
 
 <%block name="header_extras">
 <link rel="stylesheet" type="text/css" href="${static.url('js/vendor/timepicker/jquery.timepicker.css')}" />
-% for template_name in ['course-outline', 'xblock-string-field-editor', 'basic-modal', 'modal-button', 'course-outline-modal', 'due-date-editor', 'self-paced-due-date-editor', 'release-date-editor', 'grading-editor', 'publish-editor', 'staff-lock-editor', 'unit-access-editor', 'discussion-editor', 'content-visibility-editor', 'verification-access-editor', 'timed-examination-preference-editor', 'access-editor', 'settings-modal-tabs', 'show-correctness-editor', 'highlights-editor', 'highlights-enable-editor', 'course-highlights-enable']:
+% for template_name in ['course-outline', 'xblock-string-field-editor', 'basic-modal', 'modal-button', 'course-outline-modal', 'due-date-editor', 'self-paced-due-date-editor', 'release-date-editor', 'grading-editor', 'publish-editor', 'staff-lock-editor', 'unit-access-editor', 'discussion-editor', 'content-visibility-editor', 'verification-access-editor', 'timed-examination-preference-editor', 'access-editor', 'settings-modal-tabs', 'show-correctness-editor', 'highlights-editor', 'highlights-enable-editor', 'course-highlights-enable', 'copy-to-other-course', 'copy-to-library', 'course-outline-preference-editor', 'push-changes-to-siblings']:
 <script type="text/template" id="${template_name}-tpl">
     <%static:include path="js/${template_name}.underscore" />
 </script>
 % endfor
+<script type="text/javascript">
+window.courseOutlineInitialState = ${initial_state | n, dump_js_escaped_json};
+</script>
 <%static:optional_include_mako file="course_outline_header_extras_post.html" />
 
 % if not settings.STUDIO_FRONTEND_CONTAINER_URL:
@@ -204,11 +207,20 @@ from django.urls import reverse
         <nav class="nav-actions" aria-label="${_('Page Actions')}">
             <h3 class="sr">${_("Page Actions")}</h3>
             <ul>
+                %if initial_state['user_permissions']['course_outline_create_new_section']:
                 <li class="nav-item">
                     <a href="#" class="button button-new" data-category="chapter" data-parent="${context_course.location}" data-default-name="${_('Section')}" title="${_('Click to add a new section')}">
                         <span class="icon fa fa-plus" aria-hidden="true"></span>${_('New Section')}
                     </a>
                 </li>
+                %endif
+                %if initial_state['user_permissions']['course_outline_copy_to_other_course']:
+                    <li class="nav-item">
+                        <a href="#" class="button copy-course-to-other" title="${_('Click to choose where to copy current course')}">
+                            <span class="icon fa fa-share-square-o" aria-hidden="true"></span>${_("Copy Course")}
+                        </a>
+                    </li>
+                %endif
                 %if reindex_link:
                     <li class="nav-item">
                         <a href="${reindex_link}" class="button button-reindex" data-category="reindex" title="${_('Reindex current course')}">
