@@ -340,6 +340,13 @@ class ProblemBlock(
                "or to report an issue, please contact moocsupport@mathworks.com"),
         scope=Scope.settings
     )
+    hidden = Boolean(
+        display_name=_("Hidden"),
+        help=_("Hide from Learners. Hidden questions will no longer appear for students who take an assessment "
+               "from this library. "),
+        default=False,
+        scope=Scope.settings
+    )
 
     def bind_for_student(self, *args, **kwargs):  # lint-amnesty, pylint: disable=signature-differs
         super().bind_for_student(*args, **kwargs)
@@ -1904,6 +1911,13 @@ class ProblemBlock(
         event_info['success'] = success
         event_info['attempts'] = self.attempts
         event_info['submission'] = self.get_submission_metadata_safe(answers_without_files, correct_map)
+
+        question_text = ''
+        dt = self.lcp.capa_module.index_dictionary(remove_variants=True)
+        if dt and 'content' in dt and 'capa_content' in dt['content']:
+            question_text = dt['content']['capa_content'].strip()
+        event_info['question_text'] = question_text
+
         self.publish_unmasked('problem_check', event_info)
 
         # render problem into HTML
