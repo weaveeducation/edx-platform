@@ -64,7 +64,7 @@ LOGGING['handlers']['local'] = LOGGING['handlers']['tracking'] = LOGGING['handle
     'class': 'logging.NullHandler',
 }
 
-LOGGING['loggers']['tracking']['handlers'] = ['console']
+LOGGING['loggers']['tracking']['handlers'] = ['console', 'log_db']
 
 ################################ EMAIL ########################################
 
@@ -500,6 +500,7 @@ CLOSEST_CLIENT_IP_FROM_HEADERS = []
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 X_FRAME_OPTIONS = 'ALLOW'
+RATELIMIT_ENABLE = False
 
 #################### Event bus backend ########################
 EVENT_BUS_PRODUCER = 'edx_event_bus_kafka.create_producer'
@@ -512,3 +513,13 @@ EVENT_BUS_TOPIC_PREFIX = 'dev'
 # See if the developer has any local overrides.
 if os.path.isfile(join(dirname(abspath(__file__)), 'private.py')):
     from .private import *  # pylint: disable=import-error,wildcard-import
+
+
+def scorm_storage(xblock):
+    from common.djangoapps.credo_modules.storages import ScormLocalFileSystemStorage
+    return ScormLocalFileSystemStorage(location="/edx/var/edxapp/media")
+
+
+XBLOCK_SETTINGS["ScormXBlock"] = {
+    "STORAGE_FUNC": scorm_storage,
+}

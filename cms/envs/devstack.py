@@ -31,7 +31,7 @@ for pkg_name in ['common.djangoapps.track.contexts', 'common.djangoapps.track.mi
     logging.getLogger(pkg_name).setLevel(logging.CRITICAL)
 
 # Docker does not support the syslog socket at /dev/log. Rely on the console.
-LOGGING['handlers']['local'] = LOGGING['handlers']['tracking'] = {
+LOGGING['handlers']['local'] = LOGGING['handlers']['tracking'] = LOGGING['handlers']['credo_json'] = {
     'class': 'logging.NullHandler',
 }
 
@@ -319,6 +319,17 @@ EVENT_BUS_TOPIC_PREFIX = 'dev'
 
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
+
+X_FRAME_OPTIONS = 'ALLOW'
+
+def scorm_storage(xblock):
+    from common.djangoapps.credo_modules.storages import ScormLocalFileSystemStorage
+    return ScormLocalFileSystemStorage(location="/edx/var/edxapp/media")
+
+
+XBLOCK_SETTINGS["ScormXBlock"] = {
+    "STORAGE_FUNC": scorm_storage,
+}
 
 ################# New settings must go ABOVE this line #################
 ########################################################################
