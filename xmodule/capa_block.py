@@ -546,6 +546,9 @@ class ProblemBlock(
             ProblemBlock.use_latex_compiler,
             ProblemBlock.show_correctness,
         ])
+        library_key = getattr(self.location, 'library_key', None)
+        if library_key is None:
+            non_editable_fields.append(ProblemBlock.hidden)
         return non_editable_fields
 
     @property
