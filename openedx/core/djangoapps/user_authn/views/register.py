@@ -606,7 +606,7 @@ class RegistrationView(APIView):
             response.set_cookie(
                 settings.SHOW_ACTIVATE_CTA_POPUP_COOKIE_NAME,
                 True,
-                domain=settings.SESSION_COOKIE_DOMAIN,
+                domain=configuration_helpers.get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN),
                 path='/',
                 secure=request.is_secure()
             )  # setting the cookie to show account activation dialogue in platform and learning MFE
