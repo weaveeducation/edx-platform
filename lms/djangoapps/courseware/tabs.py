@@ -3,7 +3,7 @@ This module is essentially a broker to xmodule/tabs.py -- it was originally intr
 perform some LMS-specific tab display gymnastics for the Entrance Exams feature
 """
 
-
+from functools import partial
 from django.conf import settings
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_noop
@@ -17,6 +17,8 @@ from openedx.features.course_experience import DISABLE_DATES_TAB_FLAG
 from openedx.features.course_experience import default_course_url
 from openedx.features.course_experience.url_helpers import get_learning_mfe_home_url
 from common.djangoapps.student.models import CourseEnrollment
+from common.djangoapps.credo_modules.models import Organization
+from common.djangoapps.credo_modules.utils import get_progress_page_url
 
 
 class EnrolledTab(CourseTab):
@@ -86,11 +88,17 @@ class ProgressTab(EnrolledTab):
     is_default = False
 
     def __init__(self, tab_dict):
-        def link_func(course, reverse_func):
+        def link_func(course, reverse_func, user=None):
+            student_id = None
+            if user:
+                real_user = getattr(user, 'real_user', None)
+                if real_user and user.id != real_user.id:
+                    student_id = user.id
             if course_home_mfe_progress_tab_is_active(course.id):
-                return get_learning_mfe_home_url(course_key=course.id, url_fragment=self.view_name)
+                progress_url = get_learning_mfe_home_url(course_key=course.id, url_fragment=self.view_name)
             else:
-                return reverse_func(self.view_name, args=[str(course.id)])
+                progress_url = reverse_func(self.view_name, args=[str(course.id)])
+            return get_progress_page_url(course.id, student_id=student_id, default_progress_url=progress_url)
 
         tab_dict['link_func'] = link_func
         super().__init__(tab_dict)  # pylint: disable=super-with-arguments
@@ -100,6 +108,20 @@ class ProgressTab(EnrolledTab):
         if not super().is_enabled(course, user=user):
             return False
         return not course.hide_progress_tab
+
+    def get_progress_title(self, course):
+        course_key = course.id
+        enable_extended_progress_page = False
+        try:
+            org = Organization.objects.get(org=course_key.org)
+            if org.org_type is not None:
+                enable_extended_progress_page = org.org_type.enable_extended_progress_page
+        except Organization.DoesNotExist:
+            pass
+
+        if enable_extended_progress_page:
+            return "My Skills"
+        return "Progress"
 
 
 class TextbookTabsBase(CourseTab):
@@ -338,6 +360,17 @@ def get_course_tab_list(user, course):
     course_tab_list = []
     must_complete_ee = not user_can_skip_entrance_exam(user, course)
     for tab in xmodule_tab_list:
+        if tab.type == 'progress':
+            enable_extended_progress_page = False
+            try:
+                org = Organization.objects.get(org=course.id.org)
+                if org.org_type is not None:
+                    enable_extended_progress_page = org.org_type.enable_extended_progress_page
+            except Organization.DoesNotExist:
+                pass
+            if enable_extended_progress_page:
+                tab.name = _("My Skills")
+                tab.tab_dict['link_func'] = partial(tab.tab_dict['link_func'], user=user)
         if must_complete_ee:
             # Hide all of the tabs except for 'Courseware'
             # Rename 'Courseware' tab to 'Entrance Exam'
@@ -352,12 +385,17 @@ def get_course_tab_list(user, course):
 
     # Add in any dynamic tabs, i.e. those that are not persisted
     course_tab_list += _get_dynamic_tabs(course, user)
+
+    for tab_item in course_tab_list:
+        if hasattr(course, 'course_tab_names') and tab_item.type in course.course_tab_names:
+            tab_item.name = course.course_tab_names[tab_item.type]
+
     # Sorting here because although the CourseTabPluginManager.get_tab_types function
     # does do sorting on priority, we only use it for getting the dynamic tabs.
     # We can't switch this function to just use the CourseTabPluginManager without
     # further investigation since CourseTabList.iterate_displayable returns
     # Static Tabs that are not returned by the CourseTabPluginManager.
-    course_tab_list.sort(key=lambda tab: tab.priority or float('inf'))
+    #course_tab_list.sort(key=lambda tab: tab.priority or float('inf'))
     return course_tab_list
 
 

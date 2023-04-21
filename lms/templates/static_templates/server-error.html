@@ -24,7 +24,15 @@ from openedx.core.djangolib.markup import HTML, Text
                 % if page_content:
                     ${page_content}
                 % else:
-                    ${Text(_('Please wait a few seconds and then reload the page.'))}
+                    ${Text(_('Please wait a few seconds and then reload the page. If the problem persists, please email us at {email}.')).format(
+                    email=HTML('<a href="mailto:{email}">{email}</a>').format(
+                    email=Text(static.get_error_support_email_address())
+                    )
+                    )}
+                    <p>
+                        ${Text(_('If you are a student user, please screencap this error and share it with your instructor. '
+                        'If you are an admin, please see our help site or contact our support team for help.'))}
+                    </p>
                 % endif
             </%block>
         </p>

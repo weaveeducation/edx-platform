@@ -62,7 +62,12 @@ $proctoring-banner-text-size: 14px;
   }
 }
 
-.proctored_exam_status {
+.scores-panel {
+  display: none;
+  z-index: 10 !important;
+}
+
+.proctored_exam_status, .scores-panel {
   // STATE: Fixed to viewport (used for scrolling)
   &.is-fixed {
     @extend %ui-depth4;
@@ -86,7 +91,7 @@ $proctoring-banner-text-size: 14px;
       display: inline-block;
 
       @include media-breakpoint-up(md) {
-        width: calc(100% - 250px);
+        width: calc(100% - 300px);
       }
     }
 
@@ -106,6 +111,10 @@ $proctoring-banner-text-size: 14px;
       margin-top: -6px;
     }
 
+    .get-scores-btn {
+      margin-left: 10px !important;
+    }
+
     &.low-time {
       color: theme-color("light");
       background-color: rgb(79, 88, 92);
@@ -122,7 +131,8 @@ $proctoring-banner-text-size: 14px;
           color: theme-color("inverse");
         }
 
-        .exam-button-turn-in-exam {
+        .exam-button-turn-in-exam,
+        .get-scores-btn {
           background-color: transparent;
           border: 1px solid theme-color("inverse");
           color: theme-color("inverse");
@@ -169,7 +179,8 @@ $proctoring-banner-text-size: 14px;
       color: theme-color("inverse");
     }
 
-    .exam-button-turn-in-exam {
+    .exam-button-turn-in-exam,
+    .get-scores-btn {
       @extend %btn-pl-primary-base;
       @extend %t-action3;
       @extend %t-weight4;
@@ -180,6 +191,10 @@ $proctoring-banner-text-size: 14px;
       padding: ($baseline/5) ($baseline*0.75);
       box-shadow: none;
       text-shadow: none;
+      cursor: pointer;
+      background-color: #0d4e6c;
+      color: #ffffff;
+      border-radius: 3px;
 
       &:hover,
       &:focus {

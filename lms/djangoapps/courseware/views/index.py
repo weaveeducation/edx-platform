@@ -6,6 +6,7 @@ View for Courseware Index
 
 
 import logging
+
 import urllib
 
 from django.conf import settings
@@ -24,13 +25,9 @@ from edx_django_utils.monitoring import set_custom_attributes_for_course_key
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from web_fragments.fragment import Fragment
-from xmodule.course_block import COURSE_VISIBILITY_PUBLIC
-from xmodule.modulestore.django import modulestore
-from xmodule.x_module import PUBLIC_VIEW, STUDENT_VIEW
 
 from common.djangoapps.edxmako.shortcuts import render_to_response, render_to_string
 from common.djangoapps.student.models import CourseEnrollment
-from common.djangoapps.util.views import ensure_valid_course_key
 from lms.djangoapps.courseware.exceptions import CourseAccessRedirect, Redirect
 from lms.djangoapps.experiments.utils import get_experiment_user_metadata_context
 from lms.djangoapps.gating.api import get_entrance_exam_score, get_entrance_exam_usage_key
@@ -49,6 +46,12 @@ from openedx.features.course_experience import (
 from openedx.features.course_experience.url_helpers import make_learning_mfe_courseware_url
 from openedx.features.course_experience.views.course_sock import CourseSockFragmentView
 from openedx.features.enterprise_support.api import data_sharing_consent_required
+from common.djangoapps.util.views import ensure_valid_course_key
+from xmodule.course_block import COURSE_VISIBILITY_PUBLIC  # lint-amnesty, pylint: disable=wrong-import-order
+from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disable=wrong-import-order
+from xmodule.x_module import PUBLIC_VIEW, STUDENT_VIEW  # lint-amnesty, pylint: disable=wrong-import-order
+from common.djangoapps.credo_modules.decorators import credo_additional_profile
+from lms.djangoapps.courseware.courses import update_lms_course_usage
 
 from ..access import has_access
 from ..access_utils import check_public_access
@@ -86,6 +89,7 @@ class CoursewareIndex(View):
     @method_decorator(cache_control(no_cache=True, no_store=True, must_revalidate=True))
     @method_decorator(ensure_valid_course_key)
     @method_decorator(data_sharing_consent_required)
+    @credo_additional_profile
     def get(self, request, course_id, chapter=None, section=None, position=None):
         """
         Displays courseware accordion and associated content.  If course, chapter,
@@ -119,37 +123,34 @@ class CoursewareIndex(View):
         self.course = None
         self.url = request.path
 
-        try:
-            set_custom_attributes_for_course_key(self.course_key)
-            self._clean_position()
-            with modulestore().bulk_operations(self.course_key):
+        set_custom_attributes_for_course_key(self.course_key)
+        self._clean_position()
+        with modulestore().bulk_operations(self.course_key):
 
-                self.view = STUDENT_VIEW
+            self.view = STUDENT_VIEW
 
-                self.course = get_course_with_access(
-                    request.user, 'load', self.course_key,
-                    depth=CONTENT_DEPTH,
-                    check_if_enrolled=True,
-                    check_if_authenticated=True
-                )
-                self.course_overview = CourseOverview.get_from_id(self.course.id)
-                self.is_staff = has_access(request.user, 'staff', self.course)
+            self.course = get_course_with_access(
+                request.user, 'load', self.course_key,
+                depth=CONTENT_DEPTH,
+                check_if_enrolled=True,
+                check_if_authenticated=True
+            )
+            self.course_overview = CourseOverview.get_from_id(self.course.id)
+            self.is_staff = has_access(request.user, 'staff', self.course)
 
-                # There's only one situation where we want to show the public view
-                if (
-                        not self.is_staff and
-                        self.enable_unenrolled_access and
-                        self.course.course_visibility == COURSE_VISIBILITY_PUBLIC and
-                        not CourseEnrollment.is_enrolled(request.user, self.course_key)
-                ):
-                    self.view = PUBLIC_VIEW
+            # There's only one situation where we want to show the public view
+            if (
+                    not self.is_staff and
+                    self.enable_unenrolled_access and
+                    self.course.course_visibility == COURSE_VISIBILITY_PUBLIC and
+                    not CourseEnrollment.is_enrolled(request.user, self.course_key)
+            ):
+                self.view = PUBLIC_VIEW
 
-                self.can_masquerade = request.user.has_perm(MASQUERADE_AS_STUDENT, self.course)
-                self._setup_masquerade_for_effective_user()
+            self.can_masquerade = request.user.has_perm(MASQUERADE_AS_STUDENT, self.course)
+            self._setup_masquerade_for_effective_user()
 
-                return self.render(request)
-        except Exception as exception:  # pylint: disable=broad-except
-            return CourseTabView.handle_exceptions(request, self.course_key, self.course, exception)
+            return self.render(request)
 
     def _setup_masquerade_for_effective_user(self):
         """
@@ -206,6 +207,8 @@ class CoursewareIndex(View):
             self._reset_section_to_exam_if_required()
             self.chapter = self._find_chapter()
             self.section = self._find_section()
+
+            update_lms_course_usage(request, self.section.location, self.course_key)
 
             if self.chapter and self.section:
                 self._redirect_if_not_requested_section()
@@ -476,6 +479,20 @@ class CoursewareIndex(View):
                 table_of_contents['previous_of_active_section'],
                 table_of_contents['next_of_active_section'],
             )
+            section_context['lms_url_to_get_grades'] = reverse('block_student_progress',
+                                                               kwargs={'course_id': str(self.course_key),
+                                                                       'usage_id': str(self.section.location)})
+            section_context['lms_url_to_email_grades'] = reverse('email_student_progress',
+                                                                 kwargs={'course_id': str(self.course_key),
+                                                                         'usage_id': str(self.section.location)})
+            section_context['lms_url_to_issue_badge'] = reverse('badgr_integration_issue_badge',
+                                                                kwargs={'course_id': str(self.course_key),
+                                                                        'usage_id': str(self.section.location)})
+            section_context['show_summary_info_after_quiz'] = self.course.show_summary_info_after_quiz
+            section_context['enable_new_carousel_view'] = False
+            section_context['summary_info_imgs'] = get_student_progress_images()
+            section_context['logo_url'] = get_logo_url(request.is_secure())
+
             courseware_context['fragment'] = self.section.render(self.view, section_context)
 
             if self.section.position and self.section.has_children:

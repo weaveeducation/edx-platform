@@ -15,16 +15,13 @@ import requests
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import AnonymousUser, User  # lint-amnesty, pylint: disable=imported-auth-user
-from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Q, prefetch_related_objects
-from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect
 from django.template.context_processors import csrf
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
-from django.utils.http import urlquote_plus
 from django.utils.text import slugify
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
@@ -494,7 +491,7 @@ class StaticCourseTabView(EdxFragmentView):
             raise Http404
 
         # Show warnings if the user has limited access
-        CourseTabView.register_user_access_warning_messages(request, course)
+        #CourseTabView.register_user_access_warning_messages(request, course)
 
         return super().get(request, course=course, tab=tab, **kwargs)
 
@@ -547,6 +544,12 @@ class CourseTabView(EdxFragmentView):
             self.register_user_access_warning_messages(request, course)
 
             set_custom_attributes_for_course_key(course_key)
+
+            if not request.user.is_staff:
+                microfrontend_url = get_learning_mfe_home_url(course_key=course_id, url_fragment='home',
+                                                              params=request.GET)
+                return redirect(microfrontend_url)
+
             return super().get(request, course=course, page_context=page_context, **kwargs)
 
 
@@ -1083,8 +1086,11 @@ def _progress(request, course_key, student_id, display_in_frame=False):
     studio_staff_access = False
     if staff_access:
         studio_staff_access = True
-        if CourseStaffExtended.objects.filter(role__course_studio_access=False,
-                                              user=request.user, course_id=course_key).exists():
+        if not request.user.is_superuser and CourseStaffExtended.objects.filter(
+            role__course_studio_access=False,
+            user=request.user,
+            course_id=course_key
+        ).exists():
             studio_staff_access = False
 
     context = {
@@ -1679,6 +1685,10 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookma
     Returns an HttpResponse with HTML content for the xBlock with the given usage_key.
     The returned HTML is a chromeless rendering of the xBlock (excluding content of the containing courseware).
     """
+    user_email = request.GET.get('email')
+    if user_email:
+        auto_auth_credo_user(request, user_email)
+
     usage_key = UsageKey.from_string(usage_key_string)
 
     usage_key = usage_key.replace(course_key=modulestore().fill_in_run(usage_key.course_key))

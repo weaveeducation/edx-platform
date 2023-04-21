@@ -46,6 +46,7 @@ class SupportedFieldType:
 SUPPORTED_FIELDS = [
     SupportedFieldType('category', requested_field_name='type'),
     SupportedFieldType('display_name', default_value=''),
+    SupportedFieldType('hidden', default_value=False),
     SupportedFieldType('effort_activities'),
     SupportedFieldType('effort_time'),
     SupportedFieldType('graded'),
@@ -82,6 +83,8 @@ SUPPORTED_FIELDS = [
     ),
     SupportedFieldType(BlockCompletionTransformer.COMPLETION, BlockCompletionTransformer),
     SupportedFieldType(BlockCompletionTransformer.COMPLETE),
+    SupportedFieldType(BlockCompletionTransformer.COMPLETE_PERCENT),
+    SupportedFieldType(BlockCompletionTransformer.COMPLETE_STATUS),
     SupportedFieldType(BlockCompletionTransformer.RESUME_BLOCK),
     SupportedFieldType(DiscussionsTopicLinkTransformer.EXTERNAL_ID),
     SupportedFieldType(DiscussionsTopicLinkTransformer.EMBED_URL),

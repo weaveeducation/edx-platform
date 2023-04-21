@@ -192,8 +192,8 @@ urlpatterns = [
     ),
 
     path('verify_student/', include('lms.djangoapps.verify_student.urls')),
-    re_path(r'^credo_modules/', include('common.djangoapps.credo_modules.urls')),
-    re_path(r'^turnitin/', include('common.djangoapps.turnitin_integration.urls')),
+    path('credo_modules/', include('common.djangoapps.credo_modules.urls')),
+    path('turnitin/', include('common.djangoapps.turnitin_integration.urls')),
 
     # URLs for managing dark launches of languages
     path('update_lang/', include(('openedx.core.djangoapps.dark_lang.urls', 'openedx.core.djangoapps.dark_lang'),
@@ -228,7 +228,7 @@ urlpatterns = [
     ),
     path('api/discounts/', include(('openedx.features.discounts.urls', 'openedx.features.discounts'),
                                    namespace='api_discounts')),
-    re_path(r'^api/myskills/', include('common.djangoapps.myskills.urls')),
+    path('api/myskills/', include('common.djangoapps.myskills.urls')),
     path('403', handler403),
     path('404', handler404),
     path('429', handler429),
@@ -891,12 +891,12 @@ urlpatterns += [
 
 # Supervisor Evaluation
 urlpatterns += [
-    re_path(r'^supervisor/', include('lms.djangoapps.supervisor_evaluation.urls')),
+    path('supervisor/', include('lms.djangoapps.supervisor_evaluation.urls')),
 ]
 
 # Badges
 urlpatterns += [
-    re_path(r'^badges/', include('common.djangoapps.badgr_integration.urls')),
+    path('badges/', include('common.djangoapps.badgr_integration.urls')),
 ]
 
 if settings.FEATURES.get('ENABLE_OAUTH2_PROVIDER'):
@@ -1126,5 +1126,6 @@ urlpatterns += [
 
 # MFE API urls
 urlpatterns += [
-    path('api/mfe_config/v1', include(('lms.djangoapps.mfe_config_api.urls', 'lms.djangoapps.mfe_config_api'), namespace='mfe_config_api'))
+    path('api/mfe_config/v1', include(('lms.djangoapps.mfe_config_api.urls', 'lms.djangoapps.mfe_config_api'),
+                                      namespace='mfe_config_api'))
 ]
