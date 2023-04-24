@@ -51,6 +51,7 @@ from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.partitions.partitions_service import PartitionService
 from xmodule.util.sandboxing import SandboxService
 from xmodule.services import EventPublishingService, RebindUserService, SettingsService, TeamsConfigurationService
+from common.djangoapps.badgr_integration.service import check_badge_is_ready_to_issue
 from common.djangoapps.static_replace.services import ReplaceURLService
 from common.djangoapps.static_replace.wrapper import replace_urls_wrapper
 from xmodule.capa.xqueue_interface import XQueueService  # lint-amnesty, pylint: disable=wrong-import-order
@@ -915,11 +916,16 @@ def get_block_by_usage_id(request, course_id, usage_id, disable_staff_debug_info
 
     Returns (instance, tracking_context)
     """
-    course_key = CourseKey.from_string(course_id)
-    usage_key = _get_usage_key_for_course(course_key, usage_id)
+    try:
+        course_key = CourseKey.from_string(course_id)
+        usage_key = _get_usage_key_for_course(course_key, usage_id)
+    except InvalidKeyError:
+        raise Http404("Invalid location")
+
     descriptor, tracking_context = _get_descriptor_by_usage_key(usage_key)
 
-    _, user = setup_masquerade(request, course_key, has_access(request.user, 'staff', descriptor, course_key))
+    if hasattr(request, 'session'):
+        _, user = setup_masquerade(request, course_key, has_access(request.user, 'staff', descriptor, course_key))
     field_data_cache = FieldDataCache.cache_for_descriptor_descendents(
         course_key,
         user,
@@ -1047,6 +1053,15 @@ def _invoke_xblock_handler(request, course_id, usage_id, handler, suffix, course
         except Exception:
             log.exception("error executing xblock handler")
             raise
+
+        if request.user.known and suffix in ('problem_check', 'submit', 'drop_item'):
+            data_to_append = {
+                'problem_answered': True
+            }
+            badge_res = check_badge_is_ready_to_issue(request.user, course_key, instance)
+            if badge_res.is_ready:
+                data_to_append['badge_ready'] = True
+            resp = append_data_to_webob_response(resp, data_to_append)
 
     return webob_to_django_response(resp)
 

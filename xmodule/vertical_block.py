@@ -108,6 +108,9 @@ class VerticalBlock(
 
         # pylint: disable=no-member
         for child in child_blocks:
+            if child.category == 'openassessment' and child.is_hidden():
+                continue
+
             child_has_access_error = self.block_has_access_error(child)
             if context.get('hide_access_error_blocks') and child_has_access_error:
                 continue
