@@ -51,6 +51,7 @@ from openedx.core.djangoapps.embargo import api as embargo_api
 from openedx.core.djangoapps.lang_pref import LANGUAGE_KEY
 from openedx.core.djangoapps.programs.models import ProgramsApiConfig  # lint-amnesty, pylint: disable=unused-import
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+from openedx.core.djangoapps.theming.helpers import get_current_site
 from openedx.core.djangoapps.theming import helpers as theming_helpers
 from openedx.core.djangoapps.user_api.preferences import api as preferences_api
 from openedx.core.djangoapps.user_authn.tasks import send_activation_email
@@ -178,7 +179,10 @@ def compose_activation_email(user, user_registration=None, route_enabled=False, 
     through celery task
     """
     if user_registration is None:
-        user_registration = Registration.objects.get(user=user)
+        try:
+            user_registration = Registration.objects.get(user=user)
+        except Registration.DoesNotExist:
+            return None
 
     message_context = generate_activation_email_context(user, user_registration)
     message_context.update({
@@ -236,6 +240,9 @@ def compose_and_send_activation_email(user, profile, user_registration=None, red
     route_enabled = settings.FEATURES.get('REROUTE_ACTIVATION_EMAIL')
 
     msg = compose_activation_email(user, user_registration, route_enabled, profile.name, redirect_url)
+    if msg is None:
+        return
+
     from_address = configuration_helpers.get_value('ACTIVATION_EMAIL_FROM_ADDRESS') or (
         configuration_helpers.get_value('email_from_address', settings.DEFAULT_FROM_EMAIL)
     )
@@ -759,7 +766,7 @@ def do_email_change_request(user, new_email, activation_key=None, secondary_emai
 
     use_https = theming_helpers.get_current_request().is_secure()
 
-    site = Site.objects.get_current()
+    site = get_current_site()
     message_context = get_base_template_context(site)
     message_context.update({
         'old_email': user.email,
@@ -870,7 +877,7 @@ def confirm_email_change(request, key):
                 link=reverse('contact'),
             )
 
-        site = Site.objects.get_current()
+        site = get_current_site()
         message_context = get_base_template_context(site)
         message_context.update({
             'old_email': user.email,
