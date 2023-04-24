@@ -52,6 +52,7 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
 from openedx.core.djangoapps.user_api.models import UserPreference
 from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disable=wrong-import-order
 from xmodule.modulestore.exceptions import ItemNotFoundError  # lint-amnesty, pylint: disable=wrong-import-order
+from common.djangoapps.credo_modules.models import SequentialBlockAnswered, OraBlockScore
 
 log = logging.getLogger(__name__)
 
@@ -304,7 +305,16 @@ def reset_student_attempts(course_id, student, module_state_key, requesting_user
 
     def _reset_or_delete_module(studentmodule):
         if delete_module:
+            if module_to_reset.module_type == 'sequential':
+                StudentModule.log_reset_progress(student.id, str(course_id), initiator='instructor_dashboard_exam_tab',
+                                                 block_id=str(module_state_key))
+                SequentialBlockAnswered.objects.filter(
+                    course_id=str(course_id), sequential_id=str(module_state_key), user_id=student.id).delete()
             studentmodule.delete()
+            if module_to_reset.module_type == 'openassessment':
+                OraBlockScore.objects.filter(
+                    course_id=str(course_id), user_id=student.id, block_id=str(module_state_key)).delete()
+
             create_new_event_transaction_id()
             set_event_transaction_type(grades_events.STATE_DELETED_EVENT_TYPE)
             tracker.emit(
