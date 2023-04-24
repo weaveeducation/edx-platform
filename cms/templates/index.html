@@ -21,6 +21,12 @@ from openedx.core.djangolib.js_utils import (
   });
 </%block>
 
+<%block name="header_extras">
+<script type="text/javascript">
+window.orgsList = ${orgs_json | n};
+</script>
+</%block>
+
 <%block name="content">
 <div class="wrapper-mast wrapper">
   <header class="mast has-actions">
@@ -328,6 +334,12 @@ from openedx.core.djangolib.js_utils import (
       </div>
       %endif
 
+      %if orgs and not display_all_courses:
+      <div style="margin-bottom: 10px;">
+        <div id="orgs-input"></div>
+      </div>
+      %endif
+
       % if libraries_enabled or archived_courses:
       <ul id="course-index-tabs">
       <li class="courses-tab ${ 'active' if active_tab == 'courses' else ''}">
@@ -372,7 +384,7 @@ from openedx.core.djangolib.js_utils import (
             'items': sorted(courses, key=lambda s: s['display_name'].lower() if s['display_name'] is not None else ''),
             'linkClass': 'course-link',
             'idBase': 'course',
-            'allowReruns': allow_course_reruns and rerun_creator_status and course_creator_status=='granted'
+            'allowReruns': allow_course_reruns and rerun_creator_status and course_creator_status=='granted',
           }
         )}
       </div>
@@ -502,7 +514,8 @@ from openedx.core.djangolib.js_utils import (
             'items': sorted(archived_courses, key=lambda s: s['display_name'].lower() if s['display_name'] is not None else ''),
             'linkClass': 'course-link',
             'idBase': 'archived',
-            'allowReruns': allow_course_reruns and rerun_creator_status and course_creator_status=='granted'
+            'allowReruns': allow_course_reruns and rerun_creator_status and course_creator_status=='granted',
+            'displayAll': display_all_courses
           }
         )}
         % endif
@@ -518,7 +531,8 @@ from openedx.core.djangolib.js_utils import (
             'items': sorted(libraries, key=lambda s: s['display_name'].lower() if s['display_name'] is not None else ''),
             'linkClass': 'library-link',
             'idBase': 'library',
-            'allowReruns': allow_course_reruns and rerun_creator_status and course_creator_status=='granted'
+            'allowReruns': allow_course_reruns and rerun_creator_status and course_creator_status=='granted',
+            'displayAll': display_all_courses
           }
         )}
       </div>
