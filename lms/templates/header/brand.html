@@ -15,7 +15,13 @@ from lms.djangoapps.branding import api as branding_api
 
 <h1 class="hd logo-header navbar-brand">
   <div class="logo">
+    % if configuration_helpers.get_value('DISABLE_LOGO_HOME_URL', False):
+    <a class="navbar-brand" href="javascript: void(0);" style="cursor: default;">
+    % elif not configuration_helpers.get_value('DISABLE_LOGIN_BUTTON', settings.FEATURES['DISABLE_LOGIN_BUTTON']):
     <a class="navbar-brand" href="${branding_api.get_home_url()}" itemprop="url">
+    % else:
+    <a class="navbar-brand" href="/" itemprop="url">
+    % endif
       <img class="logo-image" src="${static.url("images/logo.png")}" alt="${_("{platform_name} Home Page").format(platform_name=static.get_platform_name())}" itemprop="logo" />
     </a>
   </div>
