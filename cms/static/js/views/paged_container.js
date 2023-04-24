@@ -93,7 +93,7 @@ function($, _, ViewUtils, ContainerView, ModuleUtils, gettext, NotificationView,
                 url: decodeURIComponent(xblockUrl) + '/' + view,
                 type: 'GET',
                 cache: false,
-                data: this.getRenderParameters(options.page_number, options.force_render),
+                data: this.getRenderParameters(options.page_number, options.force_render, options.tags),
                 headers: {Accept: 'application/json'},
                 success: function(fragment) {
                     var originalDone = options.done;
@@ -115,14 +115,18 @@ function($, _, ViewUtils, ContainerView, ModuleUtils, gettext, NotificationView,
             });
         },
 
-        getRenderParameters: function(page_number, force_render) {
+        getRenderParameters: function(page_number, force_render, tags) {
             // Options should at least contain page_number.
-            return {
+            var res = {
                 page_size: this.page_size,
                 enable_paging: true,
                 page_number: page_number,
                 force_render: force_render
             };
+            if (tags) {
+                res.tags = JSON.stringify(tags);
+            }
+            return res;
         },
 
         getPageCount: function(total_count) {
