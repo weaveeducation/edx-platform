@@ -1,9 +1,11 @@
 """
 Course API Views
 """
+
 from completion.exceptions import UnavailableCompletionData
 from completion.utilities import get_key_to_last_completed_block
 from django.conf import settings
+from django.urls import reverse
 from django.utils.functional import cached_property
 from edx_django_utils.cache import TieredCache
 from edx_rest_framework_extensions.auth.jwt.authentication import JwtAuthentication
@@ -17,6 +19,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from common.djangoapps.credo_modules.models import user_must_fill_additional_profile_fields
+from common.djangoapps.credo_modules.models import Organization
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError, NoPathToItem
 from xmodule.modulestore.search import path_to_location
@@ -24,6 +28,7 @@ from xmodule.x_module import PUBLIC_VIEW, STUDENT_VIEW
 
 from common.djangoapps.course_modes.models import CourseMode
 from common.djangoapps.util.views import expose_header
+from lms.djangoapps.courseware.tabs import get_course_tab_list
 from lms.djangoapps.edxnotes.helpers import is_feature_enabled
 from lms.djangoapps.certificates.api import get_certificate_url
 from lms.djangoapps.certificates.models import GeneratedCertificate
@@ -46,9 +51,11 @@ from lms.djangoapps.courseware.views.views import get_cert_data
 from lms.djangoapps.gating.api import get_entrance_exam_score, get_entrance_exam_usage_key
 from lms.djangoapps.grades.api import CourseGradeFactory
 from lms.djangoapps.verify_student.services import IDVerificationService
+from common.djangoapps.credo_modules.models import CourseUsageHelper, get_student_properties
 from openedx.core.djangoapps.agreements.api import get_integrity_signature
 from openedx.core.djangoapps.courseware_api.utils import get_celebrations_dict
 from openedx.core.djangoapps.programs.utils import ProgramProgressMeter
+from openedx.core.djangoapps.user_api.accounts.utils import retrieve_last_sitewide_block_completed
 from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiveUser
 from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin
 from openedx.core.lib.courses import get_course_by_id
@@ -79,18 +86,27 @@ class CoursewareMeta:
             course_key,
         )
 
-        original_user_is_staff = has_access(self.request.user, 'staff', self.overview).has_access
+        self.original_user_is_staff = has_access(self.request.user, 'staff', self.overview).has_access
         self.original_user_is_global_staff = self.request.user.is_staff
         self.course_key = course_key
         self.course = get_course_by_id(self.course_key)
         self.course_masquerade, self.effective_user = setup_masquerade(
             self.request,
             course_key,
-            staff_access=original_user_is_staff,
+            staff_access=self.original_user_is_staff,
         )
         self.request.user = self.effective_user
+        self.is_staff = has_access(self.effective_user, 'staff', self.overview).has_access
         self.enrollment_object = CourseEnrollment.get_enrollment(self.effective_user, self.course_key,
                                                                  select_related=['celebration', 'user__celebration'])
+
+        self.enable_extended_progress_page = False
+        try:
+            org = Organization.objects.get(org=course_key.org)
+            if org.org_type is not None:
+                self.enable_extended_progress_page = org.org_type.enable_extended_progress_page
+        except Organization.DoesNotExist:
+            pass
 
     def __getattr__(self, name):
         return getattr(self.overview, name)
@@ -130,6 +146,35 @@ class CoursewareMeta:
     @property
     def license(self):
         return self.course.license
+
+    @property
+    def tabs(self):
+        """
+        Return course tab metadata.
+        """
+        tabs = []
+        for priority, tab in enumerate(get_course_tab_list(self.effective_user, self.overview)):
+            title = tab.title or tab.get('name', '')
+            mf_feature = False
+            if tab.type == 'progress' and self.enable_extended_progress_page:
+                title = "My Skills"
+                mf_feature = True
+                url = reverse('progress', kwargs={'course_id': str(self.course_key)})
+            else:
+                url = tab.link_func(self.overview, reverse)
+            url_abs = url
+            if not url.startswith('http'):
+                url_abs = self.request.build_absolute_uri(url)
+            tabs.append({
+                'title': title,  # pylint: disable=translation-of-non-string
+                'slug': tab.tab_id,
+                'priority': priority,
+                'type': tab.type,
+                'url': url,
+                'url_absolute': url_abs,
+                'mf_feature': mf_feature
+            })
+        return tabs
 
     @property
     def notes(self):
@@ -358,6 +403,10 @@ class CoursewareMeta:
             enrollment_mode = self.enrollment['mode']
             enrollment_active = self.enrollment['is_active']
             return enrollment_active and CourseMode.is_eligible_for_certificate(enrollment_mode)
+
+    @property
+    def resume_block(self):
+        return retrieve_last_sitewide_block_completed(self.request.user, False)
 
 
 class CoursewareInformation(RetrieveAPIView):
@@ -600,7 +649,26 @@ class SequenceMetadata(DeveloperErrorViewMixin, APIView):
             view = PUBLIC_VIEW
 
         context = {'specific_masquerade': is_masquerading_as_specific_student(request.user, usage_key.course_key)}
-        return Response(sequence.get_metadata(view=view, context=context))
+        res = sequence.get_metadata(view=view, context=context)
+        course = get_course_by_id(usage_key.course_key)
+
+        if request.user.is_authenticated:
+            student_properties = get_student_properties(request, usage_key.course_key, sequence)
+            CourseUsageHelper.update_block_usage(request, usage_key.course_key, sequence.location, student_properties)
+            CourseUsageHelper.update_block_usage(request, usage_key.course_key, sequence.parent, student_properties)
+
+        is_time_exam = getattr(sequence, 'is_proctored_exam', False) or getattr(sequence, 'is_time_limited', False)
+        res['show_summary_info_after_quiz'] = course.show_summary_info_after_quiz and sequence.graded and not is_time_exam
+        res['units_sequential_completion'] = sequence.units_sequential_completion
+        res['disable_units_after_completion'] = sequence.disable_units_after_completion
+        res['user_must_fill_additional_profile_fields'] = user_must_fill_additional_profile_fields(
+            course, request.user, sequence)
+        res['profile_fields_url'] = reverse('credo_modules_profile', kwargs={'course_id': str(course.id)})
+        res['user_email'] = None
+        if request.user.is_authenticated and request.user.email.endswith('@credomodules.com'):
+            res['user_email'] = request.user.email
+
+        return Response(res)
 
 
 class Resume(DeveloperErrorViewMixin, APIView):
