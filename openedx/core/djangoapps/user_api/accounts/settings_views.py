@@ -21,6 +21,7 @@ from common.djangoapps.edxmako.shortcuts import render_to_response
 from common.djangoapps.student.models import UserProfile
 from common.djangoapps.third_party_auth import pipeline
 from common.djangoapps.util.date_utils import strftime_localized
+from common.djangoapps.credo_modules.models import check_my_skills_access
 from lms.djangoapps.commerce.models import CommerceConfiguration
 from lms.djangoapps.commerce.utils import EcommerceService
 from openedx.core.djangoapps.commerce.utils import get_ecommerce_api_base_url, get_ecommerce_api_client
@@ -156,6 +157,7 @@ def account_settings_context(request):
         'user_preferences_api_url': reverse('preferences_api', kwargs={'username': user.username}),
         'disable_courseware_js': True,
         'show_program_listing': ProgramsApiConfig.is_enabled(),
+        'show_my_skills': check_my_skills_access(user),
         'show_dashboard_tabs': True,
         'order_history': user_orders,
         'disable_order_history_tab': should_redirect_to_order_history_microfrontend(),
