@@ -15,9 +15,11 @@ from openedx.core.djangolib.markup import HTML, Text
         <li class="nav-item">
             <button type="button" class="btn-link problem-report" data-section="problem">Problem Report</button>
         </li>
+        %if section_data['certificates_tab_available']:
         <li class="nav-item">
             <button type="button" class="btn-link certificates" data-section="certificate">Certificates</button>
         </li>
+        %endif
         %if settings.FEATURES.get('ALLOW_COURSE_STAFF_GRADE_DOWNLOADS') or section_data['access']['admin']:
         <li class="nav-item">
             <button type="button" class="btn-link grading" data-section="grading">Grading</button>
@@ -31,7 +33,9 @@ from openedx.core.djangolib.markup import HTML, Text
     <%include file="./data_download_2/grading.html" args="section_data=section_data, **context.kwargs" />
 
     %if settings.FEATURES.get('ENABLE_GRADE_DOWNLOADS'):
+      %if section_data['certificates_tab_available']:
       <%include file="./data_download_2/certificates.html" args="section_data=section_data, **context.kwargs" />
+      %endif
       <%include file="./data_download_2/problem_report.html" args="section_data=section_data, **context.kwargs" />
     %endif
     <div class="request-response message msg-confirm copy" id="report-request-response"></div>
