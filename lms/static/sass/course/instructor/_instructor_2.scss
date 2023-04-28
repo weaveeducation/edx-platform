@@ -3081,10 +3081,17 @@ div.staff_info {
 }
 
 .xqa-modal,
-.staff-modal,
-.history-modal {
+.staff-modal {
   width: 80%;
   height: 80%;
+  left: left(20%);
+  overflow: auto;
+  display: none;
+}
+
+.history-modal {
+  width: 80%;
+  max-height: 80%;
   left: left(20%);
   overflow: auto;
   display: none;
