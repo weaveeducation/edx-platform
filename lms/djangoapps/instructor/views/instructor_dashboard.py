@@ -288,10 +288,11 @@ def _get_instructor_dashboard_2(request, course_id):
     certificate_invalidations = CertificateInvalidation.get_certificate_invalidations(course_key)
 
     studio_staff_access = True
-    if not available_tabs.show_studio_link \
-        or CourseStaffExtended.objects.filter(role__course_studio_access=False,
-                                              user=request.user, course_id=course_key).exists():
-        studio_staff_access = False
+    if not request.user.is_superuser:
+        if not available_tabs.show_studio_link \
+            or CourseStaffExtended.objects.filter(role__course_studio_access=False,
+                                                  user=request.user, course_id=course_key).exists():
+            studio_staff_access = False
 
     context = {
         'course': course,
