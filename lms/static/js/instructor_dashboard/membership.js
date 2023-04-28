@@ -55,6 +55,7 @@ such that the value can be defined later than this assignment (file load order).
                 labels: ['field1', 'field2', 'field3'],
                 add_placeholder: 'Enter name',
                 add_btn_label: 'Add Member',
+                bulk_handler: function() {},
                 add_handler: function() {}
             });
             templateHtml = edx.HtmlUtils.template($('#membership-list-widget-tpl').text())(memberListParams);
@@ -63,9 +64,16 @@ such that the value can be defined later than this assignment (file load order).
                 condition = typeof memberListParams.add_handler === 'function';
                 return condition ? memberListParams.add_handler(memberlistwidget.$('.add-field').val()) : undefined;
             });
+            this.$('.roles-bulk-update').click(function() {
+                var action = $(this).data('action');
+                condition = typeof memberListParams.bulk_handler === 'function';
+                return condition ? memberListParams.bulk_handler(
+                    memberlistwidget.$('.student-ids-role-bulk-update').val(), action) : undefined;
+            });
         }
 
         memberListWidget.prototype.clear_input = function() {
+            this.$('.student-ids-role-bulk-update').val('');
             return this.$('.add-field').val('');
         };
 
@@ -121,6 +129,9 @@ such that the value can be defined later than this assignment (file load order).
                 labels: labelsList,
                 add_placeholder: gettext('Enter username or email'),
                 add_btn_label: $container.data('add-button-label'),
+                bulk_handler: function(input, action) {
+                    return authListWidget.bulk_handler(input, action);
+                },
                 add_handler: function(input) {
                     return authListWidget.add_handler(input);
                 }
@@ -144,7 +155,7 @@ such that the value can be defined later than this assignment (file load order).
         AuthListWidget.prototype.add_handler = function(input) {
             var authListWidgetAddHandler = this;
             if ((input != null) && input !== '') {
-                return this.modify_member_access(input, 'allow', function(error) {
+                return this.modify_member_access(input, 'allow', false, function(error) {
                     if (error !== null) {
                         return authListWidgetAddHandler.show_errors(error);
                     }
@@ -154,6 +165,22 @@ such that the value can be defined later than this assignment (file load order).
                 });
             } else {
                 return this.show_errors(gettext('Please enter a username or email.'));
+            }
+        };
+
+        AuthListWidget.prototype.bulk_handler = function(input, action) {
+            var authListWidgetAddHandler = this;
+            if ((input != null) && input !== '') {
+                return this.modify_member_access(input, action, true, function(error) {
+                    if (error !== null) {
+                        return authListWidgetAddHandler.show_errors(error);
+                    }
+                    authListWidgetAddHandler.clear_errors();
+                    authListWidgetAddHandler.clear_input();
+                    return authListWidgetAddHandler.reload_list();
+                });
+            } else {
+                return this.show_errors(gettext('Please enter at least one username or email.'));
             }
         };
 
@@ -177,7 +204,7 @@ such that the value can be defined later than this assignment (file load order).
                         class: 'revoke'
                     });
                     $revokeBtn.click(function() {
-                        authListWidgetReloadList.modify_member_access(member.email, 'revoke', function(err) {
+                        authListWidgetReloadList.modify_member_access(member.email, 'revoke', false, function(err) {
                             if (err !== null) {
                                 authListWidgetReloadList.show_errors(err);
                                 return;
@@ -224,6 +251,12 @@ such that the value can be defined later than this assignment (file load order).
             return result;
         };
 
+        AuthListWidget.prototype.show_errors_html = function(msg) {
+            var result;
+            result = this.$errorSection !== undefined ? this.$errorSection.html(msg) : undefined;
+            return result;
+        };
+
         AuthListWidget.prototype.get_member_list = function(cb) {
             var authlistwidgetgetmemberlist = this;
             $.ajax({
@@ -243,7 +276,7 @@ such that the value can be defined later than this assignment (file load order).
             });
         };
 
-        AuthListWidget.prototype.modify_member_access = function(uniqueStudentIdentifier, action, cb) {
+        AuthListWidget.prototype.modify_member_access = function(uniqueStudentIdentifier, action, isBulk, cb) {
             var authlistwidgetmemberaccess = this;
             return $.ajax({
                 type: 'POST',
@@ -252,15 +285,48 @@ such that the value can be defined later than this assignment (file load order).
                 data: {
                     unique_student_identifier: uniqueStudentIdentifier,
                     rolename: this.rolename,
+                    is_bulk: (isBulk) ? '1' : '0',
                     action: action
                 },
                 success: function(data) {
-                    return authlistwidgetmemberaccess.member_response(data);
+                    if (isBulk) {
+                        return authlistwidgetmemberaccess.members_response(data);
+                    } else {
+                        return authlistwidgetmemberaccess.member_response(data);
+                    }
                 },
                 error: statusAjaxError(function() {
                     return typeof cb === 'function' ? cb(gettext("Error changing user's permissions.")) : undefined;
                 })
             });
+        };
+
+        AuthListWidget.prototype.members_response = function(data) {
+            var errMsgArr = [];
+            var msg = '';
+            this.clear_errors();
+            this.clear_input();
+            $(data).each(function(idx, item) {
+                if (item.userDoesNotExist) {
+                    msg = gettext("Could not find a user with username or email address '<%- identifier %>'.");
+                    errMsgArr.push(
+                      _.template(msg)({
+                          identifier: item.unique_student_identifier
+                      })
+                    );
+                } else if (item.inactiveUser) {
+                    msg = gettext("Error: User '<%- username %>' has not yet activated their account. Users must create and activate their accounts before they can be assigned a role.");  // eslint-disable-line max-len
+                    errMsgArr.push(
+                      _.template(msg)({
+                          username: item.unique_student_identifier
+                      })
+                    );
+                }
+            });
+            if (errMsgArr.length > 0) {
+                this.show_errors_html(errMsgArr.join('<br />'));
+            }
+            return this.reload_list();
         };
 
         AuthListWidget.prototype.member_response = function(data) {
@@ -530,7 +596,7 @@ such that the value can be defined later than this assignment (file load order).
                     // Translators: A list of users appears after this sentence;
                     renderList(gettext(
                         'These users could not be added as beta testers because their accounts are not yet activated:'),
-                    inActiveUsers);
+                        inActiveUsers);
                 }
             }
             if (successes.length && dataFromServer.action === 'remove') {
