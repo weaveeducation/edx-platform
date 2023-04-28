@@ -184,7 +184,7 @@ class OverrideFieldData(FieldData):
             course: The course XBlock
         """
         request_cache = DEFAULT_REQUEST_CACHE
-        if course is None:
+        if course is None or not hasattr(course, 'id'):
             cache_key = ENABLED_OVERRIDE_PROVIDERS_KEY.format(course_id='None')
         else:
             cache_key = ENABLED_OVERRIDE_PROVIDERS_KEY.format(course_id=str(course.id))
