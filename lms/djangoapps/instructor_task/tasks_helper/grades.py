@@ -137,6 +137,7 @@ class _CourseGradeReportContext:
         self.action_name = action_name
         self.course_id = course_id
         self.task_progress = TaskProgress(self.action_name, total=None, start_time=time())
+        self.task_input = _task_input
         self.report_for_verified_only = course_grade_report_verified_only(self.course_id)
         self.upload_parent_dir = _task_input.get('upload_parent_dir', '')
         self.upload_filename = _task_input.get('filename', 'grade_report')
