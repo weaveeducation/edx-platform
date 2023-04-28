@@ -153,7 +153,7 @@ LOG_REQUEST_USER_CHANGE_HEADERS_DURATION = getattr(settings, 'LOG_REQUEST_USER_C
 # .. toggle_use_cases: opt_out
 # .. toggle_creation_date: 2021-12-01
 # .. toggle_tickets: https://openedx.atlassian.net/browse/ARCHBOM-1861
-ENFORCE_SAFE_SESSIONS = SettingToggle('ENFORCE_SAFE_SESSIONS', default=True)
+ENFORCE_SAFE_SESSIONS = SettingToggle('ENFORCE_SAFE_SESSIONS', default=False)
 
 log = getLogger(__name__)
 
@@ -442,7 +442,7 @@ class SafeSessionMiddleware(SessionMiddleware, MiddlewareMixin):
         response = super().process_response(request, response)  # Step 1
 
         user_id_in_session = self.get_user_id_from_session(request)
-        user_matches = self._verify_user_and_log_mismatch(request, response, user_id_in_session)  # Step 2
+        #user_matches = self._verify_user_and_log_mismatch(request, response, user_id_in_session)  # Step 2
 
         # If the user changed *unexpectedly* between the beginning and end of
         # the request (as observed by this middleware) or doesn't match the
@@ -451,9 +451,9 @@ class SafeSessionMiddleware(SessionMiddleware, MiddlewareMixin):
         # (session vs JWT) that have different user IDs, but that could lead
         # to various kinds of data corruption or arcane vulnerabilities. Forcing
         # a logout should fix it, at least.
-        destroy_session = ENFORCE_SAFE_SESSIONS.is_enabled() and not user_matches
+        #destroy_session = ENFORCE_SAFE_SESSIONS.is_enabled() and not user_matches
 
-        if not destroy_session and not _is_cookie_marked_for_deletion(request) and _is_cookie_present(response):
+        if not _is_cookie_marked_for_deletion(request) and _is_cookie_present(response):
             try:
                 # Use the user_id marked in the session instead of the
                 # one in the request in case the user is not set in the
@@ -462,14 +462,14 @@ class SafeSessionMiddleware(SessionMiddleware, MiddlewareMixin):
             except SafeCookieError:
                 _mark_cookie_for_deletion(request)
 
-        if destroy_session:
-            # Destroy session in DB.
-            request.session.flush()
-            request.user = AnonymousUser()
-            # Will mark cookie for deletion (matching session destruction), but
-            # also prevents the original response from being returned. This could
-            # be helpful if the mismatch is the result of some kind of attack.)
-            response = self._on_user_authentication_failed(request)
+        #if destroy_session:
+        #    # Destroy session in DB.
+        #    request.session.flush()
+        #    request.user = AnonymousUser()
+        #    # Will mark cookie for deletion (matching session destruction), but
+        #    # also prevents the original response from being returned. This could
+        #    # be helpful if the mismatch is the result of some kind of attack.)
+        #    response = self._on_user_authentication_failed(request)
 
         if _is_cookie_marked_for_deletion(request):
             _delete_cookie(request, response)  # Step 4
