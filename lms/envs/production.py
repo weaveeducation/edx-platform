@@ -689,7 +689,7 @@ if FEATURES.get('ENABLE_THIRD_PARTY_AUTH'):
 
     if ENV_TOKENS.get('THIRD_PARTY_AUTH_SAML_FETCH_PERIOD_HOURS', 24) is not None:
         CELERYBEAT_SCHEDULE['refresh-saml-metadata'] = {
-            'task': 'common.djangoapps.third_party_auth.fetch_saml_metadata',
+            'task': 'common.djangoapps.third_party_auth.tasks.fetch_saml_metadata',
             'schedule': datetime.timedelta(hours=ENV_TOKENS.get('THIRD_PARTY_AUTH_SAML_FETCH_PERIOD_HOURS', 24)),
         }
 
