@@ -67,7 +67,7 @@ from ..model_data import FieldDataCache
 from ..block_render import get_block_for_descriptor, toc_for_course
 from ..permissions import MASQUERADE_AS_STUDENT
 from ..toggles import ENABLE_OPTIMIZELY_IN_COURSEWARE, courseware_mfe_is_active
-from .views import CourseTabView
+from .views import CourseTabView, get_student_progress_images, get_logo_url
 
 log = logging.getLogger("edx.courseware.views.index")
 

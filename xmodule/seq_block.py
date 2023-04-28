@@ -669,7 +669,7 @@ class SequenceBlock(
             'sequence_name': self.display_name,
             'exclude_units': context.get('exclude_units', False),
             'gated_sequence_paywall': self.gated_sequence_paywall,
-            'enable_new_carousel_view': context.get('enable_new_carousel_view'),
+            'enable_new_carousel_view': False,
             'after_finish_return_to_course_outline': 1 if self.after_finish_return_to_course_outline else 0,
             'course_id': str(self.course_id),
             'graded': self.graded,

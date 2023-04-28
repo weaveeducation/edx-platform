@@ -1755,12 +1755,6 @@ def render_xblock(request, usage_key_string, check_if_enrolled=True, show_bookma
         student_view_context['summary_info_imgs'] = get_student_progress_images()
         student_view_context['logo_url'] = get_logo_url(request.is_secure())
 
-        try:
-            org = Organization.objects.get(org=course.org)
-            if org.org_type is not None:
-                student_view_context['enable_new_carousel_view'] = org.org_type.enable_new_carousel_view
-        except Organization.DoesNotExist:
-            pass
         if show_bookmark_button is not None:
             student_view_context['show_bookmark_button'] = show_bookmark_button
         else:
