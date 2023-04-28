@@ -9,6 +9,7 @@ from lms.djangoapps.gating import api as gating_api
 from lms.djangoapps.gating.tasks import task_evaluate_subsection_completion_milestones
 from lms.djangoapps.grades.api import signals as grades_signals
 from openedx.core.djangoapps.signals.signals import COURSE_GRADE_CHANGED
+from openedx.core.djangoapps.content.block_structure.models import CourseFieldsCache
 
 
 @receiver(grades_signals.SUBSECTION_SCORE_CHANGED)
@@ -35,8 +36,14 @@ def evaluate_subsection_completion_milestones(**kwargs):
     """
     instance = kwargs['instance']
     course_id = str(instance.context_key)
+
     if not instance.context_key.is_course:
         return  # Content in a library or some other thing that doesn't support milestones
+
+    course_fields_cache_obj = CourseFieldsCache.get_cache(course_id)
+    if not course_fields_cache_obj.enable_subsection_gating:
+        return
+
     block_id = str(instance.block_key)
     user_id = instance.user_id
     task_evaluate_subsection_completion_milestones.delay(course_id, block_id, user_id)
