@@ -25,6 +25,7 @@ from openedx.core.djangoapps.user_authn.exceptions import AuthFailedError
 from common.djangoapps.util.json_request import JsonResponse
 from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_image_urls_for_user
 from openedx.core.djangoapps.site_configuration.helpers import get_value
+from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous
 
 
 log = logging.getLogger(__name__)
@@ -166,21 +167,24 @@ def get_response_with_refreshed_jwt_cookies(request, user):
     """
     cookie_settings = standard_cookie_settings(request)
     response = JsonResponse({})
-    _create_and_set_jwt_cookies(response, request, cookie_settings, user=user)
+    jwt_header_and_payload, jwt_signature = _create_and_set_jwt_cookies(response, request, cookie_settings, user=user)
 
     current_time = time.time()
     expires_date = cookie_settings.get('expires', None)
     expires_epoch = parse_http_date(expires_date) if expires_date else 0
-    response.content = json.dumps(
-        {
-            'success': True,
-            'user_id': user.id,
-            'response_epoch_seconds': current_time,
-            'response_http_date': http_date(current_time),
-            'expires': expires_date if expires_date else 'not-found',
-            'expires_epoch_seconds': expires_epoch,
-        }
-    )
+
+    data = {
+        'success': True,
+        'user_id': user.id,
+        'response_epoch_seconds': current_time,
+        'response_http_date': http_date(current_time),
+        'expires': expires_date if expires_date else 'not-found',
+        'expires_epoch_seconds': expires_epoch,
+        'email': user.email,
+    }
+    if is_user_credo_anonymous(user):
+        data['jwt_header_and_payload'] = jwt_header_and_payload
+    response.content = json.dumps(data)
     return response
 
 
@@ -316,6 +320,8 @@ def _create_and_set_jwt_cookies(response, request, cookie_settings, user=None):
         jwt_header_and_payload,
         jwt_signature,
     )
+
+    return jwt_header_and_payload, jwt_signature
 
 
 def _create_jwt(request, user, expires_in):
