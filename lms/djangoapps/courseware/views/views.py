@@ -542,7 +542,7 @@ class CourseTabView(EdxFragmentView):
 
             # Show warnings if the user has limited access
             # Must come after masquerading on creation of page context
-            self.register_user_access_warning_messages(request, course)
+            #self.register_user_access_warning_messages(request, course)
 
             set_custom_attributes_for_course_key(course_key)
 
