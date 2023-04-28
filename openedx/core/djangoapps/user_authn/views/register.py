@@ -608,7 +608,8 @@ class RegistrationView(APIView):
                 True,
                 domain=configuration_helpers.get_value('SESSION_COOKIE_DOMAIN', settings.SESSION_COOKIE_DOMAIN),
                 path='/',
-                secure=request.is_secure()
+                secure=request.is_secure(),
+                samesite="None" if request.is_secure() else "Lax"
             )  # setting the cookie to show account activation dialogue in platform and learning MFE
         mark_user_change_as_expected(user.id)
         return response
