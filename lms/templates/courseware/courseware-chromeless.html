@@ -261,7 +261,7 @@ ${HTML(fragment.foot_html())}
             var targetName = event.data.hashName.slice(1);
             // Checks if the target uses an id or name to focus and gets offset.
             var targetOffset = $(targetId).offset() || $(document.getElementsByName(targetName)[0]).offset();
-            window.parent.postMessage({ 'offset': targetOffset.top }, document.referrer);
+            window.parent.postMessage({ 'offset': targetOffset.top }, "*");
           }
         })
 
@@ -271,7 +271,7 @@ ${HTML(fragment.foot_html())}
               width: newWidth,
               height: newHeight,
             }
-          }, document.referrer
+          }, "*"
         );
 
         lastHeight = newHeight;
