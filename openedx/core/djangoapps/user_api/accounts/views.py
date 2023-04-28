@@ -60,7 +60,8 @@ from openedx.core.djangoapps.external_user_ids.models import ExternalId, Externa
 from openedx.core.djangoapps.lang_pref import LANGUAGE_KEY
 from openedx.core.djangoapps.profile_images.images import remove_profile_images
 from openedx.core.djangoapps.user_api import accounts
-from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_image_names, set_has_profile_image
+from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_image_names, set_has_profile_image,\
+    get_profile_image_urls_for_user
 from openedx.core.djangoapps.user_api.accounts.utils import handle_retirement_cancellation
 from openedx.core.djangoapps.user_authn.exceptions import AuthFailedError
 from openedx.core.lib.api.authentication import BearerAuthenticationAllowInactiveUser
@@ -307,7 +308,23 @@ class AccountViewSet(ViewSet):
         """
         GET /api/user/v1/me
         """
-        return Response({'username': request.user.username})
+        student = request.user
+        student_name = student.first_name + ' ' + student.last_name
+        student_name = student_name.strip()
+        if student_name:
+            student_name = student_name + ' (' + student.email + ')'
+        else:
+            student_name = student.email
+
+        profile_image_url = get_profile_image_urls_for_user(student)['medium']
+
+        return Response({
+            'id': student.id,
+            'student_name': student_name,
+            'username': student.username,
+            'email': student.email,
+            'profile_image_url': profile_image_url
+        })
 
     def list(self, request):
         """
