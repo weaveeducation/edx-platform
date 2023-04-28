@@ -100,7 +100,10 @@ class HiddenContentTransformer(BlockStructureTransformer):
         be hidden, given the current time.
         """
         hide_after_due = self._get_merged_hide_after_due(block_structure, block_key)
-        self_paced = block_structure[block_structure.root_block_usage_key].self_paced
+        try:
+            self_paced = block_structure[block_structure.root_block_usage_key].self_paced
+        except AttributeError:
+            self_paced = False
         if self_paced:
             hidden_date = self._get_merged_end_date(block_structure, block_key)
         else:

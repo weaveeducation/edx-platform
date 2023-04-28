@@ -44,6 +44,7 @@ def register_special_exams(course_key):
 
     course = modulestore().get_course(course_key)
     if course is None:
+        log.exception(f"Course {str(course_key)} does not exist")
         return
 
     if not course.enable_proctored_exams and not course.enable_timed_exams:

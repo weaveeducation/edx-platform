@@ -266,7 +266,7 @@ def _add_timed_exam_info(user, course, section, section_context):
             # as this is just informational descriptions, it is better
             # to log and continue (which is safe) than to have it be an
             # unhandled exception
-            log.exception(ex)
+            log.info(ex)
 
         if timed_exam_attempt_context:
             # yes, user has proctoring context about
