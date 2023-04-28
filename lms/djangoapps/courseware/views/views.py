@@ -51,6 +51,7 @@ from xmodule.modulestore.exceptions import ItemNotFoundError, NoPathToItem
 from xmodule.tabs import CourseTabList
 from xmodule.x_module import STUDENT_VIEW
 
+from common.djangoapps.credo_modules.auth import auto_auth_credo_user
 from common.djangoapps.course_modes.models import CourseMode, get_course_prices
 from common.djangoapps.edxmako.shortcuts import marketing_link, render_to_response, render_to_string
 from common.djangoapps.student.models import CourseEnrollment, UserTestGroup
@@ -978,12 +979,6 @@ def progress(request, course_id, student_id=None):
     if course_key.deprecated:
         raise Http404
 
-    if course_home_mfe_progress_tab_is_active(course_key) and not request.user.is_staff:
-        end_of_redirect_url = 'progress' if not student_id else f'progress/{student_id}'
-        raise Redirect(get_learning_mfe_home_url(
-            course_key=course_key, url_fragment=end_of_redirect_url, params=request.GET,
-        ))
-
     with modulestore().bulk_operations(course_key):
         return _progress(request, course_key, student_id)
 
@@ -1065,12 +1060,18 @@ def _progress(request, course_key, student_id, display_in_frame=False):
 
     if enable_extended_progress_page:
         mfe_url = get_skills_mfe_url()
-        if mfe_url and not request.user.is_superuser:
+        if mfe_url:
             redirect_url = mfe_url + reverse('progress', kwargs={'course_id': str(course_key)})
             if url_params_list:
                 redirect_url = redirect_url + '?' + '&'.join(url_params_list)
             return redirect(redirect_url)
         return _extended_progress_page(request, course, student, student_id, is_frame=is_frame)
+
+    if course_home_mfe_progress_tab_is_active(course_key):
+        end_of_redirect_url = 'progress' if not student_id else f'progress/{student_id}'
+        raise Redirect(get_learning_mfe_home_url(
+            course_key=course_key, url_fragment=end_of_redirect_url, params=request.GET,
+        ))
 
     # NOTE: To make sure impersonation by instructor works, use
     # student instead of request.user in the rest of the function.

@@ -517,14 +517,14 @@ def generate_anonymous_ids(_xblock_instance_args, _entry_id, course_id, task_inp
         courseenrollment__course_id=course_id,
     ).order_by('id')
 
-    task_progress = TaskProgress(action_name, students.count, start_time)
+    task_progress = TaskProgress(action_name, students.count(), start_time)
     _log_and_update_progress({'step': "Compiling learner rows"})
 
     header = ['User ID', 'Anonymized User ID', 'Course Specific Anonymized User ID']
     rows = [[s.id, unique_id_for_user(s), anonymous_id_for_user(s, course_id)]
             for s in students]
 
-    task_progress.attempted = students.count
+    task_progress.attempted = students.count()
     _log_and_update_progress({'step': "Finished compiling learner rows"})
 
     csv_name = 'anonymized_ids'
