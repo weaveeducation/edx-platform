@@ -338,6 +338,7 @@ django-pipeline==2.1.0
     # via -r requirements/edx/base.in
 django-ratelimit==4.0.0
     # via -r requirements/edx/base.in
+django-timezone-field==4.2.1
 django-sekizai==4.0.0
     # via
     #   -r requirements/edx/base.in
@@ -827,6 +828,7 @@ psutil==5.9.4
     # via
     #   -r requirements/edx/paver.txt
     #   edx-django-utils
+python-crontab==2.5.1
 py2neo==2021.2.3
     # via
     #   -c requirements/edx/../constraints.txt
