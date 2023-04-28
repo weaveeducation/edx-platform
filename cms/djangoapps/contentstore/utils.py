@@ -449,10 +449,10 @@ def get_user_partition_info(xblock, schemes=None, course=None):
     course = course or modulestore().get_course(xblock.location.course_key)
 
     if course is None:
-        log.warning(
-            "Could not find course %s to retrieve user partition information",
-            xblock.location.course_key
-        )
+        #log.warning(
+        #    "Could not find course %s to retrieve user partition information",
+        #    xblock.location.course_key
+        #)
         return []
 
     if schemes is not None:

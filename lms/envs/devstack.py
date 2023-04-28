@@ -43,10 +43,10 @@ LMS_ROOT_URL = f'http://{LMS_BASE}'
 LMS_INTERNAL_ROOT_URL = LMS_ROOT_URL
 ENTERPRISE_API_URL = f'{LMS_INTERNAL_ROOT_URL}/enterprise/api/v1/'
 IDA_LOGOUT_URI_LIST = [
-    'http://localhost:18130/logout/',  # ecommerce
-    'http://localhost:18150/logout/',  # credentials
-    'http://localhost:18381/logout/',  # discovery
-    'http://localhost:18010/logout/',  # studio
+#    'http://localhost:18130/logout/',  # ecommerce
+#    'http://localhost:18150/logout/',  # credentials
+#    'http://localhost:18381/logout/',  # discovery
+#    'http://localhost:18010/logout/',  # studio
 ]
 
 ################################ LOGGERS ######################################

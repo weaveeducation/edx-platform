@@ -886,21 +886,20 @@ class SequenceBlock(
             item_type = get_icon(block)
             usage_id = block.scope_ids.usage_id
 
-            show_bookmark_button = False
+            default_show_bookmark_button = False
             is_bookmarked = False
 
             if is_user_authenticated and bookmarks_service:
-                show_bookmark_button = True
+                default_show_bookmark_button = True
                 is_bookmarked = bookmarks_service.is_bookmarked(usage_key=usage_id)
 
-            context['show_bookmark_button'] = show_bookmark_button
             context['bookmarked'] = is_bookmarked
             context['format'] = getattr(self, 'format', '')
 
             if is_user_credo_anonymous:
                 context['show_bookmark_button'] = False
             else:
-                context['show_bookmark_button'] = context.get('show_bookmark_button', show_bookmark_button)
+                context['show_bookmark_button'] = context.get('show_bookmark_button', default_show_bookmark_button)
 
             if render_blocks:
                 rendered_block = block.render(view, context)
