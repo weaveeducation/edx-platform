@@ -95,6 +95,9 @@
         <input id="<%- form %>-<%- name %>"
            type="<%- type %>"
            name="<%- name %>"
+           <% if ( autocomplete ) { %>
+           autocomplete="<%- autocomplete %>"
+           <% } %>
            class="input-block <% if ( type === 'checkbox' ) { %>checkbox<% } %>"
             <% if ( instructions ) { %>
             aria-describedby="<%- form %>-<%- name %>-desc <%- form %>-<%- name %>-validation-error"
@@ -147,7 +150,7 @@
             <button type="button" class="enterprise-login field-link"><%- gettext("Sign in with your company or school") %></button>
         <% } %>
     <% } %>
-    <% if( form === 'password-reset' && name === 'email' ) { %>
+    <% if( form === 'password-reset' && name === 'email' && !disableRegisterLink) { %>
         <button type="button" class="reset-help field-link" ><i class="fa fa-caret-right" /><%- gettext("Need other help signing in?") %></button>
         <div id="reset-help" style="display:none">
             <button type="button" class="field-link form-toggle" data-type="register"><%- gettext("Create an account") %></button>

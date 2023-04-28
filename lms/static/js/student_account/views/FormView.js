@@ -97,6 +97,7 @@
                         supplementalText: data[i].supplementalText || '',
                         supplementalLink: data[i].supplementalLink || '',
                         loginIssueSupportLink: data[i].loginIssueSupportLink || '',
+                        disableRegisterLink: data[i].disableRegisterLink || false,
                         isEnterpriseEnable: this.isEnterpriseEnable
                     })));
                 }
