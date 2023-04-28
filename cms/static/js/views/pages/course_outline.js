@@ -4,9 +4,10 @@
 define([
     'jquery', 'underscore', 'gettext', 'js/views/pages/base_page', 'js/views/utils/xblock_utils',
     'js/views/course_outline', 'common/js/components/utils/view_utils', 'common/js/components/views/feedback_alert',
-    'common/js/components/views/feedback_notification', 'js/views/course_highlights_enable'],
+    'common/js/components/views/feedback_notification', 'js/views/course_highlights_enable',
+    'js/views/modals/course_outline_modals'],
 function($, _, gettext, BasePage, XBlockViewUtils, CourseOutlineView, ViewUtils, AlertView, NoteView,
-    CourseHighlightsEnableView
+    CourseHighlightsEnableView, CourseOutlineModals
 ) {
     'use strict';
     var expandedLocators, CourseOutlinePage;
@@ -43,6 +44,9 @@ function($, _, gettext, BasePage, XBlockViewUtils, CourseOutlineView, ViewUtils,
             BasePage.prototype.initialize.call(this);
             this.$('.button-new').click(function(event) {
                 self.outlineView.handleAddEvent(event);
+            });
+            this.$('.copy-course-to-other').click(function(event) {
+                self.handleCourseToOtherCourseEvent(event);
             });
             this.$('.button.button-reindex').click(function(event) {
                 self.handleReIndexEvent(event);
@@ -186,6 +190,11 @@ function($, _, gettext, BasePage, XBlockViewUtils, CourseOutlineView, ViewUtils,
                 message: data.user_message
             });
             msg.show();
+        },
+
+        handleCourseToOtherCourseEvent: function() {
+            var copyToOtherCourseModal = CourseOutlineModals.getCopyCourseToOtherCourseModal(this.model);
+            copyToOtherCourseModal.show();
         },
 
         onIndexError: function(data) {
