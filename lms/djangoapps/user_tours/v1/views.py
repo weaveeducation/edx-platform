@@ -11,6 +11,7 @@ from rest_framework import status
 
 from lms.djangoapps.user_tours.models import UserTour, UserDiscussionsTours
 from lms.djangoapps.user_tours.v1.serializers import UserTourSerializer, UserDiscussionsToursSerializer
+from openedx.core.djangoapps.user_api.accounts.utils import is_user_credo_anonymous
 
 from rest_framework.views import APIView
 
@@ -47,11 +48,22 @@ class UserTourView(RetrieveUpdateAPIView):
         if request.user.username != username and not request.user.is_staff:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
+        if request.user.is_authenticated and is_user_credo_anonymous(request.user):
+            return Response({
+                "credo_anonymous_disable": True,
+                "course_home_tour_status": "no-tour",
+                "show_courseware_tour": False
+            }, status=status.HTTP_200_OK)
+
         try:
             user_tour = UserTour.objects.get(user__username=username)
         # Should never really happen, but better safe than sorry.
         except UserTour.DoesNotExist as e:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response({
+                "tour_not_found": True,
+                "course_home_tour_status": "no-tour",
+                "show_courseware_tour": False
+            }, status=status.HTTP_200_OK)
 
         return Response(self.get_serializer_class()(user_tour).data, status=status.HTTP_200_OK)
 
