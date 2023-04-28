@@ -159,12 +159,15 @@ def get_prerequisites(course_key):
         milestones_by_block_id[block_id] = milestone
 
     result = []
-    for block in modulestore().get_items(course_key, qualifiers={'name': block_ids}):
-        milestone = milestones_by_block_id.get(block.location.block_id)
-        if milestone:
-            milestone['block_display_name'] = block.display_name
-            milestone['block_usage_key'] = str(block.location)
-            result.append(milestone)
+    with modulestore().bulk_operations(course_key):
+        course = modulestore().get_course(course_key)
+        for chapter in course.get_children():
+            for block in chapter.get_children():
+                milestone = milestones_by_block_id.get(block.location.block_id)
+                if milestone:
+                    milestone['block_display_name'] = block.display_name
+                    milestone['block_usage_key'] = str(block.location)
+                    result.append(milestone)
 
     return result
 
@@ -463,7 +466,9 @@ def get_subsection_completion_percentage(subsection_usage_key, user):
         subsection_structure = get_course_blocks(user, subsection_usage_key)
         if any(subsection_structure):
             completable_blocks = []
+            all_blocks = []
             for block in subsection_structure:
+                all_blocks.append(block)
                 completion_mode = subsection_structure.get_xblock_field(
                     block, 'completion_mode'
                 )
@@ -475,6 +480,13 @@ def get_subsection_completion_percentage(subsection_usage_key, user):
                     completable_blocks.append(block)
 
             if not completable_blocks:
+                if all_blocks:
+                    cnt = BlockCompletion.objects.filter(
+                        context_key=subsection_usage_key.course_key, user=user,
+                        block_key__in=all_blocks,
+                        completion=1.0
+                    ).count()
+                    return 100 if cnt > 0 else 0
                 return 100
             subsection_completion_total = 0
             course_key = subsection_usage_key.course_key
