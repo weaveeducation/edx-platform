@@ -282,8 +282,10 @@ class SequenceTabSelectedEventTransformer(EventTransformer):
     legacy_event_type = 'seq_goto'
 
     def process_legacy_fields(self):
-        self.event['old'] = self.event['current_tab']
-        self.event['new'] = self.event['target_tab']
+        if 'current_tab' in self.event:
+            self.event['old'] = self.event['current_tab']
+        if 'target_tab' in self.event:
+            self.event['new'] = self.event['target_tab']
 
 
 class _BaseLinearSequenceEventTransformer(EventTransformer):
@@ -308,8 +310,9 @@ class _BaseLinearSequenceEventTransformer(EventTransformer):
             old: equal to the new current_tab field
             new: the tab to which the user is navigating
         """
-        self.event['old'] = self.event['current_tab']
-        self.event['new'] = self.event['current_tab'] + self.offset
+        if 'current_tab' in self.event:
+            self.event['old'] = self.event['current_tab']
+            self.event['new'] = self.event['current_tab'] + self.offset
 
     def crosses_boundary(self):
         """
