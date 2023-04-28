@@ -218,13 +218,16 @@ class DjangoOrmFieldCache(metaclass=ABCMeta):
                 #    prefetch step, so if it isn't in our cache, it doesn't exist yet.
                 # b) no other code should be modifying these models out of band of
                 #    this cache.
-                if field_object is None:
-                    field_object = self._create_object(kvs_key, serialized_value)
-                    field_object.save(force_insert=True)
-                    self._cache[cache_key] = field_object
-                else:
-                    field_object.value = serialized_value
-                    field_object.save(force_update=True)
+                try:
+                    if field_object is None:
+                        field_object = self._create_object(kvs_key, serialized_value)
+                        field_object.save(force_insert=True)
+                        self._cache[cache_key] = field_object
+                    else:
+                        field_object.value = serialized_value
+                        field_object.save(force_update=True)
+                except IntegrityError:
+                    pass
 
             except DatabaseError:
                 log.exception("Saving field %r failed", kvs_key.field_name)
