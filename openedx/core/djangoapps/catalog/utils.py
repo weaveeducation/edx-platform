@@ -78,13 +78,13 @@ def check_catalog_integration_and_get_user(error_message_field):
         try:
             user = catalog_integration.get_service_user()
         except ObjectDoesNotExist:
-            logger.error(
-                'Catalog service user with username [{username}] does not exist. '
-                '{field} will not be retrieved.'.format(
-                    username=catalog_integration.service_username,
-                    field=error_message_field,
-                )
-            )
+            #logger.error(
+            #    'Catalog service user with username [{username}] does not exist. '
+            #    '{field} will not be retrieved.'.format(
+            #        username=catalog_integration.service_username,
+            #        field=error_message_field,
+            #    )
+            #)
             return None, catalog_integration
         return user, catalog_integration
     else:
