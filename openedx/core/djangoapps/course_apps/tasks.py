@@ -36,6 +36,8 @@ def update_course_apps_status(course_key_str: str):
     """
     Create CourseAppStatus entries for apps available for the specified course.
     """
+    if course_key_str.startswith('library-v1:'):
+        return
     course_key = CourseKey.from_string(course_key_str)
     course_apps = CourseAppsPluginManager.get_apps_available_for_course(course_key)
     log.info("Caching course apps status for course with id: %s", course_key)

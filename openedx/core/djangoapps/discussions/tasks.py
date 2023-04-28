@@ -29,6 +29,8 @@ def update_discussions_settings_from_course_task(course_key_str: str, discussabl
         course_key_str (str): course key string
         discussable_units (List[UsageKey]): list of discussable units
     """
+    if course_key_str.startswith('library-v1:'):
+        return
     course_key = CourseKey.from_string(course_key_str)
     config_data = update_discussions_settings_from_course(course_key, discussable_units)
     COURSE_DISCUSSIONS_CHANGED.send_event(configuration=config_data)
@@ -51,6 +53,10 @@ def update_discussions_settings_from_course(
     """
     log.info(f"Updating discussion settings for course: {course_key}")
     store = modulestore()
+
+    course_key_str = str(course_key)
+    if course_key_str.startswith('library-v1:'):
+        return
 
     discussions_config = DiscussionsConfiguration.get(course_key)
     supports_in_context = discussions_config.supports_in_context_discussions()

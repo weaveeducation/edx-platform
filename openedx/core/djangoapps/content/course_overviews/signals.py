@@ -28,6 +28,9 @@ def _listen_for_course_publish(sender, course_key, **kwargs):  # pylint: disable
     Catches the signal that a course has been published in Studio and
     updates the corresponding CourseOverview cache entry.
     """
+    course_key_str = str(course_key)
+    if course_key_str.startswith('library-v1:'):
+        return
     try:
         previous_course_overview = CourseOverview.objects.get(id=course_key)
     except CourseOverview.DoesNotExist:
