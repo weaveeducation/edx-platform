@@ -385,6 +385,8 @@ window.orgsList = ${orgs_json | n};
             'linkClass': 'course-link',
             'idBase': 'course',
             'allowReruns': allow_course_reruns and rerun_creator_status and course_creator_status=='granted',
+            'userHasPermissionsRerun': user_has_permissions_rerun,
+            'displayAll': display_all_courses
           }
         )}
       </div>
@@ -515,6 +517,7 @@ window.orgsList = ${orgs_json | n};
             'linkClass': 'course-link',
             'idBase': 'archived',
             'allowReruns': allow_course_reruns and rerun_creator_status and course_creator_status=='granted',
+            'userHasPermissionsRerun': user_has_permissions_rerun,
             'displayAll': display_all_courses
           }
         )}
