@@ -651,6 +651,12 @@ class SequenceBlock(
         badge_id = getattr(self, 'badge_id', None)
 
         blocks = self._render_student_view_for_blocks(context, children, fragment, view) if prereq_met else []
+        if self.units_sequential_completion:
+            lock_found = False
+            for i, item in enumerate(blocks):
+                if (i > 0 and not blocks[i - 1].get('complete')) or lock_found:
+                    blocks[i]['lock'] = True
+                    lock_found = True
 
         params = {
             'items': blocks,
@@ -678,6 +684,7 @@ class SequenceBlock(
             'lms_url_to_issue_badge': context.get('lms_url_to_issue_badge'),
             'show_summary_info_after_quiz': False if is_time_exam else context.get('show_summary_info_after_quiz',
                                                                                    False),
+            'units_sequential_completion': 1 if self.units_sequential_completion else 0,
             'badge_id': badge_id if badge_id else None,
 
             'summary_info_imgs': context.get('summary_info_imgs', {
@@ -923,6 +930,7 @@ class SequenceBlock(
                 'path': " > ".join(display_names + [block.display_name_with_default]),
                 'graded': block.graded,
                 'contains_content_type_gated_content': contains_content_type_gated_content,
+                'lock': False
             }
             if not render_blocks:
                 # The item url format can be defined in the template context like so:

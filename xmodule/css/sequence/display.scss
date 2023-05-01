@@ -158,6 +158,13 @@ $seq-nav-height: 50px;
           }
         }
 
+        //lock
+        &.seq_lock {
+          .icon::before {
+            content: "\f023";  // .fa-lock
+          }
+        }
+
         .sequence-tooltip {
           @include text-align(left);
 
