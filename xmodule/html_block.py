@@ -93,7 +93,7 @@ class HtmlBlockMixin(  # lint-amnesty, pylint: disable=abstract-method
         """
         Return a fragment that contains the html for the author view
         """
-        return Fragment(self.get_html())
+        return self.student_view(_context)
 
     @XBlock.supports("multi_device")
     def student_view(self, _context):
