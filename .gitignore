@@ -150,4 +150,12 @@ pii_report
 # Pyenv Python version file
 .python-version
 
-/xblock/
+/xblock
+/completion
+/drag_and_drop_v2
+/edx_proctoring
+/edx_rest_framework_extensions
+/freetextresponse
+/image_explorer
+/supervisor_evaluation
+/text_highlighter
