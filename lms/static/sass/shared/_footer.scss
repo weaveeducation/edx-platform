@@ -8,7 +8,7 @@
 
   box-shadow: 0 -1px 5px 0 $shadow-l1;
   border-top: 1px solid tint($m-gray, 50%);
-  padding: 25px ($baseline/2) ($baseline*1.5) ($baseline/2);
+  padding: 25px ($baseline/2) ($baseline*1.5) 0;
   background: $body-bg;
   clear: both;
 
@@ -19,7 +19,7 @@
 
     @include outer-container;
 
-    margin: 0 auto;
+    margin: 0 0 0 40px !important;
 
     p,
     ol,
@@ -119,7 +119,7 @@
     }
 
     .wrapper-logo {
-      margin: ($baseline*0.75) 0;
+      margin: 30px 0;
 
       a {
         display: inline-block;
@@ -135,7 +135,7 @@
     }
 
     .copyright {
-      margin: -2px 0 8px 0;
+      margin: 0px 0 8px 0;
       font-size: em(11);
       color: $gray; // WCAG 2.0 AA requirements
 

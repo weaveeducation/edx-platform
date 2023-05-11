@@ -121,7 +121,6 @@ def get_lms_link_for_item(location, preview=False):
     lms_base = SiteConfiguration.get_value_for_org(
         location.org,
         "LMS_BASE",
-        settings.LMS_BASE,
         conf_lms_base
     )
 

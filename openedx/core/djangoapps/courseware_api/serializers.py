@@ -105,7 +105,6 @@ class CourseInfoSerializer(serializers.Serializer):  # pylint: disable=abstract-
     tabs = serializers.ListField()
     user_timezone = serializers.CharField()
     show_calculator = serializers.BooleanField()
-    can_view_legacy_courseware = serializers.BooleanField()
     can_access_proctored_exams = serializers.BooleanField()
     original_user_is_staff = serializers.BooleanField()
     is_staff = serializers.BooleanField()
