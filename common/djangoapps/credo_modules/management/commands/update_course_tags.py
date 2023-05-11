@@ -55,8 +55,10 @@ class Command(BaseCommand):
         connection = MongoClient(host=settings.CONTENTSTORE['DOC_STORE_CONFIG']['host'],
                                  port=settings.CONTENTSTORE['DOC_STORE_CONFIG']['port'])
         mongo_conn = Database(connection, settings.CONTENTSTORE['DOC_STORE_CONFIG']['db'])
-        mongo_conn.authenticate(settings.CONTENTSTORE['DOC_STORE_CONFIG']['user'],
-                                settings.CONTENTSTORE['DOC_STORE_CONFIG']['password'])
+        mongo_user = settings.CONTENTSTORE['DOC_STORE_CONFIG'].get("user")
+        mongo_password = settings.CONTENTSTORE['DOC_STORE_CONFIG'].get("password")
+        if mongo_user and mongo_password:
+            mongo_conn.authenticate(mongo_user, mongo_password)
 
         for source_course_id in source_course_ids:
             source_course_data = get_course_structure(CourseKey.from_string(source_course_id))

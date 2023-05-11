@@ -15,8 +15,10 @@ def _get_mongo_connection():
     connection = MongoClient(host=settings.CONTENTSTORE['DOC_STORE_CONFIG']['host'],
                              port=settings.CONTENTSTORE['DOC_STORE_CONFIG']['port'])
     mongo_conn = Database(connection, settings.CONTENTSTORE['DOC_STORE_CONFIG']['db'])
-    mongo_conn.authenticate(settings.CONTENTSTORE['DOC_STORE_CONFIG']['user'],
-                            settings.CONTENTSTORE['DOC_STORE_CONFIG']['password'])
+    mongo_user = settings.CONTENTSTORE['DOC_STORE_CONFIG'].get("user")
+    mongo_password = settings.CONTENTSTORE['DOC_STORE_CONFIG'].get("password")
+    if mongo_user and mongo_password:
+        mongo_conn.authenticate(mongo_user, mongo_password)
     return mongo_conn
 
 

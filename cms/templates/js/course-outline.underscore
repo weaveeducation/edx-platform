@@ -120,7 +120,7 @@ if (is_proctored_exam) {
                 <span class="icon fa fa-caret-down" aria-hidden="true"></span>
         <% } else { %>
             <% if (xblockType == "unit") { %>
-                <h3 class="unit-header-details" style="width: 50%">
+                <h3 class="unit-header-details">
             <% } else { %>
                 <h3 class="<%- xblockType %>-header-details">
             <% } %>
@@ -138,7 +138,7 @@ if (is_proctored_exam) {
                 <% } %>
             </h3>
         <% if (xblockType == "unit") {%>
-            <div class="unit-header-actions" style="width: 50%">
+            <div class="unit-header-actions">
         <% } else { %>
             <div class="<%- xblockType %>-header-actions">
         <% } %>

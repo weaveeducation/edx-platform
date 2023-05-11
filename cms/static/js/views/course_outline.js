@@ -9,10 +9,10 @@
  *  - adding units will automatically redirect to the unit page rather than showing them inline
  */
 define(['jquery', 'underscore', 'js/views/xblock_outline', 'common/js/components/utils/view_utils', 'js/views/utils/xblock_utils',
-    'js/models/xblock_outline_info', 'js/views/modals/course_outline_modals', 'js/utils/drag_and_drop'],
+    'js/models/xblock_outline_info', 'js/views/modals/course_outline_modals', 'js/views/utils/push_changes_utils', 'js/utils/drag_and_drop'],
 function(
     $, _, XBlockOutlineView, ViewUtils, XBlockViewUtils,
-    XBlockOutlineInfo, CourseOutlineModalsFactory, ContentDragger
+    XBlockOutlineInfo, CourseOutlineModalsFactory, PushChangesUtils, ContentDragger
 ) {
     var CourseOutlineView = XBlockOutlineView.extend({
         // takes XBlockOutlineInfo as a model
@@ -22,6 +22,7 @@ function(
         render: function() {
             var renderResult = XBlockOutlineView.prototype.render.call(this);
             this.makeContentDraggable(this.el);
+            this.$('#selected-state').prop('checked', this.model.get('selected'));
             return renderResult;
         },
 
@@ -135,6 +136,7 @@ function(
         },
 
         onChildDeleted: function(childView) {
+            this.stopListening(childView.model, 'change:selected', this.onChildSelectChange);
             var xblockInfo = this.model,
                 children = xblockInfo.get('child_info') && xblockInfo.get('child_info').children;
                 // If deleting a section that isn't the final one, just remove it for efficiency
@@ -147,9 +149,18 @@ function(
             }
         },
 
+        onChildSelectChange: function() {
+            if (this.model.hasSelectedChildren()) {
+                this.$('.copy-to-library-button').removeClass('is-disabled');
+            } else {
+                this.$('.copy-to-library-button').addClass('is-disabled');
+            }
+        },
+
         createNewItemViewState: function(locator, scrollOffset) {
             this.expandedLocators.add(locator);
             return {
+                user_permissions: (window.courseOutlineInitialState && window.courseOutlineInitialState.user_permissions) ? window.courseOutlineInitialState.user_permissions : {},
                 locator_to_show: locator,
                 edit_display_name: true,
                 scroll_offset: scrollOffset || 0
@@ -189,7 +200,16 @@ function(
         },
 
         publishXBlock: function() {
-            var modal = CourseOutlineModalsFactory.getModal('publish', this.model, {
+            PushChangesUtils.publishChanges({
+                target: this.model,
+                xblockType: XBlockViewUtils.getXBlockType(this.model.get('category'), this.parentView.model, true),
+                alwaysShow: true,
+                onSave: this.refresh.bind(this)
+            });
+        },
+
+        copyXBlockToOtherCourse: function() {
+            var modal = CourseOutlineModalsFactory.getModal('copy-to-other-course', this.model, {
                 onSave: this.refresh.bind(this),
                 xblockType: XBlockViewUtils.getXBlockType(
                     this.model.get('category'), this.parentView.model, true
@@ -199,6 +219,24 @@ function(
             if (modal) {
                 modal.show();
             }
+        },
+
+        copyUnitsToLibrary: function() {
+            var modal = CourseOutlineModalsFactory.getModal('copy-to-library', this.model, {
+                onSave: this.refresh.bind(this),
+                xblockType: XBlockViewUtils.getXBlockType(
+                    this.model.get('category'), this.parentView.model, true
+                )
+            });
+
+            if (modal) {
+                modal.show();
+            }
+        },
+
+        toggleXBlockSelectedState: function() {
+            this.model.set('selected', !this.model.get('selected'));
+            this.$('#selected-state').prop('checked', this.model.get('selected'));
         },
 
         highlightsXBlock: function() {
@@ -213,6 +251,11 @@ function(
                 window.analytics.track('edx.bi.highlights.modal_open');
                 modal.show();
             }
+        },
+
+        addChildView: function(childView, xblockElement) {
+            XBlockOutlineView.prototype.addChildView.apply(this, arguments);
+            this.listenTo(childView.model, 'change:selected', this.onChildSelectChange);
         },
 
         addButtonActions: function(element) {
@@ -230,6 +273,17 @@ function(
                     event.preventDefault();
                     this.highlightsXBlock();
                 }
+            }.bind(this));
+            element.find('.copy-to-other-course-button').click(function(event) {
+                event.preventDefault();
+                this.copyXBlockToOtherCourse();
+            }.bind(this));
+            element.find('.copy-to-library-button').click(function(event) {
+                event.preventDefault();
+                this.copyUnitsToLibrary();
+            }.bind(this));
+            element.find('.unit-header-checkbox input').click(function(event) {
+                this.toggleXBlockSelectedState();
             }.bind(this));
         },
 

@@ -405,8 +405,8 @@ def update_sibling_block_in_related_course(task_id, source_usage_id, dst_course_
 
 
 def _update_sibling_block_in_related_course(source_usage_id, dst_course_id, need_publish, user, sibling_update_task=None):
-    from .views.item import _save_xblock as save_xblock_fn, _delete_item as delete_xblock_fn,\
-        _duplicate_item as duplicate_xblock_fn
+    from .views.block import _save_xblock as save_xblock_fn, _delete_item as delete_xblock_fn,\
+        _duplicate_block as duplicate_xblock_fn
 
     source_usage_key = UsageKey.from_string(source_usage_id)
     source_course_key = source_usage_key.course_key
