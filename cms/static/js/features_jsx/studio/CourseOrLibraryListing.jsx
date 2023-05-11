@@ -41,9 +41,9 @@ class CourseOrLibraryListing extends React.Component {
     }
 
     render() {
-        const { allowReruns } = props;
-        const { linkClass } = props;
-        const { idBase } = props;
+        const { allowReruns } = this.props;
+        const { linkClass } = this.props;
+        const { idBase } = this.props;
         const userHasPermissionsRerun = this.props.userHasPermissionsRerun || [];
 
         const renderCourseMetadata = (item, i) => (
@@ -74,7 +74,7 @@ class CourseOrLibraryListing extends React.Component {
         return (
             <ul className="list-courses">
                 {
-                    props.items.map((item, i) => (
+                    this.props.items.map((item, i) => (
                         ((this.state.orgs.length === 0) || (this.state.orgs.indexOf(item.org) !== -1) || this.props.displayAll) && (
                             <li key={i} className="course-item" data-course-key={item.course_key}>
                                 {item.url
