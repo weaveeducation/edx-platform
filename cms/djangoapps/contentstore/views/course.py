@@ -670,11 +670,24 @@ def library_listing(request):
     List all Libraries available to the logged in user
     """
     libraries = _accessible_libraries_iter(request.user) if LIBRARIES_ENABLED else []
+    libraries_result = [_format_library_for_view(lib, request) for lib in libraries]
+
+    orgs = []
+    for l in libraries_result:
+        if l['org'] not in orgs:
+            orgs.append(l['org'])
+
+    if orgs:
+        orgs = sorted(orgs)
+
     data = {
+        'display_all_courses': False,
+        'orgs': orgs,
+        'orgs_json': json.dumps(orgs),
         'in_process_course_actions': [],
         'courses': [],
         'libraries_enabled': LIBRARIES_ENABLED,
-        'libraries': [_format_library_for_view(lib, request) for lib in libraries],
+        'libraries': libraries_result,
         'show_new_library_button': LIBRARIES_ENABLED and request.user.is_active,
         'user': request.user,
         'request_course_creator_url': reverse('request_course_creator'),
@@ -687,6 +700,7 @@ def library_listing(request):
         'active_tab': 'libraries',
         'allowed_organizations': get_allowed_organizations(request.user),
         'can_create_organizations': user_can_create_organizations(request.user),
+        'user_has_permissions_rerun': False,
     }
     return render_to_response('index.html', data)
 

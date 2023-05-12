@@ -156,6 +156,16 @@ library_block_is_hidden = str(xblock.location).startswith('lib-block-v1') and ge
                                     </button>
                                 </li>
                             % endif
+                            % if can_copy and not enable_copy_paste:
+                                <li class="action-item action-copy">
+                                    <button data-tooltip="${_("Copy")}" class="btn-default copy-button-custom action-button">
+                                        <span class="stack-move-icon fa-stack fa-lg ">
+                                            <span class="fa fa-share-square-o fa-stack-2x fa-fw" aria-hidden="true"></span>
+                                        </span>
+                                        <span class="sr">${_("Copy")}</span>
+                                    </button>
+                                </li>
+                            % endif
                         % endif
                         % if can_add and not enable_copy_paste:
                             <!-- If we can add, we can delete. -->
@@ -181,9 +191,11 @@ library_block_is_hidden = str(xblock.location).startswith('lib-block-v1') and ge
                                     <div class="nav-sub">
                                       <ul>
                                         % if not show_inline:
+                                            % if can_copy:
                                             <li class="nav-item">
-                                                <a class="copy-button" href="#" role="button">${_("Copy")}</a>
+                                                <a class="copy-button-custom" href="#" role="button">${_("Copy")}</a>
                                             </li>
+                                            % endif
                                             % if can_add:
                                                 <li class="nav-item">
                                                     <a class="duplicate-button" href="#" role="button">${_("Duplicate")}</a>
@@ -197,16 +209,6 @@ library_block_is_hidden = str(xblock.location).startswith('lib-block-v1') and ge
                                             % if can_edit_visibility:
                                                 <li class="nav-item">
                                                     <a class="access-button" href="#" role="button">${_("Manage Access")}</a>
-                                                </li>
-                                            % endif
-                                            % if can_copy:
-                                                <li class="action-item action-copy">
-                                                    <button data-tooltip="${_("Copy")}" class="btn-default copy-button-custom action-button">
-                                                        <span class="stack-move-icon fa-stack fa-lg ">
-                                                            <span class="fa fa-share-square-o fa-stack-2x fa-fw" aria-hidden="true"></span>
-                                                        </span>
-                                                        <span class="sr">${_("Copy")}</span>
-                                                    </button>
                                                 </li>
                                             % endif
                                         % endif
