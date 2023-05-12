@@ -186,7 +186,7 @@ FEATURES = {
     'GITHUB_PUSH': False,
 
     # See annotations in lms/envs/common.py for details.
-    'ENABLE_DISCUSSION_SERVICE': True,
+    'ENABLE_DISCUSSION_SERVICE': False,
     # See annotations in lms/envs/common.py for details.
     'ENABLE_TEXTBOOK': True,
 

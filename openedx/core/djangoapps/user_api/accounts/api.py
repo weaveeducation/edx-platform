@@ -27,6 +27,7 @@ from lms.djangoapps.certificates.api import get_certificates_for_user
 from lms.djangoapps.certificates.data import CertificateStatuses
 
 from openedx.core.djangoapps.enrollments.api import get_verified_enrollments
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.user_api import accounts, errors, helpers
 from openedx.core.djangoapps.user_api.errors import (
     AccountUpdateError,
@@ -683,7 +684,8 @@ def _validate_email_doesnt_exist(email):
     :return: None
     :raises: errors.AccountEmailAlreadyExists
     """
-    error_message = accounts.AUTHN_EMAIL_CONFLICT_MSG
+    error_message = accounts.AUTHN_EMAIL_CONFLICT_MSG.replace(
+        "[PLATFORM_NAME]", configuration_helpers.get_value("PLATFORM_NAME", settings.PLATFORM_NAME))
 
     if email is not None and email_exists_or_retired(email):
         raise errors.AccountEmailAlreadyExists(_(error_message))  # lint-amnesty, pylint: disable=translation-of-non-string

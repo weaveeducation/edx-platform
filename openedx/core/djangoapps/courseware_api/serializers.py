@@ -2,6 +2,7 @@
 Course API Serializers.  Representing course catalog data
 """
 
+from django.conf import settings
 from rest_framework import serializers
 
 from lms.djangoapps.course_home_api.progress.serializers import CertificateDataSerializer
@@ -120,6 +121,7 @@ class CourseInfoSerializer(serializers.Serializer):  # pylint: disable=abstract-
     is_integrity_signature_enabled = serializers.BooleanField()
     user_needs_integrity_signature = serializers.BooleanField()
     resume_block = serializers.CharField()
+    discussion_enabled = serializers.SerializerMethodField()
 
     def __init__(self, *args, **kwargs):
         """
@@ -133,3 +135,6 @@ class CourseInfoSerializer(serializers.Serializer):  # pylint: disable=abstract-
             existing = set(self.fields)
             for field_name in existing - allowed:
                 self.fields.pop(field_name)
+
+    def get_discussion_enabled(self, obj):
+        return settings.FEATURES.get("ENABLE_DISCUSSION_SERVICE", False)

@@ -645,7 +645,8 @@ class RegistrationView(APIView):
         error_code = 'duplicate'
         if email is not None and email_exists_or_retired(email):
             error_code += '-email'
-            error_message = accounts_settings.AUTHN_EMAIL_CONFLICT_MSG
+            error_message = accounts_settings.AUTHN_EMAIL_CONFLICT_MSG.replace(
+                "[PLATFORM_NAME]", configuration_helpers.get_value("PLATFORM_NAME", settings.PLATFORM_NAME))
             errors['email'] = [{'user_message': error_message}]
 
         if username is not None and username_exists_or_retired(username):
