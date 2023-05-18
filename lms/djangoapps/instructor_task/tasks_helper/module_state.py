@@ -18,6 +18,9 @@ from common.djangoapps.student.models import get_user_by_username_or_email
 from common.djangoapps.track.event_transaction_utils import create_new_event_transaction_id, set_event_transaction_type
 from common.djangoapps.track.views import task_track
 from common.djangoapps.util.db import outer_atomic
+from lms.djangoapps.grades.models import PersistentCourseGrade
+from lms.djangoapps.grades.models import PersistentSubsectionGrade
+from lms.djangoapps.grades.models_api import clear_prefetched_course_and_subsection_grades
 from lms.djangoapps.courseware.courses import get_problems_in_section
 from lms.djangoapps.courseware.model_data import DjangoKeyValueStore, FieldDataCache
 from lms.djangoapps.courseware.models import StudentModule
@@ -507,10 +510,14 @@ def reset_user_progress(user, course_key, block=None, initiator=None):
         StudentModule.objects.filter(course_id=course_key, student=user).delete()
         SequentialBlockAnswered.objects.filter(course_id=str(course_key), user_id=user.id).delete()
         OraBlockScore.objects.filter(course_id=str(course_key), user_id=user.id).delete()
+        PersistentSubsectionGrade.objects.filter(course_id=course_key, user_id=user.id).delete()
+        PersistentCourseGrade.objects.filter(course_id=course_key, user_id=user.id).delete()
+        clear_prefetched_course_and_subsection_grades(str(course_key))
 
         if ENABLE_COMPLETION_TRACKING_SWITCH.is_enabled():
             BlockCompletion.objects.clear_completion(user, course_key)
     else:
+        usage_key = UsageKey.from_string(str(block.location))
         children_dict = get_block_children(block, block.display_name, add_correctness=False)
         items = [block.location]
         ora_items = []
@@ -525,6 +532,10 @@ def reset_user_progress(user, course_key, block=None, initiator=None):
         if ora_items:
             OraBlockScore.objects.filter(
                 course_id=str(course_key), user_id=user.id, block_id__in=ora_items).delete()
+
+        PersistentSubsectionGrade.objects.filter(course_id=course_key, usage_key=usage_key, user_id=user.id).delete()
+        PersistentCourseGrade.objects.filter(course_id=course_key, user_id=user.id).delete()
+        clear_prefetched_course_and_subsection_grades(str(course_key))
 
         if ENABLE_COMPLETION_TRACKING_SWITCH.is_enabled():
             BlockCompletion.objects.filter(user=user, context_key=course_key, block_key__in=items).delete()

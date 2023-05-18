@@ -94,6 +94,10 @@ class ZeroSubsectionGrade(SubsectionGradeBase):
         return False
 
     @property
+    def percent_info(self):
+        return {'earned': 0.0, 'possible': self.graded_total.possible}
+
+    @property
     def percent_graded(self):
         return 0.0
 
@@ -247,6 +251,7 @@ class NonZeroSubsectionGrade(SubsectionGradeBase, metaclass=ABCMeta):
             tw_possible=possible_value,
             graded=is_graded,
             first_attempted=grade_model.first_attempted,
+            last_answer_timestamp=grade_model.last_attempted,
         )
 
 
@@ -388,6 +393,7 @@ class CreateSubsectionGrade(NonZeroSubsectionGrade):
             possible_graded=self.graded_total.possible,
             visible_blocks=self._get_visible_blocks,
             first_attempted=self.all_total.first_attempted,
+            last_attempted=self.all_total.last_answer_timestamp,
         )
 
     @property

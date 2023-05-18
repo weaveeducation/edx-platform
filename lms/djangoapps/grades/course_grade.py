@@ -71,7 +71,7 @@ class CourseGradeBase:
         """
         return False
 
-    def subsection_grade(self, subsection_key):
+    def subsection_grade(self, subsection_key, ignore_cache=False):
         """
         Returns the subsection grade for the given subsection usage key.
 
@@ -91,7 +91,7 @@ class CourseGradeBase:
             if subsection_key in self.course_data.effective_structure
             else self.course_data.collected_structure[subsection_key]
         )
-        return self._get_subsection_grade(subsection)
+        return self._get_subsection_grade(subsection, ignore_cache=ignore_cache)
 
     def graded_subsections_by_format(self, visible_grades_only=False, has_staff_access=False):
         """
@@ -279,7 +279,7 @@ class CourseGradeBase:
         ]
 
     @abstractmethod
-    def _get_subsection_grade(self, subsection, force_update_subsections=False):
+    def _get_subsection_grade(self, subsection, force_update_subsections=False, ignore_cache=False):
         """
         Abstract method to be implemented by subclasses for returning
         the grade of the given subsection.
@@ -292,7 +292,7 @@ class ZeroCourseGrade(CourseGradeBase):
     Course Grade class for Zero-value grades when no problems were
     attempted in the course.
     """
-    def _get_subsection_grade(self, subsection, force_update_subsections=False):
+    def _get_subsection_grade(self, subsection, force_update_subsections=False, ignore_cache=False):
         return ZeroSubsectionGrade(subsection, self.course_data)
 
 
@@ -329,12 +329,12 @@ class CourseGrade(CourseGradeBase):
         """
         return True
 
-    def _get_subsection_grade(self, subsection, force_update_subsections=False):
+    def _get_subsection_grade(self, subsection, force_update_subsections=False, ignore_cache=False):
         if self.force_update_subsections:
             return self._subsection_grade_factory.update(subsection, force_update_subsections=force_update_subsections)
         else:
             # Pass read_only here so the subsection grades can be persisted in bulk at the end.
-            return self._subsection_grade_factory.create(subsection, read_only=True)
+            return self._subsection_grade_factory.create(subsection, read_only=True, ignore_cache=ignore_cache)
 
     @staticmethod
     def _compute_percent(grader_result):

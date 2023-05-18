@@ -43,6 +43,8 @@ class CourseGradeFactory:
         try:
             return self._read(user, course_data)
         except PersistentCourseGrade.DoesNotExist:
+            if create_if_needed and user and user.id:
+                return self._update(user, course_data, force_update_subsections=True)
             return self._create_zero(user, course_data)
 
     def update(

@@ -333,9 +333,11 @@ class InMemoryReportMixin:
         course = self.context.course
         if course.credo_additional_profile_fields:
             for k, v in StudentProfileField.init_from_course(course).items():
-                self.additional_profile_fields.append(v.alias)
-                self.additional_profile_fields_title.append(v.title)
-            self.users_with_additional_profile = CredoModulesUserProfile.users_with_additional_profile(self.context.course_id)
+                if not v.info:
+                    self.additional_profile_fields.append(v.alias)
+                    self.additional_profile_fields_title.append(v.title)
+            self.users_with_additional_profile = CredoModulesUserProfile.users_with_additional_profile(
+                self.context.course_id)
 
         lti_external_course = LtiExternalCourse.objects.filter(edx_course_id=str(course.id)).first()
         if lti_external_course:
@@ -579,11 +581,12 @@ class CourseGradeReport(GradeReportBase):
     # Batch size for chunking the list of enrollees in the course.
     USER_BATCH_SIZE = 100
 
-    def __init__(self):
+    def __init__(self, context):
         self.additional_profile_fields = []
         self.additional_profile_fields_title = []
         self.users_with_additional_profile = {}
         self.lti_fields = []
+        super().__init__(context)
 
     @classmethod
     def generate(cls, _xblock_instance_args, _entry_id, course_id, _task_input, action_name):
@@ -706,7 +709,8 @@ class CourseGradeReport(GradeReportBase):
         grade_results = []
         for subsection_location in subsection_headers:
             try:
-                subsection_grade = course_grade.subsection_grade(subsection_location)
+                ignore_cache = False  # set True in case of report inconsistent data
+                subsection_grade = course_grade.subsection_grade(subsection_location, ignore_cache=ignore_cache)
             except KeyError:
                 subsection_grade = FakeSubsectionGrade()
                 TASK_LOG.warning(
@@ -820,6 +824,13 @@ class ProblemGradeReport(GradeReportBase):
     """
     Class to encapsulate functionality related to generating user/row had header data for Problem Grade Reports.
     """
+
+    def __init__(self, context):
+        self.additional_profile_fields = []
+        self.additional_profile_fields_title = []
+        self.users_with_additional_profile = {}
+        self.lti_fields = []
+        super().__init__(context)
 
     @classmethod
     def generate(cls, _xblock_instance_args, _entry_id, course_id, _task_input, action_name):

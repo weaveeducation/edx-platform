@@ -1916,7 +1916,7 @@ class ProblemBlock(
         event_info['submission'] = self.get_submission_metadata_safe(answers_without_files, correct_map)
 
         question_text = ''
-        dt = self.lcp.capa_module.index_dictionary(remove_variants=True)
+        dt = self.lcp.capa_block.index_dictionary(remove_variants=True)
         if dt and 'content' in dt and 'capa_content' in dt['content']:
             question_text = dt['content']['capa_content'].strip()
         event_info['question_text'] = question_text

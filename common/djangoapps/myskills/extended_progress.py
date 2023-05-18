@@ -10,7 +10,7 @@ from .utils import get_tag_title_short, get_tag_title, get_tag_values, get_ora_s
 
 
 def tags_student_progress(course, student, problem_blocks, courseware_summary, group_tags=False):
-    anonymous_user_id = anonymous_id_for_user(student, course.id, save=False)
+    anonymous_user_id = anonymous_id_for_user(student, course.id)
     tag_descriptions = {t.tag_name: t.description for t in TagDescription.objects.all()}
 
     items = OrderedDict()

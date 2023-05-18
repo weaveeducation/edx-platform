@@ -125,7 +125,7 @@ from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin, view_auth_c
 from openedx.core.lib.courses import get_course_by_id
 from openedx.features.course_experience.url_helpers import get_learning_mfe_home_url
 from xmodule.modulestore.django import modulestore
-from common.djangoapps.credo_modules.models import get_all_course_staff_extended_roles, CourseStaffExtended
+from common.djangoapps.credo_modules.models import get_all_course_staff_extended_roles, CourseStaffExtended, Organization
 
 from .tools import (
     dump_block_extensions,
@@ -1807,8 +1807,21 @@ def get_student_progress_url(request, course_id):
     """
     course_id = CourseKey.from_string(course_id)
     user = get_student_from_identifier(request.POST.get('unique_student_identifier'))
+    mfe_url = configuration_helpers.get_value('SKILLS_MFE_URL', settings.SKILLS_MFE_URL)
 
-    if course_home_mfe_progress_tab_is_active(course_id):
+    enable_extended_progress_page = False
+    try:
+        org = Organization.objects.get(org=course_id.org)
+        if org.org_type is not None:
+            enable_extended_progress_page = org.org_type.enable_extended_progress_page
+    except Organization.DoesNotExist:
+        pass
+
+    if enable_extended_progress_page and mfe_url:
+        progress_url = mfe_url + reverse('progress', kwargs={'course_id': str(course_id)})
+        if user is not None:
+            progress_url = progress_url + '?userId=' + str(user.id)
+    elif course_home_mfe_progress_tab_is_active(course_id):
         progress_url = get_learning_mfe_home_url(course_id, url_fragment='progress')
         if user is not None:
             progress_url += '/{}/'.format(user.id)

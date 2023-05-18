@@ -309,7 +309,7 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
     course_id = str(course_key)
     block_ids = {}
 
-    anonymous_user_id = anonymous_id_for_user(student, course_key, save=False)
+    anonymous_user_id = anonymous_id_for_user(student, course_key)
     seq_block_cache = ApiCourseStructure.objects.filter(
         block_id=section_id, course_id=course_id, graded=1, deleted=False).first()
     if not seq_block_cache:

@@ -346,6 +346,7 @@ class PersistentSubsectionGrade(TimeStampedModel):
     # this subsection. If null, indicates no attempt
     # has yet been made.
     first_attempted = models.DateTimeField(null=True, blank=True)
+    last_attempted = models.DateTimeField(null=True, blank=True)
 
     # track which blocks were visible at the time of grade calculation
     visible_blocks = models.ForeignKey(VisibleBlocks, db_column='visible_blocks_hash', to_field='hashed',
