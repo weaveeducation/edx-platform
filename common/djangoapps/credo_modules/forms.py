@@ -1,5 +1,6 @@
 import json
 import re
+from urllib.parse import urlparse
 
 from django.forms import Form, CharField, ChoiceField
 from django.conf import settings
@@ -108,8 +109,12 @@ class StudentAttributesRegistrationForm(Form):
                         kwargs.pop('options', None)
                         self.fields[key] = CharField(**kwargs)
 
-    def _parse_course_id_from_string(self, input_str):
-        m_obj = re.match(r'^/courses/{}'.format(settings.COURSE_ID_PATTERN), input_str)
+    def _parse_course_id_from_string(self, next_url):
+        if next_url.startswith(("https://", "http://")):
+            o = urlparse(next_url)
+            next_url = o.path
+
+        m_obj = re.match(r'^/(course|courses)/{}'.format(settings.COURSE_ID_PATTERN), next_url)
         if m_obj:
             return CourseKey.from_string(m_obj.group('course_id'))
         return None
