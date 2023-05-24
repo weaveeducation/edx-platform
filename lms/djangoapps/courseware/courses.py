@@ -1011,7 +1011,7 @@ def add_vertical_usage(item, request, course_key, student_properties=None):
     field_data_cache = FieldDataCache.cache_for_descriptor_descendents(
         course.id, request.user, item, depth=2
     )
-    course_module = get_module_for_descriptor(
+    course_module = get_block_for_descriptor(
         request.user, request, item, field_data_cache, course.id, course=course
     )
     if course_module is not None:
