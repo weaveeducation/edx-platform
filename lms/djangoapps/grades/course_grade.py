@@ -178,7 +178,7 @@ class CourseGradeBase:
             possible += child_possible
         return earned, possible
 
-    def score_for_module_details(self, location, res=None):
+    def score_for_block_details(self, location, res=None):
         """
         Calculate the aggregate weighted score for any location in the course.
         This method returns a tuple containing (earned_score, possible_score).
@@ -196,7 +196,7 @@ class CourseGradeBase:
         children = self.course_data.structure.get_children(location)
         earned, possible = 0.0, 0.0
         for child in children:
-            child_earned, child_possible, res = self.score_for_module_details(child, res)
+            child_earned, child_possible, res = self.score_for_block_details(child, res)
             earned += child_earned
             possible += child_possible
         return earned, possible, res

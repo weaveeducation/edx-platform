@@ -702,7 +702,7 @@ def launch_deep_link_submit(request, course_id):
                 .set_custom_params({"block_id": block_id})
 
             if auto_create_lineitem and course_items[block_id]['graded']:
-                earned, possible = course_grade.score_for_module(UsageKey.from_string(block_id))
+                earned, possible = course_grade.score_for_block(UsageKey.from_string(block_id))
                 line_item = LineItem()
                 line_item.set_tag(get_lineitem_tag(block_id)) \
                     .set_score_maximum(possible) \
@@ -810,7 +810,7 @@ def update_graded_assignment(request, lti_tool, message_launch, block, course_ke
         except GradedAssignment.DoesNotExist:
             course = modulestore().get_course(course_key, depth=0)
             course_grade = CourseGradeFactory().read(user, course)
-            earned, possible = course_grade.score_for_module(usage_key)
+            earned, possible = course_grade.score_for_block(usage_key)
 
             line_item = LineItem()
             line_item.set_tag(lti_lineitem_tag) \

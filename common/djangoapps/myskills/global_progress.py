@@ -320,7 +320,7 @@ def get_sequential_block_questions(request, section_id, tag_value, student):
         seq_block, _ = get_module_by_usage_id(request, course_id, section_id,
                                               disable_staff_debug_info=True, course=course)
         course_grade = CourseGradeFactory().read(student, course)
-        seq_earned, seq_possible, seq_summary = course_grade.score_for_module_details(usage_key)
+        seq_earned, seq_possible, seq_summary = course_grade.score_for_block_details(usage_key)
         children_dict = get_block_children(seq_block, seq_block_cache.display_name)
 
     tags_raw_data = ApiCourseStructureTags.objects.filter(course_id=course_id, tag_value=tag_value)\

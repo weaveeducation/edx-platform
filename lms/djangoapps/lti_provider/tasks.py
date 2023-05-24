@@ -173,7 +173,7 @@ class ScoresHandler(object):
             user = User.objects.get(id=user_id)
             course = modulestore().get_course(course_key, depth=0)
             course_grade = CourseGradeFactory().read(user, course)
-            earned, possible = course_grade.score_for_module(mapped_usage_key)
+            earned, possible = course_grade.score_for_block(mapped_usage_key)
             if possible == 0:
                 weighted_score = 0
             else:

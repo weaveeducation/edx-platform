@@ -166,7 +166,7 @@ def check_badge_is_ready_to_issue(user, course_key, block):
                         course = modulestore().get_course(course_key, depth=0)
                         course_grade = CourseGradeFactory().read(user, course)
                         mapped_usage_key = UsageKey.from_string(seq_block_id)
-                        earned, possible = course_grade.score_for_module(mapped_usage_key)
+                        earned, possible = course_grade.score_for_block(mapped_usage_key)
                         if possible == 0:
                             weighted_score = 0
                         else:
@@ -213,18 +213,22 @@ def issue_badge_assertion(user, course_key, block):
                 )
                 assertion.save()
 
+                import pprint
+                pprint.pprint(result)
+
                 badge_data = {
                     'badge_title': badge_res.badge.title,
                     'badge_description': badge_res.badge.description,
                     'badge_image_url': result['image'],
                     'badge_external_url': result['openBadgeId'],
-                    'badgr_issuer_url': result['issuerOpenBadgeId'],
+                    'badgr_issuer_url': badge_res.issuer.url,
                     'badgr_issuer_image': badge_res.issuer.image_url,
                     'badgr_login_page': config.get_badgr_login_page()
                 }
 
                 return True, badge_data, None
             except Exception as exp:
+                raise exp
                 return False, None, str(exp)
     else:
         return False, None, badge_res.error
