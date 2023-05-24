@@ -14,7 +14,7 @@ from .models import RegistrationPropertiesPerOrg, EnrollmentPropertiesPerCourse,
     Organization, OrganizationType, CourseExcludeInsights, CustomUserRole, TagDescription, EdxApiToken,\
     RutgersCampusMapping, Feature, FeatureBetaTester, CredoModulesUserProfile, CredoStudentProperties, SendScores,\
     TrackingLogConfig, PropertiesInfo, SiblingBlockUpdateTask, DelayedTask,\
-    LoginRedirectAllowedHost
+    LoginRedirectAllowedHost, OraBlockScore
 from openedx.core.djangoapps.content.block_structure.models import ApiCourseStructure, ApiBlockInfoNotSiblings
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
@@ -250,6 +250,13 @@ class ApiBlockInfoNotSiblingsForm(ReadOnlyMixin, admin.ModelAdmin):
     get_dst_block_path.short_description = 'Dst Block Path'
 
 
+class OraBlockScoreForm(admin.ModelAdmin):
+    list_display = ('id', 'course_id', 'block_id', 'user',
+                    'score_type', 'criterion', 'option_label', 'points_possible', 'points_earned')
+    list_select_related = ("user",)
+    search_fields = ("course_id", "block_id", "user__id", "user__email", "user__username")
+
+
 class IgnoredFilter(admin.SimpleListFilter):
 
     title = 'Display'
@@ -299,3 +306,4 @@ admin.site.register(PropertiesInfo, PropertiesInfoForm)
 admin.site.register(SiblingBlockUpdateTask, SiblingBlockUpdateTaskForm)
 admin.site.register(LoginRedirectAllowedHost, LoginRedirectAllowedHostForm)
 admin.site.register(ApiBlockInfoNotSiblings, ApiBlockInfoNotSiblingsForm)
+admin.site.register(OraBlockScore, OraBlockScoreForm)
