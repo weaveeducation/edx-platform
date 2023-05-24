@@ -469,6 +469,8 @@ class DjangoXBlockUserStateClient(XBlockUserStateClient):
             course_id=course_key,
             module_state_key__in=block_list)
         for item in items:
+            if not item.state:
+                continue
             state = json.loads(item.state)
             if state == {}:
                 continue

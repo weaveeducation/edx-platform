@@ -383,6 +383,7 @@ def get_component_templates(courselike, library=False):  # lint-amnesty, pylint:
             for advanced_problem_type in advanced_problem_types:
                 component = advanced_problem_type['component']
                 boilerplate_name = advanced_problem_type['boilerplate_name']
+                component_display_name = advanced_problem_type.get('component_display_name', None)
 
                 authorable_advanced_component_variations = authorable_xblocks(
                     allow_unsupported=allow_unsupported, name=component
