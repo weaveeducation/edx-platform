@@ -8,7 +8,7 @@ sentry-sdk==1.24.0
 vertica-python==1.3.2
 weasyprint==59.0
 xlocal==0.5
-git+https://github.com/weaveeducation/xblock-image-explorer.git@integration-palm#egg=xblock-image-explorer==2.1
-git+https://github.com/weaveeducation/xblock-supervisor-evaluation.git@integration-palm#egg=xblock-supervisor-evaluation==1.0.5
-git+https://github.com/weaveeducation/xblock-free-text-response.git@integration-palm#egg=xblock-free-text-response==3.0.1
-git+https://github.com/weaveeducation/xblock-text-highlighter.git@main#egg=xblock-text-highlighter==1.0.12
+xblock-image-explorer @ git+https://github.com/weaveeducation/xblock-image-explorer.git@integration-palm
+xblock-supervisor-evaluation @ git+https://github.com/weaveeducation/xblock-supervisor-evaluation.git@integration-palm
+xblock-free-text-response @ git+https://github.com/weaveeducation/xblock-free-text-response.git@integration-palm
+xblock-text-highlighter @ git+https://github.com/weaveeducation/xblock-text-highlighter.git@main
