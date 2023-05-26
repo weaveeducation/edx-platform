@@ -1,6 +1,6 @@
 jwcrypto==0.9
 openedx-scorm-xblock==13.1.0
-openpyxl==3.1.2
+openpyxl==3.0.7
 parsel==1.6.0
 premailer==3.10.0
 PyLTI1p3==2.0.0
