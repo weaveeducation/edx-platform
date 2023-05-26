@@ -323,14 +323,6 @@ USE_X_FORWARDED_PORT = True
 
 X_FRAME_OPTIONS = 'ALLOW'
 
-def scorm_storage(xblock):
-    from common.djangoapps.credo_modules.storages import ScormLocalFileSystemStorage
-    return ScormLocalFileSystemStorage(location="/edx/var/edxapp/media")
-
-
-XBLOCK_SETTINGS["ScormXBlock"] = {
-    "STORAGE_FUNC": scorm_storage,
-}
 
 ################# New settings must go ABOVE this line #################
 ########################################################################

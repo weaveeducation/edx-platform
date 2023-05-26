@@ -1147,16 +1147,6 @@ if raven_dsn:
 
 SKILLS_MFE_URL = ENV_TOKENS.get('SKILLS_MFE_URL', None)
 
-
-def s3_scorm_storage(xblock):
-    from common.djangoapps.credo_modules.storages import ScormS3Storage
-    return ScormS3Storage()
-
-
-XBLOCK_SETTINGS["ScormXBlock"] = {
-    "STORAGE_FUNC": s3_scorm_storage,
-}
-
 ############################# CELERY ############################
 CELERY_IMPORTS.extend(ENV_TOKENS.get('CELERY_EXTRA_IMPORTS', []))
 

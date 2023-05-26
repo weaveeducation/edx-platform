@@ -514,13 +514,3 @@ EVENT_BUS_TOPIC_PREFIX = 'dev'
 # See if the developer has any local overrides.
 if os.path.isfile(join(dirname(abspath(__file__)), 'private.py')):
     from .private import *  # pylint: disable=import-error,wildcard-import
-
-
-def scorm_storage(xblock):
-    from common.djangoapps.credo_modules.storages import ScormLocalFileSystemStorage
-    return ScormLocalFileSystemStorage(location="/edx/var/edxapp/media")
-
-
-XBLOCK_SETTINGS["ScormXBlock"] = {
-    "STORAGE_FUNC": scorm_storage,
-}
