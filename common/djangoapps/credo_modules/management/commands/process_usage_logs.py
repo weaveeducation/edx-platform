@@ -56,7 +56,10 @@ class Command(BaseCommand):
 
     def _process_log(self, log, update_process_num=None):
         course_id_part = log.course_id.split(':')[1]
-        org_id, course, run = course_id_part.split('+')
+        course_id_part_lst = course_id_part.split('+')
+        if len(course_id_part_lst) != 3:
+            return None
+        org_id, course, run = course_id_part_lst
         json_data = json.loads(log.message)
         term = log.time.strftime("%B %Y")
         section_path = None
@@ -140,7 +143,8 @@ class Command(BaseCommand):
                         usage_log = self._process_log(log)
                         if usage_log:
                             data_to_insert.append(usage_log)
-                    UsageLog.objects.bulk_create(data_to_insert, 1000)
+                    if data_to_insert:
+                        UsageLog.objects.bulk_create(data_to_insert, 1000)
 
                 if dt_to > last_usage_log.time:
                     process = False
