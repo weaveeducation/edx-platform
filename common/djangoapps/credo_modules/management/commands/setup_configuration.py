@@ -179,7 +179,7 @@ class Command(BaseCommand):
             "SITE_NAME": nw_cms_domain,
             "SESSION_COOKIE_DOMAIN": f".{nw_base_domain}",
             "TECH_SUPPORT_EMAIL": "support@nimblywise.com",
-            "PREVIEW_LMS_BASE": "preview.nimblywise.com",
+            "PREVIEW_LMS_BASE": nw_preview_domain,
             "INSIGHTS_LINK": f"{HTTP_PROTOCOL}://{nw_insights_domain}",
             "SHOW_NW_HELP": True,
             "email_error_support": "support@nimblywise.com",
