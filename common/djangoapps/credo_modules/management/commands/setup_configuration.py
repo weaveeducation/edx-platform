@@ -75,13 +75,13 @@ class Command(BaseCommand):
         credo_frame_lms_domain = f"frame.{env_part}{CREDO_HOST}"
         credo_cms_domain = f"studio.{env_part}{CREDO_HOST}"
         credo_preview_domain = f"preview.{env_part}{CREDO_HOST}"
-        credo_constructor_domain = f"constructor.{env_part}{NW_HOST}"
-        credo_insights_domain = f"insights.{env_part}{NW_HOST}"
+        credo_constructor_domain = f"constructor.{env_part}{CREDO_HOST}"
+        credo_insights_domain = f"insights.{env_part}{CREDO_HOST}"
         if env == PROD_ENV and not islocal:
             credo_insights_domain = "insights.credoeducation.com"
-        credo_skills_domain = f"skills.{env_part}{NW_HOST}"
-        credo_learning_domain = f"learning.{env_part}{NW_HOST}"
-        credo_frame_learning_domain = f"learning-frame.{env_part}{NW_HOST}"
+        credo_skills_domain = f"skills.{env_part}{CREDO_HOST}"
+        credo_learning_domain = f"learning.{env_part}{CREDO_HOST}"
+        credo_frame_learning_domain = f"learning-frame.{env_part}{CREDO_HOST}"
 
         print('---------------> Create/Update Sites')
 
