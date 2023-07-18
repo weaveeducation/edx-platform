@@ -1,7 +1,7 @@
 import json
 
 from django.contrib import admin, messages
-from .models import LtiTool, LtiToolKey, LtiExternalCourse, LtiUserEnrollment
+from .models import LtiTool, LtiToolKey, LtiExternalCourse, LtiUserEnrollment, LtiPlatform
 from .tasks import lti1p3_sync_course_enrollments
 
 
@@ -59,6 +59,11 @@ class LtiToolAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'is_active', 'issuer', 'client_id', 'deployment_ids', 'force_create_lineitem')
 
 
+class LtiPlatformAdmin(admin.ModelAdmin):
+    search_fields = ('title',)
+    list_display = ('id', 'title')
+
+
 class LtiExternalCourseAdmin(ReadOnlyMixin, admin.ModelAdmin):
     search_fields = ('external_course_id', 'edx_course_id', 'lti_tool__title',)
     list_display = ('id', 'external_course_id', 'edx_course_id', 'lti_tool', 'context_memberships_url',
@@ -114,6 +119,7 @@ class LtiUserEnrollmentAdmin(ReadOnlyMixin, admin.ModelAdmin):
 
 
 admin.site.register(LtiToolKey, LtiToolKeyAdmin)
+admin.site.register(LtiPlatform, LtiPlatformAdmin)
 admin.site.register(LtiTool, LtiToolAdmin)
 admin.site.register(LtiExternalCourse, LtiExternalCourseAdmin)
 admin.site.register(LtiUserEnrollment, LtiUserEnrollmentAdmin)

@@ -20,11 +20,10 @@ class Lti1p3UserService(UserService):
             pass
         return None
 
-    def get_lti_user_by_edx_user_id(self, edx_user_id):
-        try:
-            return LtiUser.objects.get(edx_user_id=edx_user_id)
-        except LtiUser.DoesNotExist:
-            pass
+    def get_lti_users_by_edx_user_id(self, edx_user_id):
+        lti_users = list(LtiUser.objects.filter(edx_user_id=edx_user_id))
+        if lti_users:
+            return lti_users
         return None
 
     def save_lti_user(self, lti_tool, sub, edx_user):
@@ -35,6 +34,11 @@ class Lti1p3UserService(UserService):
         )
         lti_user.save()
         return lti_user
+
+    def check_new_edx_user_creation(self, lti_users, lti_tool):
+        if lti_tool.lti_platform_id and lti_users[0].lti_tool.lti_platform_id == lti_tool.lti_platform_id:
+            return False
+        return True
 
     def _authenticate(self, request, lti_user, lti_tool):
         return authenticate(

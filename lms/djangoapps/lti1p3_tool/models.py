@@ -45,9 +45,17 @@ class LtiToolKey(models.Model):
         return '<LtiToolKey id=%d, name=%s>' % (self.id, self.name)
 
 
+class LtiPlatform(models.Model):
+    title = models.CharField(max_length=255, db_index=True)
+
+    def __str__(self):
+        return '<LtiPlatform id=%d, title=%s>' % (self.id, self.title)
+
+
 class LtiTool(models.Model):
     title = models.CharField(max_length=255, default=_("Unknown"))
     is_active = models.BooleanField(default=True)
+    lti_platform = models.ForeignKey(LtiPlatform, on_delete=models.SET_NULL, null=True, blank=True)
     issuer = models.CharField(max_length=255,
                               help_text=_("This will usually look something like 'http://example.com'. "
                                           "Value provided by LTI 1.3 Platform"))
@@ -157,7 +165,7 @@ class GradedAssignment(models.Model):
 class LtiUser(models.Model):
     lti_tool = models.ForeignKey(LtiTool, on_delete=models.CASCADE)
     lti_jwt_sub = models.CharField(max_length=255)
-    edx_user = models.OneToOneField(User, related_name="lti1p3_users", on_delete=models.CASCADE)
+    edx_user = models.ForeignKey(User, related_name="lti1p3_users", on_delete=models.CASCADE)
 
     class Meta:
         unique_together = (('lti_tool', 'lti_jwt_sub'),)

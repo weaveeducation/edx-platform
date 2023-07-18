@@ -40,11 +40,10 @@ class UserService:
             pass
         return None
 
-    def get_lti_user_by_edx_user_id(self, edx_user_id):
-        try:
-            return LtiUser.objects.get(edx_user_id=edx_user_id)
-        except LtiUser.DoesNotExist:
-            pass
+    def get_lti_users_by_edx_user_id(self, edx_user_id):
+        lti_users = list(LtiUser.objects.filter(edx_user_id=edx_user_id))
+        if lti_users:
+            return lti_users
         return None
 
     def save_lti_user(self, lti_consumer, lti_user_id, edx_user):
@@ -55,6 +54,9 @@ class UserService:
         )
         lti_user.save()
         return lti_user
+
+    def check_new_edx_user_creation(self, lti_users, lti_consumer):
+        return True
 
     def _authenticate(self, request, lti_user, lti_consumer):
         return authenticate(
@@ -107,8 +109,8 @@ class UserService:
                 edx_username = lti_params_email.split('@')[0][0:USERNAME_DB_FIELD_SIZE].strip()
                 try:
                     edx_user = User.objects.get(email=edx_email)
-                    lti_user_found = self.get_lti_user_by_edx_user_id(edx_user.id)
-                    if lti_user_found:
+                    lti_users_found = self.get_lti_users_by_edx_user_id(edx_user.id)
+                    if lti_users_found and self.check_new_edx_user_creation(lti_users_found, lti_consumer):
                         edx_user = _create_edx_user(edx_user.email, edx_user.username, edx_password, edx_user)
                         new_user_created = True
                 except User.DoesNotExist:
