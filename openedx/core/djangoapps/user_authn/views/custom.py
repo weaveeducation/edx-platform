@@ -108,7 +108,7 @@ def validate_credo_access(request, redirect_to=None):
 
     if jwt_token:
         try:
-            jwt_data = jwt.decode(jwt_token, jwt_secret, algorithms=['HS256', 'RS256'])
+            jwt_data = jwt.decode(jwt_token, jwt_secret, algorithms=['HS256', 'RS256'], leeway=60)
             if isinstance(jwt_data, dict) and 'client_id' in jwt_data and jwt_data['client_id']:
                 log.info('Successfully authentication with jwt token (%s): %s', str(jwt_token), str(jwt_data))
                 jwt_auth_success = True
