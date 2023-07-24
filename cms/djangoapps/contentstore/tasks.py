@@ -169,7 +169,6 @@ def rerun_course(source_course_key_string, destination_course_key_string, user_i
         with store.default_store('split'):
             store.clone_course(source_course_key, destination_course_key, user_id, fields=fields)
 
-        copy_api_block_info_after_course_copy(store, source_course_key, destination_course_key, user_id)
         copy_milestones(str(source_course_key), str(destination_course_key))
 
         update_unit_discussion_state_from_discussion_blocks(destination_course_key, user_id)
@@ -200,6 +199,16 @@ def rerun_course(source_course_key_string, destination_course_key_string, user_i
 
         org_data = ensure_organization(source_course_key.org)
         add_organization_course(org_data, destination_course_key)
+
+        # force publish chapters (somehow in Palm release all sections are not published after re-run)
+        with modulestore().bulk_operations(destination_course_key):
+            dst_course = modulestore().get_course(destination_course_key)
+            chapters = dst_course.get_children()
+            for chapter in chapters:
+                modulestore().publish(chapter.location, user_id)
+
+        copy_api_block_info_after_course_copy(store, source_course_key, destination_course_key, user_id)
+
         return "succeeded"
 
     except DuplicateCourseError:
