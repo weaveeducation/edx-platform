@@ -232,7 +232,6 @@ urlpatterns = oauth2_urlpatterns + [
     path('api/val/v0/', include('edxval.urls')),
     path('api/tasks/v0/', include('user_tasks.urls')),
     path('accessibility', contentstore_views.accessibility, name='accessibility'),
-    path('turnitin/', include('common.djangoapps.turnitin_integration.urls')),
     path('logout-redirect', contentstore_views.logout_redirect_to_lms, name='logout_redirect_to_lms'),
 ]
 

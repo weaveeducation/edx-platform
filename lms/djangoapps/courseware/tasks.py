@@ -155,7 +155,6 @@ def _copy_ora_submission(course, course_key, child_block, student, student_item_
 def _run_celery_tasks(celery_tasks_data):
     from lms.djangoapps.lti_provider.tasks import send_composite_outcome, send_leaf_outcome
     from lms.djangoapps.lti1p3_tool.tasks import lti1p3_send_composite_outcome, lti1p3_send_leaf_outcome
-    from common.djangoapps.turnitin_integration.tasks import turnitin_create_submissions, turnitin_generate_report
 
     for t in celery_tasks_data:
         task_name = t[0]
@@ -168,10 +167,6 @@ def _run_celery_tasks(celery_tasks_data):
             lti1p3_send_composite_outcome.apply_async(args=task_args, routing_key=settings.HIGH_PRIORITY_QUEUE)
         elif task_name == 'lti1p3_send_leaf_outcome':
             lti1p3_send_leaf_outcome.apply_async(args=task_args, routing_key=settings.HIGH_PRIORITY_QUEUE)
-        elif task_name == 'turnitin_create_submissions':
-            turnitin_create_submissions.apply_async(args=task_args)
-        elif task_name == 'turnitin_generate_report':
-            turnitin_generate_report.apply_async(args=task_args)
 
 
 def handle_delayed_tasks():

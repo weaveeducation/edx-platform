@@ -1754,7 +1754,6 @@ INSTALLED_APPS = [
 
     'common.djangoapps.badgr_integration.apps.BadgrIntegrationAppConfig',
     'common.djangoapps.credo_modules.apps.CredoAppConfig',
-    'common.djangoapps.turnitin_integration.apps.TurnitinIntegrationAppConfig',
 
     'openedx.features.course_duration_limits',
     'openedx.features.content_type_gating',
