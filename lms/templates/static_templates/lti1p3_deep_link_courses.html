@@ -56,26 +56,22 @@ label {
     <div class="course-tree">
         <form action="${submit_url}" method="POST" class="deep-link-form" id="deep-link-form">
             <input type="hidden" name="launch_id" value="${launch_id}">
-            % for course_data in course_tree_list:
-                <h2>${course_data['name']}</h2>
-                <ul>
-                % for node in course_data['course_tree']:
-                    <li><strong>${node['display_name']}:</strong></li>
-                    <ul class="nested">
-                        % for subnode in node['children']:
-                        <li>
-                            % if accept_multiple:
-                            <input type="checkbox" class="block-checkbox" name="block_ids[]" id="li-${subnode['id']}" value="${subnode['id']}" /> <label for="li-${subnode['id']}">${subnode['display_name']}</label>
-                            % else:
-                            <input type="radio" class="block-checkbox" name="block_id" id="li-${subnode['id']}" value="${subnode['id']}" /> <label for="li-${subnode['id']}">${subnode['display_name']}</label>
-                            % endif
-                        </li>
-                        % endfor
-                    </ul>
-                % endfor
+            <ul>
+            % for node in course_tree:
+                <li><strong>${node['display_name']}:</strong></li>
+                <ul class="nested">
+                    % for subnode in node['children']:
+                    <li>
+                        % if accept_multiple:
+                        <input type="checkbox" class="block-checkbox" name="block_ids[]" id="li-${subnode['id']}" value="${subnode['id']}" /> <label for="li-${subnode['id']}">${subnode['display_name']}</label>
+                        % else:
+                        <input type="radio" class="block-checkbox" name="block_id" id="li-${subnode['id']}" value="${subnode['id']}" /> <label for="li-${subnode['id']}">${subnode['display_name']}</label>
+                        % endif
+                    </li>
+                    % endfor
                 </ul>
-                <hr />
             % endfor
+            </ul>
             <ul>
                 <li>
                     <input type="button" name="submit-btn" class="submit-btn" value="Submit">
