@@ -1,3 +1,4 @@
+import gc
 import logging
 import time
 import vertica_python
@@ -34,7 +35,7 @@ from common.djangoapps.split_modulestore_django.models import SplitModulestoreCo
 from common.djangoapps.student.models import AnonymousUserId, SocialLink, LanguageProficiency
 from ..models import SiblingBlockUpdateTask, CredoModulesUserProfile, EnrollmentPropertiesPerCourse,\
     RegistrationPropertiesPerOrg, Organization, OrganizationTag, OrganizationTagOrder,\
-    CourseExcludeInsights, SendScores, SiblingBlockNotUpdated, SequentialViewedTask,\
+    CourseExcludeInsights, SendScores, SendScoresMailing, SiblingBlockNotUpdated, SequentialViewedTask,\
     CourseStaffExtended, SequentialBlockAnswered, SequentialBlockAttempt,\
     AttemptCourseMigration, AttemptUserMigration, PropertiesInfo, OraBlockScore,\
     TrackingLogUserInfo, TrackingLog, EnrollmentLog, EnrollmentTrigger,\
@@ -47,20 +48,28 @@ User = get_user_model()
 
 class GlobalDataRemover:
 
-    def __init__(self, orgs, courses_ids, full_remove=False):
+    def __init__(self, orgs, courses_ids, full_remove=False, mongo=False, mysql=False, vertica=False):
         self.orgs = orgs
         self.courses_ids = courses_ids
         self.courses_keys = [CourseKey.from_string(course_id) for course_id in courses_ids]
         self.orgs_num = len(orgs)
         self.courses_num = len(courses_ids)
         self.full_remove = full_remove
+        self.remove_mongo = mongo
+        self.remove_mysql = mysql
+        self.remove_vertica = vertica
 
     def remove_all_data(self):
-        removed_courses_num = self.remove_mongo_courses_data()
-        if removed_courses_num > 0:
-            self.remove_mongo_library_data()
-        self.remove_mysql_courses_data()
-        self.remove_vertica_courses_data()
+        if self.remove_mongo:
+            removed_courses_num = self.remove_mongo_courses_data()
+            if removed_courses_num > 0:
+                self.remove_mongo_library_data()
+                gc.collect()
+        if self.remove_mysql:
+            self.remove_mysql_courses_data()
+            gc.collect()
+        if self.remove_vertica:
+            self.remove_vertica_courses_data()
 
     def _delete_course_from_modulestore(self, course_key, user_id):
         """
@@ -197,21 +206,21 @@ class GlobalDataRemover:
                 if s["user_id"] not in enrolled_other_courses_users_ids:
                     user_ids_to_remove.append(s["user_id"])
 
-        print(f"------------ Remove {course_id} course structure")
-        self._remove_from_table(cursor, ApiCourseStructureTags, 'course_id', course_id)
-        self._remove_from_table(cursor, ApiCourseStructureUpdateTime, 'course_id', course_id)
-        self._remove_from_table(cursor, ApiCourseStructureLock, 'course_id', course_id)
-        self._remove_from_table(cursor, ApiCourseStructure, 'course_id', course_id)
-        self._remove_from_table(cursor, ApiBlockInfo, 'course_id', course_id)
-        self._remove_from_table(cursor, ApiBlockInfoNotSiblings, 'source_course_id', course_id)
-        self._remove_from_table(cursor, ApiBlockInfoNotSiblings, 'dst_course_id', course_id)
-        self._remove_from_table(cursor, ApiBlockInfoVersionsHistory, 'course_id', course_id)
-        self._remove_from_table(cursor, BlockCache, 'course_id', course_id)
-        self._remove_from_table(cursor, BlockToSequential, 'course_id', course_id)
-        self._remove_from_table(cursor, CourseAuthProfileFieldsCache, 'course_id', course_id)
-        self._remove_from_table(cursor, CourseFieldsCache, 'course_id', course_id)
-
         if self.full_remove:
+            print(f"------------ Remove {course_id} course structure")
+            self._remove_from_table(cursor, ApiCourseStructureTags, 'course_id', course_id)
+            self._remove_from_table(cursor, ApiCourseStructureUpdateTime, 'course_id', course_id)
+            self._remove_from_table(cursor, ApiCourseStructureLock, 'course_id', course_id)
+            self._remove_from_table(cursor, ApiCourseStructure, 'course_id', course_id)
+            self._remove_from_table(cursor, ApiBlockInfo, 'course_id', course_id)
+            self._remove_from_table(cursor, ApiBlockInfoNotSiblings, 'source_course_id', course_id)
+            self._remove_from_table(cursor, ApiBlockInfoNotSiblings, 'dst_course_id', course_id)
+            self._remove_from_table(cursor, ApiBlockInfoVersionsHistory, 'course_id', course_id)
+            self._remove_from_table(cursor, BlockCache, 'course_id', course_id)
+            self._remove_from_table(cursor, BlockToSequential, 'course_id', course_id)
+            self._remove_from_table(cursor, CourseAuthProfileFieldsCache, 'course_id', course_id)
+            self._remove_from_table(cursor, CourseFieldsCache, 'course_id', course_id)
+
             print(f"------------ Remove StudentModuleHistory data for {course_id}")
             delete_sql = (f"DELETE FROM {StudentModuleHistory.objects.model._meta.db_table} WHERE student_module_id in ("
                           f"SELECT id from {StudentModule.objects.model._meta.db_table} WHERE course_id='{course_id}')")
@@ -323,6 +332,15 @@ class GlobalDataRemover:
             print(f"------------ Remove BlockCompletion data for {course_id}")
             self._remove_from_table(cursor, BlockCompletion, 'course_key', course_id, use_chunks=True)
 
+            print(f"------------ Remove SendScoresMailing data for {course_id}")
+            subquery_sql = f"SELECT id from {SendScores.objects.model._meta.db_table} WHERE course_id='{course_id}'"
+            delete_sql = f"DELETE FROM {SendScoresMailing.objects.model._meta.db_table} WHERE email_scores_id IN ({subquery_sql})"
+            cursor.execute(delete_sql)
+
+            print(f"------------ Remove SendScores data for {course_id}")
+            delete_sql = f"DELETE FROM {SendScores.objects.model._meta.db_table} WHERE course_id='{course_id}'"
+            cursor.execute(delete_sql)
+
         if user_ids_to_remove:
             user_ids_to_remove_str = ",".join(f"{u_id}" for u_id in user_ids_to_remove)
             if self.full_remove:
@@ -353,7 +371,7 @@ class GlobalDataRemover:
                               f"first_name='', "
                               f"last_name='', "
                               f"is_active=0 "
-                              f"WHERE id IN ({user_ids_to_remove_str})")
+                              f"WHERE id IN ({user_ids_to_remove_str}) and email NOT LIKE '%@credomodules.com%'")
                 cursor.execute(update_sql)
 
         c2r.mysql_data_removed = True
@@ -364,59 +382,81 @@ class GlobalDataRemover:
               f"{t2 - t1} sec")
 
     def remove_mysql_courses_data(self):
-        print("------------- Remove SiblingBlockUpdateTask items")
-        SiblingBlockUpdateTask.objects.filter(Q(source_course_id__in=self.courses_ids) | Q(sibling_course_id__in=self.courses_ids)).delete()
+        courses_ids = ",".join([f"'{c_id}'" for c_id in self.courses_ids])
+        org_ids = ",".join([f"'{org}'" for org in self.orgs])
 
-        print("------------- Remove CredoModulesUserProfile items")
-        CredoModulesUserProfile.objects.filter(course_id__in=self.courses_keys).delete()
+        with connection.cursor() as cursor:
+            print("------------- Remove SiblingBlockUpdateTask items")
+            delete_sql = f"DELETE FROM {SiblingBlockUpdateTask.objects.model._meta.db_table} WHERE source_course_id IN ({courses_ids})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove EnrollmentPropertiesPerCourse items")
-        EnrollmentPropertiesPerCourse.objects.filter(course_id__in=self.courses_keys).delete()
+            delete_sql = f"DELETE FROM {SiblingBlockUpdateTask.objects.model._meta.db_table} WHERE sibling_course_id IN ({courses_ids})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove RegistrationPropertiesPerOrg items")
-        RegistrationPropertiesPerOrg.objects.filter(org__in=self.orgs).delete()
+            print("------------- Remove CredoModulesUserProfile items")
+            delete_sql = f"DELETE FROM {CredoModulesUserProfile.objects.model._meta.db_table} WHERE course_id IN ({courses_ids})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove OrganizationTagOrder items")
-        OrganizationTagOrder.objects.filter(org__org__in=self.orgs).delete()
+            print("------------- Remove EnrollmentPropertiesPerCourse items")
+            delete_sql = f"DELETE FROM {EnrollmentPropertiesPerCourse.objects.model._meta.db_table} WHERE course_id IN ({courses_ids})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove OrganizationTag items")
-        OrganizationTag.objects.filter(org__org__in=self.orgs).delete()
+            print("------------- Remove RegistrationPropertiesPerOrg items")
+            delete_sql = f"DELETE FROM {RegistrationPropertiesPerOrg.objects.model._meta.db_table} WHERE org IN ({org_ids})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove Organization items")
-        Organization.objects.filter(org__in=self.orgs).delete()
+            print("------------- Remove OrganizationTagOrder items")
+            subquery_sql = f"SELECT id from {Organization.objects.model._meta.db_table} WHERE org IN ({org_ids})"
+            delete_sql = f"DELETE FROM {OrganizationTagOrder.objects.model._meta.db_table} WHERE org_id IN ({subquery_sql})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove CourseExcludeInsights items")
-        CourseExcludeInsights.objects.filter(course_id__in=self.courses_keys).delete()
+            print("------------- Remove OrganizationTag items")
+            delete_sql = f"DELETE FROM {OrganizationTag.objects.model._meta.db_table} WHERE org_id IN ({subquery_sql})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove SendScores items")
-        SendScores.objects.filter(course_id__in=self.courses_keys).delete()
+            print("------------- Remove Organization items")
+            delete_sql = f"DELETE FROM {Organization.objects.model._meta.db_table} WHERE org IN ({org_ids})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove SiblingBlockNotUpdated items")
-        SiblingBlockNotUpdated.objects.filter(source_course_id__in=self.courses_ids).delete()
-        SiblingBlockNotUpdated.objects.filter(sibling_course_id__in=self.courses_ids).delete()
+            print("------------- Remove CourseExcludeInsights items")
+            delete_sql = f"DELETE FROM {CourseExcludeInsights.objects.model._meta.db_table} WHERE course_id IN ({courses_ids})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove SequentialViewedTask items")
-        SequentialViewedTask.objects.filter(course_id__in=self.courses_keys).delete()
+            print("------------- Remove SiblingBlockNotUpdated items")
+            delete_sql = f"DELETE FROM {SiblingBlockNotUpdated.objects.model._meta.db_table} WHERE source_course_id IN ({courses_ids})"
+            cursor.execute(delete_sql)
+            delete_sql = f"DELETE FROM {SiblingBlockNotUpdated.objects.model._meta.db_table} WHERE sibling_course_id IN ({courses_ids})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove CourseStaffExtended items")
-        CourseStaffExtended.objects.filter(course_id__in=self.courses_keys).delete()
+            print("------------- Remove SequentialViewedTask items")
+            delete_sql = f"DELETE FROM {SequentialViewedTask.objects.model._meta.db_table} WHERE course_id IN ({courses_ids})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove AttemptCourseMigration items")
-        AttemptCourseMigration.objects.filter(course_id__in=self.courses_ids).delete()
+            print("------------- Remove CourseStaffExtended items")
+            delete_sql = f"DELETE FROM {CourseStaffExtended.objects.model._meta.db_table} WHERE course_id IN ({courses_ids})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove SupervisorEvaluationInvitation items")
-        SupervisorEvaluationInvitation.objects.filter(course_id__in=self.courses_ids).delete()
+            print("------------- Remove AttemptCourseMigration items")
+            delete_sql = f"DELETE FROM {AttemptCourseMigration.objects.model._meta.db_table} WHERE course_id IN ({courses_ids})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove DelayedTask items")
-        DelayedTask.objects.filter(course_id__in=self.courses_ids).delete()
+            print("------------- Remove SupervisorEvaluationInvitation items")
+            delete_sql = f"DELETE FROM {SupervisorEvaluationInvitation.objects.model._meta.db_table} WHERE course_id IN ({courses_ids})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove OraBlockStructure items")
-        OraBlockStructure.objects.filter(course_id__in=self.courses_ids).delete()
+            print("------------- Remove DelayedTask items")
+            delete_sql = f"DELETE FROM {DelayedTask.objects.model._meta.db_table} WHERE course_id IN ({courses_ids})"
+            cursor.execute(delete_sql)
 
-        print("------------- Remove TrackingLogUserInfo items for orgs")
-        for org in self.orgs:
-            print(f"------------- Remove TrackingLogUserInfo items for {org} org")
-            TrackingLogUserInfo.objects.filter(org_id=org).delete()
+            print("------------- Remove OraBlockStructure items")
+            delete_sql = f"DELETE FROM {OraBlockStructure.objects.model._meta.db_table} WHERE course_id IN ({courses_ids})"
+            cursor.execute(delete_sql)
+
+            print("------------- Remove TrackingLogUserInfo items for orgs")
+            for org in self.orgs:
+                print(f"------------- Remove TrackingLogUserInfo items for {org} org")
+                delete_sql = f"DELETE FROM {TrackingLogUserInfo.objects.model._meta.db_table} WHERE org_id='{org}'"
+                cursor.execute(delete_sql)
 
         for i, course_id in enumerate(self.courses_ids):
             print(f"------------------------------------------ Process {course_id} course, {i+1}/{self.courses_num}")
