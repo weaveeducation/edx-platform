@@ -1110,6 +1110,19 @@ class LoginRedirectAllowedHost(models.Model):
         return {lg.host: lg.require_https for lg in cls.objects.filter(is_active=True)}
 
 
+class CourseToRemove(models.Model):
+    site_name = models.CharField(max_length=255, db_index=True)
+    course_id = models.CharField(max_length=255)
+    mysql_data_removed = models.BooleanField(default=False)
+    mongo_data_removed = models.BooleanField(default=False)
+    vertica_data_removed = models.BooleanField(default=False)
+
+
+class OrgToRemove(models.Model):
+    site_name = models.CharField(max_length=255, db_index=True)
+    org_id = models.CharField(max_length=255)
+
+
 def usage_dt_now():
     """
     We can't use timezone.now() because we already use America/New_York timezone for usage values
