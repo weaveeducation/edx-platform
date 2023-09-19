@@ -17,6 +17,12 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
+    """
+    /sbin/setuser app /venv/bin/python /home/app/edxapp/edx-platform/manage.py lms remove_weave_data --mongo --settings=production
+    /sbin/setuser app /venv/bin/python /home/app/edxapp/edx-platform/manage.py lms remove_weave_data --mysql --settings=production
+    /sbin/setuser app /venv/bin/python /home/app/edxapp/edx-platform/manage.py lms remove_weave_data --vertica --settings=production
+    /sbin/setuser app /venv/bin/python /home/app/edxapp/edx-platform/manage.py lms remove_weave_data --full --mysql --settings=production
+    """
 
     help = "Remove Weave Data"
     credo_org_types = [
@@ -28,8 +34,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--full", action="store_true", default=False)
+        parser.add_argument("--mongo", action="store_true", default=False)
+        parser.add_argument("--mysql", action="store_true", default=False)
+        parser.add_argument("--vertica", action="store_true", default=False)
 
-    def handle(self, full, *args, **options):
+    def handle(self, full, mongo, mysql, vertica, *args, **options):
         site_name_remove = "weave"
         org_types = [org_type.id for org_type in OrganizationType.objects.exclude(title__in=self.credo_org_types)]
         orgs_to_remove_cnt = OrgToRemove.objects.filter(site_name=site_name_remove).count()
@@ -64,7 +73,7 @@ class Command(BaseCommand):
             cursor.execute("DELETE FROM turnitin_user WHERE 1=1")
             cursor.execute("DELETE FROM turnitin_api_key WHERE 1=1")
 
-        gdr = GlobalDataRemover(orgs, course_ids, full)
+        gdr = GlobalDataRemover(orgs, course_ids, full, mongo, mysql, vertica)
         gdr.remove_all_data()
 
         SiteConfiguration.objects.filter(
