@@ -22,6 +22,10 @@ def _get_mongo_connection():
     return mongo_conn
 
 
+def get_mongo_connection():
+    return _get_mongo_connection()
+
+
 def _get_hash_from_set(data):
     data_lst = list(data)
     data_str = json.dumps(sorted(data_lst))
