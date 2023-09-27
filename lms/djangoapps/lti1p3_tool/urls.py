@@ -1,7 +1,17 @@
 from django.conf import settings
 from django.conf.urls import url
 
-from .views import login, launch, progress, myskills, launch_deep_link, launch_deep_link_submit, get_jwks, debug_page
+from .views.debug_page import debug_page
+from .views.deep_link import (
+    launch_deep_link,
+    launch_deep_link_submit,
+    launch_course_deep_link,
+    launch_course_deep_link_submit,
+)
+from .views.jwks import get_jwks
+from .views.launch import launch
+from .views.login import login
+from .views.skills import myskills, progress
 
 urlpatterns = [
     url(r'^login/?$', login, name="lti1p3_tool_login"),
@@ -10,10 +20,17 @@ urlpatterns = [
     url(r'^launch/myskills/?$', myskills, name="lti1p3_tool_myskills"),
     url(r'^launch/{block_id}/?$'.format(block_id=settings.USAGE_ID_PATTERN),
         launch, name="lti1p3_tool_launch_block"),
-    url(r'^launch/course/{course_id}/?$'.format(course_id=settings.COURSE_ID_PATTERN),
+
+    url(r'^launch/dl/(?P<token>[\w-]+)/?$',
         launch_deep_link, name="lti1p3_tool_launch_deep_link"),
-    url(r'^launch/course/{course_id}/submit/?$'.format(course_id=settings.COURSE_ID_PATTERN),
+    url(r'^launch/dl/(?P<token>[\w-]+)/submit/?$',
         launch_deep_link_submit, name="lti1p3_tool_launch_deep_link_submit"),
+
+    url(r'^launch/course/{course_id}/?$'.format(course_id=settings.COURSE_ID_PATTERN),
+        launch_course_deep_link, name="lti1p3_tool_launch_course_deep_link"),
+    url(r'^launch/course/{course_id}/submit/?$'.format(course_id=settings.COURSE_ID_PATTERN),
+        launch_course_deep_link_submit, name="lti1p3_tool_launch_course_deep_link_submit"),
+
     url(r'^launch/course/{course_id}/progress/?$'.format(course_id=settings.COURSE_ID_PATTERN),
         progress, name="lti1p3_tool_launch_progress"),
     url(r'^jwks/(?P<key_id>\d+)/?$', get_jwks, name='lti1p3_tool_get_jwks')
