@@ -1,4 +1,5 @@
 import json
+import uuid
 from django.contrib.auth import get_user_model
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
@@ -204,3 +205,26 @@ class LtiUserEnrollment(models.Model):
         if self.properties:
             return json.loads(self.properties)
         return {}
+
+
+class LtiDeepLink(models.Model):
+    lti_tool = models.ForeignKey(LtiTool, on_delete=models.CASCADE)
+    url_token = models.UUIDField(default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = (('lti_tool', 'title'),)
+
+    def __str__(self):
+        return f"<LtiDeepLink title={self.title}, url_token={str(self.url_token)}>"
+
+
+class LtiDeepLinkCourse(models.Model):
+    lti_deep_link = models.ForeignKey(LtiDeepLink, on_delete=models.CASCADE)
+    course_key = CourseKeyField(max_length=255, db_index=True)
+
+    class Meta:
+        unique_together = (('lti_deep_link', 'course_key'),)
+
+

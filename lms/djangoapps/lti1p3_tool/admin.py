@@ -1,7 +1,18 @@
 import json
 
 from django.contrib import admin, messages
-from .models import LtiTool, LtiToolKey, LtiExternalCourse, LtiUserEnrollment, LtiPlatform
+from django.conf import settings
+from django.urls import reverse
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+from .models import (
+    LtiTool,
+    LtiToolKey,
+    LtiExternalCourse,
+    LtiUserEnrollment,
+    LtiPlatform,
+    LtiDeepLink,
+    LtiDeepLinkCourse
+)
 from .tasks import lti1p3_sync_course_enrollments
 
 
@@ -68,6 +79,7 @@ class LtiExternalCourseAdmin(ReadOnlyMixin, admin.ModelAdmin):
     search_fields = ('external_course_id', 'edx_course_id', 'lti_tool__title',)
     list_display = ('id', 'external_course_id', 'edx_course_id', 'lti_tool', 'context_memberships_url',
                     'users_last_sync_date')
+    list_select_related = ("lti_tool",)
 
     actions = ['sync_course_enrollments', ]
 
@@ -118,8 +130,44 @@ class LtiUserEnrollmentAdmin(ReadOnlyMixin, admin.ModelAdmin):
     get_lti_tool.short_description = 'LTI tool'
 
 
+class LtiDeepLinkCourseInline(admin.TabularInline):
+    model = LtiDeepLinkCourse
+    extra = 0
+
+
+class LtiDeepLinkAdmin(admin.ModelAdmin):
+    search_fields = ('title', 'url_token', 'lti_tool__title',)
+    list_display = ('id', 'title', 'lti_dl_url', 'url_token', 'lti_tool', 'is_active')
+    list_select_related = ("lti_tool",)
+    inlines = (LtiDeepLinkCourseInline,)
+
+    def lti_dl_url(self, obj):
+        lms_base = configuration_helpers.get_value(
+            'LMS_BASE',
+            getattr(settings, 'LMS_BASE', 'localhost')
+        )
+        if settings.DEBUG:
+            lms_base = 'http://' + lms_base
+        else:
+            lms_base = 'https://' + lms_base
+        url = reverse('lti1p3_tool_launch_deep_link', kwargs={
+            'token': str(obj.url_token)
+        })
+        return f"{lms_base}{url}"
+
+    lti_dl_url.short_description = 'Deep Link URL'
+
+
+class LtiDeepLinkCourseAdmin(admin.ModelAdmin):
+    search_fields = ('lti_deep_link__title', 'lti_deep_link__url_token', 'lti_deep_link__lti_tool__title',)
+    list_display = ('id', 'lti_deep_link', 'course_key')
+    list_select_related = ("lti_deep_link",)
+
+
 admin.site.register(LtiToolKey, LtiToolKeyAdmin)
 admin.site.register(LtiPlatform, LtiPlatformAdmin)
 admin.site.register(LtiTool, LtiToolAdmin)
 admin.site.register(LtiExternalCourse, LtiExternalCourseAdmin)
 admin.site.register(LtiUserEnrollment, LtiUserEnrollmentAdmin)
+admin.site.register(LtiDeepLink, LtiDeepLinkAdmin)
+admin.site.register(LtiDeepLinkCourse, LtiDeepLinkCourseAdmin)
