@@ -27,6 +27,7 @@ class Command(BaseCommand):
         "Modules - video only",
         "K12 without assessment"
     ]
+    exclude_orgs = ['Mississippi-Valley-State-University', 'Morgan-State-University']
 
     def add_arguments(self, parser):
         parser.add_argument("--full", action="store_true", default=False)
@@ -40,7 +41,8 @@ class Command(BaseCommand):
         orgs_to_remove_cnt = OrgToRemove.objects.filter(site_name=site_name_remove).count()
 
         if not orgs_to_remove_cnt:
-            orgs = [o.org for o in Organization.objects.filter(org_type_id__in=org_types)]
+            orgs = [o.org for o in Organization.objects.filter(org_type_id__in=org_types)\
+                .exclude(org__in=self.exclude_orgs)]
             course_ids = [str(co.id) for co in CourseOverview.objects.filter(org__in=orgs)]
 
             insert_orgs_data = []
