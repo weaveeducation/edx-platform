@@ -116,8 +116,11 @@ class Command(BaseProcessLogsCommand):
                                       vertica_dsn=vertica_dsn)
 
         print('Try to update "credo_modules_trackinglog" in Vertica')
-        merge_data_into_vertica_table(TrackingLog, update_process_num=self.update_process_num,
-                                      vertica_dsn=vertica_dsn)
+        try:
+            merge_data_into_vertica_table(TrackingLog, update_process_num=self.update_process_num,
+                                          vertica_dsn=vertica_dsn)
+        except Exception as e:
+            print('Error during merge data into vertica table: %s' % str(e))
 
         print('Try to update "api_course_structure_tags" in Vertica')
         course_ids_lst = []
