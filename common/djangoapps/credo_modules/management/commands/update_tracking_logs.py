@@ -58,7 +58,7 @@ class Command(BaseProcessLogsCommand):
         process = True
         new_last_log_time = None
         props_updater = PropertiesUpdater(show_logs=False)
-        time_interval = 7  # days
+        time_interval = 31  # days
 
         while process:
             dt_to = dt_from + datetime.timedelta(days=time_interval)
