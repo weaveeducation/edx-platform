@@ -253,6 +253,8 @@ class Command(BaseCommand):
             if not view_process:
                 return
 
+        print('Checking in process_tracking_logs.py, res is: %s' % res)
+
         db_items = 0
 
         for e in res:
