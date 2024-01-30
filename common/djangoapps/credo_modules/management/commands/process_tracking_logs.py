@@ -141,7 +141,6 @@ class Command(BaseCommand):
         tr_log.question_name = e.question_name
         tr_log.question_hash = e.question_hash
         tr_log.is_ora_block = e.ora_block
-        tr_log.ora_criterion_name = e.criterion_name.replace('|', '-')
         tr_log.is_ora_empty_rubrics = e.is_ora_empty_rubrics
         tr_log.ora_status = e.ora_status
         tr_log.ora_answer = e.ora_user_answer
@@ -149,6 +148,10 @@ class Command(BaseCommand):
         tr_log.max_grade = e.max_grade
         tr_log.answer = e.answers
         tr_log.correctness = e.correctness
+        if e.criterion_name is not None:
+            tr_log.ora_criterion_name = e.criterion_name.replace('|', '-')
+        else: 
+           tr_log.ora_criterion_name = e.criterion_name
         if e.ora_block and not e.is_ora_empty_rubrics:
             tr_log.is_correct = 0
             tr_log.is_incorrect = 0
