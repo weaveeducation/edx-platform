@@ -141,7 +141,7 @@ class Command(BaseCommand):
         tr_log.question_name = e.question_name
         tr_log.question_hash = e.question_hash
         tr_log.is_ora_block = e.ora_block
-        tr_log.ora_criterion_name = e.criterion_name
+        tr_log.ora_criterion_name = e.criterion_name.replace('|', '-')
         tr_log.is_ora_empty_rubrics = e.is_ora_empty_rubrics
         tr_log.ora_status = e.ora_status
         tr_log.ora_answer = e.ora_user_answer
