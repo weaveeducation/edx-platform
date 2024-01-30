@@ -53,7 +53,7 @@ class Command(BaseCommand):
     def _get_ora_block_score(self, score_type, assessment, course_id, org, block_id, module_item, ora_answer):
         res = []
         for part in assessment['parts']:
-            ora_criterion_name = part['option']['criterion']['label'].strip()
+            ora_criterion_name = part['option']['criterion']['label'].strip().replace('|', '-')
             ora_option_label = part['option']['label'].strip()
             points_possible = part['option']['criterion']['points_possible']
             points_earned = part["option"]['points']
